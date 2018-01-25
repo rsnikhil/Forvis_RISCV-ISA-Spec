@@ -1,0 +1,6 @@
+flags: {}
+packages:
+- .
+extra-deps:
+- elf-0.28
+resolver: lts-10.3
