@@ -166,7 +166,6 @@ cvt_s_to_u :: MachineWord_S -> MachineWord
 cvt_s_to_u  s = fromIntegral s
 
 -- ================================================================
-
 -- Haskell's 'shiftL' and 'shiftR' functions require a Haskell 'Int'
 -- arg for the shift amount (shamt).  The following conversion
 -- produces that.
@@ -174,5 +173,14 @@ cvt_s_to_u  s = fromIntegral s
 cvt_u_to_Int :: MachineWord -> Int
 cvt_u_to_Int  u = i
   where i = fromIntegral u
+
+-- ================================================================
+-- read_hex parses a hex number from a string, ensuring it fits in 'width' bits
+
+read_hex :: Int -> String -> Integer
+read_hex  width  s = check width (readHex s)
+  where check :: Int -> [(Integer, String)] -> Integer
+        check  width  []          = 0
+        check  width  ((x,s):xss) = x
 
 -- ================================================================

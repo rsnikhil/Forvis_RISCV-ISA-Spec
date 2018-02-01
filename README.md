@@ -3,7 +3,8 @@
 This is a formal (and executable) specification for the RISC-V ISA
 (Instruction Set Architecture), written in "Elementary" Haskell.
 
-This version is inspired by and informed by the version at <https://github.com/mit-plv/riscv-semantics> [1].
+This version is inspired by and informed by the version at
+<https://github.com/mit-plv/riscv-semantics> [1].
 
 That version [1] uses several advanced Haskell concepts, idioms and
 styles which may be difficult for people who are not familiar with
@@ -23,7 +24,8 @@ This is a work in progress by the "ISA Formal Specification" Technical
 Group constituted by The RISC-V Foundation (<https://riscv.org>).
 Neither this work nor [1] is (yet) an official semantics of the RISC-V ISA.
 
-This code formalizes only basic RV32I and RV64I instructions so far.
+So far, this code formalizes only basic RV32I and RV64I instructions.
+We will be adding Priv Mode M and S, extensions M, C, A, F, D, etc.
 
 ----------------------------------------------------------------
 
@@ -49,10 +51,25 @@ For those new to the code, a good reading order is:
         ExecuteInstr.hs
         RunProgram.hs
 
+        Main_RunProgram.hs
+        Main_TandemVerifier.hs
+
+`Main.hs` is a driver program that just dispatches to one of two
+use-cases, Main_RunProgram.hs (free-running) or Main_TandemVerifier.hs
+(Tandem Verification).
+
+Main_RunProgram.hs reads RISC-V binaries (ELF or hex-mem, initializes
+architecture state and memory, and calls `RunProgram` to run the
+loaded program, up to a specified maximum number of instructions.
+
 `RunProgram.hs` contains the FETCH-DECODE-EXECUTE loop.
 
-`Main.hs` is a driver program that reads RISC-V binaries, initializes
-architecture state, and calls `RunProgram`.
+Main_TandemVerifier.hs sets up the formal spec to be a slave to a
+tandem verifier, receiving commands on stdin and sending responses on
+stdout.  The commands allow a tandem verifier to initialize
+architecture state, execute 1 or more instructions, and query
+archtectural state. Responses include tandem verification packets
+which the verifier can use to check an implementation.
 
 `BitManipulation.hs` contains utilities for bit manipulation, including
 sign- and zero-extension, truncation, conversion, etc. that are

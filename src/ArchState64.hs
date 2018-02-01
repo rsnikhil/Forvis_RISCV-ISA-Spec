@@ -1,4 +1,5 @@
 module ArchState64 (ArchState64, mkArchState64, print_ArchState64,
+                    Stop_Reason (..),
                     ifetch,
                     get_ArchState64_gpr,            set_ArchState64_gpr,
                     get_ArchState64_csr,            set_ArchState64_csr,   
@@ -51,8 +52,11 @@ data ArchState64 = ArchState64 { f_pc   :: MachineWord,
                                  -- The following are for convenience for debugging only
                                  -- and have no semantic relevance.
                                  f_verbosity :: Int,
-                                 f_stop      :: Bool
+                                 f_stop      :: Stop_Reason
                                }
+
+data Stop_Reason = Stop_Running | Stop_Other | Stop_Break | Stop_WFI | Stop_Limit | Stop_Forced
+  deriving (Eq, Show)
 
 print_ArchState64 :: String -> ArchState64 -> IO ()
 print_ArchState64  indent  (ArchState64 pc gprs csrs mem mmio verbosity stop) = do
@@ -60,7 +64,7 @@ print_ArchState64  indent  (ArchState64 pc gprs csrs mem mmio verbosity stop) = 
   print_GPRFile  indent  gprs
   print_CSRFile  indent  csrs
   -- We do not print memory or MMIO
-  when stop (putStrLn (indent ++ "stop"))
+  putStrLn (indent ++ (show stop))
 
 -- ================================================================
 -- Instruction Fetch; uses the API below
@@ -83,7 +87,7 @@ mkArchState64  pc  addr_byte_list =   ArchState64 { f_pc   = fromIntegral pc,
                                                     f_mmio = mkMMIO,
 
                                                     f_verbosity = 0,
-                                                    f_stop      = False}
+                                                    f_stop      = Stop_Running}
 
 -- ----------------
 -- get/set GPRs
@@ -187,12 +191,12 @@ get_ArchState64_verbosity :: ArchState64 -> Int
 get_ArchState64_verbosity  astate = f_verbosity astate
 
 set_ArchState64_verbosity :: ArchState64 -> Int -> IO ArchState64
-set_ArchState64_verbosity  astate verbosity = return astate { f_verbosity = verbosity }
+set_ArchState64_verbosity  astate  verbosity = return  astate { f_verbosity = verbosity }
 
-get_ArchState64_stop :: ArchState64 -> Bool
-get_ArchState64_stop  astate = f_stop astate
+get_ArchState64_stop :: ArchState64 -> Stop_Reason
+get_ArchState64_stop  astate = f_stop  astate
 
-set_ArchState64_stop :: ArchState64 -> Bool -> IO ArchState64
-set_ArchState64_stop  astate stop = return astate { f_stop = stop }
+set_ArchState64_stop :: ArchState64 -> Stop_Reason -> IO ArchState64
+set_ArchState64_stop  astate  stop = return  astate { f_stop = stop }
 
 -- ================================================================

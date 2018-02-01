@@ -339,15 +339,17 @@ executeInstr  astate  (Fence  pred  succ) = do
 executeInstr  astate  Fence_i = do
   exec_end_common  astate  Nothing
 
--- Environment calls: ECALL EBREAK
-
--- TODO: need to check current privilege mode to determine correct 'cause' code.
+-- ECALL
+-- TODO: trap
 executeInstr  astate  Ecall = do
-  raiseException  astate  0  11
+  putStrLn ("Ecall; STOPPING")
+  set_ArchState64_stop  astate  Stop_Other
 
--- TODO: need to check current privilege mode to determine correct 'cause' code.
+-- EBREAK
+-- TODO: trap or stop depending on DCSR
 executeInstr  astate  Ebreak = do
-  raiseException  astate  0  3
+  putStrLn ("Ebreak; STOPPING")
+  set_ArchState64_stop  astate  Stop_Break
 
 -- CSRRx: CSRRW CSRRS CSRRC CSRRWI CSRRSI CSRRCI
 
@@ -512,7 +514,7 @@ executeInstr  astate  (Sraw rd rs1 rs2) = do
 
 executeInstr  astate  IllegalInstruction = do
   putStrLn "  ILLEGAL INSTRUCTION; STOPPING"
-  set_ArchState64_stop  astate  True
+  set_ArchState64_stop  astate  Stop_Other
 
 -- ================================================================
 -- We should never reach here; the above clauses should handle all the
@@ -520,7 +522,7 @@ executeInstr  astate  IllegalInstruction = do
 
 executeInstr  astate  instr = do
   putStrLn ("  INTERNAL ERROR: UNIMPLEMENTED: " ++ (show instr) ++ "; STOPPING")
-  set_ArchState64_stop  astate  True
+  set_ArchState64_stop  astate  Stop_Other
 
 -- ================================================================
 -- TODO: raiseException is just a placeholder for now; fix up
@@ -528,4 +530,4 @@ executeInstr  astate  instr = do
 raiseException :: ArchState64 -> Int -> Int -> IO ArchState64
 raiseException  astate  x  y = do
   putStrLn ("raiseException: x= " ++ show x ++ " y= " ++ show y ++ "; STOPPING")
-  set_ArchState64_stop  astate  True
+  set_ArchState64_stop  astate  Stop_Other

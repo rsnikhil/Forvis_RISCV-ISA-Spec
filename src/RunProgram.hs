@@ -33,9 +33,9 @@ runProgram  maxinstrs  astate = do
   if instret >= fromIntegral maxinstrs
     then do
       putStrLn ("Reached instret limit (" ++ show maxinstrs ++ "); exiting")
-      return astate
+      set_ArchState64_stop  astate  Stop_Limit
 
-    else if get_ArchState64_stop astate then do
+    else if (get_ArchState64_stop  astate /= Stop_Running) then do
         putStrLn ("Reached stop; instret = " ++ show instret ++ "; exiting")
         return astate
 
