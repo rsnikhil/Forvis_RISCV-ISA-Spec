@@ -1,0 +1,24 @@
+$ read_PC
+$ write_PC  200
+
+$ read_GPR  3
+$ write_GPR 3 1000
+
+$ read_CSR  4
+$ write_CSR 4 2000
+
+$ read_mem_8  20 3000
+$ write_mem_8 4000 10 11 12 13
+
+$ read_mem_32  20 3000
+$ write_mem_32 4000 10 11 12 13
+
+$ exec 500 noTV
+$ exec 600 TV
+$ exec c noTV
+$ exec c TV
+
+$ foobaz 19 84
+
+$ read_verbosity
+$ write_verbosity 23

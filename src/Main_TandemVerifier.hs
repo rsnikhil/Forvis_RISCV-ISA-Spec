@@ -150,10 +150,10 @@ process_cmd  astate  ["read_mem_8", n_s, addr_s] = do
       read_bytes :: ArchState64 -> Integer -> IO ()
       read_bytes  astate  j | j == n = return ()
                             | True   = do
-                                          let addr_j = fromIntegral (addr + j)
-                                              val_j  = get_ArchState64_mem8  astate  addr_j
+                                          let addr_j           = fromIntegral (addr + j)
+                                              (val_j, astate') = get_ArchState64_mem8  astate  addr_j
                                           putStr (" " ++ (showHex val_j ""))
-                                          read_bytes  astate  (j+1)
+                                          read_bytes  astate'  (j+1)
   read_bytes  astate  0
   putStrLn  ""
   return astate
@@ -193,10 +193,10 @@ process_cmd  astate  ["read_mem_32", n_s, addr_s] = do
       read_words :: ArchState64 -> Integer -> IO ()
       read_words  astate  j | j == n = return ()
                             | True   = do
-                                          let addr_j = fromIntegral (addr + j*4)
-                                              val_j  = get_ArchState64_mem32  astate  addr_j
+                                          let addr_j           = fromIntegral (addr + j*4)
+                                              (val_j, astate') = get_ArchState64_mem32  astate  addr_j
                                           putStr (" " ++ (showHex val_j ""))
-                                          read_words  astate  (j+1)
+                                          read_words  astate'  (j+1)
   read_words  astate  0
   putStrLn  ""
   return astate
