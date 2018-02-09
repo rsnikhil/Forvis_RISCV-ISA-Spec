@@ -29,11 +29,16 @@ import ArchDefs64
 
 -- ================================================================
 -- This function is used in 'decode' to extract bit fields of an instruction
--- Specifically, extracts  word32 [end-1:start]
--- Result is also a word32, but the bits are in the lsbs, i.e., result [end-start-1: 0]
+-- and in certain 'execute' operations on 32b values in RV64
+-- Specifically, extracts  word [end-1:start]
+-- Result has the bits are in the lsbs, i.e., result [end-start-1: 0]
 
-bitSlice :: Word32 -> Int -> Int -> Word32
-bitSlice  u32  start  end =  (shiftR u32 start) .&. (complement (shiftL (0xFFFFFFFF) (end - start)))
+bitSlice :: (Bits a, Num a) => a -> Int -> Int -> a
+bitSlice x start end = (shiftR x start) .&. (complement $ shiftL (-1) (end - start))
+
+{-# SPECIALIZE bitSlice :: Word32 -> Int -> Int -> Word32 #-}
+
+{-# INLINE bitSlice #-}
 
 -- ================================================================
 -- This function is used in 'decode' to sign-extend instruction

@@ -499,14 +499,146 @@ executeInstr  astate  (Sraw rd rs1 rs2) = do
   exec_end_common  astate  (Just (rd, rd_val))
 
 -- ================================================================
--- 'RV32M' extension (integer multiply and divide)
--- MUL MULH MULHSU MULHU DIV DIVU REM REMUa
--- TODO: fill this out
+-- 'M' extension in RV32 and RV64 (integer multiply and divide)
+
+executeInstr  astate  (Mul rd rs1 rs2) = do
+  let rs1_val = get_ArchState64_gpr  astate  rs1
+      rs2_val = get_ArchState64_gpr  astate  rs2
+      rd_val  = cvt_s_to_u  ((cvt_u_to_s  rs1_val) * cvt_u_to_s  (rs2_val))
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Mulh rd rs1 rs2) = do
+  let rs1_val = get_ArchState64_gpr  astate  rs1
+      rs2_val = get_ArchState64_gpr  astate  rs2
+      v1_i, v2_i, prod_i :: Integer    -- unbounded integers
+      v1_i   = fromIntegral (cvt_u_to_s  rs1_val)    -- signed
+      v2_i   = fromIntegral (cvt_u_to_s  rs2_val)    -- signed
+      prod_i = v1_i * v2_i
+      rd_val :: MachineWord
+      rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen+xlen)))
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Mulhu rd rs1 rs2) = do
+  let rs1_val = get_ArchState64_gpr  astate  rs1
+      rs2_val = get_ArchState64_gpr  astate  rs2
+      v1_i, v2_i, prod_i :: Integer    -- unbounded integers
+      v1_i   = fromIntegral  rs1_val    -- unsigned
+      v2_i   = fromIntegral  rs2_val    -- unsigned
+      prod_i = v1_i * v2_i
+      rd_val :: MachineWord
+      rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen+xlen)))
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Mulhsu rd rs1 rs2) = do
+  let rs1_val = get_ArchState64_gpr  astate  rs1
+      rs2_val = get_ArchState64_gpr  astate  rs2
+      v1_i, v2_i, prod_i :: Integer    -- unbounded integers
+      v1_i   = fromIntegral (cvt_u_to_s  rs1_val)    -- signed
+      v2_i   = fromIntegral  rs2_val                 -- unsigned
+      prod_i = v1_i * v2_i
+      rd_val :: MachineWord
+      rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen+xlen)))
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Div rd rs1 rs2) = do
+  let rs1_val   = get_ArchState64_gpr  astate  rs1
+      rs2_val   = get_ArchState64_gpr  astate  rs2
+      rs1_val_s = cvt_u_to_s  rs1_val
+      rs2_val_s = cvt_u_to_s  rs2_val
+      rd_val_s  = if (rs2_val_s == 0) then -1
+                  else if (rs1_val_s == minBound) && (rs2_val_s == -1) then rs1_val_s
+                       else quot  rs1_val_s  rs2_val_s
+      rd_val    = cvt_s_to_u  rd_val_s
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Divu rd rs1 rs2) = do
+  let rs1_val   = get_ArchState64_gpr  astate  rs1
+      rs2_val   = get_ArchState64_gpr  astate  rs2
+      rd_val    = if (rs2_val == 0) then maxBound
+                  else div  rs1_val  rs2_val
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Rem rd rs1 rs2) = do
+  let rs1_val   = get_ArchState64_gpr  astate  rs1
+      rs2_val   = get_ArchState64_gpr  astate  rs2
+      rs1_val_s = cvt_u_to_s  rs1_val
+      rs2_val_s = cvt_u_to_s  rs2_val
+      rd_val_s  = if (rs2_val_s == 0) then rs1_val_s
+                  else if (rs1_val_s == minBound) && (rs2_val_s == -1) then 0
+                       else rem  rs1_val_s  rs2_val_s
+      rd_val    = cvt_s_to_u  rd_val_s
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Remu rd rs1 rs2) = do
+  let rs1_val   = get_ArchState64_gpr  astate  rs1
+      rs2_val   = get_ArchState64_gpr  astate  rs2
+      rd_val    = if (rs2_val == 0) then rs1_val
+                  else rem  rs1_val  rs2_val
+  exec_end_common  astate  (Just (rd, rd_val))
 
 -- ================================================================
--- 'RV64M' extension (integer multiply and divide)
+-- 'M' extension in RV64 only (integer multiply and divide)
 
--- MULW DIVW DIVUW REMW REMUW
+executeInstr  astate  (Mulw rd rs1 rs2) = do
+  let rs1_val = get_ArchState64_gpr  astate  rs1
+      rs2_val = get_ArchState64_gpr  astate  rs2
+      v1_i, v2_i, prod_i :: Integer    -- unbounded integers
+      v1_i   = fromIntegral (trunc_u64_to_s32  rs1_val)    -- signed
+      v2_i   = fromIntegral (trunc_u64_to_s32  rs2_val)    -- signed
+      prod_i = v1_i * v2_i
+      rd_val :: MachineWord
+      rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen+xlen)))
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Divw rd rs1 rs2) = do
+  let rs1_val  = get_ArchState64_gpr  astate  rs1
+      rs2_val  = get_ArchState64_gpr  astate  rs2
+      v1_s32, v2_s32, quot_s32 :: Int32
+      v1_s32   = trunc_u64_to_s32  rs1_val
+      v2_s32   = trunc_u64_to_s32  rs2_val
+      quot_s32 = if (v2_s32 == 0) then -1
+                 else if (v1_s32 == minBound) && (v2_s32 == -1) then v1_s32
+                      else quot  v1_s32  v2_s32
+      quot_u32 :: Word32
+      quot_u32 = fromIntegral  quot_s32
+      rd_val   = signExtend_u32_to_u64  quot_u32
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Divuw rd rs1 rs2) = do
+  let rs1_val  = get_ArchState64_gpr  astate  rs1
+      rs2_val  = get_ArchState64_gpr  astate  rs2
+      v1_u32, v2_u32, quot_u32 :: Word32
+      v1_u32   = trunc_u64_to_u32  rs1_val
+      v2_u32   = trunc_u64_to_u32  rs2_val
+      quot_u32 = if (v2_u32 == 0) then maxBound
+                 else div  v1_u32  v2_u32
+      rd_val   = signExtend_u32_to_u64  quot_u32
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Remw rd rs1 rs2) = do
+  let rs1_val = get_ArchState64_gpr  astate  rs1
+      rs2_val = get_ArchState64_gpr  astate  rs2
+      v1_s32, v2_s32, rem_s32 :: Int32
+      v1_s32  = trunc_u64_to_s32  rs1_val
+      v2_s32  = trunc_u64_to_s32  rs2_val
+      rem_s32 = if (v2_s32 == 0) then v1_s32
+                else if (v1_s32 == minBound) && (v2_s32 == -1) then 0
+                     else rem  v1_s32  v2_s32
+      rem_u32 :: Word32
+      rem_u32 = fromIntegral  rem_s32
+      rd_val  = signExtend_u32_to_u64  rem_u32
+  exec_end_common  astate  (Just (rd, rd_val))
+
+executeInstr  astate  (Remuw rd rs1 rs2) = do
+  let rs1_val  = get_ArchState64_gpr  astate  rs1
+      rs2_val  = get_ArchState64_gpr  astate  rs2
+      v1_u32, v2_u32, rem_u32 :: Word32
+      v1_u32   = trunc_u64_to_u32  rs1_val
+      v2_u32   = trunc_u64_to_u32  rs2_val
+      rem_u32 = if (v2_u32 == 0) then v1_u32
+                 else rem  v1_u32  v2_u32
+      rd_val = signExtend_u32_to_u64  rem_u32
+  exec_end_common  astate  (Just (rd, rd_val))
 
 -- ================================================================
 -- Invalid instructions
