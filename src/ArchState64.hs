@@ -68,13 +68,11 @@ print_ArchState64  indent  (ArchState64 pc gprs csrs mem mmio verbosity stop) = 
 
 -- ================================================================
 -- Instruction Fetch; uses the API below
--- TODO: Check for bad 'get' and return fault/error if necessary.
 -- TODO: for 'C', fetch first 16 bytes, check length, only then fetch next 16 bytes if not a 'C' instr
 
-ifetch :: ArchState64 -> Word32
-ifetch  astate = instr
+ifetch :: ArchState64 -> (LoadResult Word32, ArchState64)
+ifetch  astate = get_ArchState64_mem32  astate  pc
   where pc = get_ArchState64_PC  astate
-        (instr, astate') = get_ArchState64_mem32  astate  pc
 
 -- ================================================================
 -- API to create, set/get components of the Architectural State
@@ -129,20 +127,18 @@ set_ArchState64_PC  astate  val = return (astate { f_pc = val })
 
 -- ----------------
 -- get/set memory at various widths
--- TODO: fixup to accommodate potential errors during memory read/write
--- TODO: fix up 'get' to triage memory vs. I/O like the 'set' calls
---           and 'get' to IO can change astate
+-- TODO: fix up 'get' to triage memory vs. I/O like the 'set' calls and 'get' to IO can change astate
 
-get_ArchState64_mem8 :: ArchState64 -> MachineWord -> (Word8, ArchState64)
+get_ArchState64_mem8 :: ArchState64 -> MachineWord -> (LoadResult Word8, ArchState64)
 get_ArchState64_mem8  astate  addr = (getMem8  (f_mem astate)  addr, astate)
 
-get_ArchState64_mem16 :: ArchState64 -> MachineWord -> (Word16, ArchState64)
+get_ArchState64_mem16 :: ArchState64 -> MachineWord -> (LoadResult Word16, ArchState64)
 get_ArchState64_mem16  astate  addr = (getMem16  (f_mem astate)  addr, astate)
 
-get_ArchState64_mem32 :: ArchState64 -> MachineWord -> (Word32, ArchState64)
+get_ArchState64_mem32 :: ArchState64 -> MachineWord -> (LoadResult Word32, ArchState64)
 get_ArchState64_mem32  astate  addr = (getMem32  (f_mem astate)  addr, astate)
 
-get_ArchState64_mem64 :: ArchState64 -> MachineWord -> (Word64, ArchState64)
+get_ArchState64_mem64 :: ArchState64 -> MachineWord -> (LoadResult Word64, ArchState64)
 get_ArchState64_mem64  astate  addr = (getMem64  (f_mem astate)  addr, astate)
 
 

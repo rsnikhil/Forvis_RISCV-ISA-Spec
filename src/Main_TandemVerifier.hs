@@ -10,6 +10,7 @@ module Main_TandemVerifier (main_TandemVerifier) where
 
 import System.IO
 import Numeric (showHex, readHex)
+import System.Exit
 
 -- Project imports
 
@@ -107,14 +108,14 @@ process_cmd  astate  ["write_PC", v_s] = do
 
 process_cmd  astate  ["read_GPR", r_s] = do
   putStrLn ("    Doing read_GPR " ++ r_s)
-  let r       = fromIntegral (read_hex  5  r_s)
+  let r       = toEnum (fromIntegral (read_hex  5  r_s))
       gpr_val = get_ArchState64_gpr  astate  r
   putStrLn ("OK " ++ show gpr_val)
   return astate
 
 process_cmd  astate  ["write_GPR", r_s, v_s] = do
   putStrLn ("    Doing write_GPR " ++ r_s ++ " " ++ v_s)
-  let r = fromIntegral (read_hex   5  r_s)
+  let r = toEnum (fromIntegral (read_hex   5  r_s))
       v = fromIntegral (read_hex  32  v_s)
   astate1 <- set_ArchState64_gpr  astate  r  v
   putStrLn "OK"
@@ -151,9 +152,16 @@ process_cmd  astate  ["read_mem_8", n_s, addr_s] = do
       read_bytes  astate  j | j == n = return ()
                             | True   = do
                                           let addr_j           = fromIntegral (addr + j)
-                                              (val_j, astate') = get_ArchState64_mem8  astate  addr_j
-                                          putStr (" " ++ (showHex val_j ""))
-                                          read_bytes  astate'  (j+1)
+                                              (res_j, astate') = get_ArchState64_mem8  astate  addr_j
+                                          case res_j of
+                                            LoadResult_Err cause ->
+                                              do
+                                                putStrLn ("ERROR: read_mem_8 encountered LoadResult_Err: " ++ show cause)
+                                                exitWith (ExitFailure 1)
+                                            LoadResult_Ok val_j ->
+                                              do
+                                                putStr (" " ++ (showHex val_j ""))
+                                                read_bytes  astate'  (j+1)
   read_bytes  astate  0
   putStrLn  ""
   return astate
@@ -194,9 +202,16 @@ process_cmd  astate  ["read_mem_32", n_s, addr_s] = do
       read_words  astate  j | j == n = return ()
                             | True   = do
                                           let addr_j           = fromIntegral (addr + j*4)
-                                              (val_j, astate') = get_ArchState64_mem32  astate  addr_j
-                                          putStr (" " ++ (showHex val_j ""))
-                                          read_words  astate'  (j+1)
+                                              (res_j, astate') = get_ArchState64_mem32  astate  addr_j
+                                          case res_j of
+                                            LoadResult_Err cause ->
+                                              do
+                                                putStrLn ("ERROR: read_mem_32 encountered LoadResult_Err: " ++ show cause)
+                                                exitWith (ExitFailure 1)
+                                            LoadResult_Ok val_j ->
+                                              do
+                                                putStr (" " ++ (showHex val_j ""))
+                                                read_words  astate'  (j+1)
   read_words  astate  0
   putStrLn  ""
   return astate

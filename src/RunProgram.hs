@@ -31,40 +31,45 @@ runProgram :: Int -> ArchState64 -> IO ArchState64
 runProgram  maxinstrs  astate = do
   let instret = get_ArchState64_csr  astate  CSR_minstret
   if instret >= fromIntegral maxinstrs
-    then do
-      putStrLn ("Reached instret limit (" ++ show maxinstrs ++ "); exiting")
-      set_ArchState64_stop  astate  Stop_Limit
+    then (do
+             putStrLn ("Reached instret limit (" ++ show maxinstrs ++ "); exiting")
+             set_ArchState64_stop  astate  Stop_Limit)
 
-    else if (get_ArchState64_stop  astate /= Stop_Running) then do
-        putStrLn ("Reached stop; instret = " ++ show instret ++ "; exiting")
-        return astate
+    else if (get_ArchState64_stop  astate /= Stop_Running)
+         then (do
+                  putStrLn ("Reached stop; instret = " ++ show instret ++ "; exiting")
+                  return astate)
+         else (do
+                  when (get_ArchState64_verbosity astate > 1)
+                    (do
+                        putStrLn "Executing instr ================"
+                        print_ArchState64 "  "  astate)
 
-         else do
-           when (get_ArchState64_verbosity astate > 1)
-             (do
-                 putStrLn "Executing instr ================"
-                 print_ArchState64 "  "  astate)
+                  let (result_instr, astate1) = ifetch astate         -- FETCH
+                  case (result_instr) of
+                    LoadResult_Err cause -> (do
+                                                putStrLn ("Instruction-fetch fault: " ++ show (cause))
+                                                putStrLn ("    instret = " ++ show instret ++ "; exiting")
+                                                return astate)
+                    LoadResult_Ok instr_word ->
+                      (do
+                          let instr = decode xlen instr_word         -- DECODE
+                              pc    = get_ArchState64_PC  astate
 
-           let instr_word = ifetch astate                  -- FETCH
-               instr      = decode xlen instr_word         -- DECODE
-               pc         = get_ArchState64_PC  astate
+                          when (get_ArchState64_verbosity astate == 1)
+                            (do
+                                putStr (show (instret + 1))
+                                putStr ("  pc 0x" ++ (showHex pc ""))
+                                putStr ("  instr 0x" ++ showHex instr_word "")
+                                putStrLn ("  " ++ show instr))
 
-           when (get_ArchState64_verbosity astate == 1)
-             (do
-                 putStr (show (instret + 1))
-                 putStr ("  pc 0x" ++ (showHex pc ""))
-                 putStr ("  instr 0x" ++ showHex instr_word "")
-                 putStrLn ("  " ++ show instr))
+                          astate' <- executeInstr  astate  instr          -- EXECUTE
 
-           astate' <- executeInstr  astate  instr          -- EXECUTE
-
-           if pc /= get_ArchState64_PC  astate' then
-
-             runProgram  maxinstrs  astate'                -- LOOP (tail-recursive call)
-
-           else do
-             let instret = get_ArchState64_csr  astate  CSR_minstret
-             putStrLn ("Reached jump-to-self infinite loop; instret = " ++ show instret ++ "; exiting")
-             return astate'
+                          if (pc /= get_ArchState64_PC  astate') then
+                            runProgram  maxinstrs  astate'                -- LOOP (tail-recursive call)
+                          else (do
+                                   let instret = get_ArchState64_csr  astate  CSR_minstret
+                                   putStrLn ("Reached jump-to-self infinite loop; instret = " ++ show instret ++ "; exiting")
+                                   return astate')))
 
 -- ================================================================

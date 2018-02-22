@@ -111,7 +111,7 @@ data Instruction =
   Csrrwi { rd :: Register, zimm :: MachineWord, csr12 :: Word16 } |
   Csrrsi { rd :: Register, zimm :: MachineWord, csr12 :: Word16 } |
   Csrrci { rd :: Register, zimm :: MachineWord, csr12 :: Word16 }
-  deriving (Eq, Read, Show)
+  deriving (Eq, Show)
 
 -- ================================================================
 -- Instruction bit fields
@@ -334,10 +334,10 @@ decode xlen inst = decode_sub opcode
     funct10 = (shift (bitSlice inst 25 32) 3) .|. (bitSlice inst 12 15)
     funct12 = bitSlice inst 20 32
 
-    rd      = bitSlice inst 7 12
-    rs1     = bitSlice inst 15 20
-    rs2     = bitSlice inst 20 25
-    rs3     = bitSlice inst 27 32    -- for FMADD, FMSUB, FNMSUB
+    rd      = toEnum (fromIntegral (bitSlice inst 7 12))
+    rs1     = toEnum (fromIntegral (bitSlice inst 15 20))
+    rs2     = toEnum (fromIntegral (bitSlice inst 20 25))
+    -- rs3     = toEnum (fromIntegral (bitSlice inst 27 32))    -- for FMADD, FMSUB, FNMSUB
 
     succ    = bitSlice inst 20 24    -- for FENCE
     pred    = bitSlice inst 24 28    -- for FENCE
@@ -378,8 +378,8 @@ decode xlen inst = decode_sub opcode
       | opcode==opcode_LOAD, funct3==funct3_LBU = Lbu {rd=rd, rs1=rs1, oimm12=oimm12}
       | opcode==opcode_LOAD, funct3==funct3_LHU = Lhu {rd=rd, rs1=rs1, oimm12=oimm12}
 
-      | opcode==opcode_MISC_MEM, rd==0, funct3==funct3_FENCE,   rs1==0, msb4==0  = Fence {Decode.pred=pred, Decode.succ=succ}
-      | opcode==opcode_MISC_MEM, rd==0, funct3==funct3_FENCE_I, rs1==0, imm12==0 = Fence_i
+      | opcode==opcode_MISC_MEM, rd==Rg_x0, funct3==funct3_FENCE,   rs1==Rg_x0, msb4==0  = Fence {Decode.pred=pred, Decode.succ=succ}
+      | opcode==opcode_MISC_MEM, rd==Rg_x0, funct3==funct3_FENCE_I, rs1==Rg_x0, imm12==0 = Fence_i
 
       | opcode==opcode_OP_IMM, funct3==funct3_ADDI                                = Addi  {rd=rd, rs1=rs1, imm12=imm12}
       | opcode==opcode_OP_IMM, funct3==funct3_SLLI, funct7==funct7_SLLI, xlen==32 = Slli  {rd=rd, rs1=rs1, shamt6=shamt5}
@@ -430,14 +430,14 @@ decode xlen inst = decode_sub opcode
 
       | opcode==opcode_JAL  = Jal {rd=rd, jimm20=jimm20}
 
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, funct12==funct12_ECALL  = Ecall
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, funct12==funct12_EBREAK = Ebreak
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, funct12==funct12_URET   = Uret
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, funct12==funct12_SRET   = Sret
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, funct12==funct12_MRET   = Mret
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, funct12==funct12_WFI    = Wfi
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_ECALL  = Ecall
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_EBREAK = Ebreak
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_URET   = Uret
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_SRET   = Sret
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_MRET   = Mret
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_WFI    = Wfi
 
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, funct7==funct7_SFENCE_VM        = Sfence_vm {rs1=rs1, rs2=rs2}
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, funct7==funct7_SFENCE_VM        = Sfence_vm {rs1=rs1, rs2=rs2}
 
       | opcode==opcode_SYSTEM, funct3==funct3_CSRRW  = Csrrw   {rd=rd, rs1=rs1,   csr12=csr12}
       | opcode==opcode_SYSTEM, funct3==funct3_CSRRS  = Csrrw   {rd=rd, rs1=rs1,   csr12=csr12}

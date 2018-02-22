@@ -68,6 +68,14 @@ exec_end_branch  astate  pc  taken  target_PC = do
       astate1 <- set_ArchState64_PC  astate  nextPC
       incr_minstret  astate1
 
+-- Ending on traps
+-- TODO: Currently stopping execution; should trap instead
+exec_end_trap :: ArchState64 -> TrapCause -> IO ArchState64
+exec_end_trap  astate  cause = do
+  astate1 <- set_ArchState64_csr   astate  CSR_mcause  (mk_mcause_from_TrapCause  cause)
+  astate2 <- set_ArchState64_stop  astate  (if (cause == TrapCause_Breakpoint) then Stop_Break else Stop_Other)
+  return astate2
+
 -- ================================================================
 -- 'executeInstr' takes current arch state and a decoded instruction
 -- and returns a new arch state after executing that instruction.
@@ -154,39 +162,59 @@ executeInstr  astate  (Bgeu rs1 rs2 sbimm12) = do
 -- Loads: LB LH LU LBU LHU
 
 executeInstr  astate  (Lb rd rs1 oimm12) = do
-  let rs1_val       = get_ArchState64_gpr  astate  rs1
-      eaddr         = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
-      (u8, astate') = get_ArchState64_mem8  astate  eaddr
-      rd_val        = signExtend_u8_to_u  u8
-  exec_end_common  astate'  (Just (rd, rd_val))
+  let rs1_val           = get_ArchState64_gpr  astate  rs1
+      eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
+      (result, astate') = get_ArchState64_mem8  astate  eaddr
+  case result of
+    LoadResult_Err cause -> exec_end_trap  astate'  cause
+    LoadResult_Ok  u8    ->
+      do
+        let rd_val = signExtend_u8_to_u  u8
+        exec_end_common  astate'  (Just (rd, rd_val))
 
 executeInstr  astate  (Lh rd rs1 oimm12) = do
-  let rs1_val        = get_ArchState64_gpr  astate  rs1
-      eaddr          = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
-      (u16, astate') = get_ArchState64_mem16  astate  eaddr
-      rd_val         = signExtend_u16_to_u  u16
-  exec_end_common  astate'  (Just (rd, rd_val))
+  let rs1_val           = get_ArchState64_gpr  astate  rs1
+      eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
+      (result, astate') = get_ArchState64_mem16  astate  eaddr
+  case result of
+    LoadResult_Err cause -> exec_end_trap  astate'  cause
+    LoadResult_Ok  u16   ->
+      do
+        let rd_val = signExtend_u16_to_u  u16
+        exec_end_common  astate'  (Just (rd, rd_val))
 
 executeInstr  astate  (Lw rd rs1 oimm12) = do
-  let rs1_val        = get_ArchState64_gpr  astate  rs1
-      eaddr          = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
-      (u32, astate') = get_ArchState64_mem32  astate  eaddr
-      rd_val         = signExtend_u32_to_u  u32
-  exec_end_common  astate'  (Just (rd, rd_val))
+  let rs1_val           = get_ArchState64_gpr  astate  rs1
+      eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
+      (result, astate') = get_ArchState64_mem32  astate  eaddr
+  case result of
+    LoadResult_Err cause -> exec_end_trap  astate'  cause
+    LoadResult_Ok  u32   ->
+      do
+        let rd_val = signExtend_u32_to_u  u32
+        exec_end_common  astate'  (Just (rd, rd_val))
 
 executeInstr  astate  (Lbu rd rs1 oimm12) = do
-  let rs1_val       = get_ArchState64_gpr  astate  rs1
-      eaddr         = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
-      (u8, astate') = get_ArchState64_mem8  astate  eaddr
-      rd_val        = zeroExtend_u8_to_u  u8
-  exec_end_common  astate'  (Just (rd, rd_val))
+  let rs1_val           = get_ArchState64_gpr  astate  rs1
+      eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
+      (result, astate') = get_ArchState64_mem8  astate  eaddr
+  case result of
+    LoadResult_Err cause -> exec_end_trap  astate'  cause
+    LoadResult_Ok  u8    ->
+      do
+        let rd_val = zeroExtend_u8_to_u  u8
+        exec_end_common  astate'  (Just (rd, rd_val))
 
 executeInstr  astate  (Lhu rd rs1 oimm12) = do
-  let rs1_val        = get_ArchState64_gpr  astate  rs1
-      eaddr          = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
-      (u16, astate') = get_ArchState64_mem16  astate  eaddr
-      rd_val         = zeroExtend_u16_to_u  u16
-  exec_end_common  astate'  (Just (rd, rd_val))
+  let rs1_val           = get_ArchState64_gpr  astate  rs1
+      eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
+      (result, astate') = get_ArchState64_mem16  astate  eaddr
+  case result of
+    LoadResult_Err cause -> exec_end_trap  astate'  cause
+    LoadResult_Ok  u16   ->
+      do
+        let rd_val = zeroExtend_u16_to_u  u16
+        exec_end_common  astate'  (Just (rd, rd_val))
 
 -- Stores: SB SH SW
 
@@ -346,15 +374,14 @@ executeInstr  astate  Ecall = do
   set_ArchState64_stop  astate  Stop_Other
 
 -- EBREAK
--- TODO: trap or stop depending on DCSR
 executeInstr  astate  Ebreak = do
   putStrLn ("Ebreak; STOPPING")
-  set_ArchState64_stop  astate  Stop_Break
+  exec_end_trap  astate  TrapCause_Breakpoint
 
 -- CSRRx: CSRRW CSRRS CSRRC CSRRWI CSRRSI CSRRCI
 
 executeInstr  astate  (Csrrw rd rs1 csr12) = do
-  let csr_val = if (rd /= 0) then
+  let csr_val = if (rd /= Rg_x0) then
                   get_ArchState64_csr_from_addr  astate  csr12
                 else
                   0    -- arbitrary; will be discarded (rd==0)
@@ -364,7 +391,7 @@ executeInstr  astate  (Csrrw rd rs1 csr12) = do
 
 executeInstr  astate  (Csrrs rd rs1 csr12) = do
   let csr_val = get_ArchState64_csr_from_addr  astate  csr12
-  astate1 <- if (rs1 /= 0) then do
+  astate1 <- if (rs1 /= Rg_x0) then do
                let rs1_val = get_ArchState64_gpr  astate  rs1
                    new_csr_val = csr_val  .|.  rs1_val
                set_ArchState64_csr_from_addr  astate  csr12  new_csr_val
@@ -374,7 +401,7 @@ executeInstr  astate  (Csrrs rd rs1 csr12) = do
 
 executeInstr  astate  (Csrrc rd rs1 csr12) = do
   let csr_val = get_ArchState64_csr_from_addr  astate  csr12
-  astate1 <- if (rs1 /= 0) then do
+  astate1 <- if (rs1 /= Rg_x0) then do
                let rs1_val = get_ArchState64_gpr  astate  rs1
                    new_csr_val = csr_val  .&.  (complement  rs1_val)
                set_ArchState64_csr_from_addr  astate  csr12  new_csr_val
@@ -383,7 +410,7 @@ executeInstr  astate  (Csrrc rd rs1 csr12) = do
   exec_end_common  astate1  (Just (rd, csr_val))
 
 executeInstr  astate  (Csrrwi rd zimm csr12) = do
-  let csr_val = if (rd /= 0) then
+  let csr_val = if (rd /= Rg_x0) then
                   get_ArchState64_csr_from_addr  astate  csr12
                 else
                   0    -- arbitrary; will be discarded (rd==0)
@@ -414,17 +441,26 @@ executeInstr  astate  (Csrrci rd zimm csr12) = do
 -- Loads: LWU LD
 
 executeInstr  astate  (Lwu rd rs1 oimm12) = do
-  let rs1_val_u64    = get_ArchState64_gpr  astate  rs1
-      eaddr_u64      = cvt_s_to_u  ((cvt_u_to_s  rs1_val_u64) + oimm12)
-      (u32, astate') = get_ArchState64_mem32  astate  eaddr_u64
-      rd_val         = zeroExtend_u32_to_u64 u32
-  exec_end_common  astate'  (Just (rd, rd_val))
+  let rs1_val_u64       = get_ArchState64_gpr  astate  rs1
+      eaddr_u64         = cvt_s_to_u  ((cvt_u_to_s  rs1_val_u64) + oimm12)
+      (result, astate') = get_ArchState64_mem32  astate  eaddr_u64
+  case result of
+    LoadResult_Err cause -> exec_end_trap  astate'  cause
+    LoadResult_Ok  u32   ->
+      do
+        let rd_val = zeroExtend_u32_to_u64  u32
+        exec_end_common  astate'  (Just (rd, rd_val))
 
 executeInstr  astate  (Ld rd rs1 oimm12) = do
   let rs1_val_u64       = get_ArchState64_gpr  astate  rs1
       eaddr_u64         = cvt_s_to_u  ((cvt_u_to_s  rs1_val_u64) + oimm12)
-      (rd_val, astate') = get_ArchState64_mem64  astate  eaddr_u64
-  exec_end_common  astate'  (Just (rd, rd_val))
+      (result, astate') = get_ArchState64_mem64  astate  eaddr_u64
+  case result of
+    LoadResult_Err cause -> exec_end_trap  astate'  cause
+    LoadResult_Ok  u64   ->
+      do
+        let rd_val = u64
+        exec_end_common  astate'  (Just (rd, rd_val))
 
 -- Stores: SD
 

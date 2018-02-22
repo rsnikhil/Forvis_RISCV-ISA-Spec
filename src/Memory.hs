@@ -1,6 +1,6 @@
 module Memory (Mem, mkMem,
-              getMem8, getMem16, getMem32, getMem64,
-              setMem8, setMem16, setMem32, setMem64
+               getMem8, getMem16, getMem32, getMem64,
+               setMem8, setMem16, setMem32, setMem64
               ) where
 
 -- ================================================================
@@ -15,7 +15,7 @@ import Control.Monad
 import Data.Maybe
 import Data.Word
 import Data.Bits
-import qualified Data.Map as Data_Map
+import qualified Data.Map.Strict as Data_Map
 import Numeric (showHex, readHex)
 
 -- Project imports
@@ -36,41 +36,59 @@ mkMem  addr_byte_list = mem
                           addr_byte_list
     mem             = Mem_Con (Data_Map.fromList addr_byte_list')
 
+uninitialized_data :: Integer
+uninitialized_data = 0xaaaaAAAAaaaaAAAA
+
 -- ----------------
 -- get (read) data from memory
--- TODO: these calls should check for legal addresses and
--- return an error code/cause/badaddr if bad.
+-- Currently we only return LoadResult_Ok and never return LoadResult_Err
+-- We could return LoadResult_Err on uninitialized locations.
+-- We could return LoadResult_Err if there are address bounds.
 
-getMem8 :: Mem -> MachineWord -> Word8
-getMem8  (Mem_Con dm)  addr = fromMaybe 0 (Data_Map.lookup  addr  dm)
+getMem8 :: Mem -> MachineWord -> LoadResult Word8
+getMem8  (Mem_Con dm)  addr = result
+  where m_b0 = Data_Map.lookup  addr  dm
+        result = case (m_b0) of
+                   (Just b0) -> LoadResult_Ok  b0
+                   _         -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
-getMem16 :: Mem -> MachineWord -> Word16
-getMem16  (Mem_Con dm)  addr = mk_u16  byte0  byte1
-  where byte0 = fromMaybe 0 (Data_Map.lookup  addr        dm)
-        byte1 = fromMaybe 0 (Data_Map.lookup  (addr + 1)  dm)
+getMem16 :: Mem -> MachineWord -> LoadResult Word16
+getMem16  (Mem_Con dm)  addr = result
+  where m_b0 = Data_Map.lookup  addr        dm
+        m_b1 = Data_Map.lookup  (addr + 1)  dm
+        result = case (m_b0, m_b1) of
+                   (Just b0, Just b1) -> LoadResult_Ok  (mk_u16  b0  b1)
+                   _                  -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
-getMem32 :: Mem -> MachineWord -> Word32
-getMem32  (Mem_Con dm)  addr = mk_u32  byte0  byte1  byte2  byte3
-  where byte0 = fromMaybe 0 (Data_Map.lookup  addr        dm)
-        byte1 = fromMaybe 0 (Data_Map.lookup  (addr + 1)  dm)
-        byte2 = fromMaybe 0 (Data_Map.lookup  (addr + 2)  dm)
-        byte3 = fromMaybe 0 (Data_Map.lookup  (addr + 3)  dm)
+getMem32 :: Mem -> MachineWord -> LoadResult Word32
+getMem32  (Mem_Con dm)  addr = result
+  where m_b0 = Data_Map.lookup  addr        dm
+        m_b1 = Data_Map.lookup  (addr + 1)  dm
+        m_b2 = Data_Map.lookup  (addr + 2)  dm
+        m_b3 = Data_Map.lookup  (addr + 3)  dm
+        result = case (m_b0, m_b1, m_b2, m_b3) of
+                   (Just b0, Just b1, Just b2, Just b3) -> LoadResult_Ok  (mk_u32  b0  b1  b2  b3)
+                   _                                    -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
-getMem64 :: Mem -> MachineWord -> Word64
-getMem64  (Mem_Con dm)  addr = mk_u64  byte0  byte1  byte2  byte3  byte4  byte5  byte6  byte7
-  where byte0 = fromMaybe 0xAA (Data_Map.lookup  addr        dm)
-        byte1 = fromMaybe 0xAA (Data_Map.lookup  (addr + 1)  dm)
-        byte2 = fromMaybe 0xAA (Data_Map.lookup  (addr + 2)  dm)
-        byte3 = fromMaybe 0xAA (Data_Map.lookup  (addr + 3)  dm)
-        byte4 = fromMaybe 0xAA (Data_Map.lookup  (addr + 4)  dm)
-        byte5 = fromMaybe 0xAA (Data_Map.lookup  (addr + 5)  dm)
-        byte6 = fromMaybe 0xAA (Data_Map.lookup  (addr + 6)  dm)
-        byte7 = fromMaybe 0xAA (Data_Map.lookup  (addr + 7)  dm)
+getMem64 :: Mem -> MachineWord -> LoadResult Word64
+getMem64  (Mem_Con dm)  addr = result
+  where m_b0 = Data_Map.lookup  addr        dm
+        m_b1 = Data_Map.lookup  (addr + 1)  dm
+        m_b2 = Data_Map.lookup  (addr + 2)  dm
+        m_b3 = Data_Map.lookup  (addr + 3)  dm
+        m_b4 = Data_Map.lookup  (addr + 4)  dm
+        m_b5 = Data_Map.lookup  (addr + 5)  dm
+        m_b6 = Data_Map.lookup  (addr + 6)  dm
+        m_b7 = Data_Map.lookup  (addr + 7)  dm
+        result = case (m_b0, m_b1, m_b2, m_b3, m_b4, m_b5, m_b6, m_b7) of
+                   (Just b0, Just b1, Just b2, Just b3,
+                    Just b4, Just b5, Just b6, Just b7) -> LoadResult_Ok  (mk_u64  b0  b1  b2  b3  b4  b5  b6  b7)
+                   _                                    -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
 -- ----------------
 -- set (write) data into memory
--- TODO: these calls should check for legal addresses and
--- return an error code/cause/badaddr if bad.
+-- Currently we don't return any StoreResult.
+-- We could return StoreResult_Err if there are address bounds.
 
 setMem8 :: Mem -> MachineWord -> Word8 -> Mem
 setMem8  (Mem_Con dm)  addr  val = Mem_Con dm1

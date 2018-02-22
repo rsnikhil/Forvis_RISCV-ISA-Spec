@@ -79,6 +79,10 @@ runFiles [] = return 0
 runFile :: String -> IO Int64
 runFile f = do
   addr_byte_list <- readProgram f
+  let min_addr = minimum (map  (\(x,y) -> x)  addr_byte_list)
+      max_addr = maximum (map  (\(x,y) -> x)  addr_byte_list)
+
+  putStrLn ("Initial addr range: " ++ (showHex min_addr "") ++ ".." ++ (showHex max_addr ""))
 
   -- Debug dump
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
