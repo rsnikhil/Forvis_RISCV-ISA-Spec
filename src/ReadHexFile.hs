@@ -1,7 +1,7 @@
 module ReadHexFile (readHexFile) where
 
 -- ================================================================
--- This code is taken from MIT's riscv-semantics repo
+-- This code is adapted from MIT's riscv-semantics repo
 
 -- This module implements a function that reads a hex-memory file
 -- and returns a memory (i.e., list of (addr, byte)).
@@ -16,31 +16,36 @@ import Numeric (showHex, readHex)
 
 -- Project imports
 
-import Elf
+-- None
 
 -- ================================================================
--- Read the RISC-V Hex file and return a memory and possibly address of "tohost"' symbol
+-- Read a Mem-Hex file (each datum should represent one byte)
+-- and return a memory (list of (addr,byte))
 
 readHexFile :: FilePath -> IO [(Int, Word8)]
 readHexFile f = do
   h <- openFile f ReadMode
-  helper h (0, [])
-  where helper h l = do
-          s <- hGetLine h
-          done <- hIsEOF h
+  helper h 0 0 []
+  where helper h  line_num  next_addr  mem = do
+          s    <- hGetLine h
           if (null s)
-            then return (snd l)
-            else if done
-                 then return  (snd  (processLine s l))
-                 else helper  h  (processLine s l)
+            then (do
+                     putStrLn ("Finished reading hex file (" ++ show line_num ++ " lines)")
+                     return (reverse mem))
+            else (do
+                     let (next_addr', mem') = processLine s  next_addr  mem
+                     done <- hIsEOF h
+                     if done
+                       then return  (reverse mem')
+                       else helper  h  (line_num + 1)  next_addr'  mem')
 
-processLine :: String -> (Int, [(Int, Word8)]) -> (Int, [(Int, Word8)])
-processLine ('@':xs) (p, l) = ((fst $ head $ readHex xs) * 4, l)
-processLine s (p, l) = (p + 4, l ++ (zip [p..] $ splitWord (fst $ head $ readHex s :: Word32)))
+-- Process a line from a Mem-Hex file, which is
+-- either an address line ('@hex-address')
+-- or a data line (a hex byte in memory)
 
-splitWord :: Word32 -> [Word8]
-splitWord  u32 = map  byte_at  [0, 8, 16, 24]
-  where byte_at :: Int -> Word8
-        byte_at  lsb = fromIntegral ((shiftR  u32  lsb) .&. 0xFF)
+processLine :: String -> Int -> [(Int, Word8)] -> (Int, [(Int, Word8)])
+processLine ('@':xs) next_addr mem = (fst $ head $ readHex xs, mem)
+processLine  s       next_addr mem = (next_addr + 1,
+                                      (next_addr, fst $ head $ readHex s): mem)
 
 -- ================================================================
