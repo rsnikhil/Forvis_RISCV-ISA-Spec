@@ -3,7 +3,6 @@ module ArchState64 (ArchState64, mkArchState64, print_ArchState64,
                     ifetch,
                     get_ArchState64_gpr,            set_ArchState64_gpr,
                     get_ArchState64_csr,            set_ArchState64_csr,   
-                    get_ArchState64_csr_from_addr,  set_ArchState64_csr_from_addr,
                     get_ArchState64_PC,             set_ArchState64_PC,
                     get_ArchState64_mem8,           set_ArchState64_mem8,
                     get_ArchState64_mem16,          set_ArchState64_mem16,
@@ -43,7 +42,7 @@ import MMIO
 -- This is a private internal representation that can be changed at
 -- will; only the exported API can be used by clients.
 
-data ArchState64 = ArchState64 { f_pc   :: MachineWord,
+data ArchState64 = ArchState64 { f_pc   :: WordXLEN,
                                  f_gprs :: GPRFile,
                                  f_csrs :: CSRFile,
                                  f_mem  :: Mem,
@@ -59,7 +58,7 @@ data Stop_Reason = Stop_Running | Stop_Other | Stop_Break | Stop_WFI | Stop_Limi
   deriving (Eq, Show)
 
 print_ArchState64 :: String -> ArchState64 -> IO ()
-print_ArchState64  indent  (ArchState64 pc gprs csrs mem mmio verbosity stop) = do
+print_ArchState64  indent  (ArchState64  pc  gprs  csrs  mem  mmio  verbosity  stop) = do
   putStrLn (indent ++ "pc: " ++ showHex pc "")
   print_GPRFile  indent  gprs
   print_CSRFile  indent  csrs
@@ -81,7 +80,7 @@ ifetch  astate = get_ArchState64_mem32  astate  pc
 mkArchState64 :: Int -> ([(Int, Word8)]) -> ArchState64
 mkArchState64  pc  addr_byte_list =   ArchState64 { f_pc   = fromIntegral pc,
                                                     f_gprs = mkGPRFile,
-                                                    f_csrs = mkCSRFile 64,
+                                                    f_csrs = mkCSRFile  RV64,
                                                     f_mem  = mkMem  addr_byte_list,
                                                     f_mmio = mkMMIO,
 
@@ -91,58 +90,53 @@ mkArchState64  pc  addr_byte_list =   ArchState64 { f_pc   = fromIntegral pc,
 -- ----------------
 -- get/set GPRs
 
-get_ArchState64_gpr :: ArchState64 -> Register -> MachineWord
+get_ArchState64_gpr :: ArchState64 -> Register -> WordXLEN
 get_ArchState64_gpr  astate  reg = get_gpr (f_gprs astate)  reg
 
-set_ArchState64_gpr :: ArchState64 -> Register -> MachineWord -> IO ArchState64
+set_ArchState64_gpr :: ArchState64 -> Register -> WordXLEN -> IO ArchState64
 set_ArchState64_gpr  astate  reg  val = return (astate { f_gprs = set_gpr (f_gprs astate) reg val })
 
 -- ----------------
 -- get/set CSRs
 
--- TODO: output type of 'get' should reflect that getting a CSR can have errors and side effects
-get_ArchState64_csr :: ArchState64 -> CSR -> MachineWord
-get_ArchState64_csr  astate  csr = get_csr  (f_csrs astate)  csr
+get_ArchState64_csr :: ArchState64 -> CSR_Addr -> WordXLEN
+get_ArchState64_csr  astate  csr_addr = wordXLEN
+  where csr_file = f_csrs  astate
+        Just wordXLEN   = get_csr  csr_file  csr_addr
 
-get_ArchState64_csr_from_addr :: ArchState64 -> Word16 -> MachineWord
-get_ArchState64_csr_from_addr  astate  csr_addr = get_csr_from_addr  (f_csrs astate)  csr_addr
-
--- TODO: output type of 'set' should reflect that getting a CSR can have errors and side effects
-set_ArchState64_csr :: ArchState64 -> CSR -> MachineWord -> IO ArchState64
-set_ArchState64_csr  astate  csr  value =
-  return (astate { f_csrs = set_csr  (f_csrs astate)  csr  value })
-
-set_ArchState64_csr_from_addr :: ArchState64 -> Word16 -> MachineWord -> IO ArchState64
-set_ArchState64_csr_from_addr  astate  csr_addr  value =
-  return (astate { f_csrs = set_csr_from_addr  (f_csrs astate)  csr_addr  value })
+set_ArchState64_csr :: ArchState64 -> CSR_Addr -> WordXLEN -> IO ArchState64
+set_ArchState64_csr  astate  csr_addr  value = do
+  let csr_file = f_csrs  astate
+      Just csr_file' = set_csr  csr_file  csr_addr  value
+  return (astate { f_csrs = csr_file' })
 
 -- ----------------
 -- get/set PC
 
-get_ArchState64_PC :: ArchState64 -> MachineWord
+get_ArchState64_PC :: ArchState64 -> WordXLEN
 get_ArchState64_PC  astate = f_pc astate
 
-set_ArchState64_PC :: ArchState64 -> MachineWord -> IO ArchState64
+set_ArchState64_PC :: ArchState64 -> WordXLEN -> IO ArchState64
 set_ArchState64_PC  astate  val = return (astate { f_pc = val })
 
 -- ----------------
 -- get/set memory at various widths
 -- TODO: fix up 'get' to triage memory vs. I/O like the 'set' calls and 'get' to IO can change astate
 
-get_ArchState64_mem8 :: ArchState64 -> MachineWord -> (LoadResult Word8, ArchState64)
+get_ArchState64_mem8 :: ArchState64 -> WordXLEN -> (LoadResult Word8, ArchState64)
 get_ArchState64_mem8  astate  addr = (getMem8  (f_mem astate)  addr, astate)
 
-get_ArchState64_mem16 :: ArchState64 -> MachineWord -> (LoadResult Word16, ArchState64)
+get_ArchState64_mem16 :: ArchState64 -> WordXLEN -> (LoadResult Word16, ArchState64)
 get_ArchState64_mem16  astate  addr = (getMem16  (f_mem astate)  addr, astate)
 
-get_ArchState64_mem32 :: ArchState64 -> MachineWord -> (LoadResult Word32, ArchState64)
+get_ArchState64_mem32 :: ArchState64 -> WordXLEN -> (LoadResult Word32, ArchState64)
 get_ArchState64_mem32  astate  addr = (getMem32  (f_mem astate)  addr, astate)
 
-get_ArchState64_mem64 :: ArchState64 -> MachineWord -> (LoadResult Word64, ArchState64)
+get_ArchState64_mem64 :: ArchState64 -> WordXLEN -> (LoadResult Word64, ArchState64)
 get_ArchState64_mem64  astate  addr = (getMem64  (f_mem astate)  addr, astate)
 
 
-set_ArchState64_mem8 :: ArchState64 -> MachineWord -> Word8 -> IO ArchState64
+set_ArchState64_mem8 :: ArchState64 -> WordXLEN -> Word8 -> IO ArchState64
 set_ArchState64_mem8  astate addr  val = do
   when (get_ArchState64_verbosity astate > 1) (
     putStrLn ("set_ArchState64_mem8: addr " ++ (showHex addr " val ") ++ (showHex val "")))
@@ -152,7 +146,7 @@ set_ArchState64_mem8  astate addr  val = do
     mmio' <- setMMIO8  (f_mmio astate)  addr  val
     return (astate { f_mmio = mmio'})
 
-set_ArchState64_mem16 :: ArchState64 -> MachineWord -> Word16 -> IO ArchState64
+set_ArchState64_mem16 :: ArchState64 -> WordXLEN -> Word16 -> IO ArchState64
 set_ArchState64_mem16  astate addr  val = do
   when (get_ArchState64_verbosity astate > 1) (
     putStrLn ("set_ArchState64_mem16: addr " ++ (showHex addr " val ") ++ (showHex val "")))
@@ -162,7 +156,7 @@ set_ArchState64_mem16  astate addr  val = do
     mmio' <- setMMIO16  (f_mmio astate)  addr  val
     return (astate { f_mmio = mmio'})
 
-set_ArchState64_mem32 :: ArchState64 -> MachineWord -> Word32 -> IO ArchState64
+set_ArchState64_mem32 :: ArchState64 -> WordXLEN -> Word32 -> IO ArchState64
 set_ArchState64_mem32  astate addr  val = do
   when (get_ArchState64_verbosity astate > 1) (
     putStrLn ("set_ArchState64_mem32: addr " ++ (showHex addr " val ") ++ (showHex val "")))
@@ -172,7 +166,7 @@ set_ArchState64_mem32  astate addr  val = do
     mmio' <- setMMIO32  (f_mmio astate)  addr  val
     return (astate { f_mmio = mmio'})
 
-set_ArchState64_mem64 :: ArchState64 -> MachineWord -> Word64 -> IO ArchState64
+set_ArchState64_mem64 :: ArchState64 -> WordXLEN -> Word64 -> IO ArchState64
 set_ArchState64_mem64  astate addr  val = do
   when (get_ArchState64_verbosity astate > 1) (
     putStrLn ("set_ArchState64_mem64: addr " ++ (showHex addr " val ") ++ (showHex val "")))

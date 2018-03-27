@@ -127,7 +127,7 @@ process_cmd  astate  ["write_GPR", r_s, v_s] = do
 process_cmd  astate  ["read_CSR", csr_addr_s] = do
   putStrLn ("    Doing read_CSR " ++ csr_addr_s)
   let csr_addr = fromIntegral (read_hex  12  csr_addr_s)
-      csr_val  = get_ArchState64_csr_from_addr  astate  csr_addr
+      csr_val  = get_ArchState64_csr  astate  csr_addr
   putStrLn ("OK " ++ show csr_val)
   return astate
 
@@ -135,7 +135,7 @@ process_cmd  astate  ["write_CSR", csr_addr_s, v_s] = do
   putStrLn ("    Doing write_CSR " ++ csr_addr_s ++ " " ++ v_s)
   let csr_addr = fromIntegral (read_hex  12  csr_addr_s)
       v        = fromIntegral (read_hex  32  v_s)
-  astate1 <- set_ArchState64_csr_from_addr  astate  csr_addr  v
+  astate1 <- set_ArchState64_csr  astate  csr_addr  v
   putStrLn "OK"
   return astate1
 

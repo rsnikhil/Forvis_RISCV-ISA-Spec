@@ -58,13 +58,13 @@ For those new to the code, a good reading order is:
 use-cases, Main_RunProgram.hs (free-running) or Main_TandemVerifier.hs
 (Tandem Verification).
 
-Main_RunProgram.hs reads RISC-V binaries (ELF or hex-mem, initializes
+`Main_RunProgram.hs` reads RISC-V binaries (ELF or hex-mem, initializes
 architecture state and memory, and calls `RunProgram` to run the
 loaded program, up to a specified maximum number of instructions.
 
 `RunProgram.hs` contains the FETCH-DECODE-EXECUTE loop.
 
-Main_TandemVerifier.hs sets up the formal spec to be a slave to a
+`Main_TandemVerifier.hs` sets up the formal spec to be a slave to a
 tandem verifier, receiving commands on stdin and sending responses on
 stdout.  The commands allow a tandem verifier to initialize
 architecture state, execute 1 or more instructions, and query
@@ -78,7 +78,6 @@ relevant for these semantics.
 `Elf.hs` and `ReadHexFile.hs` are not part of the semantics per se;
 the executable uses them to read ELF files and "Hex Memory" files,
 respectively.
-
 
 ----------------------------------------------------------------
 
@@ -104,12 +103,12 @@ This will create a `.stack-work/` directory and, somewhere within, an
 executable `RISCV-ISA-Spec-exe`.  Once you have built the executable,
 you can run it on two provided test programs, like so:
 
-        $ stack exec RISCV-ISA-Spec-exe TestPrograms/hello64
+        $ stack exec RISCV-ISA-Spec-exe TestPrograms/MIT/hello64
         Running program up to 1,000,000 instructions
         Hello, world!
         Reached jump-to-self infinite loop; instret = 446; exiting
 
-        $ stack exec RISCV-ISA-Spec-exe TestPrograms/thuemorse64
+        $ stack exec RISCV-ISA-Spec-exe TestPrograms/MIT/thuemorse64
         Running program up to 1,000,000 instructions
         01101001100101101001011001101001100101100110100101101001100101101001011001101001011010011001011001101001100101101001011001101001
         Reached jump-to-self infinite loop; instret = 25323; exiting
@@ -120,3 +119,34 @@ RISC-V programs using just user-level RV64I instructions; they assume
 a certain starting address; they assume a certain address for console
 output.  If you compile other C programs to run on this executable,
 you may have to adjust things accordingly.
+
+## More detail:
+
+If you also provide a `--verbosity 1` command-line argument, like so:
+
+        $ stack exec RISCV-ISA-Spec-exe -- --verbosity 1  TestPrograms/MIT/hello64
+        ... full instruction trace ...
+
+it wil print out a trace of every instruction executed.  Higher
+verbosity values add more detail.
+
+[Yes, the extra '`--`' is needed, to avoid `stack` consuming the
+ command-line option and to cause it instead to pass it on to
+ `RISCV-ISA-Spec-exe`, our executable.]
+
+In general, use `--help` to see command-line options.
+
+Files with a `.hex` extension are assumed to be byte-wide Verilog hex
+memory-image files.  Otherwise, they are assumed to be ELF files.
+
+The directory:    TestPrograms/riscv-tests/isa/
+contains pre-compiled versions of some of the 'ISA Tests' that one
+gets when one follows the directions at:
+
+        https://riscv.org/software-tools/
+
+and builds the riscv-tools downloaded from:
+
+        https://github.com/riscv/riscv-tools.git
+
+----------------------------------------------------------------

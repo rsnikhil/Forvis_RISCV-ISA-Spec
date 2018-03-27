@@ -34,11 +34,11 @@ import CSRFile
 -- Every completed instruction increments minstret
 incr_minstret :: ArchState64 -> IO (ArchState64)
 incr_minstret  astate = do
-  let minstret = get_ArchState64_csr  astate  CSR_minstret
-  set_ArchState64_csr  astate  CSR_minstret  (minstret+1)
+  let minstret = get_ArchState64_csr  astate  csr_addr_minstret
+  set_ArchState64_csr  astate  csr_addr_minstret  (minstret+1)
 
 -- Most common ending: optionally update Rd; incr PC by 4; increment MINSTRET
-exec_end_common :: ArchState64 -> Maybe (Register, MachineWord) -> IO ArchState64
+exec_end_common :: ArchState64 -> Maybe (Register, WordXLEN) -> IO ArchState64
 exec_end_common  astate  m_rd_rdval = do
   astate1 <- case m_rd_rdval of
                Just (rd, rd_val) -> set_ArchState64_gpr  astate  rd  rd_val
@@ -48,7 +48,7 @@ exec_end_common  astate  m_rd_rdval = do
   incr_minstret  astate2
 
 -- Ending for control transfers: store saved PC in Rd; set PC to new PC; increment MINSTRET
-exec_end_jump :: ArchState64 -> Register -> MachineWord -> MachineWord -> IO ArchState64
+exec_end_jump :: ArchState64 -> Register -> WordXLEN -> WordXLEN -> IO ArchState64
 exec_end_jump  astate  rd  save_PC  target_PC = do
   if ((mod  target_PC  4) /= 0)
     then raiseException  astate  0  0
@@ -58,7 +58,7 @@ exec_end_jump  astate  rd  save_PC  target_PC = do
       incr_minstret astate2
 
 -- Ending for BRANCH instrs: PC = if taken then newPC else PC+4; increment MINSTRET
-exec_end_branch :: ArchState64 -> MachineWord -> Bool -> MachineWord -> IO ArchState64
+exec_end_branch :: ArchState64 -> WordXLEN -> Bool -> WordXLEN -> IO ArchState64
 exec_end_branch  astate  pc  taken  target_PC = do
   if (taken && (mod target_PC 4 /= 0))
     then
@@ -72,7 +72,7 @@ exec_end_branch  astate  pc  taken  target_PC = do
 -- TODO: Currently stopping execution; should trap instead
 exec_end_trap :: ArchState64 -> TrapCause -> IO ArchState64
 exec_end_trap  astate  cause = do
-  astate1 <- set_ArchState64_csr   astate  CSR_mcause  (mk_mcause_from_TrapCause  cause)
+  astate1 <- set_ArchState64_csr   astate  csr_addr_mcause  (mk_mcause_from_TrapCause  cause)
   astate2 <- set_ArchState64_stop  astate  (if (cause == TrapCause_Breakpoint) then Stop_Break else Stop_Other)
   return astate2
 
@@ -382,55 +382,55 @@ executeInstr  astate  Ebreak = do
 
 executeInstr  astate  (Csrrw rd rs1 csr12) = do
   let csr_val = if (rd /= Rg_x0) then
-                  get_ArchState64_csr_from_addr  astate  csr12
+                  get_ArchState64_csr  astate  csr12
                 else
                   0    -- arbitrary; will be discarded (rd==0)
       rs1_val = get_ArchState64_gpr  astate  rs1
-  astate1 <- set_ArchState64_csr_from_addr  astate  csr12  rs1_val
+  astate1 <- set_ArchState64_csr  astate  csr12  rs1_val
   exec_end_common  astate1  (Just (rd, csr_val))
 
 executeInstr  astate  (Csrrs rd rs1 csr12) = do
-  let csr_val = get_ArchState64_csr_from_addr  astate  csr12
+  let csr_val = get_ArchState64_csr  astate  csr12
   astate1 <- if (rs1 /= Rg_x0) then do
                let rs1_val = get_ArchState64_gpr  astate  rs1
                    new_csr_val = csr_val  .|.  rs1_val
-               set_ArchState64_csr_from_addr  astate  csr12  new_csr_val
+               set_ArchState64_csr  astate  csr12  new_csr_val
              else
                return astate
   exec_end_common  astate1  (Just (rd, csr_val))
 
 executeInstr  astate  (Csrrc rd rs1 csr12) = do
-  let csr_val = get_ArchState64_csr_from_addr  astate  csr12
+  let csr_val = get_ArchState64_csr  astate  csr12
   astate1 <- if (rs1 /= Rg_x0) then do
                let rs1_val = get_ArchState64_gpr  astate  rs1
                    new_csr_val = csr_val  .&.  (complement  rs1_val)
-               set_ArchState64_csr_from_addr  astate  csr12  new_csr_val
+               set_ArchState64_csr  astate  csr12  new_csr_val
              else
                return astate
   exec_end_common  astate1  (Just (rd, csr_val))
 
 executeInstr  astate  (Csrrwi rd zimm csr12) = do
   let csr_val = if (rd /= Rg_x0) then
-                  get_ArchState64_csr_from_addr  astate  csr12
+                  get_ArchState64_csr  astate  csr12
                 else
                   0    -- arbitrary; will be discarded (rd==0)
-  astate1 <- set_ArchState64_csr_from_addr  astate  csr12  zimm
+  astate1 <- set_ArchState64_csr  astate  csr12  zimm
   exec_end_common  astate1  (Just (rd, csr_val))
 
 executeInstr  astate  (Csrrsi rd zimm csr12) = do
-  let csr_val = get_ArchState64_csr_from_addr  astate  csr12
+  let csr_val = get_ArchState64_csr  astate  csr12
   astate1 <- if (zimm /= 0) then do
                let new_csr_val = csr_val  .|.  zimm
-               set_ArchState64_csr_from_addr  astate  csr12  new_csr_val
+               set_ArchState64_csr  astate  csr12  new_csr_val
              else
                return astate
   exec_end_common  astate1  (Just (rd, csr_val))
 
 executeInstr  astate  (Csrrci rd zimm csr12) = do
-  let csr_val = get_ArchState64_csr_from_addr  astate  csr12
+  let csr_val = get_ArchState64_csr  astate  csr12
   astate1 <- if (zimm /= 0) then do
                let new_csr_val = csr_val  .&.  (complement  zimm)
-               set_ArchState64_csr_from_addr  astate  csr12  new_csr_val
+               set_ArchState64_csr  astate  csr12  new_csr_val
              else
                return astate
   exec_end_common  astate1  (Just (rd, csr_val))
@@ -550,7 +550,7 @@ executeInstr  astate  (Mulh rd rs1 rs2) = do
       v1_i   = fromIntegral (cvt_u_to_s  rs1_val)    -- signed
       v2_i   = fromIntegral (cvt_u_to_s  rs2_val)    -- signed
       prod_i = v1_i * v2_i
-      rd_val :: MachineWord
+      rd_val :: WordXLEN
       rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen+xlen)))
   exec_end_common  astate  (Just (rd, rd_val))
 
@@ -561,7 +561,7 @@ executeInstr  astate  (Mulhu rd rs1 rs2) = do
       v1_i   = fromIntegral  rs1_val    -- unsigned
       v2_i   = fromIntegral  rs2_val    -- unsigned
       prod_i = v1_i * v2_i
-      rd_val :: MachineWord
+      rd_val :: WordXLEN
       rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen+xlen)))
   exec_end_common  astate  (Just (rd, rd_val))
 
@@ -572,7 +572,7 @@ executeInstr  astate  (Mulhsu rd rs1 rs2) = do
       v1_i   = fromIntegral (cvt_u_to_s  rs1_val)    -- signed
       v2_i   = fromIntegral  rs2_val                 -- unsigned
       prod_i = v1_i * v2_i
-      rd_val :: MachineWord
+      rd_val :: WordXLEN
       rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen+xlen)))
   exec_end_common  astate  (Just (rd, rd_val))
 
@@ -622,7 +622,7 @@ executeInstr  astate  (Mulw rd rs1 rs2) = do
       v1_i   = fromIntegral (trunc_u64_to_s32  rs1_val)    -- signed
       v2_i   = fromIntegral (trunc_u64_to_s32  rs2_val)    -- signed
       prod_i = v1_i * v2_i
-      rd_val :: MachineWord
+      rd_val :: WordXLEN
       rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen+xlen)))
   exec_end_common  astate  (Just (rd, rd_val))
 

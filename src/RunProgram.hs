@@ -29,7 +29,7 @@ import ExecuteInstr
 
 runProgram :: Int -> ArchState64 -> IO ArchState64
 runProgram  maxinstrs  astate = do
-  let instret = get_ArchState64_csr  astate  CSR_minstret
+  let instret = get_ArchState64_csr  astate  csr_addr_minstret
   if instret >= fromIntegral maxinstrs
     then (do
              putStrLn ("Reached instret limit (" ++ show maxinstrs ++ "); exiting")
@@ -56,7 +56,7 @@ runProgram  maxinstrs  astate = do
                           let instr = decode xlen instr_word         -- DECODE
                               pc    = get_ArchState64_PC  astate
 
-                          when (get_ArchState64_verbosity astate == 1)
+                          when (get_ArchState64_verbosity astate >= 1)
                             (do
                                 putStr (show (instret + 1))
                                 putStr ("  pc 0x" ++ (showHex pc ""))
@@ -68,7 +68,7 @@ runProgram  maxinstrs  astate = do
                           if (pc /= get_ArchState64_PC  astate') then
                             runProgram  maxinstrs  astate'                -- LOOP (tail-recursive call)
                           else (do
-                                   let instret = get_ArchState64_csr  astate  CSR_minstret
+                                   let instret = get_ArchState64_csr  astate  csr_addr_minstret
                                    putStrLn ("Reached jump-to-self infinite loop; instret = " ++ show instret ++ "; exiting")
                                    return astate')))
 

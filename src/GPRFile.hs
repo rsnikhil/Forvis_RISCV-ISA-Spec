@@ -9,8 +9,8 @@ module GPRFile (GPRFile, print_GPRFile, mkGPRFile, get_gpr, set_gpr) where
 
 import Data.Maybe
 import Data.Word
-import qualified Data.Map.Strict as Data_Map
 import Numeric (showHex, readHex)
+import qualified Data.Map.Strict as Data_Map
 
 -- Project imports
 
@@ -21,7 +21,7 @@ import ArchDefs64
 -- This is a private internal representation that can be changed at
 -- will; only the exported API can be used by clients.
 
-newtype GPRFile = GPRFile (Data_Map.Map  Register  MachineWord)
+newtype GPRFile = GPRFile (Data_Map.Map  Register  WordXLEN)
   deriving (Show)
 
 -- print_GPRFile prints four regs per line, in hex, with given indent
@@ -47,10 +47,10 @@ mkGPRFile :: GPRFile
 mkGPRFile = GPRFile (Data_Map.fromList (zip  (enumFromTo  Rg_x0  Rg_x31)
                                              (repeat (fromIntegral 0))))
 
-get_gpr :: GPRFile -> Register -> MachineWord
+get_gpr :: GPRFile -> Register -> WordXLEN
 get_gpr  (GPRFile gprfile)  reg = fromMaybe 0 (Data_Map.lookup  reg  gprfile)
 
-set_gpr :: GPRFile -> Register -> MachineWord -> GPRFile
+set_gpr :: GPRFile -> Register -> WordXLEN -> GPRFile
 set_gpr  (GPRFile gprfile)  reg  val = GPRFile (Data_Map.insert  reg  val'  gprfile)
   where
     val' = if (reg == Rg_x0) then 0 else val

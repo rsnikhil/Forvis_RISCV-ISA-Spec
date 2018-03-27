@@ -19,11 +19,15 @@ import Data.Bits
 -- ================================================================
 -- Major architectural parameters
 
+data XLEN = RV32
+          | RV64
+          deriving (Eq, Show)
+
 xlen :: Int
 xlen = 64
 
-type MachineWord   = Word64    -- unsigned
-type MachineWord_S = Int64     -- signed
+type WordXLEN = Word64    -- unsigned
+type IntXLEN  = Int64     -- signed
 
 data Register = Rg_x0  | Rg_x1  | Rg_x2  | Rg_x3  | Rg_x4  | Rg_x5  | Rg_x6  | Rg_x7
               | Rg_x8  | Rg_x9  | Rg_x10 | Rg_x11 | Rg_x12 | Rg_x13 | Rg_x14 | Rg_x15
@@ -55,7 +59,7 @@ data IntrCause = IntrCause_U_SW
                | IntrCause_M_External
                deriving (Eq, Ord, Enum, Show)
 
-mk_mcause_from_IntrCause :: IntrCause -> MachineWord
+mk_mcause_from_IntrCause :: IntrCause -> WordXLEN
 mk_mcause_from_IntrCause  intrCause = fromIntegral ((shiftL  1  (xlen - 1))  .|.  (fromEnum intrCause))
 
 data TrapCause = TrapCause_Instr_Addr_Misaligned
@@ -76,17 +80,17 @@ data TrapCause = TrapCause_Instr_Addr_Misaligned
                | TrapCause_Store_AMO_Page_Fault
                deriving (Eq, Ord, Enum, Show)
 
-mk_mcause_from_TrapCause :: TrapCause -> MachineWord
+mk_mcause_from_TrapCause :: TrapCause -> WordXLEN
 mk_mcause_from_TrapCause  trapCause = fromIntegral (fromEnum trapCause)
 
 -- ================================================================
 -- Memory-mapped IO
 -- Trivial for now, just recognizes one location, the 'UART console' output.
 
-addr_console_out :: MachineWord
+addr_console_out :: WordXLEN
 addr_console_out =  0xfff4
 
-is_IO_addr :: MachineWord -> Bool
+is_IO_addr :: WordXLEN -> Bool
 is_IO_addr  addr = (addr == addr_console_out)
 
 -- ================================================================

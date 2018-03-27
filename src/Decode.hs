@@ -22,38 +22,38 @@ import ArchDefs64
 data Instruction =
   IllegalInstruction |
 
-  Lb  { rd :: Register, rs1 :: Register, oimm12 :: MachineWord_S } |
-  Lh  { rd :: Register, rs1 :: Register, oimm12 :: MachineWord_S } |
-  Lw  { rd :: Register, rs1 :: Register, oimm12 :: MachineWord_S } |
-  Ld  { rd :: Register, rs1 :: Register, oimm12 :: MachineWord_S } |
-  Lbu { rd :: Register, rs1 :: Register, oimm12 :: MachineWord_S } |
-  Lhu { rd :: Register, rs1 :: Register, oimm12 :: MachineWord_S } |
-  Lwu { rd :: Register, rs1 :: Register, oimm12 :: MachineWord_S } |
+  Lb  { rd :: Register, rs1 :: Register, oimm12 :: IntXLEN } |
+  Lh  { rd :: Register, rs1 :: Register, oimm12 :: IntXLEN } |
+  Lw  { rd :: Register, rs1 :: Register, oimm12 :: IntXLEN } |
+  Ld  { rd :: Register, rs1 :: Register, oimm12 :: IntXLEN } |
+  Lbu { rd :: Register, rs1 :: Register, oimm12 :: IntXLEN } |
+  Lhu { rd :: Register, rs1 :: Register, oimm12 :: IntXLEN } |
+  Lwu { rd :: Register, rs1 :: Register, oimm12 :: IntXLEN } |
 
   Fence { pred :: Word32, succ :: Word32 } |
   Fence_i |
 
-  Addi  { rd :: Register, rs1 :: Register, imm12  :: MachineWord_S } |
+  Addi  { rd :: Register, rs1 :: Register, imm12  :: IntXLEN } |
   Slli  { rd :: Register, rs1 :: Register, shamt6 :: Int } |
-  Slti  { rd :: Register, rs1 :: Register, imm12  :: MachineWord_S } |
-  Sltiu { rd :: Register, rs1 :: Register, imm12  :: MachineWord_S } |
-  Xori  { rd :: Register, rs1 :: Register, imm12  :: MachineWord_S } |
-  Ori   { rd :: Register, rs1 :: Register, imm12  :: MachineWord_S } |
-  Andi  { rd :: Register, rs1 :: Register, imm12  :: MachineWord_S } |
+  Slti  { rd :: Register, rs1 :: Register, imm12  :: IntXLEN } |
+  Sltiu { rd :: Register, rs1 :: Register, imm12  :: IntXLEN } |
+  Xori  { rd :: Register, rs1 :: Register, imm12  :: IntXLEN } |
+  Ori   { rd :: Register, rs1 :: Register, imm12  :: IntXLEN } |
+  Andi  { rd :: Register, rs1 :: Register, imm12  :: IntXLEN } |
   Srli  { rd :: Register, rs1 :: Register, shamt6 :: Int } |
   Srai  { rd :: Register, rs1 :: Register, shamt6 :: Int } |
 
-  Auipc { rd :: Register, oimm20 :: MachineWord_S } |
+  Auipc { rd :: Register, oimm20 :: IntXLEN } |
 
-  Addiw { rd :: Register, rs1 :: Register, imm12  :: MachineWord_S } |
+  Addiw { rd :: Register, rs1 :: Register, imm12  :: IntXLEN } |
   Slliw { rd :: Register, rs1 :: Register, shamt5 :: Int } |
   Srliw { rd :: Register, rs1 :: Register, shamt5 :: Int } |
   Sraiw { rd :: Register, rs1 :: Register, shamt5 :: Int } |
 
-  Sb { rs1 :: Register, rs2 :: Register, simm12 :: MachineWord_S } |
-  Sh { rs1 :: Register, rs2 :: Register, simm12 :: MachineWord_S } |
-  Sw { rs1 :: Register, rs2 :: Register, simm12 :: MachineWord_S } |
-  Sd { rs1 :: Register, rs2 :: Register, simm12 :: MachineWord_S } |
+  Sb { rs1 :: Register, rs2 :: Register, simm12 :: IntXLEN } |
+  Sh { rs1 :: Register, rs2 :: Register, simm12 :: IntXLEN } |
+  Sw { rs1 :: Register, rs2 :: Register, simm12 :: IntXLEN } |
+  Sd { rs1 :: Register, rs2 :: Register, simm12 :: IntXLEN } |
 
   Add    { rd :: Register, rs1 :: Register, rs2 :: Register } |
   Sub    { rd :: Register, rs1 :: Register, rs2 :: Register } |
@@ -74,7 +74,7 @@ data Instruction =
   Rem    { rd :: Register, rs1 :: Register, rs2 :: Register } |
   Remu   { rd :: Register, rs1 :: Register, rs2 :: Register } |
 
-  Lui { rd :: Register, imm20 :: MachineWord } |
+  Lui { rd :: Register, imm20 :: WordXLEN } |
 
   Addw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
   Subw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
@@ -87,15 +87,15 @@ data Instruction =
   Remw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
   Remuw { rd :: Register, rs1 :: Register, rs2 :: Register } |
 
-  Beq  { rs1 :: Register, rs2 :: Register, sbimm12 :: MachineWord_S } |
-  Bne  { rs1 :: Register, rs2 :: Register, sbimm12 :: MachineWord_S } |
-  Blt  { rs1 :: Register, rs2 :: Register, sbimm12 :: MachineWord_S } |
-  Bge  { rs1 :: Register, rs2 :: Register, sbimm12 :: MachineWord_S } |
-  Bltu { rs1 :: Register, rs2 :: Register, sbimm12 :: MachineWord_S } |
-  Bgeu { rs1 :: Register, rs2 :: Register, sbimm12 :: MachineWord_S } |
+  Beq  { rs1 :: Register, rs2 :: Register, sbimm12 :: IntXLEN } |
+  Bne  { rs1 :: Register, rs2 :: Register, sbimm12 :: IntXLEN } |
+  Blt  { rs1 :: Register, rs2 :: Register, sbimm12 :: IntXLEN } |
+  Bge  { rs1 :: Register, rs2 :: Register, sbimm12 :: IntXLEN } |
+  Bltu { rs1 :: Register, rs2 :: Register, sbimm12 :: IntXLEN } |
+  Bgeu { rs1 :: Register, rs2 :: Register, sbimm12 :: IntXLEN } |
 
-  Jalr { rd :: Register, rs1 :: Register, oimm12 :: MachineWord_S } |
-  Jal  { rd :: Register, jimm20 :: MachineWord_S } |
+  Jalr { rd :: Register, rs1 :: Register, oimm12 :: IntXLEN } |
+  Jal  { rd :: Register, jimm20 :: IntXLEN } |
 
   Ecall  |
   Ebreak |
@@ -105,12 +105,12 @@ data Instruction =
   Wfi    |
   Sfence_vm { rs1 :: Register, rs2 :: Register } |
 
-  Csrrw  { rd :: Register,  rs1 :: Register,    csr12 :: Word16 } |
-  Csrrs  { rd :: Register,  rs1 :: Register,    csr12 :: Word16 } |
-  Csrrc  { rd :: Register,  rs1 :: Register,    csr12 :: Word16 } |
-  Csrrwi { rd :: Register, zimm :: MachineWord, csr12 :: Word16 } |
-  Csrrsi { rd :: Register, zimm :: MachineWord, csr12 :: Word16 } |
-  Csrrci { rd :: Register, zimm :: MachineWord, csr12 :: Word16 }
+  Csrrw  { rd :: Register,  rs1 :: Register, csr12 :: Word16 } |
+  Csrrs  { rd :: Register,  rs1 :: Register, csr12 :: Word16 } |
+  Csrrc  { rd :: Register,  rs1 :: Register, csr12 :: Word16 } |
+  Csrrwi { rd :: Register, zimm :: WordXLEN, csr12 :: Word16 } |
+  Csrrsi { rd :: Register, zimm :: WordXLEN, csr12 :: Word16 } |
+  Csrrci { rd :: Register, zimm :: WordXLEN, csr12 :: Word16 }
   deriving (Eq, Show)
 
 -- ================================================================

@@ -226,7 +226,7 @@ void c_mem_load_elf (char *elf_filename,
 void write_mem_hex8_file (FILE *fp)
 {
     fprintf (fp, "@%08lx\n",  min_addr);
-    for (uint32_t addr = min_addr; addr < max_addr; addr ++) {
+    for (uint32_t addr = min_addr; addr <= max_addr; addr ++) {
 	fprintf (fp, "%02x", mem_buf [addr]);
 	if ((addr & 0xF) == 0)
 	    fprintf (fp, "    // @ %08x", addr);
@@ -234,6 +234,7 @@ void write_mem_hex8_file (FILE *fp)
     }
 }
 
+/*
 #define BYTES_PER_WORD32  (4)
 #define BASE_ADDR_B     (0x80000000u)
 
@@ -287,6 +288,7 @@ void write_mem_hex64_file (FILE *fp)
 	fprintf (fp, "    // %016" PRIx64 "\n", addr);
     }
 }
+*/
 
 // ================================================================
 

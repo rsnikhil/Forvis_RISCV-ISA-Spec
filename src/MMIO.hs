@@ -39,16 +39,16 @@ mkMMIO = MMIO_Con ()
 -- TODO: lots of details to be filled in
 -- including returning potential errors
 
-getMMIO8 :: MMIO -> MachineWord -> Word8
+getMMIO8 :: MMIO -> WordXLEN -> Word8
 getMMIO8  mmio  addr = 0xAA    -- bogus placeholder
 
-getMMIO16 :: MMIO -> MachineWord -> Word16
+getMMIO16 :: MMIO -> WordXLEN -> Word16
 getMMIO16  mmio  addr = 0xAAAA    -- bogus placeholder
 
-getMMIO32 :: MMIO -> MachineWord -> Word32
+getMMIO32 :: MMIO -> WordXLEN -> Word32
 getMMIO32  mmio  addr = 0xAAAAAAAA    -- bogus placeholder
 
-getMMIO64 :: MMIO -> MachineWord -> Word64
+getMMIO64 :: MMIO -> WordXLEN -> Word64
 getMMIO64  mmio  addr = 0xAAAAAAAAAAAAAAAA    -- bogus placeholder
 
 -- ----------------
@@ -56,7 +56,7 @@ getMMIO64  mmio  addr = 0xAAAAAAAAAAAAAAAA    -- bogus placeholder
 -- TODO: lots of details to be filled in
 -- including returning potential errors
 
-setMMIO8 :: MMIO -> MachineWord -> Word8 -> IO MMIO
+setMMIO8 :: MMIO -> WordXLEN -> Word8 -> IO MMIO
 setMMIO8  mmio  addr  val =
   if (addr == addr_console_out) then do
     -- Console output
@@ -66,7 +66,7 @@ setMMIO8  mmio  addr  val =
     putStrLn ("IO write: addr 0x" ++ (showHex addr "") ++ " byte 0x" ++ (showHex val ""))
     return mmio
 
-setMMIO16 :: MMIO -> MachineWord -> Word16 -> IO MMIO
+setMMIO16 :: MMIO -> WordXLEN -> Word16 -> IO MMIO
 setMMIO16  mmio  addr  val =
   if (addr == addr_console_out) then do
     -- Console output
@@ -76,7 +76,7 @@ setMMIO16  mmio  addr  val =
     putStrLn ("IO write: addr 0x" ++ (showHex addr "") ++ " halfword 0x" ++ (showHex val ""))
     return mmio
 
-setMMIO32 :: MMIO -> MachineWord -> Word32 -> IO MMIO
+setMMIO32 :: MMIO -> WordXLEN -> Word32 -> IO MMIO
 setMMIO32  mmio  addr  val =
   if (addr == addr_console_out) then do
     -- Console output
@@ -86,7 +86,7 @@ setMMIO32  mmio  addr  val =
     putStrLn ("IO write: addr 0x" ++ (showHex addr "") ++ " word 0x" ++ (showHex val ""))
     return mmio
 
-setMMIO64 :: MMIO -> MachineWord -> Word64 -> IO MMIO
+setMMIO64 :: MMIO -> WordXLEN -> Word64 -> IO MMIO
 setMMIO64  mmio  addr  val =
   if (addr == addr_console_out) then do
     -- Console output
