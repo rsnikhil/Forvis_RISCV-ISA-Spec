@@ -74,6 +74,11 @@ exec_end_trap :: ArchState64 -> Exc_Code -> WordXLEN -> IO ArchState64
 exec_end_trap  astate  exc_code  tval =
   upd_ArchState64_on_trap  astate  False  exc_code  tval
 
+exec_end_ret :: ArchState64 -> Priv_Level -> IO ArchState64
+exec_end_ret  astate  priv = do
+  astate1 <- upd_ArchState64_on_ret  astate  priv
+  incr_minstret  astate1
+
 -- ================================================================
 -- 'executeInstr' takes current arch state and a decoded instruction
 -- and returns a new arch state after executing that instruction.
@@ -366,10 +371,16 @@ executeInstr  astate  Fence_i = do
   exec_end_common  astate  Nothing
 
 -- ECALL
--- TODO: trap
 executeInstr  astate  Ecall = do
-  putStrLn ("Ecall; STOPPING")
-  set_ArchState64_stop  astate  Stop_Other
+  let priv     = get_ArchState64_priv  astate
+      exc_code | priv == m_Priv_Level = exc_code_ECall_from_M
+               | priv == s_Priv_Level = exc_code_ECall_from_S
+               | priv == u_Priv_Level = exc_code_ECall_from_U
+  exec_end_trap  astate  exc_code  0
+
+-- MRET
+executeInstr  astate  Mret = do
+  exec_end_ret  astate  m_Priv_Level
 
 -- EBREAK
 executeInstr  astate  Ebreak = do
@@ -716,7 +727,7 @@ executeInstr  astate  (Remuw rd rs1 rs2) = do
 -- TODO: trap to trap handler; for now, just stop
 
 executeInstr  astate  IllegalInstruction = do
-  putStrLn "  ILLEGAL INSTRUCTION; STOPPING"
+  putStrLn "  ILLEGAL INSTRUCTION"
   exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
 
 -- ================================================================
@@ -724,7 +735,7 @@ executeInstr  astate  IllegalInstruction = do
 -- variants of the 'Instruction' type.
 
 executeInstr  astate  instr = do
-  putStrLn ("  INTERNAL ERROR: UNIMPLEMENTED: " ++ (show instr) ++ "; STOPPING")
+  putStrLn ("  INTERNAL ERROR: UNIMPLEMENTED: " ++ (show instr))
   exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
 
 -- ================================================================

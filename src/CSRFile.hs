@@ -65,7 +65,8 @@ module CSRFile (CSR_Addr,
                 CSR_Permission (..),  csr_permission,
                 get_csr, set_csr,
                 misa_flag,
-                upd_csrfile_on_trap
+                upd_csrfile_on_trap,
+                upd_csrfile_on_ret
                )
 where
 
@@ -139,7 +140,7 @@ u_csr_addrs_and_names  =
     (csr_addr_timeh,      "timeh"),
     (csr_addr_instreth,   "instreth") ]
 
-u_csr_reset_values :: XLEN -> [(CSR_Addr, Word64)]
+u_csr_reset_values :: XLEN -> [(CSR_Addr, WordXLEN)]
 u_csr_reset_values  xlen =
   [ (csr_addr_ustatus,    0),
     (csr_addr_uie,        0),
@@ -198,7 +199,7 @@ s_csr_addrs_and_names  =
 
     (csr_addr_satp,       "satp") ]
 
-s_csr_reset_values :: XLEN -> [(CSR_Addr, Word64)]
+s_csr_reset_values :: XLEN -> [(CSR_Addr, WordXLEN)]
 s_csr_reset_values  xlen =
   [ (csr_addr_sstatus,    0),
     (csr_addr_sedeleg,    0),
@@ -278,7 +279,7 @@ m_csr_addrs_and_names  =
     (csr_addr_mcycleh,    "mcycleh"),
     (csr_addr_minstreth,  "minstreth") ]
 
-m_csr_reset_values :: XLEN -> [(CSR_Addr, Word64)]
+m_csr_reset_values :: XLEN -> [(CSR_Addr, WordXLEN)]
 m_csr_reset_values  xlen =
   [ (csr_addr_mvendorid,  0),
     (csr_addr_marchid,    0),
@@ -286,7 +287,8 @@ m_csr_reset_values  xlen =
     (csr_addr_mhartid,    0),
 
     (csr_addr_mstatus,    0),
-    (csr_addr_misa,       fromIntegral (read_vhex (if xlen == RV32 then "0x4000_0000" else "0x8000_0000_0000_0000"))),
+    -- (csr_addr_misa,       fromIntegral (read_vhex "0x4000_0000")),    -- TODO: RV32 only
+    (csr_addr_misa,       fromIntegral (read_vhex "0x8000_0000_0000_0000")),    -- TODO: RV64 only
     (csr_addr_medeleg,    0),
     (csr_addr_mideleg,    0),
     (csr_addr_mie,        0),
@@ -474,7 +476,7 @@ new_priv_on_exception  misa  priv  interrupt_not_trap  exc_code  medeleg  midele
 upd_status_on_trap :: WordXLEN -> Priv_Level -> Priv_Level -> WordXLEN
 upd_status_on_trap  status  from_priv_y  to_priv_x =
   let
-    -- Copy the IE bit to PIE and clear the IE bit
+    -- Push the interrupt-enable stack (ie to pie)
     ie_j  = fromIntegral to_priv_x
     pie_j = fromIntegral to_priv_x + 4
     status1 = if testBit  status  ie_j
@@ -504,5 +506,54 @@ tvec_mode_VECTORED :: Word;  tvec_mode_VECTORED = 1
 
 tvec_base :: WordXLEN -> WordXLEN
 tvec_base  tvec = shiftR  tvec  2
+
+-- ================================================================
+-- upd_csrfile_on_ret performs all the CSR manipulations for an xRET
+
+upd_csrfile_on_ret :: CSRFile
+                   -> Priv_Level
+                   -> (WordXLEN,      -- new PC
+                       Priv_Level,    -- new privilege
+                       CSRFile)       -- updated CSR file
+upd_csrfile_on_ret  csrfile  priv = result
+  where misa                    = get_csr  csrfile  csr_addr_misa
+        mstatus                 = get_csr  csrfile  csr_addr_mstatus
+        (new_priv, new_mstatus) = upd_status_on_ret  misa  mstatus  priv
+        new_pc                  = get_csr  csrfile  (if priv == m_Priv_Level
+                                                     then csr_addr_mepc
+                                                     else if priv == s_Priv_Level
+                                                          then csr_addr_sepc
+                                                          else csr_addr_uepc)
+        new_csrfile             = set_csr  csrfile  csr_addr_mstatus  new_mstatus
+        result                  = (new_pc, new_priv, new_csrfile)
+
+-- Update the mstatus register based on an xRET
+
+upd_status_on_ret :: WordXLEN -> WordXLEN -> Priv_Level -> (Priv_Level, WordXLEN)
+upd_status_on_ret  misa  status  from_priv_x =
+  let
+    -- Pop the interrupt-enable stack (pie to ie)
+    ie_j  = fromIntegral from_priv_x
+    pie_j = fromIntegral from_priv_x + 4
+    status1 = if testBit  status  pie_j
+              then setBit    status  ie_j
+              else clearBit  status  ie_j
+    -- Enable interrupt at from_priv_x
+    status2 = setBit  status  pie_j
+
+    -- Default previous-priv at bottom of xPP stack
+    default_pp = fromIntegral (if (misa_flat  misa  'U') then u_Priv_Level else m_Priv_Level)
+
+    -- Pop the previous priv level
+    to_priv_y = fromIntegral (if (from_priv_x == m_Priv_Level)
+                              then bitSlice  status2  11 13
+                              else bitSlice  status    8  9)
+    status3   = if (from_priv_x == m_Priv_Level)
+                then
+                  ((status2 .&. complement 0x1800) .|. shiftL  default_pp  11)
+                else
+                  ((status2 .&. complement 0x400) .|. shiftL  (default_pp .&. 1)  8)
+  in
+    (to_priv_y, status3)
 
 -- ================================================================

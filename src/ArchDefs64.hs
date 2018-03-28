@@ -2,8 +2,8 @@ module ArchDefs64 where
 
 -- ================================================================
 -- This module has some basic system-wide RISC-V definitions (such
--- RV32 vs. RV64 and memory map) on which the rest of the
--- architectural state and operations depend.
+-- RV32 vs. RV64) on which the rest of the architectural state and
+-- operations depend.
 
 -- ================================================================
 -- Standard Haskell imports
@@ -26,8 +26,13 @@ data XLEN = RV32
 xlen :: Int
 xlen = 64
 
+-- For RV64
 type WordXLEN = Word64    -- unsigned
 type IntXLEN  = Int64     -- signed
+
+-- For RV32
+-- type WordXLEN = Word32    -- unsigned
+-- type IntXLEN  = Int32     -- signed
 
 data Register = Rg_x0  | Rg_x1  | Rg_x2  | Rg_x3  | Rg_x4  | Rg_x5  | Rg_x6  | Rg_x7
               | Rg_x8  | Rg_x9  | Rg_x10 | Rg_x11 | Rg_x12 | Rg_x13 | Rg_x14 | Rg_x15

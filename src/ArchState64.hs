@@ -14,6 +14,7 @@ module ArchState64 (ArchState64, mkArchState64, print_ArchState64,
                     get_ArchState64_priv,           set_ArchState64_priv,
 
                     upd_ArchState64_on_trap,
+                    upd_ArchState64_on_ret,
 
                     get_ArchState64_verbosity,      set_ArchState64_verbosity,
                     get_ArchState64_stop,           set_ArchState64_stop
@@ -204,6 +205,15 @@ upd_ArchState64_on_trap  astate  is_interrupt  exc_code  tval = do
       pc      = f_pc    astate
       csrfile = f_csrs  astate
       (new_pc, new_priv, csrfile') = upd_csrfile_on_trap  csrfile  priv  pc  is_interrupt  exc_code  tval
+  return astate { f_pc = new_pc, f_priv = new_priv, f_csrs = csrfile' }
+
+-- ================================================================
+-- xRET actions
+
+upd_ArchState64_on_ret :: ArchState64 -> Priv_Level -> IO ArchState64
+upd_ArchState64_on_ret  astate  priv = do
+  let csrfile = f_csrs  astate
+      (new_pc, new_priv, csrfile') = upd_csrfile_on_ret  csrfile  priv
   return astate { f_pc = new_pc, f_priv = new_priv, f_csrs = csrfile' }
 
 -- ================================================================

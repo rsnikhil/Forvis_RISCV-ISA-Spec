@@ -50,11 +50,16 @@ main_RunProgram = do
   let usage_string     = usageInfo  "Optional command line arguments:"   options
       has_help         = elem  Opt_Help  opts
       errs2            = [ err      | Opt_Err err <- opts]
-      verbosities      = [ v | Opt_Verbosity v <- opts ]
-      verbosity        = case verbosities of
+      vs               = [ v | Opt_Verbosity v <- opts ]
+      verbosity        = case vs of
                            []   -> 0
                            [v]  -> v
                            v:_  -> v
+      nis              = [ n | Opt_Num_Instrs n <- opts ]
+      num_instrs       = case nis of
+                           []   -> 1000000
+                           [n]  -> n
+                           n:_  -> n
 
   if has_help then
     putStr usage_string
@@ -74,52 +79,25 @@ main_RunProgram = do
            putStrLn "Command-line has no filenames (expecting at least 1)"
     else
     do
-      retval <- runFiles  filenames  verbosity
+      retval <- runFiles  filenames  num_instrs  verbosity
       exitWith (if retval == 0 then
                    ExitSuccess
                 else
                   ExitFailure (fromIntegral retval))
 
-{-
-  retval <- case args of
-              [] -> do
-                putStrLn usage_help
-                return 1
-
-              "-h":files -> do
-                putStrLn usage_help
-                return 1
-
-              "-help":files -> do
-                putStrLn usage_help
-                return 1
-
-              "--help":files -> do
-                putStrLn usage_help
-                return 1
-
-              [file] -> runFile  file  verbosity
-
-              files -> runFiles  files  verbosity
-
-  exitWith (if retval == 0 then
-              ExitSuccess
-            else
-              ExitFailure (fromIntegral retval))
--}
-
 -- ================================================================
 -- These are options for System.Console.GetOpt/getOpt
 
--- Note: in type 'OptDescr a', the parameter 'a' is a type for the
+-- Haskell notes: in type 'OptDescr a', the parameter 'a' is a type for the
 -- values associated with options. Here, a = MyOptS
 
 data MyOpt = Opt_Help
-           | Opt_Verbosity  Int
-           | Opt_Err        String
+           | Opt_Verbosity   Int
+           | Opt_Num_Instrs  Int
+           | Opt_Err         String
   deriving (Eq, Show);
 
--- Note: type 'ArgDescr a' (3rd arg to Option constructor) has constructors:
+-- Haskell notes: type 'ArgDescr a' (3rd arg to Option constructor) has constructors:
 --    NoArg x::a
 --        The option flag has no option value string following it
 --        and it returns the option value of type 'a' provided
@@ -136,8 +114,9 @@ data MyOpt = Opt_Help
 
 options :: [OptDescr MyOpt]
 options =
-     [ Option ['v']       ["verbosity"] (ReqArg to_Opt_Verbosity "<int>") "0 quiet, 1 instr trace, 2 more info"
-     , Option ['h', 'H']  ["help"]      (NoArg  Opt_Help)                 "help"
+     [ Option ['h', 'H']  ["help"]       (NoArg  Opt_Help)                  "help"
+     , Option ['v']       ["verbosity"]  (ReqArg to_Opt_Verbosity  "<int>") "0 quiet, 1 instr trace, 2 more info"
+     , Option ['n']       ["num_instrs"] (ReqArg to_Opt_Num_Instrs "<int>") "max instrs executed (default 1,000,000)"
      ]
 
 to_Opt_Verbosity :: String -> MyOpt
@@ -145,24 +124,29 @@ to_Opt_Verbosity s = case (readDec s) of
                        [(n,"")] -> Opt_Verbosity n
                        _        -> Opt_Err s
 
+to_Opt_Num_Instrs :: String -> MyOpt
+to_Opt_Num_Instrs s = case (readDec s) of
+                        [(n,"")] -> Opt_Num_Instrs n
+                        _        -> Opt_Err s
+
 -- ================================================================
 -- Run all the RISC-V ELF/Hex programs in the list of file arguments
 
-runFiles :: [String] -> Int -> IO Int64
-runFiles  (file:files)  verbosity = do
+runFiles :: [String] -> Int -> Int -> IO Int64
+runFiles  (file:files)  num_instrs  verbosity = do
     putStrLn ("Running file: '" ++ file ++ "'")
-    myreturn <- runFile  file  verbosity
+    myreturn <- runFile  file  num_instrs  verbosity
     putStrLn ("Exitvalue from running file '" ++ file ++ "' is: " ++ (show myreturn))
-    othersreturn <- runFiles  files  verbosity
+    othersreturn <- runFiles  files  num_instrs  verbosity
     if myreturn /= 0
         then return myreturn
         else return othersreturn
-runFiles []  verbosity = return 0
+runFiles []  _  _ = return 0
 
 -- Run a single RISC-V ELF/Hex program in file argument
 
-runFile :: String -> Int -> IO Int64
-runFile  filename  verbosity = do
+runFile :: String -> Int -> Int -> IO Int64
+runFile  filename  num_instrs  verbosity = do
   addr_byte_list <- readProgram  filename
   let min_addr = minimum (map  (\(x,y) -> x)  addr_byte_list)
       max_addr = maximum (map  (\(x,y) -> x)  addr_byte_list)
@@ -181,8 +165,8 @@ runFile  filename  verbosity = do
   -- TODO: make this a command-line argument
   astate2 <- set_ArchState64_verbosity  astate1  verbosity
 
-  putStrLn "Running program up to 1,000,000 instructions"
-  runProgram  1000000  astate2
+  putStrLn ("Running program up to " ++ show (num_instrs) ++ " instructions")
+  runProgram  num_instrs  astate2
   return 0
 
 -- ================================================================
