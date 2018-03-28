@@ -105,12 +105,12 @@ data Instruction =
   Wfi    |
   Sfence_vm { rs1 :: Register, rs2 :: Register } |
 
-  Csrrw  { rd :: Register,  rs1 :: Register, csr12 :: Word16 } |
-  Csrrs  { rd :: Register,  rs1 :: Register, csr12 :: Word16 } |
-  Csrrc  { rd :: Register,  rs1 :: Register, csr12 :: Word16 } |
-  Csrrwi { rd :: Register, zimm :: WordXLEN, csr12 :: Word16 } |
-  Csrrsi { rd :: Register, zimm :: WordXLEN, csr12 :: Word16 } |
-  Csrrci { rd :: Register, zimm :: WordXLEN, csr12 :: Word16 }
+  Csrrw  { rd :: Register,  rs1 :: Register, csr12 :: CSR_Addr } |
+  Csrrs  { rd :: Register,  rs1 :: Register, csr12 :: CSR_Addr } |
+  Csrrc  { rd :: Register,  rs1 :: Register, csr12 :: CSR_Addr } |
+  Csrrwi { rd :: Register, zimm :: WordXLEN, csr12 :: CSR_Addr } |
+  Csrrsi { rd :: Register, zimm :: WordXLEN, csr12 :: CSR_Addr } |
+  Csrrci { rd :: Register, zimm :: WordXLEN, csr12 :: CSR_Addr }
   deriving (Eq, Show)
 
 -- ================================================================
@@ -354,7 +354,7 @@ decode xlen inst = decode_sub opcode
     imm12   = signExtend_bits_to_s 12  (bitSlice inst 20 32)
     oimm12  = signExtend_bits_to_s 12  (bitSlice inst 20 32)
 
-    csr12  :: Word16
+    csr12  :: CSR_Addr
     csr12   = fromIntegral (bitSlice inst 20 32)
 
     simm12  = signExtend_bits_to_s 12 (shift (bitSlice inst 25 32) 5 .|. bitSlice inst 7 12)    -- for STORE
@@ -440,11 +440,11 @@ decode xlen inst = decode_sub opcode
       | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, funct7==funct7_SFENCE_VM        = Sfence_vm {rs1=rs1, rs2=rs2}
 
       | opcode==opcode_SYSTEM, funct3==funct3_CSRRW  = Csrrw   {rd=rd, rs1=rs1,   csr12=csr12}
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRS  = Csrrw   {rd=rd, rs1=rs1,   csr12=csr12}
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRC  = Csrrw   {rd=rd, rs1=rs1,   csr12=csr12}
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRS  = Csrrs   {rd=rd, rs1=rs1,   csr12=csr12}
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRC  = Csrrc   {rd=rd, rs1=rs1,   csr12=csr12}
       | opcode==opcode_SYSTEM, funct3==funct3_CSRRWI = Csrrwi  {rd=rd, zimm=zimm, csr12=csr12}
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRSI = Csrrwi  {rd=rd, zimm=zimm, csr12=csr12}
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRCI = Csrrwi  {rd=rd, zimm=zimm, csr12=csr12}
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRSI = Csrrsi  {rd=rd, zimm=zimm, csr12=csr12}
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRCI = Csrrci  {rd=rd, zimm=zimm, csr12=csr12}
 
       -- The following are RV64 only
       | opcode==opcode_LOAD, funct3==funct3_LD,  xlen==64 = Ld  {rd=rd, rs1=rs1, oimm12=oimm12}

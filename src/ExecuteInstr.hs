@@ -70,11 +70,9 @@ exec_end_branch  astate  pc  taken  target_PC = do
 
 -- Ending on traps
 -- TODO: Currently stopping execution; should trap instead
-exec_end_trap :: ArchState64 -> TrapCause -> IO ArchState64
-exec_end_trap  astate  cause = do
-  astate1 <- set_ArchState64_csr   astate  csr_addr_mcause  (mk_mcause_from_TrapCause  cause)
-  astate2 <- set_ArchState64_stop  astate  (if (cause == TrapCause_Breakpoint) then Stop_Break else Stop_Other)
-  return astate2
+exec_end_trap :: ArchState64 -> Exc_Code -> WordXLEN -> IO ArchState64
+exec_end_trap  astate  exc_code  tval =
+  upd_ArchState64_on_trap  astate  False  exc_code  tval
 
 -- ================================================================
 -- 'executeInstr' takes current arch state and a decoded instruction
@@ -166,8 +164,8 @@ executeInstr  astate  (Lb rd rs1 oimm12) = do
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
       (result, astate') = get_ArchState64_mem8  astate  eaddr
   case result of
-    LoadResult_Err cause -> exec_end_trap  astate'  cause
-    LoadResult_Ok  u8    ->
+    LoadResult_Err exc_code -> exec_end_trap  astate'  exc_code  eaddr
+    LoadResult_Ok  u8       ->
       do
         let rd_val = signExtend_u8_to_u  u8
         exec_end_common  astate'  (Just (rd, rd_val))
@@ -177,8 +175,8 @@ executeInstr  astate  (Lh rd rs1 oimm12) = do
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
       (result, astate') = get_ArchState64_mem16  astate  eaddr
   case result of
-    LoadResult_Err cause -> exec_end_trap  astate'  cause
-    LoadResult_Ok  u16   ->
+    LoadResult_Err exc_code -> exec_end_trap  astate'  exc_code  eaddr
+    LoadResult_Ok  u16      ->
       do
         let rd_val = signExtend_u16_to_u  u16
         exec_end_common  astate'  (Just (rd, rd_val))
@@ -188,8 +186,8 @@ executeInstr  astate  (Lw rd rs1 oimm12) = do
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
       (result, astate') = get_ArchState64_mem32  astate  eaddr
   case result of
-    LoadResult_Err cause -> exec_end_trap  astate'  cause
-    LoadResult_Ok  u32   ->
+    LoadResult_Err exc_code -> exec_end_trap  astate'  exc_code  eaddr
+    LoadResult_Ok  u32      ->
       do
         let rd_val = signExtend_u32_to_u  u32
         exec_end_common  astate'  (Just (rd, rd_val))
@@ -199,8 +197,8 @@ executeInstr  astate  (Lbu rd rs1 oimm12) = do
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
       (result, astate') = get_ArchState64_mem8  astate  eaddr
   case result of
-    LoadResult_Err cause -> exec_end_trap  astate'  cause
-    LoadResult_Ok  u8    ->
+    LoadResult_Err exc_code -> exec_end_trap  astate'  exc_code  eaddr
+    LoadResult_Ok  u8       ->
       do
         let rd_val = zeroExtend_u8_to_u  u8
         exec_end_common  astate'  (Just (rd, rd_val))
@@ -210,8 +208,8 @@ executeInstr  astate  (Lhu rd rs1 oimm12) = do
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + oimm12)
       (result, astate') = get_ArchState64_mem16  astate  eaddr
   case result of
-    LoadResult_Err cause -> exec_end_trap  astate'  cause
-    LoadResult_Ok  u16   ->
+    LoadResult_Err exc_code -> exec_end_trap  astate'  exc_code  eaddr
+    LoadResult_Ok  u16      ->
       do
         let rd_val = zeroExtend_u16_to_u  u16
         exec_end_common  astate'  (Just (rd, rd_val))
@@ -376,64 +374,101 @@ executeInstr  astate  Ecall = do
 -- EBREAK
 executeInstr  astate  Ebreak = do
   putStrLn ("Ebreak; STOPPING")
-  exec_end_trap  astate  TrapCause_Breakpoint
+  let pc = get_ArchState64_PC  astate
+  exec_end_trap  astate  exc_code_breakpoint  pc
 
 -- CSRRx: CSRRW CSRRS CSRRC CSRRWI CSRRSI CSRRCI
 
-executeInstr  astate  (Csrrw rd rs1 csr12) = do
-  let csr_val = if (rd /= Rg_x0) then
-                  get_ArchState64_csr  astate  csr12
-                else
-                  0    -- arbitrary; will be discarded (rd==0)
-      rs1_val = get_ArchState64_gpr  astate  rs1
-  astate1 <- set_ArchState64_csr  astate  csr12  rs1_val
-  exec_end_common  astate1  (Just (rd, csr_val))
+executeInstr  astate  (Csrrw rd rs1 csr12) =
+  let permission = get_ArchState64_csr_permission  astate  (get_ArchState64_priv  astate)  csr12
+  in
+    if (permission /= CSR_Permission_RW)
+    then
+      exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
+    else do
+      let csr_val = if (rd /= Rg_x0) then
+                      get_ArchState64_csr  astate  csr12
+                    else
+                      0    -- arbitrary; will be discarded (rd==0)
+          rs1_val = get_ArchState64_gpr  astate  rs1
+      astate1 <- set_ArchState64_csr  astate  csr12  rs1_val
+      exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrs rd rs1 csr12) = do
-  let csr_val = get_ArchState64_csr  astate  csr12
-  astate1 <- if (rs1 /= Rg_x0) then do
-               let rs1_val = get_ArchState64_gpr  astate  rs1
-                   new_csr_val = csr_val  .|.  rs1_val
-               set_ArchState64_csr  astate  csr12  new_csr_val
-             else
-               return astate
-  exec_end_common  astate1  (Just (rd, csr_val))
+executeInstr  astate  (Csrrwi rd zimm csr12) =
+  let permission = get_ArchState64_csr_permission  astate  (get_ArchState64_priv  astate)  csr12
+  in
+    if (permission /= CSR_Permission_RW)
+    then
+      exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
+    else do
+      let csr_val = if (rd /= Rg_x0) then
+                      get_ArchState64_csr  astate  csr12
+                    else
+                      0    -- arbitrary; will be discarded (rd==0)
+      astate1 <- set_ArchState64_csr  astate  csr12  zimm
+      exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrc rd rs1 csr12) = do
-  let csr_val = get_ArchState64_csr  astate  csr12
-  astate1 <- if (rs1 /= Rg_x0) then do
-               let rs1_val = get_ArchState64_gpr  astate  rs1
-                   new_csr_val = csr_val  .&.  (complement  rs1_val)
-               set_ArchState64_csr  astate  csr12  new_csr_val
-             else
-               return astate
-  exec_end_common  astate1  (Just (rd, csr_val))
+executeInstr  astate  (Csrrs rd rs1 csr12) =
+  let permission = get_ArchState64_csr_permission  astate  (get_ArchState64_priv  astate)  csr12
+  in
+    if (permission == CSR_Permission_None) || ((rs1 /= Rg_x0) && (permission == CSR_Permission_RO))
+    then
+      exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
+    else do
+      let csr_val = get_ArchState64_csr  astate  csr12
+      astate1 <- (if (rs1 /= Rg_x0) then do
+                     let rs1_val = get_ArchState64_gpr  astate  rs1
+                         new_csr_val = csr_val  .|.  rs1_val
+                     set_ArchState64_csr  astate  csr12  new_csr_val
+                  else
+                    return astate)
+      exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrwi rd zimm csr12) = do
-  let csr_val = if (rd /= Rg_x0) then
-                  get_ArchState64_csr  astate  csr12
-                else
-                  0    -- arbitrary; will be discarded (rd==0)
-  astate1 <- set_ArchState64_csr  astate  csr12  zimm
-  exec_end_common  astate1  (Just (rd, csr_val))
+executeInstr  astate  (Csrrsi rd zimm csr12) =
+  let permission = get_ArchState64_csr_permission  astate  (get_ArchState64_priv  astate)  csr12
+  in
+    if (permission == CSR_Permission_None) || ((zimm /= 0) && (permission == CSR_Permission_RO))
+    then
+      exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
+    else do
+      let csr_val = get_ArchState64_csr  astate  csr12
+      astate1 <- (if (zimm /= 0) then do
+                     let new_csr_val = csr_val  .|.  zimm
+                     set_ArchState64_csr  astate  csr12  new_csr_val
+                  else
+                    return astate)
+      exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrsi rd zimm csr12) = do
-  let csr_val = get_ArchState64_csr  astate  csr12
-  astate1 <- if (zimm /= 0) then do
-               let new_csr_val = csr_val  .|.  zimm
-               set_ArchState64_csr  astate  csr12  new_csr_val
-             else
-               return astate
-  exec_end_common  astate1  (Just (rd, csr_val))
+executeInstr  astate  (Csrrc rd rs1 csr12) =
+  let permission = get_ArchState64_csr_permission  astate  (get_ArchState64_priv  astate)  csr12
+  in
+    if (permission == CSR_Permission_None) || ((rs1 /= Rg_x0) && (permission == CSR_Permission_RO))
+    then
+      exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
+    else do
+      let csr_val = get_ArchState64_csr  astate  csr12
+      astate1 <- (if (rs1 /= Rg_x0) then do
+                     let rs1_val = get_ArchState64_gpr  astate  rs1
+                         new_csr_val = csr_val  .&.  (complement  rs1_val)
+                     set_ArchState64_csr  astate  csr12  new_csr_val
+                  else
+                     return astate)
+      exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrci rd zimm csr12) = do
-  let csr_val = get_ArchState64_csr  astate  csr12
-  astate1 <- if (zimm /= 0) then do
-               let new_csr_val = csr_val  .&.  (complement  zimm)
-               set_ArchState64_csr  astate  csr12  new_csr_val
-             else
-               return astate
-  exec_end_common  astate1  (Just (rd, csr_val))
+executeInstr  astate  (Csrrci rd zimm csr12) =
+  let permission = get_ArchState64_csr_permission  astate  (get_ArchState64_priv  astate)  csr12
+  in
+    if (permission == CSR_Permission_None) || ((zimm /= 0) && (permission == CSR_Permission_RO))
+    then
+      exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
+    else do
+      let csr_val = get_ArchState64_csr  astate  csr12
+      astate1 <- (if (zimm /= 0) then do
+                     let new_csr_val = csr_val  .&.  (complement  zimm)
+                     set_ArchState64_csr  astate  csr12  new_csr_val
+                   else
+                     return astate)
+      exec_end_common  astate1  (Just (rd, csr_val))
 
 -- ================================================================
 -- RV64I instructions
@@ -445,7 +480,7 @@ executeInstr  astate  (Lwu rd rs1 oimm12) = do
       eaddr_u64         = cvt_s_to_u  ((cvt_u_to_s  rs1_val_u64) + oimm12)
       (result, astate') = get_ArchState64_mem32  astate  eaddr_u64
   case result of
-    LoadResult_Err cause -> exec_end_trap  astate'  cause
+    LoadResult_Err cause -> exec_end_trap  astate'  cause  eaddr_u64
     LoadResult_Ok  u32   ->
       do
         let rd_val = zeroExtend_u32_to_u64  u32
@@ -456,7 +491,7 @@ executeInstr  astate  (Ld rd rs1 oimm12) = do
       eaddr_u64         = cvt_s_to_u  ((cvt_u_to_s  rs1_val_u64) + oimm12)
       (result, astate') = get_ArchState64_mem64  astate  eaddr_u64
   case result of
-    LoadResult_Err cause -> exec_end_trap  astate'  cause
+    LoadResult_Err cause -> exec_end_trap  astate'  cause  eaddr_u64
     LoadResult_Ok  u64   ->
       do
         let rd_val = u64
@@ -682,7 +717,7 @@ executeInstr  astate  (Remuw rd rs1 rs2) = do
 
 executeInstr  astate  IllegalInstruction = do
   putStrLn "  ILLEGAL INSTRUCTION; STOPPING"
-  set_ArchState64_stop  astate  Stop_Other
+  exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
 
 -- ================================================================
 -- We should never reach here; the above clauses should handle all the
@@ -690,7 +725,7 @@ executeInstr  astate  IllegalInstruction = do
 
 executeInstr  astate  instr = do
   putStrLn ("  INTERNAL ERROR: UNIMPLEMENTED: " ++ (show instr) ++ "; STOPPING")
-  set_ArchState64_stop  astate  Stop_Other
+  exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
 
 -- ================================================================
 -- TODO: raiseException is just a placeholder for now; fix up

@@ -9,12 +9,16 @@ test_hello_hex:
 	stack exec RISCV-ISA-Spec-exe  TestPrograms/MIT/hello64.hex
 
 .PHONY: test_hello_elf
-test_hello:
+test_hello_elf:
 	stack exec RISCV-ISA-Spec-exe  TestPrograms/MIT/hello64
 
 .PHONY: test_thue_elf
-test_thue:
+test_thue_elf:
 	stack exec RISCV-ISA-Spec-exe  TestPrograms/MIT/thuemorse64
+
+.PHONY: test_thue_hex
+test_thue_hex:
+	stack exec RISCV-ISA-Spec-exe  TestPrograms/MIT/thuemorse64.hex
 
 .PHONY: test_add_hex
 test_add_hex:

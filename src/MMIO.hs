@@ -1,4 +1,5 @@
-module MMIO (MMIO, mkMMIO,
+module MMIO (is_IO_addr,
+             MMIO, mkMMIO,
              getMMIO8, getMMIO16, getMMIO32, getMMIO64,
              setMMIO8, setMMIO16, setMMIO32, setMMIO64
             ) where
@@ -23,6 +24,16 @@ import Numeric (showHex, readHex)
 -- Project imports
 
 import ArchDefs64
+
+-- ================================================================
+-- Memory-mapped IO defs
+-- Trivial for now, just recognizes one location, the 'UART console' output.
+
+addr_console_out :: WordXLEN
+addr_console_out =  0xfff4
+
+is_IO_addr :: WordXLEN -> Bool
+is_IO_addr  addr = (addr == addr_console_out)
 
 -- ================================================================
 -- IO subsystem representation: dummy placeholder for now

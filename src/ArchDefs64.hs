@@ -36,61 +36,67 @@ data Register = Rg_x0  | Rg_x1  | Rg_x2  | Rg_x3  | Rg_x4  | Rg_x5  | Rg_x6  | R
               deriving (Eq, Ord, Enum, Show)
 
 -- ================================================================
+-- Using Word for CSR_Addrs, which are actually only 12 bits
 
-data LoadResult t = LoadResult_Ok t | LoadResult_Err TrapCause
+type CSR_Addr = Word
+
+-- ================================================================
+
+data LoadResult t = LoadResult_Ok t | LoadResult_Err Exc_Code
                   deriving (Show)
+
+-- ================================================================
+-- Privilege levels
+
+type Priv_Level = Word
+
+u_Priv_Level :: Priv_Level
+u_Priv_Level  = 0
+
+s_Priv_Level :: Priv_Level
+s_Priv_Level  = 2
+
+m_Priv_Level :: Priv_Level
+m_Priv_Level  = 3
 
 -- ================================================================
 -- Exception Causes
 
-data IntrCause = IntrCause_U_SW
-               | IntrCause_S_SW
-               | IntrCause_Reserved_2
-               | IntrCause_M_SW
+type Exc_Code = Word
 
-               | IntrCause_U_Timer
-               | IntrCause_S_Timer
-               | IntrCause_Reserved_6
-               | IntrCause_M_Timer
+exc_code_u_software_interrupt      :: Exc_Code;    exc_code_u_software_interrupt      =  0;
+exc_code_s_software_interrupt      :: Exc_Code;    exc_code_s_software_interrupt      =  1;
+exc_code_m_software_interrupt      :: Exc_Code;    exc_code_m_software_interrupt      =  3;
 
-               | IntrCause_U_External
-               | IntrCause_S_External
-               | IntrCause_Reserved_10
-               | IntrCause_M_External
-               deriving (Eq, Ord, Enum, Show)
+exc_code_u_timer_interrupt         :: Exc_Code;    exc_code_u_timer_interrupt         =  4;
+exc_code_s_timer_interrupt         :: Exc_Code;    exc_code_s_timer_interrupt         =  5;
+exc_code_m_timer_interrupt         :: Exc_Code;    exc_code_m_timer_interrupt         =  7;
 
-mk_mcause_from_IntrCause :: IntrCause -> WordXLEN
-mk_mcause_from_IntrCause  intrCause = fromIntegral ((shiftL  1  (xlen - 1))  .|.  (fromEnum intrCause))
+exc_code_u_external_interrupt      :: Exc_Code;    exc_code_u_external_interrupt      =  8;
+exc_code_s_external_interrupt      :: Exc_Code;    exc_code_s_external_interrupt      =  9;
+exc_code_m_external_interrupt      :: Exc_Code;    exc_code_m_external_interrupt      = 11;
 
-data TrapCause = TrapCause_Instr_Addr_Misaligned
-               | TrapCause_Instr_Access_Fault
-               | TrapCause_Illegal_Instr
-               | TrapCause_Breakpoint
-               | TrapCause_Load_Addr_Misaligned
-               | TrapCause_Load_Access_Fault
-               | TrapCause_Store_AMO_Addr_Misaligned
-               | TrapCause_Store_AMO_Access_Fault
-               | TrapCause_ECall_from_U
-               | TrapCause_ECall_from_S
-               | TrapCause_Reserved_10
-               | TrapCause_ECall_from_M
-               | TrapCause_Instr_Page_Fault
-               | TrapCause_Load_Page_Fault
-               | TrapCause_Reserved_14
-               | TrapCause_Store_AMO_Page_Fault
-               deriving (Eq, Ord, Enum, Show)
+exc_code_instr_addr_misaligned     :: Exc_Code;    exc_code_instr_addr_misaligned     =  0;
+exc_code_instr_access_fault        :: Exc_Code;    exc_code_instr_access_fault        =  1;
+exc_code_illegal_instruction       :: Exc_Code;    exc_code_illegal_instruction       =  2;
+exc_code_breakpoint                :: Exc_Code;    exc_code_breakpoint                =  3;
 
-mk_mcause_from_TrapCause :: TrapCause -> WordXLEN
-mk_mcause_from_TrapCause  trapCause = fromIntegral (fromEnum trapCause)
+exc_code_load_addr_misaligned      :: Exc_Code;    exc_code_load_addr_misaligned      =  4;
+exc_code_load_access_fault         :: Exc_Code;    exc_code_load_access_fault         =  5;
+exc_code_store_AMO_addr_misaligned :: Exc_Code;    exc_code_store_AMO_addr_misaligned =  6;
+exc_code_store_AMO_access_fault    :: Exc_Code;    exc_code_store_AMO_access_fault    =  7;
 
--- ================================================================
--- Memory-mapped IO
--- Trivial for now, just recognizes one location, the 'UART console' output.
+exc_code_ECall_from_U              :: Exc_Code;    exc_code_ECall_from_U              =  8;
+exc_code_ECall_from_S              :: Exc_Code;    exc_code_ECall_from_S              =  9;
+exc_code_ECall_from_M              :: Exc_Code;    exc_code_ECall_from_M              = 11;
 
-addr_console_out :: WordXLEN
-addr_console_out =  0xfff4
+exc_code_Instruction_Page_Fault    :: Exc_Code;    exc_code_Instruction_Page_Fault    = 12;
+exc_code_Load_Page_Fault           :: Exc_Code;    exc_code_Load_Page_Fault           = 13;
+exc_code_Store_AMO_Page_Fault      :: Exc_Code;    exc_code_Store_AMO_Page_Fault      = 15;
 
-is_IO_addr :: WordXLEN -> Bool
-is_IO_addr  addr = (addr == addr_console_out)
+mkCause :: Bool -> Exc_Code -> WordXLEN
+mkCause  interrupt_not_trap  exc_code = (msb .|. (fromIntegral  exc_code))
+  where msb :: WordXLEN
+        msb = if interrupt_not_trap then shiftL  1  (xlen - 1) else 0
 
 -- ================================================================

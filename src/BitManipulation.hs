@@ -14,6 +14,8 @@ module BitManipulation where
 import Data.Int
 import Data.Word
 import Data.Bits
+import Data.Char
+import Data.List
 import Numeric (showHex, readHex)
 
 -- Project imports
@@ -189,11 +191,23 @@ read_hex  width  s = check width (readHex s)
         check  width  ((x,s):xss) = x
 
 -- ================================================================
--- read_verilog_hex reads a hex number from a string which may use the
--- Verilog convention of allowing '_' spacers between digits
+-- read_vhex and read_vbin reads a hex or binary number from a string
+-- which may optionally being with "0x" or "0b"
+-- and which may use the Verilog convention of allowing '_' spacers
+-- between digits.
+-- In fact it's more lenient than Verilog: any non-digit is ignored
 
-read_vhex :: String -> Integer
-read_vhex  s = n
-  where [(n,s')] = readHex [ c | c <- s, c /= '_' ]
+read_vhex :: String -> Int
+read_vhex  s = foldl  f  0  s'
+  where s' = if "0x" `isPrefixOf` s then drop 2 s else s
+        f n digit | isHexDigit digit = 16 * n + (digitToInt  digit)
+                  | otherwise        = n
+
+read_vbin :: String -> Int
+read_vbin  s = foldl  f  0  s'
+  where s' = if "0b" `isPrefixOf` s then drop 2 s else s
+        f n '0' = 2 * n
+        f n '1' = 2 * n + 1
+        f n  _  = n
 
 -- ================================================================
