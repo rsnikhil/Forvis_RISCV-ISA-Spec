@@ -20,14 +20,14 @@ import Numeric (showHex, readHex)
 
 -- Project imports
 
-import ArchDefs64
+import ArchDefs
 
 -- ================================================================
--- Memory representation: Data.Map.Map from WordXLENs (addresses) to bytes
+-- Memory representation: Data.Map.Map from UInts (addresses) to bytes
 -- This is a private internal representation that can be changed at
 -- will; only the exported API can be used by clients.
 
-newtype Mem = Mem_Con (Data_Map.Map  WordXLEN  Word8)
+newtype Mem = Mem_Con (Data_Map.Map  UInt  Word8)
 
 mkMem :: [(Int, Word8)] -> Mem
 mkMem  addr_byte_list = mem
@@ -45,14 +45,14 @@ uninitialized_data = 0xaaaaAAAAaaaaAAAA
 -- We could return LoadResult_Err on uninitialized locations.
 -- We could return LoadResult_Err if there are address bounds.
 
-getMem8 :: Mem -> WordXLEN -> LoadResult Word8
+getMem8 :: Mem -> UInt -> LoadResult Word8
 getMem8  (Mem_Con dm)  addr = result
   where m_b0 = Data_Map.lookup  addr  dm
         result = case (m_b0) of
                    (Just b0) -> LoadResult_Ok  b0
                    _         -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
-getMem16 :: Mem -> WordXLEN -> LoadResult Word16
+getMem16 :: Mem -> UInt -> LoadResult Word16
 getMem16  (Mem_Con dm)  addr = result
   where m_b0 = Data_Map.lookup  addr        dm
         m_b1 = Data_Map.lookup  (addr + 1)  dm
@@ -60,7 +60,7 @@ getMem16  (Mem_Con dm)  addr = result
                    (Just b0, Just b1) -> LoadResult_Ok  (mk_u16  b0  b1)
                    _                  -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
-getMem32 :: Mem -> WordXLEN -> LoadResult Word32
+getMem32 :: Mem -> UInt -> LoadResult Word32
 getMem32  (Mem_Con dm)  addr = result
   where m_b0 = Data_Map.lookup  addr        dm
         m_b1 = Data_Map.lookup  (addr + 1)  dm
@@ -70,7 +70,7 @@ getMem32  (Mem_Con dm)  addr = result
                    (Just b0, Just b1, Just b2, Just b3) -> LoadResult_Ok  (mk_u32  b0  b1  b2  b3)
                    _                                    -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
-getMem64 :: Mem -> WordXLEN -> LoadResult Word64
+getMem64 :: Mem -> UInt -> LoadResult Word64
 getMem64  (Mem_Con dm)  addr = result
   where m_b0 = Data_Map.lookup  addr        dm
         m_b1 = Data_Map.lookup  (addr + 1)  dm
@@ -90,12 +90,12 @@ getMem64  (Mem_Con dm)  addr = result
 -- Currently we don't return any StoreResult.
 -- We could return StoreResult_Err if there are address bounds.
 
-setMem8 :: Mem -> WordXLEN -> Word8 -> Mem
+setMem8 :: Mem -> UInt -> Word8 -> Mem
 setMem8  (Mem_Con dm)  addr  val = Mem_Con dm1
   where byte0 = val
         dm1 = Data_Map.insert  addr  byte0  dm
 
-setMem16 :: Mem -> WordXLEN -> Word16 -> Mem
+setMem16 :: Mem -> UInt -> Word16 -> Mem
 setMem16  (Mem_Con dm)  addr  val = Mem_Con dm2
   where byte0 = fromIntegral (val            .&. 0xFF)
         byte1 = fromIntegral ((shiftR val 8) .&. 0xFF)
@@ -103,7 +103,7 @@ setMem16  (Mem_Con dm)  addr  val = Mem_Con dm2
         dm1 = Data_Map.insert  addr        byte0  dm
         dm2 = Data_Map.insert  (addr + 1)  byte1  dm1
 
-setMem32 :: Mem -> WordXLEN -> Word32 -> Mem
+setMem32 :: Mem -> UInt -> Word32 -> Mem
 setMem32  (Mem_Con dm)  addr  val = Mem_Con dm4
   where byte0 = fromIntegral (val             .&. 0xFF)
         byte1 = fromIntegral ((shiftR val 8)  .&. 0xFF)
@@ -115,7 +115,7 @@ setMem32  (Mem_Con dm)  addr  val = Mem_Con dm4
         dm3 = Data_Map.insert  (addr + 2)  byte2  dm2
         dm4 = Data_Map.insert  (addr + 3)  byte3  dm3
 
-setMem64 :: Mem -> WordXLEN -> Word64 -> Mem
+setMem64 :: Mem -> UInt -> Word64 -> Mem
 setMem64  (Mem_Con dm)  addr  val = Mem_Con dm8
   where byte0 = fromIntegral (val             .&. 0xFF)
         byte1 = fromIntegral ((shiftR val  8) .&. 0xFF)

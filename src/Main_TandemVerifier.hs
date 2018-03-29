@@ -15,8 +15,8 @@ import System.Exit
 -- Project imports
 
 import BitManipulation
-import ArchDefs64
-import ArchState64
+import ArchDefs
+import ArchState
 import RunProgram
 
 -- ================================================================
@@ -32,16 +32,16 @@ main_TandemVerifier = do
   -- Create initial architectural state
   let initial_PC     = 0
       addr_byte_list = []
-      astate         = mkArchState64  initial_PC  addr_byte_list
+      astate         = mkArchState  RV64  initial_PC  addr_byte_list
 
   putStrLn "Initial arch state"
-  print_ArchState64 "____"  astate
+  print_ArchState "____"  astate
 
   -- Process the commands against the architectural state
   astate1 <- process_cmds  astate  cmds
 
   putStrLn "Final arch state"
-  print_ArchState64 "____"  astate1
+  print_ArchState "____"  astate1
 
 -- ================================================================
 -- Parsing stdin into commands
@@ -75,7 +75,7 @@ collect_cmd  cmds  cmd  (x:xs) | x == cmd_start = split_cmds  (cmds ++ [cmd])  (
 -- ================================================================
 -- Processing commands against the architectural state
 
-process_cmds :: ArchState64 -> [[String]] -> IO ArchState64
+process_cmds :: ArchState -> [[String]] -> IO ArchState
 process_cmds  astate  []         = return astate
 process_cmds  astate  (cmd:cmds) = do
   astate1 <- process_cmd  astate  cmd
@@ -85,21 +85,21 @@ process_cmds  astate  (cmd:cmds) = do
 -- ================
 -- Process one command
 
-process_cmd :: ArchState64 -> [String] -> IO ArchState64
+process_cmd :: ArchState -> [String] -> IO ArchState
 
 -- ================
 -- Read/Write PC.
 
 process_cmd  astate  ["read_PC"] = do
   putStrLn ("    Doing read_PC")
-  let pc_val = get_ArchState64_PC  astate
+  let pc_val = get_ArchState_PC  astate
   putStrLn ("OK " ++ show pc_val)
   return astate
 
 process_cmd  astate  ["write_PC", v_s] = do
   putStrLn ("    Doing write_PC " ++ v_s)
   let v = fromIntegral (read_hex  32  v_s)
-  astate1 <- set_ArchState64_PC  astate  v
+  astate1 <- set_ArchState_PC  astate  v
   putStrLn "OK"
   return astate1
 
@@ -109,7 +109,7 @@ process_cmd  astate  ["write_PC", v_s] = do
 process_cmd  astate  ["read_GPR", r_s] = do
   putStrLn ("    Doing read_GPR " ++ r_s)
   let r       = toEnum (fromIntegral (read_hex  5  r_s))
-      gpr_val = get_ArchState64_gpr  astate  r
+      gpr_val = get_ArchState_gpr  astate  r
   putStrLn ("OK " ++ show gpr_val)
   return astate
 
@@ -117,7 +117,7 @@ process_cmd  astate  ["write_GPR", r_s, v_s] = do
   putStrLn ("    Doing write_GPR " ++ r_s ++ " " ++ v_s)
   let r = toEnum (fromIntegral (read_hex   5  r_s))
       v = fromIntegral (read_hex  32  v_s)
-  astate1 <- set_ArchState64_gpr  astate  r  v
+  astate1 <- set_ArchState_gpr  astate  r  v
   putStrLn "OK"
   return astate1
 
@@ -127,7 +127,7 @@ process_cmd  astate  ["write_GPR", r_s, v_s] = do
 process_cmd  astate  ["read_CSR", csr_addr_s] = do
   putStrLn ("    Doing read_CSR " ++ csr_addr_s)
   let csr_addr = fromIntegral (read_hex  12  csr_addr_s)
-      csr_val  = get_ArchState64_csr  astate  csr_addr
+      csr_val  = get_ArchState_csr  astate  csr_addr
   putStrLn ("OK " ++ show csr_val)
   return astate
 
@@ -135,7 +135,7 @@ process_cmd  astate  ["write_CSR", csr_addr_s, v_s] = do
   putStrLn ("    Doing write_CSR " ++ csr_addr_s ++ " " ++ v_s)
   let csr_addr = fromIntegral (read_hex  12  csr_addr_s)
       v        = fromIntegral (read_hex  32  v_s)
-  astate1 <- set_ArchState64_csr  astate  csr_addr  v
+  astate1 <- set_ArchState_csr  astate  csr_addr  v
   putStrLn "OK"
   return astate1
 
@@ -148,11 +148,11 @@ process_cmd  astate  ["read_mem_8", n_s, addr_s] = do
   putStr "OK"
   let n    = read_hex  32  n_s
       addr = read_hex  32  addr_s
-      read_bytes :: ArchState64 -> Integer -> IO ()
+      read_bytes :: ArchState -> Integer -> IO ()
       read_bytes  astate  j | j == n = return ()
                             | True   = do
                                           let addr_j           = fromIntegral (addr + j)
-                                              (res_j, astate') = get_ArchState64_mem8  astate  addr_j
+                                              (res_j, astate') = get_ArchState_mem8  astate  addr_j
                                           case res_j of
                                             LoadResult_Err cause ->
                                               do
@@ -176,13 +176,13 @@ process_cmd  astate  ("write_mem_8": addr_s: val_ss) = do
   putStrLn ""
 
   let addr = read_hex  32  addr_s
-      write_bytes :: ArchState64 -> Integer -> [String] -> IO ArchState64
+      write_bytes :: ArchState -> Integer -> [String] -> IO ArchState
       write_bytes  astate  j  []               = return astate
       write_bytes  astate  j  (val_s:val_ss) = do
         let addr_j = addr + j
             val_j  = read_hex 32 val_s
         putStrLn ("(" ++ (showHex addr_j "") ++ "," ++ (showHex val_j "") ++ ")")
-        astate1 <- set_ArchState64_mem8  astate  (fromIntegral addr_j)  (fromIntegral val_j)
+        astate1 <- set_ArchState_mem8  astate  (fromIntegral addr_j)  (fromIntegral val_j)
         write_bytes  astate1  (j+1)  val_ss
 
   astate1 <- write_bytes  astate  0  val_ss
@@ -198,11 +198,11 @@ process_cmd  astate  ["read_mem_32", n_s, addr_s] = do
   putStr "OK"
   let n    = read_hex  32  n_s
       addr = read_hex  32  addr_s
-      read_words :: ArchState64 -> Integer -> IO ()
+      read_words :: ArchState -> Integer -> IO ()
       read_words  astate  j | j == n = return ()
                             | True   = do
                                           let addr_j           = fromIntegral (addr + j*4)
-                                              (res_j, astate') = get_ArchState64_mem32  astate  addr_j
+                                              (res_j, astate') = get_ArchState_mem32  astate  addr_j
                                           case res_j of
                                             LoadResult_Err cause ->
                                               do
@@ -226,13 +226,13 @@ process_cmd  astate  ("write_mem_32": addr_s: val_ss) = do
   putStrLn ""
 
   let addr = read_hex  32  addr_s
-      write_words :: ArchState64 -> Integer -> [String] -> IO ArchState64
+      write_words :: ArchState -> Integer -> [String] -> IO ArchState
       write_words  astate  j  []               = return astate
       write_words  astate  j  (val_s:val_ss) = do
         let addr_j = addr + j*4
             val_j  = read_hex 32 val_s
         putStrLn ("(" ++ (showHex addr_j "") ++ "," ++ (showHex val_j "") ++ ")")
-        astate1 <- set_ArchState64_mem32  astate  (fromIntegral addr_j)  (fromIntegral val_j)
+        astate1 <- set_ArchState_mem32  astate  (fromIntegral addr_j)  (fromIntegral val_j)
         write_words  astate1  (j+1)  val_ss
 
   astate1 <- write_words  astate  0  val_ss
@@ -247,7 +247,7 @@ process_cmd  astate  ["exec", n_s, tv_s] = do
   putStrLn ("    Doing exec " ++ n_s ++ " " ++ tv_s)
   let n = read  n_s
   astate1 <- runProgram  (fromIntegral n)  astate
-  let stop_reason = get_ArchState64_stop  astate1
+  let stop_reason = get_ArchState_stop  astate1
   putStrLn ("OK " ++ (show stop_reason))
   return astate1
 
@@ -257,14 +257,14 @@ process_cmd  astate  ["exec", n_s, tv_s] = do
 
 process_cmd  astate  ["read_verbosity"] = do
   putStrLn ("    Doing read_verbosity")
-  let verbosity = get_ArchState64_verbosity  astate
+  let verbosity = get_ArchState_verbosity  astate
   putStrLn ("OK " ++ show (verbosity))
   return astate
 
 process_cmd  astate  ["write_verbosity", v_s] = do
   putStrLn ("    Doing write_verbosity " ++ v_s)
   let verbosity = read_hex  1  v_s
-  astate1 <- set_ArchState64_verbosity  astate  (fromIntegral verbosity)
+  astate1 <- set_ArchState_verbosity  astate  (fromIntegral verbosity)
   putStrLn "OK"
   return astate1
 

@@ -20,7 +20,7 @@ import Numeric (showHex, readHex)
 
 -- Project imports
 
-import ArchDefs64
+import ArchDefs
 
 -- ================================================================
 -- Note: below, to improve readability we use identifiers
@@ -43,87 +43,79 @@ bitSlice x start end = (shiftR x start) .&. (complement $ shiftL (-1) (end - sta
 {-# INLINE bitSlice #-}
 
 -- ================================================================
--- This function is used in 'decode' to sign-extend instruction
--- bit fields of various lengths to a full signed machine word
--- (IntXLEN).  The relevant bit field is in word [nbits-1:0]
--- (words [31:nbits] are not relevant).
+-- Sign-extend bit [n-1] to full width
 
-signExtend_bits_to_s :: Int -> Word32 -> IntXLEN
-signExtend_bits_to_s  nbits  word32 = s
-  where u32 = if testBit word32 (nbits - 1)
-              then word32 - (2 ^ nbits)
-              else word32
-        s32 :: Int32
-        s32 = fromIntegral u32
-        s   :: IntXLEN
-        s   = fromIntegral s32
+signExtend :: UInt -> Int -> UInt
+signExtend  word  n | n >= 64   = word
+                    | otherwise = word'
+  where  fill_bits = (shiftL  1  (64 - n)) - 1
+         word'     = word .|. (if testBit  word  (n-1)
+                               then (shiftL  fill_bits  n)
+                               else 0)
 
 -- ================================================================
 -- The following sign- or zero-extend smaller unsigned byte/word types
--- to an unsigned WordXLEN
+-- to an unsigned UInt
 
-signExtend_u8_to_u :: Word8 -> WordXLEN
+signExtend_u8_to_u :: Word8 -> UInt
 signExtend_u8_to_u  u8 = u
   where s8 :: Int8
         s8 = fromIntegral u8
-        s  :: IntXLEN
+        s  :: SInt
         s  = fromIntegral s8
-        u  :: WordXLEN
+        u  :: UInt
         u  = fromIntegral s
 
-signExtend_u16_to_u :: Word16 -> WordXLEN
+signExtend_u16_to_u :: Word16 -> UInt
 signExtend_u16_to_u  u16 = u
   where s16 :: Int16
         s16 = fromIntegral u16
-        s  :: IntXLEN
+        s  :: SInt
         s  = fromIntegral s16
-        u  :: WordXLEN
+        u  :: UInt
         u  = fromIntegral s
 
--- Note: the following is the identity function if a WordXLEN is 32b
-signExtend_u32_to_u :: Word32 -> WordXLEN
+signExtend_u32_to_u :: Word32 -> UInt
 signExtend_u32_to_u  u32 = u
   where s32 :: Int32
         s32 = fromIntegral u32
-        s  :: IntXLEN
+        s  :: SInt
         s  = fromIntegral s32
-        u  :: WordXLEN
+        u  :: UInt
         u  = fromIntegral s
 
-zeroExtend_u8_to_u :: Word8 -> WordXLEN
+zeroExtend_u8_to_u :: Word8 -> UInt
 zeroExtend_u8_to_u  u8 = u
-  where u :: WordXLEN
+  where u :: UInt
         u = fromIntegral u8
 
-zeroExtend_u16_to_u :: Word16 -> WordXLEN
+zeroExtend_u16_to_u :: Word16 -> UInt
 zeroExtend_u16_to_u  u16 = u
-  where u :: WordXLEN
+  where u :: UInt
         u = fromIntegral u16
 
--- Note: the following is the identity function if a WordXLEN is 32b
-zeroExtend_u32_to_u :: Word32 -> WordXLEN
+zeroExtend_u32_to_u :: Word32 -> UInt
 zeroExtend_u32_to_u  u32 = u
-  where u :: WordXLEN
+  where u :: UInt
         u = fromIntegral u32
 
 -- ================================================================
--- The following truncate a WordXLEN to shorter byte/word types
+-- The following truncate a UInt to shorter byte/word types
 
-trunc_u_to_u8 :: WordXLEN -> Word8
+trunc_u_to_u8 :: UInt -> Word8
 trunc_u_to_u8  u = u8
   where u8 = fromIntegral u
 
-trunc_u_to_u16 :: WordXLEN -> Word16
+trunc_u_to_u16 :: UInt -> Word16
 trunc_u_to_u16  u = u16
   where u16 = fromIntegral u
 
--- Note: the following is the identity function if a WordXLEN is 32b
-trunc_u_to_u32 :: WordXLEN -> Word32
+trunc_u_to_u32 :: UInt -> Word32
 trunc_u_to_u32  u = u32
   where u32 = fromIntegral u
 
 -- ================================================================
--- Conversions between specific sizes (not dependent on XLEN)
+-- Conversions between specific sizes
 
 signExtend_u32_to_u64 :: Word32 -> Word64
 signExtend_u32_to_u64  u32 = u64
@@ -166,10 +158,10 @@ trunc_s64_to_s32  s64 = s32
 -- ================================================================
 -- Same-size conversions
 
-cvt_u_to_s :: WordXLEN -> IntXLEN
+cvt_u_to_s :: UInt -> SInt
 cvt_u_to_s  u = fromIntegral u
 
-cvt_s_to_u :: IntXLEN -> WordXLEN
+cvt_s_to_u :: SInt -> UInt
 cvt_s_to_u  s = fromIntegral s
 
 -- ================================================================
@@ -177,7 +169,7 @@ cvt_s_to_u  s = fromIntegral s
 -- arg for the shift amount (shamt).  The following conversion
 -- produces that.
 
-cvt_u_to_Int :: WordXLEN -> Int
+cvt_u_to_Int :: UInt -> Int
 cvt_u_to_Int  u = i
   where i = fromIntegral u
 
@@ -197,13 +189,13 @@ read_hex  width  s = check width (readHex s)
 -- between digits.
 -- In fact it's more lenient than Verilog: any non-digit is ignored
 
-read_vhex :: String -> Int
+read_vhex :: String -> UInt
 read_vhex  s = foldl  f  0  s'
   where s' = if "0x" `isPrefixOf` s then drop 2 s else s
-        f n digit | isHexDigit digit = 16 * n + (digitToInt  digit)
+        f n digit | isHexDigit digit = 16 * n + fromIntegral (digitToInt  digit)
                   | otherwise        = n
 
-read_vbin :: String -> Int
+read_vbin :: String -> UInt
 read_vbin  s = foldl  f  0  s'
   where s' = if "0b" `isPrefixOf` s then drop 2 s else s
         f n '0' = 2 * n

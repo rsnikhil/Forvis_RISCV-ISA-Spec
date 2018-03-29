@@ -25,8 +25,8 @@ import Numeric (showHex, readHex, readDec)
 import Elf
 import ReadHexFile 
 
-import ArchDefs64
-import ArchState64
+import ArchDefs
+import ArchState
 import RunProgram
 import Memory
 
@@ -157,13 +157,13 @@ runFile  filename  num_instrs  verbosity = do
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
 
   let initial_PC = 0x80000000
-      astate1    = mkArchState64  initial_PC  addr_byte_list
+      astate1    = mkArchState  RV64  initial_PC  addr_byte_list
 
   -- dumpMem  astate1  0x80002000  0x80002010
 
   -- Set verbosity: 0: quiet (only console out); 1: also instruction trace; 2: also CPU arch state
   -- TODO: make this a command-line argument
-  astate2 <- set_ArchState64_verbosity  astate1  verbosity
+  astate2 <- set_ArchState_verbosity  astate1  verbosity
 
   putStrLn ("Running program up to " ++ show (num_instrs) ++ " instructions")
   runProgram  num_instrs  astate2
@@ -185,10 +185,10 @@ readProgram f = do
 -- ================================================================
 -- For debugging
 
-dumpMem :: ArchState64 -> WordXLEN -> WordXLEN -> IO ()
+dumpMem :: ArchState -> UInt -> UInt -> IO ()
 dumpMem  astate  start  end = do
   let f addr = do
-          let (load_result, astate') = get_ArchState64_mem8  astate  addr
+          let (load_result, astate') = get_ArchState_mem8  astate  addr
               val = case load_result of
                       LoadResult_Ok  x          ->  showHex x ""
                       LoadResult_Err trap_cause ->  show trap_cause

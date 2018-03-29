@@ -1,4 +1,4 @@
-module ArchDefs64 where
+module ArchDefs where
 
 -- ================================================================
 -- This module has some basic system-wide RISC-V definitions (such
@@ -19,20 +19,13 @@ import Data.Bits
 -- ================================================================
 -- Major architectural parameters
 
-data XLEN = RV32
-          | RV64
-          deriving (Eq, Show)
+data RV = RV32
+        | RV64
+        deriving (Eq, Show)
 
-xlen :: Int
-xlen = 64
-
--- For RV64
-type WordXLEN = Word64    -- unsigned
-type IntXLEN  = Int64     -- signed
-
--- For RV32
--- type WordXLEN = Word32    -- unsigned
--- type IntXLEN  = Int32     -- signed
+-- We use a representation large enough for both RV32 and RV64
+type UInt = Word64
+type SInt = Int64
 
 data Register = Rg_x0  | Rg_x1  | Rg_x2  | Rg_x3  | Rg_x4  | Rg_x5  | Rg_x6  | Rg_x7
               | Rg_x8  | Rg_x9  | Rg_x10 | Rg_x11 | Rg_x12 | Rg_x13 | Rg_x14 | Rg_x15
@@ -43,7 +36,7 @@ data Register = Rg_x0  | Rg_x1  | Rg_x2  | Rg_x3  | Rg_x4  | Rg_x5  | Rg_x6  | R
 -- ================================================================
 -- Using Word for CSR_Addrs, which are actually only 12 bits
 
-type CSR_Addr = Word
+type CSR_Addr = UInt
 
 -- ================================================================
 
@@ -53,7 +46,7 @@ data LoadResult t = LoadResult_Ok t | LoadResult_Err Exc_Code
 -- ================================================================
 -- Privilege levels
 
-type Priv_Level = Word
+type Priv_Level = UInt
 
 u_Priv_Level :: Priv_Level
 u_Priv_Level  = 0
@@ -67,7 +60,7 @@ m_Priv_Level  = 3
 -- ================================================================
 -- Exception Causes
 
-type Exc_Code = Word
+type Exc_Code = UInt
 
 exc_code_u_software_interrupt      :: Exc_Code;    exc_code_u_software_interrupt      =  0;
 exc_code_s_software_interrupt      :: Exc_Code;    exc_code_s_software_interrupt      =  1;
@@ -99,9 +92,11 @@ exc_code_Instruction_Page_Fault    :: Exc_Code;    exc_code_Instruction_Page_Fau
 exc_code_Load_Page_Fault           :: Exc_Code;    exc_code_Load_Page_Fault           = 13;
 exc_code_Store_AMO_Page_Fault      :: Exc_Code;    exc_code_Store_AMO_Page_Fault      = 15;
 
-mkCause :: Bool -> Exc_Code -> WordXLEN
-mkCause  interrupt_not_trap  exc_code = (msb .|. (fromIntegral  exc_code))
-  where msb :: WordXLEN
-        msb = if interrupt_not_trap then shiftL  1  (xlen - 1) else 0
+mkCause :: RV -> Bool -> Exc_Code -> UInt
+mkCause  rv  interrupt_not_trap  exc_code = (msb .|. (fromIntegral  exc_code))
+  where msb :: UInt
+        msb | interrupt_not_trap && (rv == RV32) = shiftL  1  31
+            | interrupt_not_trap && (rv == RV64) = shiftL  1  63
+            | otherwise                          = 0
 
 -- ================================================================

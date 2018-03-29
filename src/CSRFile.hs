@@ -65,6 +65,7 @@ module CSRFile (CSR_Addr,
                 CSR_Permission (..),  csr_permission,
                 get_csr, set_csr,
                 misa_flag,
+                misa_mxl,
                 upd_csrfile_on_trap,
                 upd_csrfile_on_ret
                )
@@ -87,7 +88,7 @@ import qualified Data.Map.Strict as Data_Map
 -- Project imports
 
 import BitManipulation
-import ArchDefs64
+import ArchDefs
 
 -- ================================================================
 -- User-Level CSRs
@@ -140,8 +141,8 @@ u_csr_addrs_and_names  =
     (csr_addr_timeh,      "timeh"),
     (csr_addr_instreth,   "instreth") ]
 
-u_csr_reset_values :: XLEN -> [(CSR_Addr, WordXLEN)]
-u_csr_reset_values  xlen =
+u_csr_reset_values :: RV -> [(CSR_Addr, UInt)]
+u_csr_reset_values  rv =
   [ (csr_addr_ustatus,    0),
     (csr_addr_uie,        0),
     (csr_addr_utvec,      0),
@@ -199,8 +200,8 @@ s_csr_addrs_and_names  =
 
     (csr_addr_satp,       "satp") ]
 
-s_csr_reset_values :: XLEN -> [(CSR_Addr, WordXLEN)]
-s_csr_reset_values  xlen =
+s_csr_reset_values :: RV -> [(CSR_Addr, UInt)]
+s_csr_reset_values  rv =
   [ (csr_addr_sstatus,    0),
     (csr_addr_sedeleg,    0),
     (csr_addr_sideleg,    0),
@@ -279,16 +280,17 @@ m_csr_addrs_and_names  =
     (csr_addr_mcycleh,    "mcycleh"),
     (csr_addr_minstreth,  "minstreth") ]
 
-m_csr_reset_values :: XLEN -> [(CSR_Addr, WordXLEN)]
-m_csr_reset_values  xlen =
+m_csr_reset_values :: RV -> [(CSR_Addr, UInt)]
+m_csr_reset_values  rv =
   [ (csr_addr_mvendorid,  0),
     (csr_addr_marchid,    0),
     (csr_addr_mimpid,     0),
     (csr_addr_mhartid,    0),
 
     (csr_addr_mstatus,    0),
-    -- (csr_addr_misa,       fromIntegral (read_vhex "0x4000_0000")),    -- TODO: RV32 only
-    (csr_addr_misa,       fromIntegral (read_vhex "0x8000_0000_0000_0000")),    -- TODO: RV64 only
+    (csr_addr_misa,       fromIntegral (read_vhex (if rv == RV32
+                                                   then           "0x4000_0000"
+                                                   else "0x8000_0000_0000_0000"))),
     (csr_addr_medeleg,    0),
     (csr_addr_mideleg,    0),
     (csr_addr_mie,        0),
@@ -312,22 +314,22 @@ m_csr_reset_values  xlen =
 -- This is a private internal representation that can be changed at
 -- will; only the exported API can be used by clients.
 
-newtype CSRFile = CSRFile (Data_Map.Map  CSR_Addr  WordXLEN)
+newtype CSRFile = CSRFile (Data_Map.Map  CSR_Addr  UInt)
   deriving (Show)
 
 -- ================================================================
 
-mkCSRFile :: XLEN -> CSRFile
-mkCSRFile xlen  = CSRFile (Data_Map.fromList  ((u_csr_reset_values  xlen) ++
-                                               (s_csr_reset_values  xlen) ++
-                                               (m_csr_reset_values  xlen)   ))
+mkCSRFile :: RV -> CSRFile
+mkCSRFile rv  = CSRFile (Data_Map.fromList  ((u_csr_reset_values  rv) ++
+                                             (s_csr_reset_values  rv) ++
+                                             (m_csr_reset_values  rv)   ))
 
 print_CSRFile :: String -> CSRFile -> IO ()
 print_CSRFile  indent  csrfile = do
   mapM_
     (\(csr_addr, csr_name) -> do
-        let wordXLEN = get_csr  csrfile  csr_addr
-        putStrLn (indent ++ csr_name ++ ":" ++ showHex wordXLEN ""))
+        let csr_val = get_csr  csrfile  csr_addr
+        putStrLn (indent ++ csr_name ++ ":" ++ showHex csr_val ""))
     (u_csr_addrs_and_names ++
      s_csr_addrs_and_names ++
      m_csr_addrs_and_names)
@@ -361,16 +363,16 @@ csr_permission  (CSRFile dm)  priv  csr_addr =
 -- In an implementation, CSR reads and writes can have wide-ranging side effects
 --    and therefore the full machine state may be necessary as arg and result.
 -- However, in this spec, reads do not have side effects, and writes affect only CSRs;
---    hence we limit the arg to a CSRFile, and the get-result to a WordXLEN
+--    hence we limit the arg to a CSRFile, and the get-result to a UInt
 -- These functions assume legality checks have already been done.
 
 
-get_csr :: CSRFile -> CSR_Addr -> WordXLEN
+get_csr :: CSRFile -> CSR_Addr -> UInt
 get_csr  (CSRFile dm)  csr_addr = fromMaybe  0  (Data_Map.lookup  csr_addr  dm)
 
 -- In set_csr checks 'member' to avoid inserting new csr_addr into the map
 
-set_csr :: CSRFile -> CSR_Addr -> WordXLEN -> CSRFile
+set_csr :: CSRFile -> CSR_Addr -> UInt -> CSRFile
 set_csr  csrfile  csr_addr  value = CSRFile dm'
   where CSRFile dm = csrfile
         dm' = if Data_Map.member csr_addr dm
@@ -380,24 +382,29 @@ set_csr  csrfile  csr_addr  value = CSRFile dm'
 -- ================================================================
 -- MISA
 
-misa_flag :: WordXLEN -> Char -> Bool
+misa_flag :: UInt -> Char -> Bool
 misa_flag  misa  letter | isAsciiUpper  letter = (((shiftR  misa  ((ord letter) - (ord 'A'))) .&. 1) == 1)
 misa_flat  misa  letter | isAsciiLower  letter = (((shiftR  misa  ((ord letter) - (ord 'a'))) .&. 1) == 1)
                         | otherwise            = False
 
+misa_mxl :: UInt -> RV -> UInt
+misa_mxl  misa  RV32 = bitSlice  misa  30  31
+misa_mxl  misa  RV64 = bitSlice  misa  62  63
+
 -- ================================================================
 -- upd_csrfile_on_trap performs all the CSR manipulations for an exception (trap/interrupt)
 
-upd_csrfile_on_trap :: CSRFile
+upd_csrfile_on_trap :: RV
+                    -> CSRFile
                     -> Priv_Level      -- from privilege
-                    -> WordXLEN        -- PC
+                    -> UInt            -- PC
                     -> Bool            -- is interrupt, not trap
                     -> Exc_Code        -- interrupt or trap code
-                    -> WordXLEN        -- trap value
-                    -> (WordXLEN,      -- new PC
+                    -> UInt            -- trap value
+                    -> (UInt,          -- new PC
                         Priv_Level,    -- new privilege
                         CSRFile)       -- updated CSR file
-upd_csrfile_on_trap  csrfile  priv  pc  interrupt_not_trap  exc_code  xtval = result
+upd_csrfile_on_trap  rv  csrfile  priv  pc  interrupt_not_trap  exc_code  xtval = result
   where misa        = get_csr  csrfile  csr_addr_misa
         mstatus     = get_csr  csrfile  csr_addr_mstatus
         medeleg     = get_csr  csrfile  csr_addr_medeleg
@@ -426,29 +433,32 @@ upd_csrfile_on_trap  csrfile  priv  pc  interrupt_not_trap  exc_code  xtval = re
         -- Record new status, epc, cause, tval
         csrfile1 = set_csr  csrfile   csr_addr_mstatus  new_mstatus
         csrfile2 = set_csr  csrfile1  csr_addr_xepc  pc
-        csrfile3 = set_csr  csrfile2  csr_addr_xcause  (mkCause  interrupt_not_trap  exc_code)
+        csrfile3 = set_csr  csrfile2  csr_addr_xcause  (mkCause  rv  interrupt_not_trap  exc_code)
         csrfile4 = if (not interrupt_not_trap)
                    then set_csr  csrfile3  csr_addr_xtval  xtval
                    else csrfile3
 
         -- Compute the new PC
         vector_offset = fromIntegral (exc_code * 4)
-        new_pc = if interrupt_not_trap && (tvec_mode (xtvec) == tvec_mode_VECTORED)
-                 then ((tvec_base xtvec) * 4) + vector_offset
-                 else ((tvec_base xtvec) * 4)
+        new_pc1 = if interrupt_not_trap && (tvec_mode (xtvec) == tvec_mode_VECTORED)
+                  then ((tvec_base xtvec) * 4) + vector_offset
+                  else ((tvec_base xtvec) * 4)
+        new_pc2 = if rv == RV64
+                  then new_pc1
+                  else new_pc1 .&. 0xFFFFFFFF
 
-        result = (new_pc, new_priv, csrfile4)
+        result = (new_pc2, new_priv, csrfile4)
 
 -- Compute new privilege level on an exception, taking into accountdelegation
 
-new_priv_on_exception :: WordXLEN   ->    -- misa
+new_priv_on_exception :: UInt       ->    -- misa
                          Priv_Level ->    -- priv at which the exception occurred
                          Bool       ->    -- is interrupt, not trap
                          Exc_Code   ->    -- trap or interrupt code
-                         WordXLEN   ->    -- medeleg
-                         WordXLEN   ->    -- mideleg
-                         WordXLEN   ->    -- sedeleg
-                         WordXLEN   ->    -- sideleg
+                         UInt       ->    -- medeleg
+                         UInt       ->    -- mideleg
+                         UInt       ->    -- sedeleg
+                         UInt       ->    -- sideleg
                          Priv_Level       -- new priv
 new_priv_on_exception  misa  priv  interrupt_not_trap  exc_code  medeleg  mideleg  sedeleg  sideleg =
   let misa_s       = misa_flag  misa  'S'
@@ -473,7 +483,7 @@ new_priv_on_exception  misa  priv  interrupt_not_trap  exc_code  medeleg  midele
 
 -- Update the mstatus register based on a trap
 
-upd_status_on_trap :: WordXLEN -> Priv_Level -> Priv_Level -> WordXLEN
+upd_status_on_trap :: UInt -> Priv_Level -> Priv_Level -> UInt
 upd_status_on_trap  status  from_priv_y  to_priv_x =
   let
     -- Push the interrupt-enable stack (ie to pie)
@@ -485,7 +495,7 @@ upd_status_on_trap  status  from_priv_y  to_priv_x =
     status2 = clearBit  status1  ie_j
 
     -- Set mPP or sPP to y
-    y = (fromIntegral from_priv_y) :: WordXLEN
+    y = (fromIntegral from_priv_y) :: UInt
 
     status3 = if to_priv_x == m_Priv_Level
               then (status .&. complement 0x1800) .|. (shiftL  y  11)
@@ -498,38 +508,42 @@ upd_status_on_trap  status  from_priv_y  to_priv_x =
 --    a 'mode' in bits [1:0]
 --    a 'base' in bits [xlen-1:2]
 
-tvec_mode :: WordXLEN -> Word
+tvec_mode :: UInt -> Word
 tvec_mode  tvec = fromIntegral (tvec .&. 3)
 
 tvec_mode_DIRECT   :: Word;  tvec_mode_DIRECT   = 0
 tvec_mode_VECTORED :: Word;  tvec_mode_VECTORED = 1
 
-tvec_base :: WordXLEN -> WordXLEN
+tvec_base :: UInt -> UInt
 tvec_base  tvec = shiftR  tvec  2
 
 -- ================================================================
 -- upd_csrfile_on_ret performs all the CSR manipulations for an xRET
 
-upd_csrfile_on_ret :: CSRFile
+upd_csrfile_on_ret :: RV
+                   -> CSRFile
                    -> Priv_Level
-                   -> (WordXLEN,      -- new PC
+                   -> (UInt,          -- new PC
                        Priv_Level,    -- new privilege
                        CSRFile)       -- updated CSR file
-upd_csrfile_on_ret  csrfile  priv = result
+upd_csrfile_on_ret  rv  csrfile  priv = result
   where misa                    = get_csr  csrfile  csr_addr_misa
         mstatus                 = get_csr  csrfile  csr_addr_mstatus
         (new_priv, new_mstatus) = upd_status_on_ret  misa  mstatus  priv
-        new_pc                  = get_csr  csrfile  (if priv == m_Priv_Level
+        new_pc1                 = get_csr  csrfile  (if priv == m_Priv_Level
                                                      then csr_addr_mepc
                                                      else if priv == s_Priv_Level
                                                           then csr_addr_sepc
                                                           else csr_addr_uepc)
+        new_pc2                 = if rv == RV64
+                                  then new_pc1
+                                  else new_pc1 .&. 0xFFFFFFFF
         new_csrfile             = set_csr  csrfile  csr_addr_mstatus  new_mstatus
-        result                  = (new_pc, new_priv, new_csrfile)
+        result                  = (new_pc2, new_priv, new_csrfile)
 
 -- Update the mstatus register based on an xRET
 
-upd_status_on_ret :: WordXLEN -> WordXLEN -> Priv_Level -> (Priv_Level, WordXLEN)
+upd_status_on_ret :: UInt -> UInt -> Priv_Level -> (Priv_Level, UInt)
 upd_status_on_ret  misa  status  from_priv_x =
   let
     -- Pop the interrupt-enable stack (pie to ie)

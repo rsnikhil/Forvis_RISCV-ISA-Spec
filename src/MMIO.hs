@@ -23,16 +23,16 @@ import Numeric (showHex, readHex)
 
 -- Project imports
 
-import ArchDefs64
+import ArchDefs
 
 -- ================================================================
 -- Memory-mapped IO defs
 -- Trivial for now, just recognizes one location, the 'UART console' output.
 
-addr_console_out :: WordXLEN
+addr_console_out :: UInt
 addr_console_out =  0xfff4
 
-is_IO_addr :: WordXLEN -> Bool
+is_IO_addr :: UInt -> Bool
 is_IO_addr  addr = (addr == addr_console_out)
 
 -- ================================================================
@@ -50,16 +50,16 @@ mkMMIO = MMIO_Con ()
 -- TODO: lots of details to be filled in
 -- including returning potential errors
 
-getMMIO8 :: MMIO -> WordXLEN -> Word8
+getMMIO8 :: MMIO -> UInt -> Word8
 getMMIO8  mmio  addr = 0xAA    -- bogus placeholder
 
-getMMIO16 :: MMIO -> WordXLEN -> Word16
+getMMIO16 :: MMIO -> UInt -> Word16
 getMMIO16  mmio  addr = 0xAAAA    -- bogus placeholder
 
-getMMIO32 :: MMIO -> WordXLEN -> Word32
+getMMIO32 :: MMIO -> UInt -> Word32
 getMMIO32  mmio  addr = 0xAAAAAAAA    -- bogus placeholder
 
-getMMIO64 :: MMIO -> WordXLEN -> Word64
+getMMIO64 :: MMIO -> UInt -> Word64
 getMMIO64  mmio  addr = 0xAAAAAAAAAAAAAAAA    -- bogus placeholder
 
 -- ----------------
@@ -67,7 +67,7 @@ getMMIO64  mmio  addr = 0xAAAAAAAAAAAAAAAA    -- bogus placeholder
 -- TODO: lots of details to be filled in
 -- including returning potential errors
 
-setMMIO8 :: MMIO -> WordXLEN -> Word8 -> IO MMIO
+setMMIO8 :: MMIO -> UInt -> Word8 -> IO MMIO
 setMMIO8  mmio  addr  val =
   if (addr == addr_console_out) then do
     -- Console output
@@ -77,7 +77,7 @@ setMMIO8  mmio  addr  val =
     putStrLn ("IO write: addr 0x" ++ (showHex addr "") ++ " byte 0x" ++ (showHex val ""))
     return mmio
 
-setMMIO16 :: MMIO -> WordXLEN -> Word16 -> IO MMIO
+setMMIO16 :: MMIO -> UInt -> Word16 -> IO MMIO
 setMMIO16  mmio  addr  val =
   if (addr == addr_console_out) then do
     -- Console output
@@ -87,7 +87,7 @@ setMMIO16  mmio  addr  val =
     putStrLn ("IO write: addr 0x" ++ (showHex addr "") ++ " halfword 0x" ++ (showHex val ""))
     return mmio
 
-setMMIO32 :: MMIO -> WordXLEN -> Word32 -> IO MMIO
+setMMIO32 :: MMIO -> UInt -> Word32 -> IO MMIO
 setMMIO32  mmio  addr  val =
   if (addr == addr_console_out) then do
     -- Console output
@@ -97,7 +97,7 @@ setMMIO32  mmio  addr  val =
     putStrLn ("IO write: addr 0x" ++ (showHex addr "") ++ " word 0x" ++ (showHex val ""))
     return mmio
 
-setMMIO64 :: MMIO -> WordXLEN -> Word64 -> IO MMIO
+setMMIO64 :: MMIO -> UInt -> Word64 -> IO MMIO
 setMMIO64  mmio  addr  val =
   if (addr == addr_console_out) then do
     -- Console output

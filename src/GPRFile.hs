@@ -1,4 +1,9 @@
-module GPRFile (GPRFile, print_GPRFile, mkGPRFile, get_gpr, set_gpr) where
+module GPRFile (GPRFile,
+                print_GPRFile,
+                mkGPRFile,
+                get_gpr,
+                set_gpr)
+where
 
 -- ================================================================
 -- This module defines an abstraction for
@@ -14,14 +19,14 @@ import qualified Data.Map.Strict as Data_Map
 
 -- Project imports
 
-import ArchDefs64
+import ArchDefs
 
 -- ================================================================
 -- The GPR file is represented as Data.Map.Map from GPR addresses (0..31) to values
 -- This is a private internal representation that can be changed at
 -- will; only the exported API can be used by clients.
 
-newtype GPRFile = GPRFile (Data_Map.Map  Register  WordXLEN)
+newtype GPRFile = GPRFile (Data_Map.Map  Register  UInt)
   deriving (Show)
 
 -- print_GPRFile prints four regs per line, in hex, with given indent
@@ -47,10 +52,10 @@ mkGPRFile :: GPRFile
 mkGPRFile = GPRFile (Data_Map.fromList (zip  (enumFromTo  Rg_x0  Rg_x31)
                                              (repeat (fromIntegral 0))))
 
-get_gpr :: GPRFile -> Register -> WordXLEN
+get_gpr :: GPRFile -> Register -> UInt
 get_gpr  (GPRFile gprfile)  reg = fromMaybe 0 (Data_Map.lookup  reg  gprfile)
 
-set_gpr :: GPRFile -> Register -> WordXLEN -> GPRFile
+set_gpr :: GPRFile -> Register -> UInt -> GPRFile
 set_gpr  (GPRFile gprfile)  reg  val = GPRFile (Data_Map.insert  reg  val'  gprfile)
   where
     val' = if (reg == Rg_x0) then 0 else val

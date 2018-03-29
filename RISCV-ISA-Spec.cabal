@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2cf11648cee328c94250f57df33e296822c7e707f305e3837df9a51a8db9d0b3
+-- hash: 40ec9beedd80eb073c5466fc37d788f1567442bfc1787a6bffa3ecc91e8d5aa1
 
 name:           RISCV-ISA-Spec
 version:        0.1.0.0
@@ -34,8 +34,8 @@ library
     , containers >=0.5 && <0.6
     , elf >=0.28
   exposed-modules:
-      ArchDefs64
-      ArchState64
+      ArchDefs
+      ArchState
       BitManipulation
       CSRFile
       Decode
