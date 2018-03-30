@@ -187,7 +187,7 @@ runFile  rv  filename  num_instrs  verbosity = do
 
   -- Set verbosity: 0: quiet (only console out); 1: also instruction trace; 2: also CPU arch state
   -- TODO: make this a command-line argument
-  astate2 <- set_ArchState_verbosity  astate1  verbosity
+  astate2 <- archstate_verbosity_write  astate1  verbosity
 
   putStrLn ("Running program up to " ++ show (num_instrs) ++ " instructions")
   runProgram  num_instrs  astate2
@@ -212,7 +212,7 @@ readProgram f = do
 dumpMem :: ArchState -> UInt -> UInt -> IO ()
 dumpMem  astate  start  end = do
   let f addr = do
-          let (load_result, astate') = get_ArchState_mem8  astate  addr
+          let (load_result, astate') = archstate_mem_read8  astate  addr
               val = case load_result of
                       LoadResult_Ok  x          ->  showHex x ""
                       LoadResult_Err trap_cause ->  show trap_cause

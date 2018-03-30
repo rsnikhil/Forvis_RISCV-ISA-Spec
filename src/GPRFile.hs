@@ -1,8 +1,8 @@
 module GPRFile (GPRFile,
                 print_GPRFile,
                 mkGPRFile,
-                get_gpr,
-                set_gpr)
+                gpr_read,
+                gpr_write)
 where
 
 -- ================================================================
@@ -44,7 +44,7 @@ print_GPRFile  indent  gprfile = do
     print_n :: Register -> Register -> IO ()
     print_n  r1 r2 = do
       putStr (indent ++ show r1 ++ ":")
-      mapM_  (\rg -> putStr ("  " ++ showHex (get_gpr gprfile rg) ""))
+      mapM_  (\rg -> putStr ("  " ++ showHex (gpr_read gprfile rg) ""))
              [r1..r2]
       putStrLn ""
 
@@ -52,11 +52,11 @@ mkGPRFile :: GPRFile
 mkGPRFile = GPRFile (Data_Map.fromList (zip  (enumFromTo  Rg_x0  Rg_x31)
                                              (repeat (fromIntegral 0))))
 
-get_gpr :: GPRFile -> Register -> UInt
-get_gpr  (GPRFile gprfile)  reg = fromMaybe 0 (Data_Map.lookup  reg  gprfile)
+gpr_read :: GPRFile -> Register -> UInt
+gpr_read  (GPRFile gprfile)  reg = fromMaybe 0 (Data_Map.lookup  reg  gprfile)
 
-set_gpr :: GPRFile -> Register -> UInt -> GPRFile
-set_gpr  (GPRFile gprfile)  reg  val = GPRFile (Data_Map.insert  reg  val'  gprfile)
+gpr_write :: GPRFile -> Register -> UInt -> GPRFile
+gpr_write  (GPRFile gprfile)  reg  val = GPRFile (Data_Map.insert  reg  val'  gprfile)
   where
     val' = if (reg == Rg_x0) then 0 else val
 

@@ -1,6 +1,6 @@
 module Memory (Mem, mkMem,
-               getMem8, getMem16, getMem32, getMem64,
-               setMem8, setMem16, setMem32, setMem64
+               mem_read8, mem_read16, mem_read32, mem_read64,
+               mem_write8, mem_write16, mem_write32, mem_write64
               ) where
 
 -- ================================================================
@@ -45,23 +45,23 @@ uninitialized_data = 0xaaaaAAAAaaaaAAAA
 -- We could return LoadResult_Err on uninitialized locations.
 -- We could return LoadResult_Err if there are address bounds.
 
-getMem8 :: Mem -> UInt -> LoadResult Word8
-getMem8  (Mem_Con dm)  addr = result
+mem_read8 :: Mem -> UInt -> LoadResult Word8
+mem_read8  (Mem_Con dm)  addr = result
   where m_b0 = Data_Map.lookup  addr  dm
         result = case (m_b0) of
                    (Just b0) -> LoadResult_Ok  b0
                    _         -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
-getMem16 :: Mem -> UInt -> LoadResult Word16
-getMem16  (Mem_Con dm)  addr = result
+mem_read16 :: Mem -> UInt -> LoadResult Word16
+mem_read16  (Mem_Con dm)  addr = result
   where m_b0 = Data_Map.lookup  addr        dm
         m_b1 = Data_Map.lookup  (addr + 1)  dm
         result = case (m_b0, m_b1) of
                    (Just b0, Just b1) -> LoadResult_Ok  (mk_u16  b0  b1)
                    _                  -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
-getMem32 :: Mem -> UInt -> LoadResult Word32
-getMem32  (Mem_Con dm)  addr = result
+mem_read32 :: Mem -> UInt -> LoadResult Word32
+mem_read32  (Mem_Con dm)  addr = result
   where m_b0 = Data_Map.lookup  addr        dm
         m_b1 = Data_Map.lookup  (addr + 1)  dm
         m_b2 = Data_Map.lookup  (addr + 2)  dm
@@ -70,8 +70,8 @@ getMem32  (Mem_Con dm)  addr = result
                    (Just b0, Just b1, Just b2, Just b3) -> LoadResult_Ok  (mk_u32  b0  b1  b2  b3)
                    _                                    -> LoadResult_Ok  (fromIntegral  uninitialized_data)
 
-getMem64 :: Mem -> UInt -> LoadResult Word64
-getMem64  (Mem_Con dm)  addr = result
+mem_read64 :: Mem -> UInt -> LoadResult Word64
+mem_read64  (Mem_Con dm)  addr = result
   where m_b0 = Data_Map.lookup  addr        dm
         m_b1 = Data_Map.lookup  (addr + 1)  dm
         m_b2 = Data_Map.lookup  (addr + 2)  dm
@@ -90,21 +90,21 @@ getMem64  (Mem_Con dm)  addr = result
 -- Currently we don't return any StoreResult.
 -- We could return StoreResult_Err if there are address bounds.
 
-setMem8 :: Mem -> UInt -> Word8 -> Mem
-setMem8  (Mem_Con dm)  addr  val = Mem_Con dm1
+mem_write8 :: Mem -> UInt -> Word8 -> Mem
+mem_write8  (Mem_Con dm)  addr  val = Mem_Con dm1
   where byte0 = val
         dm1 = Data_Map.insert  addr  byte0  dm
 
-setMem16 :: Mem -> UInt -> Word16 -> Mem
-setMem16  (Mem_Con dm)  addr  val = Mem_Con dm2
+mem_write16 :: Mem -> UInt -> Word16 -> Mem
+mem_write16  (Mem_Con dm)  addr  val = Mem_Con dm2
   where byte0 = fromIntegral (val            .&. 0xFF)
         byte1 = fromIntegral ((shiftR val 8) .&. 0xFF)
 
         dm1 = Data_Map.insert  addr        byte0  dm
         dm2 = Data_Map.insert  (addr + 1)  byte1  dm1
 
-setMem32 :: Mem -> UInt -> Word32 -> Mem
-setMem32  (Mem_Con dm)  addr  val = Mem_Con dm4
+mem_write32 :: Mem -> UInt -> Word32 -> Mem
+mem_write32  (Mem_Con dm)  addr  val = Mem_Con dm4
   where byte0 = fromIntegral (val             .&. 0xFF)
         byte1 = fromIntegral ((shiftR val 8)  .&. 0xFF)
         byte2 = fromIntegral ((shiftR val 16) .&. 0xFF)
@@ -115,8 +115,8 @@ setMem32  (Mem_Con dm)  addr  val = Mem_Con dm4
         dm3 = Data_Map.insert  (addr + 2)  byte2  dm2
         dm4 = Data_Map.insert  (addr + 3)  byte3  dm3
 
-setMem64 :: Mem -> UInt -> Word64 -> Mem
-setMem64  (Mem_Con dm)  addr  val = Mem_Con dm8
+mem_write64 :: Mem -> UInt -> Word64 -> Mem
+mem_write64  (Mem_Con dm)  addr  val = Mem_Con dm8
   where byte0 = fromIntegral (val             .&. 0xFF)
         byte1 = fromIntegral ((shiftR val  8) .&. 0xFF)
         byte2 = fromIntegral ((shiftR val 16) .&. 0xFF)

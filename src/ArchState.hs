@@ -1,33 +1,33 @@
 module ArchState (ArchState, mkArchState, print_ArchState,
-                  ifetch,
-                  get_ArchState_rv,             set_ArchState_rv,
-                  get_ArchState_xlen,
+                  archstate_ifetch,
+                  archstate_rv_read,             archstate_rv_write,
+                  archstate_xlen_read,
 
-                  get_ArchState_gpr,            set_ArchState_gpr,
-                  get_ArchState_csr_permission,
-                  get_ArchState_csr,            set_ArchState_csr,
-                  get_ArchState_PC,             set_ArchState_PC,
+                  archstate_gpr_read,            archstate_gpr_write,
+                  archstate_csr_read_permission,
+                  archstate_csr_read,            archstate_csr_write,
+                  archstate_pc_read,             archstate_pc_write,
 
-                  get_ArchState_mem8,           set_ArchState_mem8,
-                  get_ArchState_mem16,          set_ArchState_mem16,
-                  get_ArchState_mem32,          set_ArchState_mem32,
-                  get_ArchState_mem64,          set_ArchState_mem64,
+                  archstate_mem_read8,           archstate_mem_write8,
+                  archstate_mem_read16,          archstate_mem_write16,
+                  archstate_mem_read32,          archstate_mem_write32,
+                  archstate_mem_read64,          archstate_mem_write64,
 
-                  get_ArchState_priv,           set_ArchState_priv,
+                  archstate_priv_read,           archstate_priv_write,
 
                   upd_ArchState_on_trap,
                   upd_ArchState_on_ret,
 
-                  get_ArchState_verbosity,      set_ArchState_verbosity,
+                  archstate_verbosity_read,      archstate_verbosity_write,
 
                   Stop_Reason (..),
-                  get_ArchState_stop,           set_ArchState_stop)
+                  archstate_stop_read,           archstate_stop_write)
 where
 
 -- ================================================================
 -- This module defines the data structure holding the RISC-V CPU archtectural state
 -- (plus some additional state for debugging/tracing convience)
--- and a set/get API to read and write components of the state.
+-- and a read/write API to read and write components of the state.
 -- Also defines 'ifetch' (instruction fetch).
 
 -- ================================================================
@@ -84,12 +84,12 @@ print_ArchState  indent  (ArchState  rv  pc  gprs  csrs  mem  mmio  priv  verbos
 -- Instruction Fetch; uses the API below
 -- TODO: for 'C', fetch first 16 bytes, check length, only then fetch next 16 bytes if not a 'C' instr
 
-ifetch :: ArchState -> (LoadResult Word32, ArchState)
-ifetch  astate = get_ArchState_mem32  astate  pc
-  where pc = get_ArchState_PC  astate
+archstate_ifetch :: ArchState -> (LoadResult Word32, ArchState)
+archstate_ifetch  astate = archstate_mem_read32  astate  pc
+  where pc = archstate_pc_read  astate
 
 -- ================================================================
--- API to create, set/get components of the Architectural State
+-- API to create, read/write components of the Architectural State
 
 -- Make an ArchState, given initial PC and memory contents
 mkArchState :: RV -> UInt -> ([(Int, Word8)]) -> ArchState
@@ -105,119 +105,119 @@ mkArchState  rv  initial_PC addr_byte_list =   ArchState { f_rv   = rv,
                                                            f_stop      = Stop_Running}
 
 -- ----------------
--- get/set RV
+-- read/write RV
 
-get_ArchState_rv :: ArchState -> RV
-get_ArchState_rv  astate = f_rv  astate
+archstate_rv_read :: ArchState -> RV
+archstate_rv_read  astate = f_rv  astate
 
-set_ArchState_rv :: ArchState -> RV -> IO ArchState
-set_ArchState_rv  astate  rv = return (astate { f_rv = rv })
+archstate_rv_write :: ArchState -> RV -> IO ArchState
+archstate_rv_write  astate  rv = return (astate { f_rv = rv })
 
-get_ArchState_xlen :: ArchState -> Int
-get_ArchState_xlen  astate | f_rv  astate == RV32 = 32
-                           | f_rv  astate == RV64 = 64
+archstate_xlen_read :: ArchState -> Int
+archstate_xlen_read  astate | f_rv  astate == RV32 = 32
+                            | f_rv  astate == RV64 = 64
 
 -- ----------------
--- get/set GPRs
+-- read/write GPRs
 
-get_ArchState_gpr :: ArchState -> Register -> UInt
-get_ArchState_gpr  astate  reg = get_gpr (f_gprs astate)  reg
+archstate_gpr_read :: ArchState -> Register -> UInt
+archstate_gpr_read  astate  reg = gpr_read (f_gprs astate)  reg
 
-set_ArchState_gpr :: ArchState -> Register -> UInt -> IO ArchState
-set_ArchState_gpr  astate  reg  val = do
+archstate_gpr_write :: ArchState -> Register -> UInt -> IO ArchState
+archstate_gpr_write  astate  reg  val = do
   let rv   = f_rv  astate
       val1 | rv == RV32 = signExtend  val  32
            | rv == RV64 = val
-  return (astate { f_gprs = set_gpr  (f_gprs astate)  reg  val1 })
+  return (astate { f_gprs = gpr_write  (f_gprs astate)  reg  val1 })
 
 -- ----------------
--- get/set CSRs
+-- read/write CSRs
 -- Assumes CSR exists and access is legal
 
-get_ArchState_csr_permission :: ArchState -> Priv_Level -> CSR_Addr -> CSR_Permission
-get_ArchState_csr_permission  astate  priv  csr_addr = csr_permission  (f_csrs  astate)  priv  csr_addr
+archstate_csr_read_permission :: ArchState -> Priv_Level -> CSR_Addr -> CSR_Permission
+archstate_csr_read_permission  astate  priv  csr_addr = csr_permission  (f_csrs  astate)  priv  csr_addr
 
-get_ArchState_csr :: ArchState -> CSR_Addr -> UInt
-get_ArchState_csr  astate  csr_addr = get_csr  (f_csrs  astate)  csr_addr
+archstate_csr_read :: ArchState -> CSR_Addr -> UInt
+archstate_csr_read  astate  csr_addr = csr_read  (f_csrs  astate)  csr_addr
 
-set_ArchState_csr :: ArchState -> CSR_Addr -> UInt -> IO ArchState
-set_ArchState_csr  astate  csr_addr  value = do
-  let csr_file' = set_csr  (f_csrs  astate)  csr_addr  value
+archstate_csr_write :: ArchState -> CSR_Addr -> UInt -> IO ArchState
+archstate_csr_write  astate  csr_addr  value = do
+  let csr_file' = csr_write  (f_csrs  astate)  csr_addr  value
   return (astate { f_csrs = csr_file' })
 
 -- ----------------
--- get/set PC
+-- read/write PC
 
-get_ArchState_PC :: ArchState -> UInt
-get_ArchState_PC  astate = f_pc astate
+archstate_pc_read :: ArchState -> UInt
+archstate_pc_read  astate = f_pc astate
 
-set_ArchState_PC :: ArchState -> UInt -> IO ArchState
-set_ArchState_PC  astate  val = return (astate { f_pc = val })
+archstate_pc_write :: ArchState -> UInt -> IO ArchState
+archstate_pc_write  astate  val = return (astate { f_pc = val })
 
 -- ----------------
--- get/set memory at various widths
--- TODO: fix up 'get' to triage memory vs. I/O like the 'set' calls and 'get' to IO can change astate
+-- read/write memory at various widths
+-- TODO: fix up 'read' to triage memory vs. I/O like the 'write' calls and 'read' to IO can change astate
 
-get_ArchState_mem8 :: ArchState -> UInt -> (LoadResult Word8, ArchState)
-get_ArchState_mem8  astate  addr = (getMem8  (f_mem astate)  addr, astate)
+archstate_mem_read8 :: ArchState -> UInt -> (LoadResult Word8, ArchState)
+archstate_mem_read8  astate  addr = (mem_read8  (f_mem astate)  addr, astate)
 
-get_ArchState_mem16 :: ArchState -> UInt -> (LoadResult Word16, ArchState)
-get_ArchState_mem16  astate  addr = (getMem16  (f_mem astate)  addr, astate)
+archstate_mem_read16 :: ArchState -> UInt -> (LoadResult Word16, ArchState)
+archstate_mem_read16  astate  addr = (mem_read16  (f_mem astate)  addr, astate)
 
-get_ArchState_mem32 :: ArchState -> UInt -> (LoadResult Word32, ArchState)
-get_ArchState_mem32  astate  addr = (getMem32  (f_mem astate)  addr, astate)
+archstate_mem_read32 :: ArchState -> UInt -> (LoadResult Word32, ArchState)
+archstate_mem_read32  astate  addr = (mem_read32  (f_mem astate)  addr, astate)
 
-get_ArchState_mem64 :: ArchState -> UInt -> (LoadResult Word64, ArchState)
-get_ArchState_mem64  astate  addr = (getMem64  (f_mem astate)  addr, astate)
+archstate_mem_read64 :: ArchState -> UInt -> (LoadResult Word64, ArchState)
+archstate_mem_read64  astate  addr = (mem_read64  (f_mem astate)  addr, astate)
 
-set_ArchState_mem8 :: ArchState -> UInt -> Word8 -> IO ArchState
-set_ArchState_mem8  astate addr  val = do
-  when (get_ArchState_verbosity astate > 1) (
-    putStrLn ("set_ArchState_mem8: addr " ++ (showHex addr " val ") ++ (showHex val "")))
+archstate_mem_write8 :: ArchState -> UInt -> Word8 -> IO ArchState
+archstate_mem_write8  astate addr  val = do
+  when (archstate_verbosity_read astate > 1) (
+    putStrLn ("archstate_mem_write8: addr " ++ (showHex addr " val ") ++ (showHex val "")))
   if not (is_IO_addr  addr) then
-    return (astate { f_mem = setMem8  (f_mem astate)  addr  val})
+    return (astate { f_mem = mem_write8  (f_mem astate)  addr  val})
   else do
-    mmio' <- setMMIO8  (f_mmio astate)  addr  val
+    mmio' <- mmio_write8  (f_mmio astate)  addr  val
     return (astate { f_mmio = mmio'})
 
-set_ArchState_mem16 :: ArchState -> UInt -> Word16 -> IO ArchState
-set_ArchState_mem16  astate addr  val = do
-  when (get_ArchState_verbosity astate > 1) (
-    putStrLn ("set_ArchState_mem16: addr " ++ (showHex addr " val ") ++ (showHex val "")))
+archstate_mem_write16 :: ArchState -> UInt -> Word16 -> IO ArchState
+archstate_mem_write16  astate addr  val = do
+  when (archstate_verbosity_read astate > 1) (
+    putStrLn ("archstate_writemem16: addr " ++ (showHex addr " val ") ++ (showHex val "")))
   if not (is_IO_addr  addr) then
-    return (astate { f_mem = setMem16  (f_mem astate)  addr  val})
+    return (astate { f_mem = mem_write16  (f_mem astate)  addr  val})
   else do
-    mmio' <- setMMIO16  (f_mmio astate)  addr  val
+    mmio' <- mmio_write16  (f_mmio astate)  addr  val
     return (astate { f_mmio = mmio'})
 
-set_ArchState_mem32 :: ArchState -> UInt -> Word32 -> IO ArchState
-set_ArchState_mem32  astate addr  val = do
-  when (get_ArchState_verbosity astate > 1) (
-    putStrLn ("set_ArchState_mem32: addr " ++ (showHex addr " val ") ++ (showHex val "")))
+archstate_mem_write32 :: ArchState -> UInt -> Word32 -> IO ArchState
+archstate_mem_write32  astate addr  val = do
+  when (archstate_verbosity_read astate > 1) (
+    putStrLn ("archstate_mem_write32: addr " ++ (showHex addr " val ") ++ (showHex val "")))
   if not (is_IO_addr  addr) then
-    return (astate { f_mem = setMem32  (f_mem astate)  addr  val})
+    return (astate { f_mem = mem_write32  (f_mem astate)  addr  val})
   else do
-    mmio' <- setMMIO32  (f_mmio astate)  addr  val
+    mmio' <- mmio_write32  (f_mmio astate)  addr  val
     return (astate { f_mmio = mmio'})
 
-set_ArchState_mem64 :: ArchState -> UInt -> Word64 -> IO ArchState
-set_ArchState_mem64  astate addr  val = do
-  when (get_ArchState_verbosity astate > 1) (
-    putStrLn ("set_ArchState_mem64: addr " ++ (showHex addr " val ") ++ (showHex val "")))
+archstate_mem_write64 :: ArchState -> UInt -> Word64 -> IO ArchState
+archstate_mem_write64  astate addr  val = do
+  when (archstate_verbosity_read astate > 1) (
+    putStrLn ("archstate_mem_write64: addr " ++ (showHex addr " val ") ++ (showHex val "")))
   if not (is_IO_addr  addr) then
-    return (astate { f_mem = setMem64  (f_mem astate)  addr  val})
+    return (astate { f_mem = mem_write64  (f_mem astate)  addr  val})
   else do
-    mmio' <- setMMIO64  (f_mmio astate)  addr  val
+    mmio' <- mmio_write64  (f_mmio astate)  addr  val
     return (astate { f_mmio = mmio'})
 
 -- ================================================================
--- get/set current privilege level
+-- read/write current privilege level
 
-get_ArchState_priv :: ArchState -> Priv_Level
-get_ArchState_priv  astate = f_priv  astate
+archstate_priv_read :: ArchState -> Priv_Level
+archstate_priv_read  astate = f_priv  astate
 
-set_ArchState_priv :: ArchState -> Priv_Level -> IO ArchState
-set_ArchState_priv  astate  priv = return  astate { f_priv = priv }
+archstate_priv_write :: ArchState -> Priv_Level -> IO ArchState
+archstate_priv_write  astate  priv = return  astate { f_priv = priv }
 
 -- ================================================================
 -- Trap actions
@@ -242,18 +242,18 @@ upd_ArchState_on_ret  astate  priv = do
   return astate { f_pc = new_pc, f_priv = new_priv, f_csrs = csrfile' }
 
 -- ================================================================
--- get/set misc debug convenience
+-- read/write misc debug convenience
 
-get_ArchState_verbosity :: ArchState -> Int
-get_ArchState_verbosity  astate = f_verbosity astate
+archstate_verbosity_read :: ArchState -> Int
+archstate_verbosity_read  astate = f_verbosity astate
 
-set_ArchState_verbosity :: ArchState -> Int -> IO ArchState
-set_ArchState_verbosity  astate  verbosity = return  astate { f_verbosity = verbosity }
+archstate_verbosity_write :: ArchState -> Int -> IO ArchState
+archstate_verbosity_write  astate  verbosity = return  astate { f_verbosity = verbosity }
 
-get_ArchState_stop :: ArchState -> Stop_Reason
-get_ArchState_stop  astate = f_stop  astate
+archstate_stop_read :: ArchState -> Stop_Reason
+archstate_stop_read  astate = f_stop  astate
 
-set_ArchState_stop :: ArchState -> Stop_Reason -> IO ArchState
-set_ArchState_stop  astate  stop = return  astate { f_stop = stop }
+archstate_stop_write :: ArchState -> Stop_Reason -> IO ArchState
+archstate_stop_write  astate  stop = return  astate { f_stop = stop }
 
 -- ================================================================

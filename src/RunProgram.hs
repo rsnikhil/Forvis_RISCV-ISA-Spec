@@ -29,25 +29,26 @@ import ExecuteInstr
 
 runProgram :: Int -> ArchState -> IO ArchState
 runProgram  maxinstrs  astate = do
-  let instret = get_ArchState_csr  astate  csr_addr_minstret
-      rv      = get_ArchState_rv  astate
-      misa    = get_ArchState_csr  astate  csr_addr_misa
+  let instret   = archstate_csr_read  astate  csr_addr_minstret
+      rv        = archstate_rv_read  astate
+      misa      = archstate_csr_read  astate  csr_addr_misa
+      verbosity = archstate_verbosity_read  astate
   if instret >= fromIntegral maxinstrs
     then (do
              putStrLn ("Reached instret limit (" ++ show maxinstrs ++ "); exiting")
-             set_ArchState_stop  astate  Stop_Limit)
+             archstate_stop_write  astate  Stop_Limit)
 
-    else if (get_ArchState_stop  astate /= Stop_Running)
+    else if (archstate_stop_read  astate /= Stop_Running)
          then (do
                   putStrLn ("Reached stop; instret = " ++ show instret ++ "; exiting")
                   return astate)
          else (do
-                  when (get_ArchState_verbosity astate > 1)
+                  when (verbosity > 1)
                     (do
                         putStrLn "Executing instr ================"
                         print_ArchState "  "  astate)
 
-                  let (result_instr, astate1) = ifetch astate         -- FETCH
+                  let (result_instr, astate1) = archstate_ifetch astate         -- FETCH
                   case (result_instr) of
                     LoadResult_Err cause -> (do
                                                 putStrLn ("Instruction-fetch fault: " ++ show (cause))
@@ -56,9 +57,9 @@ runProgram  maxinstrs  astate = do
                     LoadResult_Ok instr_word ->
                       (do
                           let instr = decode  rv  misa  instr_word         -- DECODE
-                              pc    = get_ArchState_PC  astate1
+                              pc    = archstate_pc_read  astate1
 
-                          when (get_ArchState_verbosity astate1 >= 1)
+                          when (verbosity >= 1)
                             (do
                                 putStr (show (instret + 1))
                                 putStr ("  pc 0x" ++ (showHex pc ""))
@@ -67,10 +68,10 @@ runProgram  maxinstrs  astate = do
 
                           astate2 <- executeInstr  astate1  instr          -- EXECUTE
 
-                          if (pc /= get_ArchState_PC  astate2) then
+                          if (pc /= archstate_pc_read  astate2) then
                             runProgram  maxinstrs  astate2                -- LOOP (tail-recursive call)
                           else (do
-                                   let instret = get_ArchState_csr  astate2  csr_addr_minstret
+                                   let instret = archstate_csr_read  astate2  csr_addr_minstret
                                    putStrLn ("Reached jump-to-self infinite loop; instret = " ++ show instret ++ "; exiting")
                                    return astate2)))
 

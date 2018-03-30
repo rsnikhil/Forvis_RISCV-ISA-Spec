@@ -63,7 +63,7 @@ module CSRFile (CSR_Addr,
 
                 CSRFile,  mkCSRFile,  print_CSRFile,
                 CSR_Permission (..),  csr_permission,
-                get_csr, set_csr,
+                csr_read, csr_write,
                 misa_flag,
                 misa_mxl,
                 upd_csrfile_on_trap,
@@ -328,7 +328,7 @@ print_CSRFile :: String -> CSRFile -> IO ()
 print_CSRFile  indent  csrfile = do
   mapM_
     (\(csr_addr, csr_name) -> do
-        let csr_val = get_csr  csrfile  csr_addr
+        let csr_val = csr_read  csrfile  csr_addr
         putStrLn (indent ++ csr_name ++ ":" ++ showHex csr_val ""))
     (u_csr_addrs_and_names ++
      s_csr_addrs_and_names ++
@@ -359,21 +359,22 @@ csr_permission  (CSRFile dm)  priv  csr_addr =
          else CSR_Permission_RW
 
 -- ================================================================
--- Getter and Setter
--- In an implementation, CSR reads and writes can have wide-ranging side effects
---    and therefore the full machine state may be necessary as arg and result.
--- However, in this spec, reads do not have side effects, and writes affect only CSRs;
---    hence we limit the arg to a CSRFile, and the get-result to a UInt
--- These functions assume legality checks have already been done.
+-- Reads and writes
+-- These are just raw CSR reads and writes, and assume legal csr addrs
+-- and csr read/write permissions
 
+-- Some CSR writes which dynamically change architectural features can
+-- have wide-ranging side-effects, e.g., changing MISA.C, MSTATUS.MXL
+-- Those details are handled in module ArchState, which uses these raw
+-- reads/writes for individual updates.
 
-get_csr :: CSRFile -> CSR_Addr -> UInt
-get_csr  (CSRFile dm)  csr_addr = fromMaybe  0  (Data_Map.lookup  csr_addr  dm)
+csr_read :: CSRFile -> CSR_Addr -> UInt
+csr_read  (CSRFile dm)  csr_addr = fromMaybe  0  (Data_Map.lookup  csr_addr  dm)
 
--- In set_csr checks 'member' to avoid inserting new csr_addr into the map
+-- csr_write checks 'member' to avoid inserting new csr_addr into the map
 
-set_csr :: CSRFile -> CSR_Addr -> UInt -> CSRFile
-set_csr  csrfile  csr_addr  value = CSRFile dm'
+csr_write :: CSRFile -> CSR_Addr -> UInt -> CSRFile
+csr_write  csrfile  csr_addr  value = CSRFile dm'
   where CSRFile dm = csrfile
         dm' = if Data_Map.member csr_addr dm
               then Data_Map.insert  csr_addr  value  dm
@@ -405,13 +406,13 @@ upd_csrfile_on_trap :: RV
                         Priv_Level,    -- new privilege
                         CSRFile)       -- updated CSR file
 upd_csrfile_on_trap  rv  csrfile  priv  pc  interrupt_not_trap  exc_code  xtval = result
-  where misa        = get_csr  csrfile  csr_addr_misa
-        mstatus     = get_csr  csrfile  csr_addr_mstatus
-        medeleg     = get_csr  csrfile  csr_addr_medeleg
-        mideleg     = get_csr  csrfile  csr_addr_mideleg
-        sstatus     = get_csr  csrfile  csr_addr_sstatus
-        sedeleg     = get_csr  csrfile  csr_addr_sedeleg
-        sideleg     = get_csr  csrfile  csr_addr_sideleg
+  where misa        = csr_read  csrfile  csr_addr_misa
+        mstatus     = csr_read  csrfile  csr_addr_mstatus
+        medeleg     = csr_read  csrfile  csr_addr_medeleg
+        mideleg     = csr_read  csrfile  csr_addr_mideleg
+        sstatus     = csr_read  csrfile  csr_addr_sstatus
+        sedeleg     = csr_read  csrfile  csr_addr_sedeleg
+        sideleg     = csr_read  csrfile  csr_addr_sideleg
 
         new_priv    = new_priv_on_exception  misa  priv  interrupt_not_trap  exc_code  medeleg  mideleg  sedeleg  sideleg
 
@@ -424,18 +425,18 @@ upd_csrfile_on_trap  rv  csrfile  priv  pc  interrupt_not_trap  exc_code  xtval 
                                    then (csr_addr_mepc,
                                          csr_addr_mcause,
                                          csr_addr_mtval,
-                                         csr_addr_mtvec,  get_csr  csrfile  csr_addr_mtvec)
+                                         csr_addr_mtvec,  csr_read  csrfile  csr_addr_mtvec)
                                    else (csr_addr_sepc,
                                          csr_addr_scause,
                                          csr_addr_stval,
-                                         csr_addr_stvec,  get_csr  csrfile  csr_addr_stvec)
+                                         csr_addr_stvec,  csr_read  csrfile  csr_addr_stvec)
 
         -- Record new status, epc, cause, tval
-        csrfile1 = set_csr  csrfile   csr_addr_mstatus  new_mstatus
-        csrfile2 = set_csr  csrfile1  csr_addr_xepc  pc
-        csrfile3 = set_csr  csrfile2  csr_addr_xcause  (mkCause  rv  interrupt_not_trap  exc_code)
+        csrfile1 = csr_write  csrfile   csr_addr_mstatus  new_mstatus
+        csrfile2 = csr_write  csrfile1  csr_addr_xepc  pc
+        csrfile3 = csr_write  csrfile2  csr_addr_xcause  (mkCause  rv  interrupt_not_trap  exc_code)
         csrfile4 = if (not interrupt_not_trap)
-                   then set_csr  csrfile3  csr_addr_xtval  xtval
+                   then csr_write  csrfile3  csr_addr_xtval  xtval
                    else csrfile3
 
         -- Compute the new PC
@@ -527,18 +528,18 @@ upd_csrfile_on_ret :: RV
                        Priv_Level,    -- new privilege
                        CSRFile)       -- updated CSR file
 upd_csrfile_on_ret  rv  csrfile  priv = result
-  where misa                    = get_csr  csrfile  csr_addr_misa
-        mstatus                 = get_csr  csrfile  csr_addr_mstatus
+  where misa                    = csr_read  csrfile  csr_addr_misa
+        mstatus                 = csr_read  csrfile  csr_addr_mstatus
         (new_priv, new_mstatus) = upd_status_on_ret  misa  mstatus  priv
-        new_pc1                 = get_csr  csrfile  (if priv == m_Priv_Level
-                                                     then csr_addr_mepc
-                                                     else if priv == s_Priv_Level
-                                                          then csr_addr_sepc
-                                                          else csr_addr_uepc)
+        new_pc1                 = csr_read  csrfile  (if priv == m_Priv_Level
+                                                      then csr_addr_mepc
+                                                      else if priv == s_Priv_Level
+                                                           then csr_addr_sepc
+                                                           else csr_addr_uepc)
         new_pc2                 = if rv == RV64
                                   then new_pc1
                                   else new_pc1 .&. 0xFFFFFFFF
-        new_csrfile             = set_csr  csrfile  csr_addr_mstatus  new_mstatus
+        new_csrfile             = csr_write  csrfile  csr_addr_mstatus  new_mstatus
         result                  = (new_pc2, new_priv, new_csrfile)
 
 -- Update the mstatus register based on an xRET
