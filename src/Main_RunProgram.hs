@@ -38,7 +38,8 @@ usage_help = "This program expects one or more RISC-V ELF or .hex files as comma
 main_RunProgram :: IO ()
 main_RunProgram = do
   putStrLn "Type -h, -H or --help for help."
-  args <- getArgs
+  progName <- getProgName
+  args     <- getArgs
   let (opts, filenames, unrecognizeds, errs) = getOpt' RequireOrder options args
   {- DEBUG
       putStrLn ("Opts " ++ show opts)
@@ -47,7 +48,10 @@ main_RunProgram = do
       putStrLn ("Errs " ++ show errs)
   -}
 
-  let usage_string     = usageInfo  "Optional command line arguments:"   options
+  let usage_header     = "Usage: " ++ progName ++ "  <flags>  <executable files>\n" ++
+                         "  <executable files>:  one or more RISC-V ELF and/or Verilog mem-hex files\n" ++
+                         "  <flags>:"
+      usage_string     = usageInfo  usage_header   options
       has_help         = elem  Opt_Help  opts
       errs2            = [ err      | Opt_Err err <- opts]
       vs               = [ v | Opt_Verbosity v <- opts ]
@@ -60,26 +64,42 @@ main_RunProgram = do
                            []   -> 1000000
                            [n]  -> n
                            n:_  -> n
+      rv32             =  elem  Opt_RV32  opts
+      rv64             =  elem  Opt_RV64  opts
 
   if has_help then
     putStr usage_string
+
     else if unrecognizeds /=[] then
     do
       putStrLn "Command-line has Unrecognized flags:"
       mapM_ (\s -> putStrLn ("    " ++ s)) unrecognizeds
+
     else if errs /= [] then
     do
       putStrLn "Command-line has parse errors:"
       mapM_ (\s -> putStrLn ("    " ++ s)) errs
+
     else if errs2 /= [] then
     do
       putStrLn "Command-line hase parse errors:"
       mapM_ (\s -> putStrLn ("    " ++ s)) errs2
+
     else if length (filenames) == 0 then
-           putStrLn "Command-line has no filenames (expecting at least 1)"
+    do
+      putStrLn "Command-line has no filenames (expecting at least 1)"
+
+    else if rv32 && rv64 then
+    do
+      putStrLn "Command-line species both RV32 and RV64 (expecting one of them)"
+
+    else if (not rv32) && (not rv64) then
+    do
+      putStrLn "Command-line species neither RV32 nor RV64 (expecting one of them)"
     else
     do
-      retval <- runFiles  filenames  num_instrs  verbosity
+      let rv = if rv32 then RV32 else RV64
+      retval <- runFiles  rv  filenames  num_instrs  verbosity
       exitWith (if retval == 0 then
                    ExitSuccess
                 else
@@ -92,6 +112,8 @@ main_RunProgram = do
 -- values associated with options. Here, a = MyOptS
 
 data MyOpt = Opt_Help
+           | Opt_RV32
+           | Opt_RV64
            | Opt_Verbosity   Int
            | Opt_Num_Instrs  Int
            | Opt_Err         String
@@ -115,6 +137,8 @@ data MyOpt = Opt_Help
 options :: [OptDescr MyOpt]
 options =
      [ Option ['h', 'H']  ["help"]       (NoArg  Opt_Help)                  "help"
+     , Option []          ["RV32"]       (NoArg  Opt_RV32)                  "executables are for RV32"
+     , Option []          ["RV64"]       (NoArg  Opt_RV64)                  "executables are for RV64"
      , Option ['v']       ["verbosity"]  (ReqArg to_Opt_Verbosity  "<int>") "0 quiet, 1 instr trace, 2 more info"
      , Option ['n']       ["num_instrs"] (ReqArg to_Opt_Num_Instrs "<int>") "max instrs executed (default 1,000,000)"
      ]
@@ -132,21 +156,21 @@ to_Opt_Num_Instrs s = case (readDec s) of
 -- ================================================================
 -- Run all the RISC-V ELF/Hex programs in the list of file arguments
 
-runFiles :: [String] -> Int -> Int -> IO Int64
-runFiles  (file:files)  num_instrs  verbosity = do
+runFiles :: RV -> [String] -> Int -> Int -> IO Int64
+runFiles  rv  (file:files)  num_instrs  verbosity = do
     putStrLn ("Running file: '" ++ file ++ "'")
-    myreturn <- runFile  file  num_instrs  verbosity
+    myreturn <- runFile  rv  file  num_instrs  verbosity
     putStrLn ("Exitvalue from running file '" ++ file ++ "' is: " ++ (show myreturn))
-    othersreturn <- runFiles  files  num_instrs  verbosity
+    othersreturn <- runFiles  rv  files  num_instrs  verbosity
     if myreturn /= 0
         then return myreturn
         else return othersreturn
-runFiles []  _  _ = return 0
+runFiles _  []  _  _ = return 0
 
 -- Run a single RISC-V ELF/Hex program in file argument
 
-runFile :: String -> Int -> Int -> IO Int64
-runFile  filename  num_instrs  verbosity = do
+runFile :: RV -> String -> Int -> Int -> IO Int64
+runFile  rv  filename  num_instrs  verbosity = do
   addr_byte_list <- readProgram  filename
   let min_addr = minimum (map  (\(x,y) -> x)  addr_byte_list)
       max_addr = maximum (map  (\(x,y) -> x)  addr_byte_list)
@@ -157,7 +181,7 @@ runFile  filename  num_instrs  verbosity = do
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
 
   let initial_PC = 0x80000000
-      astate1    = mkArchState  RV32  initial_PC  addr_byte_list
+      astate1    = mkArchState  rv  initial_PC  addr_byte_list
 
   -- dumpMem  astate1  0x80002000  0x80002010
 
