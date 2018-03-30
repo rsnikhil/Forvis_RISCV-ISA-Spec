@@ -157,7 +157,7 @@ runFile  filename  num_instrs  verbosity = do
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
 
   let initial_PC = 0x80000000
-      astate1    = mkArchState  RV64  initial_PC  addr_byte_list
+      astate1    = mkArchState  RV32  initial_PC  addr_byte_list
 
   -- dumpMem  astate1  0x80002000  0x80002010
 

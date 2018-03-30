@@ -86,16 +86,16 @@ exec_end_ret  astate  priv = do
 executeInstr :: ArchState -> Instruction -> IO ArchState
 
 -- ================================================================
--- RV32I instructions
+-- RV32I Base Instruction Set (Vol I)
 
 -- Immediate constants: LUI AUIPC
 
-executeInstr  astate  (Lui rd imm20) = do
+executeInstr  astate  (LUI rd imm20) = do
   let x      = shiftL  imm20  12
       rd_val = signExtend  x  32
   exec_end_common  astate  (Just (rd, rd_val))
   
-executeInstr  astate  (Auipc rd imm20) = do
+executeInstr  astate  (AUIPC rd imm20) = do
   let pc     = get_ArchState_PC  astate
       x1     = shiftL  imm20  12
       x2     = signExtend  x1  32
@@ -104,7 +104,7 @@ executeInstr  astate  (Auipc rd imm20) = do
 
 -- Jumps : JAL JALR
 
-executeInstr  astate  (Jal rd jimm20) = do
+executeInstr  astate  (JAL rd jimm20) = do
   let pc        = get_ArchState_PC  astate
       save_PC   = pc + 4
       x1        = shiftL  jimm20  1
@@ -112,7 +112,7 @@ executeInstr  astate  (Jal rd jimm20) = do
       target_PC = cvt_s_to_u  ((cvt_u_to_s  pc) + (cvt_u_to_s  x2))
   exec_end_jump  astate  rd  save_PC  target_PC
 
-executeInstr  astate (Jalr rd rs1 oimm12) = do
+executeInstr  astate (JALR rd rs1 oimm12) = do
   let pc        = get_ArchState_PC  astate
       save_PC   = pc + 4
       rs1_val   = get_ArchState_gpr  astate  rs1
@@ -120,33 +120,29 @@ executeInstr  astate (Jalr rd rs1 oimm12) = do
       target_PC = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + (cvt_u_to_s  x))
   exec_end_jump  astate  rd  save_PC  target_PC
 
--- Branches: BEQ BNE BLT BGE BLTU BGEU
+-- Branches: BEQ BNE BLT BLTU BGE BGEU
 
-executeInstr  astate  (Beq rs1 rs2 sbimm12) = do
+executeInstr  astate  (BEQ rs1 rs2 sbimm12) = do
   let rv        = get_ArchState_rv  astate
       rs1_val   = get_ArchState_gpr  astate  rs1
       rs2_val   = get_ArchState_gpr  astate  rs2
-      rs1_val_a = if rv == RV64 then rs1_val else rs1_val .&. 0xFFFFFFFF
-      rs2_val_a = if rv == RV64 then rs2_val else rs2_val .&. 0xFFFFFFFF
       pc        = get_ArchState_PC  astate
       x1        = shiftL  sbimm12  1
       x2        = signExtend  x1  13
       target_PC = cvt_s_to_u  ((cvt_u_to_s  pc) + (cvt_u_to_s  x2))
-  exec_end_branch  astate  pc  (rs2_val_a == rs2_val_a)  target_PC
+  exec_end_branch  astate  pc  (rs1_val == rs2_val)  target_PC
 
-executeInstr  astate  (Bne rs1 rs2 sbimm12) = do
+executeInstr  astate  (BNE rs1 rs2 sbimm12) = do
   let rv        = get_ArchState_rv  astate
       rs1_val   = get_ArchState_gpr  astate  rs1
       rs2_val   = get_ArchState_gpr  astate  rs2
-      rs1_val_a = if rv == RV64 then rs1_val else rs1_val .&. 0xFFFFFFFF
-      rs2_val_a = if rv == RV64 then rs2_val else rs2_val .&. 0xFFFFFFFF
       pc        = get_ArchState_PC  astate
       x1        = shiftL  sbimm12  1
       x2        = signExtend  x1  13
       target_PC = cvt_s_to_u  ((cvt_u_to_s  pc) + (cvt_u_to_s  x2))
-  exec_end_branch  astate  pc  (rs1_val_a /= rs2_val_a)  target_PC
+  exec_end_branch  astate  pc  (rs1_val /= rs2_val)  target_PC
 
-executeInstr  astate  (Blt rs1 rs2 sbimm12) = do
+executeInstr  astate  (BLT rs1 rs2 sbimm12) = do
   let rs1_val   = get_ArchState_gpr  astate  rs1
       rs1_val_s = cvt_u_to_s  rs1_val
       rs2_val   = get_ArchState_gpr  astate  rs2
@@ -157,7 +153,7 @@ executeInstr  astate  (Blt rs1 rs2 sbimm12) = do
       target_PC = cvt_s_to_u  ((cvt_u_to_s  pc) + (cvt_u_to_s  x2))
   exec_end_branch  astate  pc  (rs1_val_s < rs2_val_s)  target_PC
 
-executeInstr  astate  (Bge rs1 rs2 sbimm12) = do
+executeInstr  astate  (BGE rs1 rs2 sbimm12) = do
   let rs1_val   = get_ArchState_gpr  astate  rs1
       rs1_val_s = cvt_u_to_s  rs1_val
       rs2_val   = get_ArchState_gpr  astate  rs2
@@ -168,7 +164,7 @@ executeInstr  astate  (Bge rs1 rs2 sbimm12) = do
       target_PC = cvt_s_to_u  ((cvt_u_to_s  pc) + (cvt_u_to_s  x2))
   exec_end_branch  astate  pc  (rs1_val_s >= rs2_val_s)  target_PC
 
-executeInstr  astate  (Bltu rs1 rs2 sbimm12) = do
+executeInstr  astate  (BLTU rs1 rs2 sbimm12) = do
   let rs1_val   = get_ArchState_gpr  astate  rs1
       rs2_val   = get_ArchState_gpr  astate  rs2
       pc        = get_ArchState_PC  astate
@@ -177,7 +173,7 @@ executeInstr  astate  (Bltu rs1 rs2 sbimm12) = do
       target_PC = cvt_s_to_u  ((cvt_u_to_s  pc) + (cvt_u_to_s  x2))
   exec_end_branch  astate  pc  (rs1_val < rs2_val)  target_PC
 
-executeInstr  astate  (Bgeu rs1 rs2 sbimm12) = do
+executeInstr  astate  (BGEU rs1 rs2 sbimm12) = do
   let rs1_val   = get_ArchState_gpr  astate  rs1
       rs2_val   = get_ArchState_gpr  astate  rs2
       pc        = get_ArchState_PC  astate
@@ -188,7 +184,7 @@ executeInstr  astate  (Bgeu rs1 rs2 sbimm12) = do
 
 -- Loads: LB LH LU LBU LHU
 
-executeInstr  astate  (Lb rd rs1 oimm12) = do
+executeInstr  astate  (LB rd rs1 oimm12) = do
   let rs1_val           = get_ArchState_gpr  astate  rs1
       x                 = signExtend  oimm12  12
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + (cvt_u_to_s  x))
@@ -200,7 +196,7 @@ executeInstr  astate  (Lb rd rs1 oimm12) = do
         let rd_val = signExtend_u8_to_u  u8
         exec_end_common  astate'  (Just (rd, rd_val))
 
-executeInstr  astate  (Lh rd rs1 oimm12) = do
+executeInstr  astate  (LH rd rs1 oimm12) = do
   let rs1_val           = get_ArchState_gpr  astate  rs1
       x                 = signExtend  oimm12  12
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + (cvt_u_to_s  x))
@@ -212,7 +208,7 @@ executeInstr  astate  (Lh rd rs1 oimm12) = do
         let rd_val = signExtend_u16_to_u  u16
         exec_end_common  astate'  (Just (rd, rd_val))
 
-executeInstr  astate  (Lw rd rs1 oimm12) = do
+executeInstr  astate  (LW rd rs1 oimm12) = do
   let rs1_val           = get_ArchState_gpr  astate  rs1
       x                 = signExtend  oimm12  12
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + (cvt_u_to_s  x))
@@ -224,7 +220,7 @@ executeInstr  astate  (Lw rd rs1 oimm12) = do
         let rd_val = signExtend_u32_to_u  u32
         exec_end_common  astate'  (Just (rd, rd_val))
 
-executeInstr  astate  (Lbu rd rs1 oimm12) = do
+executeInstr  astate  (LBU rd rs1 oimm12) = do
   let rs1_val           = get_ArchState_gpr  astate  rs1
       x                 = signExtend  oimm12  12
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + (cvt_u_to_s  x))
@@ -236,7 +232,7 @@ executeInstr  astate  (Lbu rd rs1 oimm12) = do
         let rd_val = zeroExtend_u8_to_u  u8
         exec_end_common  astate'  (Just (rd, rd_val))
 
-executeInstr  astate  (Lhu rd rs1 oimm12) = do
+executeInstr  astate  (LHU rd rs1 oimm12) = do
   let rs1_val           = get_ArchState_gpr  astate  rs1
       x                 = signExtend  oimm12  12
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + (cvt_u_to_s  x))
@@ -250,7 +246,7 @@ executeInstr  astate  (Lhu rd rs1 oimm12) = do
 
 -- Stores: SB SH SW
 
-executeInstr  astate  (Sb rs1 rs2 simm12) = do
+executeInstr  astate  (SB rs1 rs2 simm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       x       = signExtend  simm12  12
@@ -259,7 +255,7 @@ executeInstr  astate  (Sb rs1 rs2 simm12) = do
   astate1 <- set_ArchState_mem8  astate  eaddr  u8
   exec_end_common  astate1  Nothing
 
-executeInstr  astate  (Sh rs1 rs2 simm12) = do
+executeInstr  astate  (SH rs1 rs2 simm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       x       = signExtend  simm12  12
@@ -268,7 +264,7 @@ executeInstr  astate  (Sh rs1 rs2 simm12) = do
   astate1 <- set_ArchState_mem16  astate  eaddr  u16
   exec_end_common  astate1  Nothing
 
-executeInstr  astate  (Sw rs1 rs2 simm12) = do
+executeInstr  astate  (SW rs1 rs2 simm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       x       = signExtend  simm12  12
@@ -279,72 +275,72 @@ executeInstr  astate  (Sw rs1 rs2 simm12) = do
 
 -- ALU register immediate: ADDI SLTI SLTIU XORI ORI ANDI SLLI SRLI SRAI
 
-executeInstr  astate  (Addi rd rs1 imm12) = do
+executeInstr  astate  (ADDI rd rs1 imm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       x       = signExtend  imm12  12
       rd_val  = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + (cvt_u_to_s  x))
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Slti rd rs1 imm12) = do
+executeInstr  astate  (SLTI rd rs1 imm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       x       = signExtend  imm12  12
       rd_val  = if (cvt_u_to_s  rs1_val) < (cvt_u_to_s  x) then 1 else 0
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Sltiu rd rs1 imm12) = do
+executeInstr  astate  (SLTIU rd rs1 imm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       x       = signExtend  imm12  12
       rd_val  = if rs1_val < x then 1 else 0
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Xori rd rs1 imm12) = do
+executeInstr  astate  (XORI rd rs1 imm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       x       = signExtend  imm12  12
       rd_val  = xor  rs1_val  x
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Ori rd rs1 imm12) = do
+executeInstr  astate  (ORI rd rs1 imm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       x       = signExtend  imm12  12
       rd_val  = rs1_val  .|.  x
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Andi rd rs1 imm12) = do
+executeInstr  astate  (ANDI rd rs1 imm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       x       = signExtend  imm12  12
       rd_val  = rs1_val  .&.  x
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Slli rd rs1 shamt6) = do
+executeInstr  astate  (SLLI rd rs1 shamt6) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rd_val  = shiftL  rs1_val  (cvt_u_to_Int  shamt6)
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Srli rd rs1 shamt6) = do
+executeInstr  astate  (SRLI rd rs1 shamt6) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rd_val  = shiftR  rs1_val  (cvt_u_to_Int  shamt6)
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Srai rd rs1 shamt6) = do
+executeInstr  astate  (SRAI rd rs1 shamt6) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rd_val  = cvt_s_to_u  (shiftR  (cvt_u_to_s  rs1_val)  (cvt_u_to_Int  shamt6))
   exec_end_common  astate  (Just (rd, rd_val))
 
 -- ALU register-register: ADD SUB SLL SLT SLTU SRL SRA XOR OR AND
 
-executeInstr  astate  (Add rd rs1 rs2) = do
+executeInstr  astate  (ADD rd rs1 rs2) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       rd_val  = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + cvt_u_to_s  (rs2_val))
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Sub rd rs1 rs2) = do
+executeInstr  astate  (SUB rd rs1 rs2) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       rd_val  = cvt_s_to_u  ((cvt_u_to_s  rs1_val) - cvt_u_to_s  (rs2_val))
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Sll rd rs1 rs2) = do
+executeInstr  astate  (SLL rd rs1 rs2) = do
   let xlen    = get_ArchState_xlen  astate
       rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
@@ -353,19 +349,19 @@ executeInstr  astate  (Sll rd rs1 rs2) = do
       rd_val  = shiftL  rs1_val  shamt
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Slt rd rs1 rs2) = do
+executeInstr  astate  (SLT rd rs1 rs2) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       rd_val  = if (cvt_u_to_s  rs1_val) < cvt_u_to_s  (rs2_val) then 1 else 0
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Sltu rd rs1 rs2) = do
+executeInstr  astate  (SLTU rd rs1 rs2) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       rd_val  = if rs1_val < rs2_val then 1 else 0
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Srl rd rs1 rs2) = do
+executeInstr  astate  (SRL rd rs1 rs2) = do
   let xlen    = get_ArchState_xlen  astate
       rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
@@ -374,7 +370,7 @@ executeInstr  astate  (Srl rd rs1 rs2) = do
       rd_val  = shiftR  rs1_val  shamt
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Sra rd rs1 rs2) = do
+executeInstr  astate  (SRA rd rs1 rs2) = do
   let xlen    = get_ArchState_xlen  astate
       rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
@@ -383,55 +379,50 @@ executeInstr  astate  (Sra rd rs1 rs2) = do
       rd_val  = cvt_s_to_u  (shiftR  (cvt_u_to_s  rs1_val)  shamt)
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Xor rd rs1 rs2) = do
+executeInstr  astate  (XOR rd rs1 rs2) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       rd_val  = xor  rs1_val  rs2_val
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Or rd rs1 rs2) = do
+executeInstr  astate  (OR rd rs1 rs2) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       rd_val  = rs1_val  .|.  rs2_val
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (And rd rs1 rs2) = do
+executeInstr  astate  (AND rd rs1 rs2) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       rd_val  = rs1_val  .&.  rs2_val
   exec_end_common  astate  (Just (rd, rd_val))
 
--- Memory Model: FENCE FENCE.I
+-- SYSTEM: ECALL, EBREAK
 
--- TODO: currently a no-op; fix up
-executeInstr  astate  (Fence  pred  succ) = do
-  exec_end_common  astate  Nothing
-
--- TODO: currently a no-op; fix up
-executeInstr  astate  Fence_i = do
-  exec_end_common  astate  Nothing
-
--- ECALL
-executeInstr  astate  Ecall = do
+executeInstr  astate  ECALL = do
   let priv     = get_ArchState_priv  astate
       exc_code | priv == m_Priv_Level = exc_code_ECall_from_M
                | priv == s_Priv_Level = exc_code_ECall_from_S
                | priv == u_Priv_Level = exc_code_ECall_from_U
   exec_end_trap  astate  exc_code  0
 
--- MRET
-executeInstr  astate  Mret = do
-  exec_end_ret  astate  m_Priv_Level
-
--- EBREAK
-executeInstr  astate  Ebreak = do
+executeInstr  astate  EBREAK = do
   putStrLn ("Ebreak; STOPPING")
   let pc = get_ArchState_PC  astate
   exec_end_trap  astate  exc_code_breakpoint  pc
 
+-- Memory Model: FENCE FENCE.I
+-- TODO: currently no-ops; fix up
+
+executeInstr  astate  (FENCE  pred  succ) = do
+  exec_end_common  astate  Nothing
+
+executeInstr  astate  FENCE_I = do
+  exec_end_common  astate  Nothing
+
 -- CSRRx: CSRRW CSRRS CSRRC CSRRWI CSRRSI CSRRCI
 
-executeInstr  astate  (Csrrw rd rs1 csr12) =
+executeInstr  astate  (CSRRW rd rs1 csr12) =
   let permission = get_ArchState_csr_permission  astate  (get_ArchState_priv  astate)  csr12
   in
     if (permission /= CSR_Permission_RW)
@@ -446,7 +437,7 @@ executeInstr  astate  (Csrrw rd rs1 csr12) =
       astate1 <- set_ArchState_csr  astate  csr12  rs1_val
       exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrwi rd zimm csr12) =
+executeInstr  astate  (CSRRWI rd zimm csr12) =
   let permission = get_ArchState_csr_permission  astate  (get_ArchState_priv  astate)  csr12
   in
     if (permission /= CSR_Permission_RW)
@@ -460,7 +451,7 @@ executeInstr  astate  (Csrrwi rd zimm csr12) =
       astate1 <- set_ArchState_csr  astate  csr12  zimm
       exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrs rd rs1 csr12) =
+executeInstr  astate  (CSRRS rd rs1 csr12) =
   let permission = get_ArchState_csr_permission  astate  (get_ArchState_priv  astate)  csr12
   in
     if (permission == CSR_Permission_None) || ((rs1 /= Rg_x0) && (permission == CSR_Permission_RO))
@@ -476,7 +467,7 @@ executeInstr  astate  (Csrrs rd rs1 csr12) =
                     return astate)
       exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrsi rd zimm csr12) =
+executeInstr  astate  (CSRRSI rd zimm csr12) =
   let permission = get_ArchState_csr_permission  astate  (get_ArchState_priv  astate)  csr12
   in
     if (permission == CSR_Permission_None) || ((zimm /= 0) && (permission == CSR_Permission_RO))
@@ -491,7 +482,7 @@ executeInstr  astate  (Csrrsi rd zimm csr12) =
                     return astate)
       exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrc rd rs1 csr12) =
+executeInstr  astate  (CSRRC rd rs1 csr12) =
   let permission = get_ArchState_csr_permission  astate  (get_ArchState_priv  astate)  csr12
   in
     if (permission == CSR_Permission_None) || ((rs1 /= Rg_x0) && (permission == CSR_Permission_RO))
@@ -507,7 +498,7 @@ executeInstr  astate  (Csrrc rd rs1 csr12) =
                      return astate)
       exec_end_common  astate1  (Just (rd, csr_val))
 
-executeInstr  astate  (Csrrci rd zimm csr12) =
+executeInstr  astate  (CSRRCI rd zimm csr12) =
   let permission = get_ArchState_csr_permission  astate  (get_ArchState_priv  astate)  csr12
   in
     if (permission == CSR_Permission_None) || ((zimm /= 0) && (permission == CSR_Permission_RO))
@@ -523,11 +514,11 @@ executeInstr  astate  (Csrrci rd zimm csr12) =
       exec_end_common  astate1  (Just (rd, csr_val))
 
 -- ================================================================
--- RV64I instructions
+-- RV64I Base Instruction Set (Vol I)
 
 -- Loads: LWU LD
 
-executeInstr  astate  (Lwu rd rs1 oimm12) = do
+executeInstr  astate  (LWU rd rs1 oimm12) = do
   let rs1_val           = get_ArchState_gpr  astate  rs1
       x                 = signExtend  oimm12  12
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + (cvt_u_to_s  x))
@@ -539,7 +530,7 @@ executeInstr  astate  (Lwu rd rs1 oimm12) = do
         let rd_val = zeroExtend_u32_to_u64  u32
         exec_end_common  astate'  (Just (rd, rd_val))
 
-executeInstr  astate  (Ld rd rs1 oimm12) = do
+executeInstr  astate  (LD rd rs1 oimm12) = do
   let rs1_val           = get_ArchState_gpr  astate  rs1
       x                 = signExtend  oimm12  12
       eaddr             = cvt_s_to_u  ((cvt_u_to_s  rs1_val) + (cvt_u_to_s  x))
@@ -553,7 +544,7 @@ executeInstr  astate  (Ld rd rs1 oimm12) = do
 
 -- Stores: SD
 
-executeInstr  astate  (Sd rs1 rs2 simm12) = do
+executeInstr  astate  (SD rs1 rs2 simm12) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       x       = signExtend  simm12  12
@@ -563,26 +554,26 @@ executeInstr  astate  (Sd rs1 rs2 simm12) = do
 
 -- ALU Register-Immediate: ADDIW SLLIW SRLIW SRAIW
 
-executeInstr  astate  (Addiw  rd  rs1  imm12) = do
+executeInstr  astate  (ADDIW  rd  rs1  imm12) = do
   let rs1_val_s32 = trunc_u64_to_s32  (get_ArchState_gpr  astate  rs1)
       x_s32       = trunc_u64_to_s32  (signExtend  imm12  12)
       sum_s32     = rs1_val_s32 + x_s32
       rd_val      = signExtend_s32_to_u64  sum_s32
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Slliw rd rs1 shamt5) = do
+executeInstr  astate  (SLLIW rd rs1 shamt5) = do
   let rs1_val_u32 = trunc_u64_to_u32  (get_ArchState_gpr  astate  rs1)
       n           = cvt_u_to_Int  shamt5
       rd_val      = signExtend_u32_to_u64 (shiftL  rs1_val_u32  n)
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Srliw rd rs1 shamt5) = do
+executeInstr  astate  (SRLIW rd rs1 shamt5) = do
   let rs1_val_u32 = trunc_u64_to_u32  (get_ArchState_gpr  astate  rs1)
       n           = cvt_u_to_Int  shamt5
       rd_val      = signExtend_u32_to_u64 (shiftR  rs1_val_u32  n)
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Sraiw rd rs1 shamt5) = do
+executeInstr  astate  (SRAIW rd rs1 shamt5) = do
   let rs1_val_s32 = trunc_u64_to_s32  (get_ArchState_gpr  astate  rs1)
       n           = cvt_u_to_Int  shamt5
       rd_val      = signExtend_s32_to_u64 (shiftR  rs1_val_s32  n)
@@ -590,19 +581,19 @@ executeInstr  astate  (Sraiw rd rs1 shamt5) = do
 
 -- ALU register and register: ADDW SUBW SLLW SRLW SRAW
 
-executeInstr  astate  (Addw rd rs1 rs2) = do
+executeInstr  astate  (ADDW rd rs1 rs2) = do
   let rs1_val_s32 = trunc_u64_to_s32  (get_ArchState_gpr  astate  rs1)
       rs2_val_s32 = trunc_u64_to_s32  (get_ArchState_gpr  astate  rs2)
       rd_val      = signExtend_s32_to_u64 (rs1_val_s32 + rs2_val_s32)
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Subw rd rs1 rs2) = do
+executeInstr  astate  (SUBW rd rs1 rs2) = do
   let rs1_val_s32 = trunc_u64_to_s32  (get_ArchState_gpr  astate  rs1)
       rs2_val_s32 = trunc_u64_to_s32  (get_ArchState_gpr  astate  rs2)
       rd_val      = signExtend_s32_to_u64 (rs1_val_s32 - rs2_val_s32)
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Sllw rd rs1 rs2) = do
+executeInstr  astate  (SLLW rd rs1 rs2) = do
   let rs1_val_s32 = trunc_u64_to_s32  (get_ArchState_gpr  astate  rs1)
       rs2_val_u64 = get_ArchState_gpr  astate  rs2
       shamt      :: Int
@@ -611,7 +602,7 @@ executeInstr  astate  (Sllw rd rs1 rs2) = do
       rd_val      = signExtend_s32_to_u64  result_s32
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Srlw rd rs1 rs2) = do
+executeInstr  astate  (SRLW rd rs1 rs2) = do
   let rs1_val_u32 = trunc_u64_to_u32  (get_ArchState_gpr  astate  rs1)
       rs2_val_u64 = get_ArchState_gpr  astate  rs2
       shamt       = fromIntegral (rs2_val_u64 .&. 0x1F)
@@ -619,7 +610,7 @@ executeInstr  astate  (Srlw rd rs1 rs2) = do
       rd_val      = signExtend_u32_to_u64  result_u32
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Sraw rd rs1 rs2) = do
+executeInstr  astate  (SRAW rd rs1 rs2) = do
   let rs1_val_s32 = trunc_u64_to_s32  (get_ArchState_gpr  astate  rs1)
       rs2_val_u64 = get_ArchState_gpr  astate  rs2
       shamt       = fromIntegral (rs2_val_u64 .&. 0x1F)
@@ -628,15 +619,15 @@ executeInstr  astate  (Sraw rd rs1 rs2) = do
   exec_end_common  astate  (Just (rd, rd_val))
 
 -- ================================================================
--- 'M' extension in RV32 and RV64 (integer multiply and divide)
+  -- RV32M Standard Extension
 
-executeInstr  astate  (Mul rd rs1 rs2) = do
+executeInstr  astate  (MUL rd rs1 rs2) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       rd_val  = cvt_s_to_u  ((cvt_u_to_s  rs1_val) * cvt_u_to_s  (rs2_val))
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Mulh rd rs1 rs2) = do
+executeInstr  astate  (MULH rd rs1 rs2) = do
   let xlen    = get_ArchState_xlen  astate
       rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
@@ -648,7 +639,7 @@ executeInstr  astate  (Mulh rd rs1 rs2) = do
       rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen + xlen)))
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Mulhu rd rs1 rs2) = do
+executeInstr  astate  (MULHU rd rs1 rs2) = do
   let xlen    = get_ArchState_xlen  astate
       rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
@@ -660,7 +651,7 @@ executeInstr  astate  (Mulhu rd rs1 rs2) = do
       rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen + xlen)))
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Mulhsu rd rs1 rs2) = do
+executeInstr  astate  (MULHSU rd rs1 rs2) = do
   let xlen    = get_ArchState_xlen  astate
       rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
@@ -672,7 +663,7 @@ executeInstr  astate  (Mulhsu rd rs1 rs2) = do
       rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen + xlen)))
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Div rd rs1 rs2) = do
+executeInstr  astate  (DIV rd rs1 rs2) = do
   let rs1_val   = get_ArchState_gpr  astate  rs1
       rs2_val   = get_ArchState_gpr  astate  rs2
       rs1_val_s = cvt_u_to_s  rs1_val
@@ -683,14 +674,14 @@ executeInstr  astate  (Div rd rs1 rs2) = do
       rd_val    = cvt_s_to_u  rd_val_s
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Divu rd rs1 rs2) = do
+executeInstr  astate  (DIVU rd rs1 rs2) = do
   let rs1_val   = get_ArchState_gpr  astate  rs1
       rs2_val   = get_ArchState_gpr  astate  rs2
       rd_val    = if (rs2_val == 0) then maxBound
                   else div  rs1_val  rs2_val
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Rem rd rs1 rs2) = do
+executeInstr  astate  (REM rd rs1 rs2) = do
   let rs1_val   = get_ArchState_gpr  astate  rs1
       rs2_val   = get_ArchState_gpr  astate  rs2
       rs1_val_s = cvt_u_to_s  rs1_val
@@ -701,7 +692,7 @@ executeInstr  astate  (Rem rd rs1 rs2) = do
       rd_val    = cvt_s_to_u  rd_val_s
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Remu rd rs1 rs2) = do
+executeInstr  astate  (REMU rd rs1 rs2) = do
   let rs1_val   = get_ArchState_gpr  astate  rs1
       rs2_val   = get_ArchState_gpr  astate  rs2
       rd_val    = if (rs2_val == 0) then rs1_val
@@ -709,9 +700,9 @@ executeInstr  astate  (Remu rd rs1 rs2) = do
   exec_end_common  astate  (Just (rd, rd_val))
 
 -- ================================================================
--- 'M' extension in RV64 only (integer multiply and divide)
+-- RV64M Standard Extension
 
-executeInstr  astate  (Mulw rd rs1 rs2) = do
+executeInstr  astate  (MULW rd rs1 rs2) = do
   let xlen    = get_ArchState_xlen  astate
       rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
@@ -723,7 +714,7 @@ executeInstr  astate  (Mulw rd rs1 rs2) = do
       rd_val = cvt_s_to_u (fromIntegral (bitSlice  prod_i  xlen  (xlen + xlen)))
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Divw rd rs1 rs2) = do
+executeInstr  astate  (DIVW rd rs1 rs2) = do
   let rs1_val  = get_ArchState_gpr  astate  rs1
       rs2_val  = get_ArchState_gpr  astate  rs2
       v1_s32, v2_s32, quot_s32 :: Int32
@@ -737,7 +728,7 @@ executeInstr  astate  (Divw rd rs1 rs2) = do
       rd_val   = signExtend_u32_to_u64  quot_u32
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Divuw rd rs1 rs2) = do
+executeInstr  astate  (DIVUW rd rs1 rs2) = do
   let rs1_val  = get_ArchState_gpr  astate  rs1
       rs2_val  = get_ArchState_gpr  astate  rs2
       v1_u32, v2_u32, quot_u32 :: Word32
@@ -748,7 +739,7 @@ executeInstr  astate  (Divuw rd rs1 rs2) = do
       rd_val   = signExtend_u32_to_u64  quot_u32
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Remw rd rs1 rs2) = do
+executeInstr  astate  (REMW rd rs1 rs2) = do
   let rs1_val = get_ArchState_gpr  astate  rs1
       rs2_val = get_ArchState_gpr  astate  rs2
       v1_s32, v2_s32, rem_s32 :: Int32
@@ -762,7 +753,7 @@ executeInstr  astate  (Remw rd rs1 rs2) = do
       rd_val  = signExtend_u32_to_u64  rem_u32
   exec_end_common  astate  (Just (rd, rd_val))
 
-executeInstr  astate  (Remuw rd rs1 rs2) = do
+executeInstr  astate  (REMUW rd rs1 rs2) = do
   let rs1_val  = get_ArchState_gpr  astate  rs1
       rs2_val  = get_ArchState_gpr  astate  rs2
       v1_u32, v2_u32, rem_u32 :: Word32
@@ -774,19 +765,37 @@ executeInstr  astate  (Remuw rd rs1 rs2) = do
   exec_end_common  astate  (Just (rd, rd_val))
 
 -- ================================================================
+-- TODO: RV32A Standard Extension (Vol I)
+-- TODO: RV64A Standard Extension (Vol I)
+-- TODO: RV32F Standard Extension (Vol I)
+-- TODO: RV64F Standard Extension (Vol I)
+-- TODO: RV32D Standard Extension (Vol I)
+-- TODO: RV64D Standard Extension (Vol I)
+
+-- ================================================================
+-- Privileged Instructions (Vol II)
+-- ECALL, EBREAK defined in RV32I section
+
+-- MRET/SRET/URET
+
+executeInstr  astate  MRET = do
+  exec_end_ret  astate  m_Priv_Level
+executeInstr  astate  SRET = do
+  exec_end_ret  astate  s_Priv_Level
+executeInstr  astate  URET = do
+  exec_end_ret  astate  u_Priv_Level
+
+-- SFENCE.VM: TODO: currently a no-op: FIXUP
+
+executeInstr  astate  (SFENCE_VM rs1 rs2) = do
+  exec_end_common  astate  Nothing
+
+-- ================================================================
 -- Invalid instructions
 -- TODO: trap to trap handler; for now, just stop
 
-executeInstr  astate  IllegalInstruction = do
+executeInstr  astate  ILLEGALINSTRUCTION = do
   putStrLn "  ILLEGAL INSTRUCTION"
-  exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
-
--- ================================================================
--- We should never reach here; the above clauses should handle all the
--- variants of the 'Instruction' type.
-
-executeInstr  astate  instr = do
-  putStrLn ("  INTERNAL ERROR: UNIMPLEMENTED: " ++ (show instr))
   exec_end_trap  astate  exc_code_illegal_instruction  0    -- TODO: 0 => instr
 
 -- ================================================================

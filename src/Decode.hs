@@ -20,98 +20,126 @@ import CSRFile (misa_mxl, misa_flag)
 -- ================================================================
 -- Decoded instructions
 
+-- For convenience (semantic importance), these are listed here in the
+-- same order as the instruction set listings in:
+--     Ch.19, Volume I: RISC-V User-Level ISA V2.2
+--     Ch.6, Volume II: Privileged Architecture Version 1.10
+
 data Instruction =
-  IllegalInstruction |
 
-  Lb  { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
-  Lh  { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
-  Lw  { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
-  Ld  { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
-  Lbu { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
-  Lhu { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
-  Lwu { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
+  -- RV32I Base Instruction Set (Vol I)
 
-  Fence { pred :: UInt, succ :: UInt } |
-  Fence_i |
+  LUI   { rd :: Register, imm20  :: UInt } |
+  AUIPC { rd :: Register, oimm20 :: UInt } |
 
-  Addi  { rd :: Register, rs1 :: Register, imm12  :: UInt } |
-  Slli  { rd :: Register, rs1 :: Register, shamt6 :: UInt } |
-  Slti  { rd :: Register, rs1 :: Register, imm12  :: UInt } |
-  Sltiu { rd :: Register, rs1 :: Register, imm12  :: UInt } |
-  Xori  { rd :: Register, rs1 :: Register, imm12  :: UInt } |
-  Ori   { rd :: Register, rs1 :: Register, imm12  :: UInt } |
-  Andi  { rd :: Register, rs1 :: Register, imm12  :: UInt } |
-  Srli  { rd :: Register, rs1 :: Register, shamt6 :: UInt } |
-  Srai  { rd :: Register, rs1 :: Register, shamt6 :: UInt } |
+  JAL  { rd :: Register, jimm20 :: UInt } |
+  JALR { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
 
-  Auipc { rd :: Register, oimm20 :: UInt } |
+  BEQ  { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
+  BNE  { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
+  BLT  { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
+  BLTU { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
+  BGE  { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
+  BGEU { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
 
-  Addiw { rd :: Register, rs1 :: Register, imm12  :: UInt } |
-  Slliw { rd :: Register, rs1 :: Register, shamt5 :: UInt } |
-  Srliw { rd :: Register, rs1 :: Register, shamt5 :: UInt } |
-  Sraiw { rd :: Register, rs1 :: Register, shamt5 :: UInt } |
+  LB  { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
+  LH  { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
+  LW  { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
+  LBU { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
+  LHU { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
 
-  Sb { rs1 :: Register, rs2 :: Register, simm12 :: UInt } |
-  Sh { rs1 :: Register, rs2 :: Register, simm12 :: UInt } |
-  Sw { rs1 :: Register, rs2 :: Register, simm12 :: UInt } |
-  Sd { rs1 :: Register, rs2 :: Register, simm12 :: UInt } |
+  SB { rs1 :: Register, rs2 :: Register, simm12 :: UInt } |
+  SH { rs1 :: Register, rs2 :: Register, simm12 :: UInt } |
+  SW { rs1 :: Register, rs2 :: Register, simm12 :: UInt } |
 
-  Add    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Sub    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Sll    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Slt    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Sltu   { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Xor    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Srl    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Sra    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Or     { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  And    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Mul    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Mulh   { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Mulhsu { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Mulhu  { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Div    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Divu   { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Rem    { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Remu   { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  ADDI  { rd :: Register, rs1 :: Register, imm12  :: UInt } |
+  SLTI  { rd :: Register, rs1 :: Register, imm12  :: UInt } |
+  SLTIU { rd :: Register, rs1 :: Register, imm12  :: UInt } |
+  XORI  { rd :: Register, rs1 :: Register, imm12  :: UInt } |
+  ORI   { rd :: Register, rs1 :: Register, imm12  :: UInt } |
+  ANDI  { rd :: Register, rs1 :: Register, imm12  :: UInt } |
 
-  Lui { rd :: Register, imm20 :: UInt } |
+  SLLI  { rd :: Register, rs1 :: Register, shamt6 :: UInt } |
+  SRLI  { rd :: Register, rs1 :: Register, shamt6 :: UInt } |
+  SRAI  { rd :: Register, rs1 :: Register, shamt6 :: UInt } |
 
-  Addw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Subw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Sllw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Srlw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Sraw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Mulw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Divw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Divuw { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Remw  { rd :: Register, rs1 :: Register, rs2 :: Register } |
-  Remuw { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  ADD    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SUB    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SLL    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SLT    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SLTU   { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  XOR    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SRL    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SRA    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  OR     { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  AND    { rd :: Register, rs1 :: Register, rs2 :: Register } |
 
-  Beq  { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
-  Bne  { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
-  Blt  { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
-  Bge  { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
-  Bltu { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
-  Bgeu { rs1 :: Register, rs2 :: Register, sbimm12 :: UInt } |
+  ECALL  |
+  EBREAK |
 
-  Jalr { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
-  Jal  { rd :: Register, jimm20 :: UInt } |
+  FENCE { pred :: UInt, succ :: UInt } |
+  FENCE_I |
 
-  Ecall  |
-  Ebreak |
-  Uret   |
-  Sret   |
-  Mret   |
-  Wfi    |
-  Sfence_vm { rs1 :: Register, rs2 :: Register } |
+  CSRRW  { rd :: Register,  rs1 :: Register, csr12 :: CSR_Addr } |
+  CSRRS  { rd :: Register,  rs1 :: Register, csr12 :: CSR_Addr } |
+  CSRRC  { rd :: Register,  rs1 :: Register, csr12 :: CSR_Addr } |
+  CSRRWI { rd :: Register, zimm :: UInt,     csr12 :: CSR_Addr } |
+  CSRRSI { rd :: Register, zimm :: UInt,     csr12 :: CSR_Addr } |
+  CSRRCI { rd :: Register, zimm :: UInt,     csr12 :: CSR_Addr } |
 
-  Csrrw  { rd :: Register,  rs1 :: Register, csr12 :: CSR_Addr } |
-  Csrrs  { rd :: Register,  rs1 :: Register, csr12 :: CSR_Addr } |
-  Csrrc  { rd :: Register,  rs1 :: Register, csr12 :: CSR_Addr } |
-  Csrrwi { rd :: Register, zimm :: UInt,     csr12 :: CSR_Addr } |
-  Csrrsi { rd :: Register, zimm :: UInt,     csr12 :: CSR_Addr } |
-  Csrrci { rd :: Register, zimm :: UInt,     csr12 :: CSR_Addr }
+  -- RV64I Base Instruction Set (Vol I)
+
+  LWU { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
+  LD  { rd :: Register, rs1 :: Register, oimm12 :: UInt } |
+  SD { rs1 :: Register, rs2 :: Register, simm12 :: UInt } |
+  -- SLLI, SRLI, SRAI defined in RV32I section
+  ADDIW { rd :: Register, rs1 :: Register, imm12  :: UInt } |
+  SLLIW { rd :: Register, rs1 :: Register, shamt5 :: UInt } |
+  SRLIW { rd :: Register, rs1 :: Register, shamt5 :: UInt } |
+  SRAIW { rd :: Register, rs1 :: Register, shamt5 :: UInt } |
+  ADDW  { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SUBW  { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SLLW  { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SRLW  { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  SRAW  { rd :: Register, rs1 :: Register, rs2 :: Register } |
+
+  -- RV32M Standard Extension
+
+  MUL    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  MULH   { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  MULHSU { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  MULHU  { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  DIV    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  DIVU   { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  REM    { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  REMU   { rd :: Register, rs1 :: Register, rs2 :: Register } |
+
+  -- RV64M Standard Extension
+
+  MULW  { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  DIVW  { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  DIVUW { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  REMW  { rd :: Register, rs1 :: Register, rs2 :: Register } |
+  REMUW { rd :: Register, rs1 :: Register, rs2 :: Register } |
+
+  -- TODO: RV32A Standard Extension (Vol I)
+  -- TODO: RV64A Standard Extension (Vol I)
+  -- TODO: RV32F Standard Extension (Vol I)
+  -- TODO: RV64F Standard Extension (Vol I)
+  -- TODO: RV32D Standard Extension (Vol I)
+  -- TODO: RV64D Standard Extension (Vol I)
+
+  -- Privileged Instructions (Vol II)
+  -- ECALL, EBREAK defined in RV32I section
+  URET   |
+  SRET   |
+  MRET   |
+  WFI    |
+  SFENCE_VM { rs1 :: Register, rs2 :: Register } |
+
+  -- Special value returne by 'decode' if none of the above
+  ILLEGALINSTRUCTION
+
   deriving (Eq, Show)
 
 -- ================================================================
@@ -370,108 +398,120 @@ decode  rv  misa  instr = decode_sub  opcode
 
     zimm    = zeroExtend_u32_to_u64  (bitSlice instr 15 20)    -- for CSRRxI
 
-    decode_sub opcode
-      | opcode==opcode_LOAD, funct3==funct3_LB  = Lb  {rd=rd, rs1=rs1, oimm12=oimm12}
-      | opcode==opcode_LOAD, funct3==funct3_LH  = Lh  {rd=rd, rs1=rs1, oimm12=oimm12}
-      | opcode==opcode_LOAD, funct3==funct3_LW  = Lw  {rd=rd, rs1=rs1, oimm12=oimm12}
-      | opcode==opcode_LOAD, funct3==funct3_LBU = Lbu {rd=rd, rs1=rs1, oimm12=oimm12}
-      | opcode==opcode_LOAD, funct3==funct3_LHU = Lhu {rd=rd, rs1=rs1, oimm12=oimm12}
+    decode_sub  opcode
 
-      | opcode==opcode_MISC_MEM, rd==Rg_x0, funct3==funct3_FENCE,   rs1==Rg_x0, msb4==0  = Fence {Decode.pred=pred, Decode.succ=succ}
-      | opcode==opcode_MISC_MEM, rd==Rg_x0, funct3==funct3_FENCE_I, rs1==Rg_x0, imm12==0 = Fence_i
+      -- RV32I Base Instruction Set (Vol I)
+      | opcode==opcode_LUI = LUI {rd=rd, imm20=imm20}
+      | opcode==opcode_AUIPC = AUIPC {rd=rd, oimm20=oimm20}
 
-      | opcode==opcode_OP_IMM, funct3==funct3_ADDI                                = Addi  {rd=rd, rs1=rs1, imm12=imm12}
-      | opcode==opcode_OP_IMM, funct3==funct3_SLLI, funct7==funct7_SLLI, rv==RV32 = Slli  {rd=rd, rs1=rs1, shamt6=shamt5}
-      | opcode==opcode_OP_IMM, funct3==funct3_SLTI                                = Slti  {rd=rd, rs1=rs1, imm12=imm12}
-      | opcode==opcode_OP_IMM, funct3==funct3_SLTIU                               = Sltiu {rd=rd, rs1=rs1, imm12=imm12}
-      | opcode==opcode_OP_IMM, funct3==funct3_XORI                                = Xori  {rd=rd, rs1=rs1, imm12=imm12}
-      | opcode==opcode_OP_IMM, funct3==funct3_ORI                                 = Ori   {rd=rd, rs1=rs1, imm12=imm12}
-      | opcode==opcode_OP_IMM, funct3==funct3_ANDI                                = Andi  {rd=rd, rs1=rs1, imm12=imm12}
-      | opcode==opcode_OP_IMM, funct3==funct3_SRLI, funct7==funct7_SRLI, rv==RV32 = Srli  {rd=rd, rs1=rs1, shamt6=shamt5}
-      | opcode==opcode_OP_IMM, funct3==funct3_SRAI, funct7==funct7_SRAI, rv==RV32 = Srai  {rd=rd, rs1=rs1, shamt6=shamt5}
+      | opcode==opcode_JAL  = JAL {rd=rd, jimm20=jimm20}
+      | opcode==opcode_JALR = JALR {rd=rd, rs1=rs1, oimm12=oimm12}
 
-      | opcode==opcode_AUIPC = Auipc {rd=rd, oimm20=oimm20}
+      | opcode==opcode_BRANCH, funct3==funct3_BEQ  = BEQ  {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
+      | opcode==opcode_BRANCH, funct3==funct3_BNE  = BNE  {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
+      | opcode==opcode_BRANCH, funct3==funct3_BLT  = BLT  {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
+      | opcode==opcode_BRANCH, funct3==funct3_BLTU = BLTU {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
+      | opcode==opcode_BRANCH, funct3==funct3_BGE  = BGE  {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
+      | opcode==opcode_BRANCH, funct3==funct3_BGEU = BGEU {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
 
-      | opcode==opcode_STORE, funct3==funct3_SB = Sb {rs1=rs1, rs2=rs2, simm12=simm12}
-      | opcode==opcode_STORE, funct3==funct3_SH = Sh {rs1=rs1, rs2=rs2, simm12=simm12}
-      | opcode==opcode_STORE, funct3==funct3_SW = Sw {rs1=rs1, rs2=rs2, simm12=simm12}
+      | opcode==opcode_LOAD, funct3==funct3_LB  = LB  {rd=rd, rs1=rs1, oimm12=oimm12}
+      | opcode==opcode_LOAD, funct3==funct3_LH  = LH  {rd=rd, rs1=rs1, oimm12=oimm12}
+      | opcode==opcode_LOAD, funct3==funct3_LW  = LW  {rd=rd, rs1=rs1, oimm12=oimm12}
+      | opcode==opcode_LOAD, funct3==funct3_LBU = LBU {rd=rd, rs1=rs1, oimm12=oimm12}
+      | opcode==opcode_LOAD, funct3==funct3_LHU = LHU {rd=rd, rs1=rs1, oimm12=oimm12}
 
-      | opcode==opcode_OP, funct3==funct3_ADD,  funct7==funct7_ADD  = Add  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_SUB,  funct7==funct7_SUB  = Sub  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_SLL,  funct7==funct7_SLL  = Sll  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_SLT,  funct7==funct7_SLT  = Slt  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_SLTU, funct7==funct7_SLTU = Sltu {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_XOR,  funct7==funct7_XOR  = Xor  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_SRL,  funct7==funct7_SRL  = Srl  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_SRA,  funct7==funct7_SRA  = Sra  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_OR,   funct7==funct7_OR   = Or   {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_AND,  funct7==funct7_AND  = And  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_STORE, funct3==funct3_SB = SB {rs1=rs1, rs2=rs2, simm12=simm12}
+      | opcode==opcode_STORE, funct3==funct3_SH = SH {rs1=rs1, rs2=rs2, simm12=simm12}
+      | opcode==opcode_STORE, funct3==funct3_SW = SW {rs1=rs1, rs2=rs2, simm12=simm12}
 
-      | opcode==opcode_OP, funct3==funct3_MUL,    funct7==funct7_MUL    = Mul    {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_MULH,   funct7==funct7_MULH   = Mulh   {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_MULHSU, funct7==funct7_MULHSU = Mulhsu {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_MULHU,  funct7==funct7_MULHU  = Mulhu  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_DIV,    funct7==funct7_DIV    = Div    {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_DIVU,   funct7==funct7_DIVU   = Divu   {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_REM,    funct7==funct7_REM    = Rem    {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP, funct3==funct3_REMU,   funct7==funct7_REMU   = Remu   {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP_IMM, funct3==funct3_ADDI  = ADDI  {rd=rd, rs1=rs1, imm12=imm12}
+      | opcode==opcode_OP_IMM, funct3==funct3_SLTI  = SLTI  {rd=rd, rs1=rs1, imm12=imm12}
+      | opcode==opcode_OP_IMM, funct3==funct3_SLTIU = SLTIU {rd=rd, rs1=rs1, imm12=imm12}
+      | opcode==opcode_OP_IMM, funct3==funct3_XORI  = XORI  {rd=rd, rs1=rs1, imm12=imm12}
+      | opcode==opcode_OP_IMM, funct3==funct3_ORI   = ORI   {rd=rd, rs1=rs1, imm12=imm12}
+      | opcode==opcode_OP_IMM, funct3==funct3_ANDI  = ANDI  {rd=rd, rs1=rs1, imm12=imm12}
 
-      | opcode==opcode_LUI = Lui {rd=rd, imm20=imm20}
+      | opcode==opcode_OP_IMM, funct3==funct3_SLLI, funct7==funct7_SLLI, rv==RV32 = SLLI  {rd=rd, rs1=rs1, shamt6=shamt5}
+      | opcode==opcode_OP_IMM, funct3==funct3_SRLI, funct7==funct7_SRLI, rv==RV32 = SRLI  {rd=rd, rs1=rs1, shamt6=shamt5}
+      | opcode==opcode_OP_IMM, funct3==funct3_SRAI, funct7==funct7_SRAI, rv==RV32 = SRAI  {rd=rd, rs1=rs1, shamt6=shamt5}
 
-      | opcode==opcode_BRANCH, funct3==funct3_BEQ  = Beq  {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
-      | opcode==opcode_BRANCH, funct3==funct3_BNE  = Bne  {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
-      | opcode==opcode_BRANCH, funct3==funct3_BLT  = Blt  {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
-      | opcode==opcode_BRANCH, funct3==funct3_BGE  = Bge  {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
-      | opcode==opcode_BRANCH, funct3==funct3_BLTU = Bltu {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
-      | opcode==opcode_BRANCH, funct3==funct3_BGEU = Bgeu {rs1=rs1, rs2=rs2, sbimm12=sbimm12}
+      | opcode==opcode_OP, funct3==funct3_ADD,  funct7==funct7_ADD  = ADD  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_SUB,  funct7==funct7_SUB  = SUB  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_SLL,  funct7==funct7_SLL  = SLL  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_SLT,  funct7==funct7_SLT  = SLT  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_SLTU, funct7==funct7_SLTU = SLTU {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_XOR,  funct7==funct7_XOR  = XOR  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_SRL,  funct7==funct7_SRL  = SRL  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_SRA,  funct7==funct7_SRA  = SRA  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_OR,   funct7==funct7_OR   = OR   {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_AND,  funct7==funct7_AND  = AND  {rd=rd, rs1=rs1, rs2=rs2}
 
-      | opcode==opcode_JALR = Jalr {rd=rd, rs1=rs1, oimm12=oimm12}
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_ECALL  = ECALL
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_EBREAK = EBREAK
 
-      | opcode==opcode_JAL  = Jal {rd=rd, jimm20=jimm20}
+      | opcode==opcode_MISC_MEM, rd==Rg_x0, funct3==funct3_FENCE,   rs1==Rg_x0, msb4==0  = FENCE {Decode.pred=pred, Decode.succ=succ}
+      | opcode==opcode_MISC_MEM, rd==Rg_x0, funct3==funct3_FENCE_I, rs1==Rg_x0, imm12==0 = FENCE_I
 
-      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_ECALL  = Ecall
-      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_EBREAK = Ebreak
-      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_URET   = Uret
-      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_SRET   = Sret
-      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_MRET   = Mret
-      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_WFI    = Wfi
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRW  = CSRRW   {rd=rd, rs1=rs1,   csr12=csr12}
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRS  = CSRRS   {rd=rd, rs1=rs1,   csr12=csr12}
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRC  = CSRRC   {rd=rd, rs1=rs1,   csr12=csr12}
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRWI = CSRRWI  {rd=rd, zimm=zimm, csr12=csr12}
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRSI = CSRRSI  {rd=rd, zimm=zimm, csr12=csr12}
+      | opcode==opcode_SYSTEM, funct3==funct3_CSRRCI = CSRRCI  {rd=rd, zimm=zimm, csr12=csr12}
 
-      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, funct7==funct7_SFENCE_VM        = Sfence_vm {rs1=rs1, rs2=rs2}
+      -- RV64I Base Instruction Set (Vol I)
+      | opcode==opcode_LOAD, funct3==funct3_LWU, rv==RV64 = LWU {rd=rd, rs1=rs1, oimm12=oimm12}
+      | opcode==opcode_LOAD, funct3==funct3_LD,  rv==RV64 = LD  {rd=rd, rs1=rs1, oimm12=oimm12}
+      | opcode==opcode_STORE, funct3==funct3_SD, rv==RV64 = SD {rs1=rs1, rs2=rs2, simm12=simm12}
 
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRW  = Csrrw   {rd=rd, rs1=rs1,   csr12=csr12}
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRS  = Csrrs   {rd=rd, rs1=rs1,   csr12=csr12}
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRC  = Csrrc   {rd=rd, rs1=rs1,   csr12=csr12}
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRWI = Csrrwi  {rd=rd, zimm=zimm, csr12=csr12}
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRSI = Csrrsi  {rd=rd, zimm=zimm, csr12=csr12}
-      | opcode==opcode_SYSTEM, funct3==funct3_CSRRCI = Csrrci  {rd=rd, zimm=zimm, csr12=csr12}
+      | opcode==opcode_OP_IMM,    funct3==funct3_SLLI,  funct6==funct6_SLLI,  rv==RV64 = SLLI   {rd=rd, rs1=rs1, shamt6=shamt6}
+      | opcode==opcode_OP_IMM,    funct3==funct3_SRLI,  funct6==funct6_SRLI,  rv==RV64 = SRLI   {rd=rd, rs1=rs1, shamt6=shamt6}
+      | opcode==opcode_OP_IMM,    funct3==funct3_SRAI,  funct6==funct6_SRAI,  rv==RV64 = SRAI   {rd=rd, rs1=rs1, shamt6=shamt6}
+      | opcode==opcode_OP_IMM_32, funct3==funct3_ADDIW,                       rv==RV64 = ADDIW  {rd=rd, rs1=rs1, imm12=imm12}
+      | opcode==opcode_OP_IMM_32, funct3==funct3_SLLIW, funct7==funct7_SLLIW, rv==RV64 = SLLIW  {rd=rd, rs1=rs1, shamt5=shamt5}
+      | opcode==opcode_OP_IMM_32, funct3==funct3_SRLIW, funct7==funct7_SRLIW, rv==RV64 = SRLIW  {rd=rd, rs1=rs1, shamt5=shamt5}
+      | opcode==opcode_OP_IMM_32, funct3==funct3_SRAIW, funct7==funct7_SRAIW, rv==RV64 = SRAIW  {rd=rd, rs1=rs1, shamt5=shamt5}
+      | opcode==opcode_OP_32,     funct3==funct3_ADDW,  funct7==funct7_ADDW,  rv==RV64 = ADDW   {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP_32,     funct3==funct3_SUBW,  funct7==funct7_SUBW,  rv==RV64 = SUBW   {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP_32,     funct3==funct3_SLLW,  funct7==funct7_SLLW,  rv==RV64 = SLLW   {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP_32,     funct3==funct3_SRLW,  funct7==funct7_SRLW,  rv==RV64 = SRLW   {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP_32,     funct3==funct3_SRAW,  funct7==funct7_SRAW,  rv==RV64 = SRAW   {rd=rd, rs1=rs1, rs2=rs2}
 
-      -- The following are RV64 only
-      | opcode==opcode_LOAD, funct3==funct3_LD,  rv==RV64 = Ld  {rd=rd, rs1=rs1, oimm12=oimm12}
-      | opcode==opcode_LOAD, funct3==funct3_LWU, rv==RV64 = Lwu {rd=rd, rs1=rs1, oimm12=oimm12}
+      -- RV32M Standard Extension
 
-      | opcode==opcode_OP_IMM, funct3==funct3_SLLI, funct6==funct6_SLLI, rv==RV64 = Slli  {rd=rd, rs1=rs1, shamt6=shamt6}
-      | opcode==opcode_OP_IMM, funct3==funct3_SRLI, funct6==funct6_SRLI, rv==RV64 = Srli  {rd=rd, rs1=rs1, shamt6=shamt6}
-      | opcode==opcode_OP_IMM, funct3==funct3_SRAI, funct6==funct6_SRAI, rv==RV64 = Srai  {rd=rd, rs1=rs1, shamt6=shamt6}
+      | opcode==opcode_OP, funct3==funct3_MUL,    funct7==funct7_MUL    = MUL    {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_MULH,   funct7==funct7_MULH   = MULH   {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_MULHSU, funct7==funct7_MULHSU = MULHSU {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_MULHU,  funct7==funct7_MULHU  = MULHU  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_DIV,    funct7==funct7_DIV    = DIV    {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_DIVU,   funct7==funct7_DIVU   = DIVU   {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_REM,    funct7==funct7_REM    = REM    {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP, funct3==funct3_REMU,   funct7==funct7_REMU   = REMU   {rd=rd, rs1=rs1, rs2=rs2}
 
-      | opcode==opcode_OP_IMM_32, funct3==funct3_ADDIW,                       rv==RV64 = Addiw  {rd=rd, rs1=rs1, imm12=imm12}
-      | opcode==opcode_OP_IMM_32, funct3==funct3_SLLIW, funct7==funct7_SLLIW, rv==RV64 = Slliw  {rd=rd, rs1=rs1, shamt5=shamt5}
-      | opcode==opcode_OP_IMM_32, funct3==funct3_SRLIW, funct7==funct7_SRLIW, rv==RV64 = Srliw  {rd=rd, rs1=rs1, shamt5=shamt5}
-      | opcode==opcode_OP_IMM_32, funct3==funct3_SRAIW, funct7==funct7_SRAIW, rv==RV64 = Sraiw  {rd=rd, rs1=rs1, shamt5=shamt5}
+      -- RV64M Standard Extension
 
-      | opcode==opcode_STORE, funct3==funct3_SD, rv==RV64 = Sd {rs1=rs1, rs2=rs2, simm12=simm12}
+      | opcode==opcode_OP_32, funct3==funct3_MULW,  funct7==funct7_MULW,  rv==RV64 = MULW  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP_32, funct3==funct3_DIVW,  funct7==funct7_DIVW,  rv==RV64 = DIVW  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP_32, funct3==funct3_DIVUW, funct7==funct7_DIVUW, rv==RV64 = DIVUW {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP_32, funct3==funct3_REMW,  funct7==funct7_REMW,  rv==RV64 = REMW  {rd=rd, rs1=rs1, rs2=rs2}
+      | opcode==opcode_OP_32, funct3==funct3_REMUW, funct7==funct7_REMUW, rv==RV64 = REMUW {rd=rd, rs1=rs1, rs2=rs2}
 
-      | opcode==opcode_OP_32, funct3==funct3_ADDW,  funct7==funct7_ADDW,  rv==RV64 = Addw  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP_32, funct3==funct3_SUBW,  funct7==funct7_SUBW,  rv==RV64 = Subw  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP_32, funct3==funct3_SLLW,  funct7==funct7_SLLW,  rv==RV64 = Sllw  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP_32, funct3==funct3_SRLW,  funct7==funct7_SRLW,  rv==RV64 = Srlw  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP_32, funct3==funct3_SRAW,  funct7==funct7_SRAW,  rv==RV64 = Sraw  {rd=rd, rs1=rs1, rs2=rs2}
+      -- TODO: RV32A Standard Extension (Vol I)
+      -- TODO: RV64A Standard Extension (Vol I)
+      -- TODO: RV32F Standard Extension (Vol I)
+      -- TODO: RV64F Standard Extension (Vol I)
+      -- TODO: RV32D Standard Extension (Vol I)
+      -- TODO: RV64D Standard Extension (Vol I)
 
-      | opcode==opcode_OP_32, funct3==funct3_MULW,  funct7==funct7_MULW,  rv==RV64 = Mulw  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP_32, funct3==funct3_DIVW,  funct7==funct7_DIVW,  rv==RV64 = Divw  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP_32, funct3==funct3_DIVUW, funct7==funct7_DIVUW, rv==RV64 = Divuw {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP_32, funct3==funct3_REMW,  funct7==funct7_REMW,  rv==RV64 = Remw  {rd=rd, rs1=rs1, rs2=rs2}
-      | opcode==opcode_OP_32, funct3==funct3_REMUW, funct7==funct7_REMUW, rv==RV64 = Remuw {rd=rd, rs1=rs1, rs2=rs2}
+      -- Privileged Instructions (Vol II)
+      -- ECALL, EBREAK defined in RV32I section
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_URET = URET
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_SRET = SRET
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_MRET = MRET
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, rs1==Rg_x0, funct12==funct12_WFI  = WFI
 
-      | True                      = IllegalInstruction
+      | opcode==opcode_SYSTEM, rd==Rg_x0, funct3==funct3_PRIV, funct7==funct7_SFENCE_VM = SFENCE_VM {rs1=rs1, rs2=rs2}
+
+      | True = ILLEGALINSTRUCTION
 
 -- ================================================================

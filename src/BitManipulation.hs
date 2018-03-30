@@ -48,10 +48,11 @@ bitSlice x start end = (shiftR x start) .&. (complement $ shiftL (-1) (end - sta
 signExtend :: UInt -> Int -> UInt
 signExtend  word  n | n >= 64   = word
                     | otherwise = word'
-  where  fill_bits = (shiftL  1  (64 - n)) - 1
-         word'     = word .|. (if testBit  word  (n-1)
-                               then (shiftL  fill_bits  n)
-                               else 0)
+  where  fill_bits = (shiftL  1  (64 - n)) - 1    -- all ones 
+         fill_mask = shiftL  fill_bits  n
+         word'     = if testBit  word  (n-1)
+                     then word .|. fill_mask
+                     else word .&. (complement fill_mask)
 
 -- ================================================================
 -- The following sign- or zero-extend smaller unsigned byte/word types
