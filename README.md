@@ -1,68 +1,76 @@
 # RISCV-ISA-Spec
 
+Forvis: A Formal RISC-V ISA Specification
+-----------------------------------------
+
 This is a formal (and executable) specification for the RISC-V ISA
-(Instruction Set Architecture), written in "Elementary" Haskell.
+(Instruction Set Architecture), written in "extremely elementary" Haskell.
 
-This version is inspired by and informed by the version at
-<https://github.com/mit-plv/riscv-semantics> [1].
+This is a work-in-progress, as part of the "ISA Formal Specification"
+Technical Group constituted by The RISC-V Foundation
+(<https://riscv.org>).
 
-That version [1] uses several advanced Haskell concepts, idioms and
-styles which may be difficult for people who are not familiar with
-Haskell.
+Feature coverage:
 
-This version tries to be more approachable, using very basic vanilla
-Haskell concepts, idioms and styles.  A strong goal here is that this
-should be readable and understandable by people who have no prior
-exposure to Haskell (and indeed may have no interest in learning
-Haskell).  This includes architects/designers of RISC-V CPUs, and
-people writing compilers and system code for RISC-V, i.e., people
-using it "in anger".  People who are extending the RISC-V instruction
-set may also use this as a basis to produce formal specs for their
-extensions.
+- Implements RV32 and RV64, I, M, A, Privilege Levels M and U.
 
-This is a work in progress by the "ISA Formal Specification" Technical
-Group constituted by The RISC-V Foundation (<https://riscv.org>).
-Neither this work nor [1] is (yet) an official semantics of the RISC-V ISA.
+- This spec can be executed sequentially (one-instruction-at-a-time)
+    as a Haskell program, which in turn executes RISC-V ELF binaries.
 
-So far, this code formalizes only basic RV32I and RV64I instructions.
-We will be adding Priv Mode M and S, extensions M, C, A, F, D, etc.
+- Passes all RISC-V ISA tests in the following sets:
+   - `rv32ui-p-*`, `rv64ui-p-*`
+   - `rv32um-p-*`, `rv64um-p-*`
+   - `rv32ua-p-*`, `rv64ua-p-*`
+   - `rv32mi-p-*`, `rv64mi-p-*`
+
+Future Plans:
+
+- We will be adding Priv Mode S and extensions, C, F, and D.
+
+- We will be adding an alternative interpreter exhibiting concurrency
+    and integration with RISC-V's RVWMO Weak Memory Model.
 
 ----------------------------------------------------------------
 
-### The code
+### Reading the code
 
-The specification code is contained in:
+The specification is expressed in Haskell; the code is in:
 
-        app/Main.hs
         src/*.hs
 
-For those new to the code, a good reading order is:
+The entire ISA specification is in `Forvis_Spec.hs`.  It specifies
+instruction-fetch, and the execution of each kind of instruction.
+Everything else is just support to enable executing it as a Haskell
+program.
 
-        ArchDefs64.hs
-        ArchState64.hs
+A reading guide for the code is in `Doc/forvis_reading_guide.pdf`
 
-        Decode.hs
+The document suggests reading the code in this order:
 
-        GPRFile.hs
-        CSRFile.hs
-        Memory.hs
-        MMIO.hs
+        `Arch_Defs.hs`
+        `Machine_State.hs`
 
-        ExecuteInstr.hs
-        RunProgram.hs
+        `Forvis_Spec.hs`
 
-        Main_RunProgram.hs
-        Main_TandemVerifier.hs
+        `GPR_File.hs`
+        `CSR_File.hs`
+        `Mem_Ops.hs`
+        `Memory.hs`
+        `MMIO.hs`
+
+        `Run_Program.hs`
+        `Main_RunProgram.hs`
+        `Main_TandemVerifier.hs`
 
 `Main.hs` is a driver program that just dispatches to one of two
-use-cases, Main_RunProgram.hs (free-running) or Main_TandemVerifier.hs
+use-cases, `Main_RunProgram.hs` (free-running) or `Main_TandemVerifier.hs`
 (Tandem Verification).
 
-`Main_RunProgram.hs` reads RISC-V binaries (ELF or hex-mem, initializes
+`Main_RunProgram.hs` reads RISC-V binaries (ELF), initializes
 architecture state and memory, and calls `RunProgram` to run the
 loaded program, up to a specified maximum number of instructions.
 
-`RunProgram.hs` contains the FETCH-DECODE-EXECUTE loop.
+`Run_Program.hs` contains the FETCH-EXECUTE loop.
 
 `Main_TandemVerifier.hs` sets up the formal spec to be a slave to a
 tandem verifier, receiving commands on stdin and sending responses on
@@ -71,76 +79,55 @@ architecture state, execute 1 or more instructions, and query
 archtectural state. Responses include tandem verification packets
 which the verifier can use to check an implementation.
 
-`BitManipulation.hs` contains utilities for bit manipulation, including
+`Bit_Manipulation.hs` contains utilities for bit manipulation, including
 sign- and zero-extension, truncation, conversion, etc. that are
 relevant for these semantics.
 
-`Elf.hs` and `ReadHexFile.hs` are not part of the semantics per se;
+`Elf.hs` and `Read_Hex_File.hs` are not part of the semantics per se;
 the executable uses them to read ELF files and "Hex Memory" files,
 respectively.
 
 ----------------------------------------------------------------
 
-### How to run this code on RISC-V binaries
+### How to run build and this code on RISC-V binaries
 
-This formal spec is executable as a standard Haskell program.  It uses
-the standard Haskell tool "stack" to build it and execute it.  Several
-files in this top-level directory are intended for the stack tool.
+This formal spec is executable as a standard Haskell program.  If you
+do not already have the standard Haskell compiler `ghc` installed, you
+will need to to do so.  It is available as a standard package inon
+most Linux distributions.  For example, on Debian and Ubuntu systems,
+you can say:
 
-If you don't already have stack installed on your computer, please see 
-<https://docs.haskellstack.org/en/stable/README>
+        $ apt-get  install  ghc
 
-On most Linux systems, you can install stack with the command:
+Then, you can build the Forvis executable (`forvis_exe`) with:
 
-        $ curl -sSL https://get.haskellstack.org/ | sh
+        $ make
 
-Once you have installed stack, you can build the executable for the
-formal spec like so:
+Run the following to see command-line options on the executable:
 
-        $ stack build
+        $ ./forvis_exe  --help
 
-This will create a `.stack-work/` directory and, somewhere within, an
-executable `RISCV-ISA-Spec-exe`.  Once you have built the executable,
-you can run it on two provided test programs, like so:
+Then, try the following tests to execute the standard RISC-V ISA test
+rv32ui-p-add on the Forvis executable at verbosity 0, 1 and 2
+respectively.
 
-        $ stack exec RISCV-ISA-Spec-exe TestPrograms/MIT/hello64
-        Running program up to 1,000,000 instructions
-        Hello, world!
-        Reached jump-to-self infinite loop; instret = 446; exiting
+        $ make test
+        $ make test_v1
+        $ make test_v2
 
-        $ stack exec RISCV-ISA-Spec-exe TestPrograms/MIT/thuemorse64
-        Running program up to 1,000,000 instructions
-        01101001100101101001011001101001100101100110100101101001100101101001011001101001011010011001011001101001100101101001011001101001
-        Reached jump-to-self infinite loop; instret = 25323; exiting
+Look at the commands in the Makefile that these execute.  If you
+substitute "64" for "32" you'll run the RV64 version of the test.
 
-The two test programs are standard RISC-V ELF files, compiled from C
-programs using gcc for RISC-V.  Note: these programs are "bare metal"
-RISC-V programs using just user-level RV64I instructions; they assume
-a certain starting address; they assume a certain address for console
-output.  If you compile other C programs to run on this executable,
-you may have to adjust things accordingly.
+You can also run two pre-compiled C programs:
 
-## More detail:
+        $ make test_hello
+        $ make test_thue
 
-If you also provide a `--verbosity 1` command-line argument, like so:
 
-        $ stack exec RISCV-ISA-Spec-exe -- --verbosity 1  TestPrograms/MIT/hello64
-        ... full instruction trace ...
+### Running all RISC-V ISA tests:
 
-it wil print out a trace of every instruction executed.  Higher
-verbosity values add more detail.
-
-[Yes, the extra '`--`' is needed, to avoid `stack` consuming the
- command-line option and to cause it instead to pass it on to
- `RISCV-ISA-Spec-exe`, our executable.]
-
-In general, use `--help` to see command-line options.
-
-Files with a `.hex` extension are assumed to be byte-wide Verilog hex
-memory-image files.  Otherwise, they are assumed to be ELF files.
-
-The directory:    TestPrograms/riscv-tests/isa/
-contains pre-compiled versions of some of the 'ISA Tests' that one
+The directory:    `TestPrograms/riscv-tests/isa/`
+contains pre-compiled versions of all the "ISA Tests" that one
 gets when one follows the directions at:
 
         https://riscv.org/software-tools/
@@ -148,5 +135,10 @@ gets when one follows the directions at:
 and builds the riscv-tools downloaded from:
 
         https://github.com/riscv/riscv-tools.git
+
+The following runs a Python script that runs forvis_exe on all of them:
+
+        $ cd Regression_Testing
+        $ make
 
 ----------------------------------------------------------------

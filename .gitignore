@@ -1,3 +1,6 @@
+README.html
+tmp_haskell
+*exe
 dist
 dist-*
 cabal-dev
@@ -18,5 +21,4 @@ cabal.sandbox.config
 .stack-work/
 cabal.project.local
 .HTF/
-README.html
 elf_to_hex

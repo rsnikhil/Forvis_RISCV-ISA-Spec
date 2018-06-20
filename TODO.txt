@@ -1,0 +1,98 @@
+Status:
+- rv32ui-p-*    (39 tests)    Passed    2018-06-03
+- rv64ui-p-*    (51 tests)    Passed    2018-06-03
+
+- rv32ua-p-*    (10 tests)    Passed    2018-06-03
+- rv64ua-p-*    (19 tests)    Passed    2018-06-03
+
+- rv32um-p-*    (8 tests)     Passed    2018-06-03
+- rv64um-p-*    (13 tests)    Passed    2018-06-03
+
+- rv32mi-p-*    (9 tests)     Passed    2018-06-19
+- rv64mi-p-*    (9 tests)     Passed    2018-06-19
+
+>================================================================
+
+- Investigate false positive: rv32/64mi-p-breakpoint is a PASS, but Forvis' trace is different from Spike
+    Spike:
+        inum 50: core   0: 0xffffffff80000124 (0x10b51063) bne     a0, a1, pc + 256
+        inum 51: core   0: 0xffffffff80000128 (0x00000617) auipc   a2, 0x0
+        inum 52: core   0: 0xffffffff8000012c (0x02060613) addi    a2, a2, 32
+        inum 53: core   0: 0xffffffff80000130 (0x7a261073) csrw    tdata2, a2
+    Forvis:
+        inum:45  pc 0x80000124  instr 0x10b51063  BRANCH
+        inum:46  pc 0x80000224  instr 0xff0000f  MISC_MEM
+        inum:47  pc 0x80000228  instr 0x100193  OP_IMM
+        inum:48  pc 0x8000022c  instr 0x73  SYSTEM_ECALL
+    The code, starting at PC 8000_0108 plays with CSR tselect and tdata1,
+    probing if it can write it and read it. Forvis seems to branch to <pass>
+    quickly, so we may be getting a false positive in that we're not implementing
+    some CSR functionality.
+        80000108:	00200193          	li	gp,2
+        8000010c:	7a001073          	csrw	tselect,zero
+        80000110:	7a0025f3          	csrr	a1,tselect
+        80000114:	10b01863          	bne	zero,a1,80000224 <pass>
+        80000118:	7a102573          	csrr	a0,tdata1
+        8000011c:	01c55513          	srli	a0,a0,0x1c
+        80000120:	00200593          	li	a1,2
+        80000124:	10b51063          	bne	a0,a1,80000224 <pass>
+
+- Features to be added and tested:
+    - Add Priv_Mode_S, Sv39 and Sv48; do si, -v- tests
+    - Add 'C' extension, do uc tests
+    - Add timer; boot Linux
+    - Add an OPTIONS list in Arch State to support arch options:
+        - Support or trap misaligned addrs?
+        - Support or trap on 'A' and 'D' bits in PTEs
+    - Add FD extensions
+
+- Connectors to other systems:
+    - Learn how to run Clash, and use Clifford Wolf's equivalence checker with Spike
+    - Run my code through UPenn's hs2coq, see what it looks like
+
+
+    - Haskell parser for formal specs in Haskell: finish my parser:
+        ~/Apps/Haskell/ParseHaskell/TODO.txt
+    - Tandem Verification wrapper
+    - GDB wrapper
+
+- Note: readHexFile and readElf don't return exactly the same results (maybe benign). Check the difference.
+
+- Concurrency:
+    - Write pseudo-code for alternative interpretation that incorporates concurrency
+        (Trace = tree, dataflow-style motion of values, ...)
+    - See how it can interact with the SAIL memory model
+
+----------------
+Tests to be done
+
+ 6 x rv32si-p-*
+ 6 x rv64si-p-*
+
+39 x rv32ui-v-*
+51 x rv64ui-v-*
+
+14 x rv64um-v-*
+19 x rv64ua-v-*
+
+----------------
+'C' extension tests
+
+ 2 x rv32uc-p-*
+ 2 x rv64uc-p-*
+
+ 4 x 'C' tests
+----------------
+Floating point tests
+
+20 x rv32ud-p-*
+22 x rv32uf-p-*
+
+12 x rv64ud-p-*
+12 x rv64ud-v-*
+11 x rv64uf-p-*
+11 x rv64uf-v-*
+
+88 x floating point
+
+----------------

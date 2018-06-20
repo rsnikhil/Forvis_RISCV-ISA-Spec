@@ -1,0 +1,20 @@
+Run
+
+    $ make extract
+
+to extract code fragments from the Haskell files in ../src and
+populate them into the Extracted/ directory.
+
+Run
+
+    $ make full
+
+to run pdflatex twice, bigtex once, and pdflatex again to create the
+PDF document.  The multiple runs resolve various cross-references in
+the document etc.
+
+Run
+
+    $ make
+
+to run pdflatex once, to create the PDF document.

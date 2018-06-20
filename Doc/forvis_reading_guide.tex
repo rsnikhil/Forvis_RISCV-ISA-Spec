@@ -1,0 +1,966 @@
+% -*- mode: fundamental -*-
+
+% Book: Intro to Computer Architecture, and Empirical approach
+% Begun by Nikhil on July 9, 2012
+
+\documentclass[11pt]{article}
+
+% ================================================================
+\usepackage[latin1]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{latexsym}
+\usepackage{makeidx}
+\usepackage{alltt}
+\usepackage{verbatim}
+\usepackage{fancyvrb}
+% \usepackage{moreverb}
+\usepackage{ae}
+\usepackage{aecompl}
+
+  \usepackage[pdftex,colorlinks=true,bookmarksopen, pdfstartview=FitH,
+              linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+  \pdfcompresslevel=9
+  \usepackage[pdftex]{graphicx}
+
+% ================================================================
+
+% HORIZONTAL MARGINS
+% Left margin, odd pages: 1.00 inch (0.00 + 1)
+\setlength{\oddsidemargin}{0.00in}
+% Left margin, even pages: 1.00 inch (0.00 + 1)
+\setlength{\evensidemargin}{0.00in}
+% Text width 6.5 inch (so other margin is 1.00 inch).
+\setlength{\textwidth}{6.5in}
+% ----------------
+% VERTICAL MARGINS
+% Top margin 0.5 inch (-0.5 + 1)
+\setlength{\topmargin}{-0.5in}
+% Head height 0.25 inch (where page headers go)
+\setlength{\headheight}{0.25in}
+% Head separation 0.25 inch (between header and top line of text)
+\setlength{\headsep}{0.25in}
+% Text height 9 inch (so bottom margin 1 in)
+\setlength{\textheight}{9in}
+% ----------------
+% PARAGRAPH INDENTATION
+\setlength{\parindent}{0in}
+% SPACE BETWEEN PARAGRAPHS
+\setlength{\parskip}{\medskipamount}
+% ----------------
+% STRUTS
+% HORIZONTAL STRUT.  One argument (width).
+\newcommand{\hstrut}[1]{\hspace*{#1}}
+% VERTICAL STRUT. Two arguments (offset from baseline, height).
+\newcommand{\vstrut}[2]{\rule[#1]{0in}{#2}}
+% ----------------
+% HORIZONTAL LINE ACROSS PAGE:
+\newcommand{\hdivider}{\noindent\mbox{}\hrulefill\mbox{}} 
+% ----------------
+% EMPTY BOXES OF VARIOUS WIDTHS, FOR INDENTATION
+\newcommand{\hm}{\hspace*{1em}}
+\newcommand{\hmm}{\hspace*{2em}}
+\newcommand{\hmmm}{\hspace*{3em}}
+\newcommand{\hmmmm}{\hspace*{4em}}
+% ----------------
+% VARIOUS CONVENIENT WIDTHS RELATIVE TO THE TEXT WIDTH, FOR BOXES.
+\newlength{\hlessmm}
+\setlength{\hlessmm}{\textwidth}
+\addtolength{\hlessmm}{-2em}
+
+\newlength{\hlessmmmm}
+\setlength{\hlessmmmm}{\textwidth}
+\addtolength{\hlessmmmm}{-4em}
+% ----------------
+% ``TIGHTLIST'' ENVIRONMENT (no para space betwee items, small indent)
+\newenvironment{tightlist}%
+{\begin{list}{$\bullet$}{%
+    \setlength{\topsep}{0in}
+    \setlength{\partopsep}{0in}
+    \setlength{\itemsep}{0in}
+    \setlength{\parsep}{0in}
+    \setlength{\leftmargin}{1.5em}
+    \setlength{\rightmargin}{0in}
+    \setlength{\itemindent}{0in}
+}
+}%
+{\end{list}
+}
+% ----------------
+% ITALICISE WORDS
+\newcommand{\ie}{\emph{i.e.,}}
+\newcommand{\eg}{\emph{e.g.,}}
+\newcommand{\Eg}{\emph{E.g.,}}
+\newcommand{\etc}{\emph{etc.}}
+\newcommand{\via}{\emph{via}}
+\newcommand{\vs}{\emph{vs.}}
+% ----------------
+% CODE FONT (e.g. {\cf x := 0}).
+\newcommand{\cf}{\footnotesize\tt}
+% ----------------
+% KEYWORDS
+\newcommand{\kw}[1]{{\bf #1}}
+
+% ----------------------------------------------------------------
+% ----------------------------------------------------------------
+% HERE BEGINS THE DOCUMENT
+
+\newcommand{\copyrightnotice}{\copyright 2018 R.S.Nikhil; All Rights Reserved}
+
+% ================================================================
+
+\begin{document}
+
+% ----------------------------------------------------------------
+
+\pagestyle{empty}
+
+\begin{center}
+
+\vspace*{1.5in}
+
+{\LARGE\bf A Reading Guide to} \\
+{\LARGE\bf FORVIS: A Formal RISC-V ISA Specification}
+
+\vspace{2cm}
+
+{\Large \emph{Rishiyur S. Nikhil}} \\
+
+Bluespec, Inc.
+
+
+\vspace{0.5in}
+
+\copyright{} 2018 R.S.Nikhil
+
+\vspace{1in}
+
+Revision: \today
+
+\end{center}
+
+% ****************************************************************
+% PREFACE AND ACKNOWLEDGEMENTS
+
+\newpage
+
+\pagenumbering{roman}
+
+% ================================================================
+% Abbreviations and links
+
+\subsection*{Abbreviations, acronyms and terminology and links}
+
+\begin{tabular}{|l|p{4.5in}|}
+\hline
+CSR   & Control and Status Register \\
+\hline
+FPR   & Floating Point Register \\
+\hline
+GPR   & General Purpose Register \\
+\hline
+Hart  & Hardware Thread.  Not to be confused with software threads
+         such as POSIX threads, ``pthreads'', and processes.
+	 A hart has, in hardware, its own PC and fetch unit,
+	 and can work concurrently with other harts \\
+\hline
+ISA   & Instruction Set Architecture \\
+\hline
+PC    & Program Counter \\
+\hline
+RVWMO & RISC-V Weak Memory Ordering (default memory model) \\
+\hline
+Sv32  & Virtual Memory System in RV32 systems \\
+\hline
+Sv39  & Virtual Memory System in RV64 systems \\
+\hline
+Sv48  & Optional additional Virtual Memory System in RV64 systems \\
+\hline
+WMM  & Weak Memory Model \\
+\hline
+\end{tabular}
+
+\vspace*{1cm}
+
+For more information on terminology and concepts, and information on RISC-V, we recommend these fine books:
+
+\begin{itemize}
+\item
+``The RISC-V Reader: An Open Architecture Atlas'', by Patterson and Waterman~\cite{Patterson2017b}
+
+\item
+``Computer Architecture: A Quantitative Approach'', by Hennessy and Patterson~\cite{Hennessy2017}
+
+\item
+``Computer Organization and Design: The Hardware/Software Interface'' (RISC-V Edition) by
+     Patterson and Hennessy~\cite{Patterson2017a}
+\end{itemize}
+
+and the RISC-V Foundation web site: \verb|https://riscv.org|
+
+% ----------------------------------------------------------------
+
+\subsection*{Acknowledgments}
+
+Thanks to the original creators of RISC-V for making all this possible in the first place.
+
+Thanks to Bluespec, Inc. for supporting this work.
+
+Thanks to the RISC-V Foundation for constituting the ISA Formal
+Specification Technical Group.
+
+Thanks to the members of the RISC-V Foundation's ISA Formal
+Specification Technical Group with whom we have had many wonderful
+discussions on a weekly basis that have inspired and clarified this
+work.
+
+% ****************************************************************
+% TABLE OF CONTENTS
+
+\newpage
+
+\pagestyle{myheadings}
+
+\markboth{CONTENTS}{}
+
+{\small
+
+\tableofcontents
+
+}
+
+\pagenumbering{arabic}
+
+% ****************************************************************
+
+\input{blankpage}
+
+% ****************************************************************
+
+\newpage
+
+\section{Introduction}
+
+\markboth{Introduction}{\copyrightnotice}
+
+\setcounter{page}{1}
+% \renewcommand{\thepage}{\arabic{page}}
+
+\label{sec_intro}
+
+% ================================================================
+
+This document is in the style of ``literate programming''
+(Knuth~1984~\cite{Knuth1984}).  The Forvis spec is actually a
+collection of program source files written in the well-known
+functional programming language Haskell~\cite{PeytonJones2003}, and
+this document is just a reading guide.  All the code fragments herein
+are automatically extracted from the actual Haskell code.
+
+In particular: you should not try to read this document on its own;
+you should have the code in front of you and refer to this document on
+the side for clarification and commentary.
+
+Forvis spec code is meant to be readable by people who may be totally
+unfamiliar with Haskell and who may have no interest in learning
+Haskell.  It uses a \emph{very} small, extremely simple subset of
+Haskell\footnote{
+We believe that the Haskell used here is simple enough that only minor
+syntactic transformation would be needed to render it into some other
+functional language such as SML, OCaml, or Scheme.}
+(just simple types, function definition and function
+application) and none of the features that may be even slightly
+unfamiliar to the audience (no Currying/partial-application, no
+lambda-expressions, no laziness, no typeclasses, no monads, etc.)  For
+those without prior exposure to Haskell, this document explains the
+minimal Haskell notation necessary to read the Forvis spec code.
+
+Using extremely simple Haskell will also make it easier for authors of
+new ISA extensions to extend these specs to cover their ISA
+extensions, even if they are unfamiliar with Haskell.
+
+Using extremely simple Haskell will also make it easy to parse and
+connect to other tools, such as proof assistants, theorem provers, and
+so on (including the alternate ``concurrent'' interpreter described at
+the end of the next section).
+
+% ================================================================
+
+\subsection{About Forvis}
+
+Forvis is a formal specification of the RISC-V Instruction Set
+Architecture, expressed in the Haskell functional programming
+language.  By ``formal'' we mean that it is written in a formal
+language (Haskell), thereby reducing the possibility of ambiguity,
+inconsistency and incompleteness that comes with specifications
+written in a natural language such as English.
+
+We chose Haskell because it is a pure functional language, with no
+side effects.  ISA specs are sometimes hard to read because hidden
+state, and their updates by side-effect are hard to keep track of; in
+our Haskell code, all state is visible and all updates can be seen
+explicitly as recomputation of state.
+
+In addition to precision and completeness, Forvis also has these goals:
+\begin{itemize}
+
+\item {\bf Readability:} This spec should be readable by people who
+may be completely unfamiliar with Haskell or other formal
+specification languages.  Examples of our target audience:
+
+  % ----------------
+  \begin{tightlist}
+   \item Compiler writers targeting RISC-V, as a reference explaining the instructions they generate.
+
+   \item RISC-V CPU hardware designers, as a refernce explaining the instructions interpreted by their designs.
+
+   \item Students studying RISC-V.
+
+   \item Designers of new RISC-V ISA extensions, who may want to
+   extend these specs to include their extensions.
+
+   \item Users of formal methods, who wish to prove properties
+   (especially correctness) of compilers and hardware designs.
+
+  \end{tightlist}
+  % ----------------
+
+\item {\bf Modularity:} RISC-V is one of the most modular ISAs.  It
+supports:
+
+  % ----------------
+  \begin{tightlist}
+   \item A couple of base ISAs: RV32 (32-bit) and RV64 (64-bit) (an RV128 base is under development)
+
+   \item Numerous extensions, such as M (Integer Multiply/Divide), A
+    (Atomic Memory Ops), F (single precision floating point), D
+    (double precision floating point), C (compressed 16b insructions), E (embedded).
+
+   \item An optional Privilege Architecture, with M (machine) and
+    optional S (supervisor) and U (user) privilege levels.
+
+   \item Implementation options, such as whether misaligned memory
+   accesses are handled or cause a trap, whether interrupt delegation
+   is supported or not, etc.
+
+  \end{tightlist}
+  % ----------------
+
+  Implementations can combine these flexibly in a 'mix-and-match'
+  manner.  Some of these options can coexist in a single
+  implementation, and some may be dynamically switched on and off.
+  Forvis tries to capture all these possibilities.
+
+\item {\bf Concurrency and non-determinism:} RISC-V, like most modern
+ISAs, has opportunities for concurrency and legal non-determinism.
+For example, even in a single hart (hardware thread), it is expected
+that most implementations will have pipelined (concurrent) fetch and
+execute units, and that the instructions returned by the fetch unit
+may be unpredictable after earlier code that writes to instruction
+memory, unless mediated by a FENCE.I instruction.  RISC-V has a Weak
+Memory Model, so that in a multi-hart system, memory-writes by one
+hart may be ``seen'' in a different order by another hart unless
+mediated by FENCE and AMO instructions.  In particular, different
+implementations, and even different runs of the same program on the
+same implementation, may return different results from reading memory
+on different runs.
+
+\item {\bf Executabality:} Forvis constitutes an ``operational''
+semantics (as opposed to an ``axiomatic'' semantics).  The spec can
+actually be executed as a Haskell program, representing a RISC-V
+``implementation'', i.e., it can execute RISC-V binaries.  The README
+file in the code repository explains how to execute the code.
+
+\end{itemize}
+
+% ----------------
+
+\subsubsection{Extension for concurrent behavior and weak-memory models}
+
+Forvis code, as written, may appear to be sequential (one complete
+instruction at a time) and, indeed, when executed as a Haskell program
+(i.e., on a Haskell interpreter), that is exactly what you get.
+
+However, taking exactly the same specification code (in particular,
+the file \verb|Spec.hs|) and viewing it as a generic functional
+language (not Haskell); it can be given an alternate machine state
+(not the one in \verb|Machine_State.hs|), and it can be executed on an
+alternate interpreter (not a Haskell interpreter) that demonstrates
+all kinds of concurrencies (e.g., due to pipelining, different kinds
+of speculation, and more) and non-deterministic interaction with weak
+memory models.  We believe it can describe the complete range of
+concurrent behaviors seen in actual implementations (and more
+concurrent behaviors not seen in practical implementations).
+
+Describing this alternate interpretation is planned as a follow-up
+document.  We have a general idea of how this concurrent interpreter
+works but are still working out the details.  The concurrency is not
+exposed in the spec text, but is implicit in the data flow.  The
+central ideas come from ``implicit dataflow'' computation (cf.
+``Implicit Parallel Programming in \emph{pH}''\cite{Nikhil2000a}).
+
+% ================================================================
+
+\subsection{How to read the spec code}
+
+\markboth{How to read}{\copyrightnotice}
+
+\label{sec_how_to_read}
+
+As mentioned earlier, the Forvis spec is Haskell source code.  This
+document is just a reading guide, and contains code fragments
+automatically extracted from the actual source code.  This document is
+not meant to be read on its own, but as a reference for clarification
+and commentary while you are reading the actual code.
+
+For all readers, whether familiar with Haskell or not, this guide will
+help you navigate the source code; reading the code and files in the
+presented order may help you absorb the code most quickly.
+
+Readers familiar with Haskell can skip the following sub-section.
+
+% ----------------------------------------------------------------
+
+\subsubsection{Basic Haskell concepts and notation}
+
+Haskell is a pure functional language: everything is expressed as pure
+mathematical functions from arguments to results, and composition of
+functions.  There is no sequencing, and no concept of updatable
+variables (traditional ``assignment statement'')
+
+Each Haskell file is a Haskell module and has the form:
+
+\hmmmm \
+\begin{minipage}[t]{4in}\it
+{\tt module} module-name {\tt where} \\
+{\tt import} another-module-name \\
+... \\
+{\tt import} another-module-name \\
+... \\
+constant-or-function-or-type-definition \\
+... \\
+constant-or-function-or-type-definition \\
+...
+\end{minipage}
+
+Comments begin with ``\verb|--|'' and extend through the end of the line.
+
+Haskell relies on ``layout'' to convey text structure, i.e.,
+indentation instead of brackets and semicolons. A constant definition
+looks like this:
+
+\hmmmm \
+\begin{minipage}[t]{4in}\it
+{\tt foo ::} type \\
+{\tt foo = } value-expression
+\end{minipage}
+
+A function definition looks like this:
+
+\hmmmm \
+\begin{minipage}[t]{4in}\it
+{\tt fn ::} arg-type {\tt ->} ... {\tt ->} arg-type {\tt ->} resul-type \\
+{\tt fn} arg ... arg {\tt  =} function-body-expression
+\end{minipage}
+
+Note: in Haskell, function arguments, both in definitions
+and in applications, are typically just juxtaposed and not enclosed in
+parentheses and commas, thus: \\
+\hspace*{2in} {\tt fn} \emph{arg} ... \emph{arg} \\
+instead of: \\
+\hspace*{2in} {\tt fn (} \emph{arg}, ..., \emph{arg} {\tt )}
+
+A definition like this:
+
+\hmmm {\tt type Instr = Word32}
+
+just defines a new type \emph{synonym} ({\tt Instr}) for an existing type ({\tt Word32});
+this is done just for readability.
+
+A definition like this:
+
+\hmmm {\tt data} \emph{newtype} = ...
+
+defines a new type; these will be explained as we go along.
+
+For readability, large expressions are sometimes deconstructed using
+``{\tt let}'' or ``{\tt where}'' expressions to provide meaningful names to
+intermediate sub-expressions. For example, instead of: \\
+\hmmmm{\tt x + f y z - g a b c} \\
+we may write, equivalently: \\
+\hmmmm \
+\begin{minipage}[t]{4in}\tt
+let \\
+\hmm tmp1 = f y z \\
+\hmm tmp2 = g a b c \\
+\hmm result = x + tmp1 + tmp2 \\
+in \\
+\hmm result
+\end{minipage}
+
+or: \\
+\hmmmm \
+\begin{minipage}[t]{4in}\tt
+result \\
+where \\
+\hmm tmp1 = f y z \\
+\hmm tmp2 = g a b c \\
+\hmm result = x + tmp1 + tmp2
+\end{minipage}
+
+A conditional expression may be written as an if-then-else:
+\begin{tabbing}
+\hmmm \= \emph{x} = \= {\tt if} \emph{cond-expr1} \\
+      \>            \> {\tt then} \emph{expr1} \\
+      \>            \> {\tt else} \= {\tt if} \emph{cond-expr2} \\
+      \>            \>            \> {\tt then} \emph{expr2} \\
+      \>            \>            \> {\tt else} \emph{expr3}
+\end{tabbing}
+or may be folded into a definition:
+\begin{tabbing}
+\hmmm \= \emph{x} \= {\tt |} \emph{cond-expr1} \= {\tt =} \emph{expr1} \\
+      \>          \> {\tt |} \emph{cond-expr2} \> {\tt =} \emph{expr2} \\
+      \>          \> {\tt |} {\tt True}        \> {\tt =} \emph{expr3}
+\end{tabbing}
+
+The following table shows certain operators in Haskell and their
+counterparts in C where the notations differ.
+
+\begin{tabular}{|c|c|l|}
+\hline
+Haskell           & C             & \\
+\hline
+\verb|not x|        & \verb|! x|    & Boolean negation \\
+x \verb|/=| y       & x \verb|!=| y & Not-equals operator \\
+x \verb|.&.| y      & x \verb|&| y  & Bitwise AND operator \\
+x \verb/.|./ y      & x \verb/|/ y  & Bitwise OR operator \\
+\verb|complement x| & \verb|~| x    & Bitwise complement \\
+\verb|shiftL x n|   & \verb|x << n| & Left shift  \\
+\verb|shiftR x n|   & \verb|x >> n| & Right shift (arith if x is signed, logical otherwise) \\
+\hline
+\end{tabular}
+
+% ****************************************************************
+
+\section{File Arch\_Defs.hs: basic architectural definitions}
+
+\markboth{Basic Architectural Definitions}{\copyrightnotice}
+
+\label{sec_arch_defs}
+
+% ================================================================
+
+\subsection{Base ISA type}
+
+The following defines a data type {\tt RV} with two possible values,
+{\tt RV32} and {\tt RV64}.  It is analogous to an ``enum'' declaration
+in C, defining a family of constants.  The {\tt deriving} clause says
+that Haskell can automatically extend the equality operator {\tt ==}
+to work on values of type {\tt RV}, and that Haskell can automatically
+extend the {\tt show()} function to work on such values, producing
+Strings {\tt "RV32"} and {\tt "RV64"}, respectively.
+
+\input{Extracted/RV.tex}
+
+% ================================================================
+
+\subsection{Instruction Fields}
+
+Below, we define the type {\tt Instr} and {\tt Instr\_C} to be more
+readable synonyms for Haskell's {\tt Word32} and {\tt Word16} types
+(32-bit and 16-bit unsigned integers).
+
+We use 32-bits here for all instruction fields, even though
+in practice they have fewer bits.
+
+\input{Extracted/Instr.tex}
+
+We define a number of help-functions to extract fields from an
+instruction.  For example, the function {\tt ifield\_opcode} takes an
+instruction as argument and returns the ``bit slice'' from bits 0
+through 6 inclusive (equivalent to Verilog's {\tt instr[6:0]}.
+Similarly, we have definitions for other fields of interest.
+
+\input{Extracted/Instr_Field_Functions.tex}
+
+RISC-V instructions come in a few standard formats.  For example, the
+``B''-type format (for BRANCH instructions) consists of an opcode, a
+3-bit function code, two source registers rs1 and rs2, and a 12-bit
+immediate value assembled out of various bits in the instruction.  We
+define a function \verb|ifields_B_type| that, given an instruction,
+returns these fields:
+
+\input{Extracted/ifields_B_type}
+
+Similar functions are defined for the other standard formats.  These
+instructions use \verb|bitSlice|, shift functions, bitwise OR
+(\verb/.|./) to extract the fields.
+
+% ================================================================
+
+\subsection{Exception Codes}
+
+We define a type for exception codes, and the values of all the standard exception codes:
+
+\input{Extracted/exception_codes_A}
+
+...
+
+\input{Extracted/exception_codes_B}
+
+% ================================================================
+
+\subsection{Memory responses}
+
+We define a type {\tt Mem\_Result} for responses from memory.  This
+may be {\tt Mem\_Result\_Ok} (successful), in which case it returns a
+value (irrelevant for STORE instructions, but relevant for LOAD,
+load-reserved, store-conditional, and AMO ops).  Otherwise it is a
+{\tt Mem\_Result\_Err}, in which case it returns an exception code
+(such as misalignment error, an access error, or a page fault.)
+
+\input{Extracted/Mem_Result}
+
+When returning a result, we construct expressions like these:
+\begin{tabbing}
+\hmmm \= {\tt Mem\_Result\_Ok} \hm \= \emph{value-expression} \\
+      \> {\tt Mem\_Result\_Err}    \> \emph{exception-value-expression}
+\end{tabbing}
+
+When fielding a result, we deconstruct it using a case-expression like this:
+\begin{tabbing}
+\hmmm \= {\tt case} mem-result {\tt of} \\
+      \> \hm \= {\tt Mem\_Result\_Ok v} \hm {\tt ->} \= \emph{use} v \emph{in an expression} \\
+      \>     \> {\tt Mem\_Result\_Err ec}   {\tt ->} \> \emph{use} ec \emph{in an expression}
+\end{tabbing}
+
+
+% ================================================================
+
+\subsection{Privilege Levels}
+
+RISC-V defines 3 standard privileve levels: Machine, Supervisor and User:
+
+\input{Extracted/Priv_Level}
+
+% ****************************************************************
+
+\section{File Machine\_State.hs: architectural and machine state}
+
+\markboth{Architectural and Machine State}{\copyrightnotice}
+
+\label{sec_machine_state}
+
+[Reminder: this is for the simple, sequential,
+one-instruction-at-a-time interpreter.  The concurrent interpreter has
+a substantially different machine state.]
+
+% ================================================================
+
+\subsection{Handling RV32 and RV64 simultaneously}
+
+Although each hardware implementation will typically be either an RV32
+system or an RV64 system, the spec encompasses implementations that
+can simultaneously support both.  For example, machine-privilege code
+may run in RV64 mode while supervisor- and user-privilege code may run
+in RV32 mode.  There is also a future RV128 being defined.
+
+In this spec, which covers RV32 and RV64 and their simultaneous use,
+we represent everything using 64 bits.  The semantics of each
+instruction are defined to be governed by the current RV setting which
+is available in the architectural state (specifically, MISA.MXL,
+MSTATUS.SXL, MSTATUS.UXL, etc.).  An RV32 setting can render some
+instructions illegal, and limits calculations on values to be done
+with 32-bit arithmetic.
+
+% ================================================================
+
+\subsection{Machine State}
+
+We define a new type representing a complete ``machine state'', which
+is just a record or struct.  The first few fields represent a RISC-V
+hart's basic architectural state: a Program Counter, General Purpose
+Registers, Control-and-Status Registers, and the current privilege
+level at which it is running: This is followed by two fields
+representing memory and memory-mapped I/O devices, and finally by
+fields that are not semantically relevant and are used just for
+redundant information, simulation configuration options, simulation
+state, gathered statistics, and so on.
+
+\input{Extracted/Machine_State}
+
+This record-with-fields is a purely internal representation choice in
+this module.  Clients of this module only access it via the API
+functions that follow.\footnote{Haskell has export-import mechanisms
+to enforce this external invisibility of our representation choice,
+but we have omitted them to avoid clutter.}
+
+The following function is a constructor that returns a new machine.
+
+\input{Extracted/Machine_State_constructor}
+
+Two typical API functions on the machine state are these, to read and
+write the PC.
+
+\input{Extracted/PC_access}
+
+In the API function \verb|mstate_gpr_write|, we ensure that if we are
+in RV32 mode, we sign-extend the lower 32 bits of the written value,
+before using the ``raw'' \verb|gpr_write| function:
+
+\input{Extracted/mstate_gpr_write}
+
+``Raw'' reads and writes on the GPR file are described in the file
+\verb|GPR_File.hs|.
+
+% ****************************************************************
+
+\section{File Spec.hs: the ISA spec}
+
+\markboth{The ISA Spec}{\copyrightnotice}
+
+\label{sec_ISA_spec}
+
+The entire spec is essentially in this one file.  The major sections
+are:
+\begin{itemize}
+
+\item A function \verb|instr_fetch| expressing instruction-fetch,
+    returning a regular 32-bit instruction, or 'C' compressed 16-bit
+    instruction, or an instruction-fetch fault.
+
+\item A large number of functions named \verb|spec_|{\it{}OPCODE}
+describing the semantics of all RISC-V instructions.
+
+\item A small number of functions name \verb|finish_|{\it{}scheme}
+capturing the few common schemes by which instructions finish (write
+Rd, increment PC, increment MINSTRET, trap, ...)
+
+\item A function \verb|mstate_upd_on_trap| (which is perhaps the most
+intricate) that updates the machine state for a trap.  It computes the
+new privilege level, new PC, new MSTATUS, new MEPC/{\linebreak[0]}SEPC/{\linebreak[0]}UEPC, new
+MCAUSE/{\linebreak[0]}SCAUSE/{\linebreak[0]}UCAUSE, and new MTVAL/{\linebreak[0]}STVAL/{\linebreak[0]}UTVAL based on whether
+it was an interrupt or synchronous trap, the current privilege level,
+the MSTATUS register, MIP and MIE registers, MIDELEG and MEDELEG
+registers, MTVEC/{\linebreak[0]}STVEC/{\linebreak[0]}UTVEC
+
+\item A function \verb|exec_instr| (and it's counterpart
+\verb|exec_instr_C| for 'C' compressed instructions) that uses all the
+\verb|spec_|{\it{}OPCODE} to update the machine state by executing one
+instruction.
+
+\item A function \verb|take_interrupt_if_any| that checks the machine
+state to see if an interrupt is pending and updates the machine state
+if so.
+
+\end{itemize}
+
+% ================================================================
+
+\subsection{Instruction fetch}
+
+The start of the code for instruction fetch looks like this:
+
+\input{Extracted/instr_fetch}
+
+The \verb|instr_fetch| function takes the current machine state as
+argument, and attempts to read and instruction from memory, returning
+a 2-tuple: a \verb|Fetch Result| and the updated machine state.
+
+The \verb|Fetch_Result| can indicate that there was a fault (such as a
+memory access fault or page fault) during the attempted memory-read,
+or that the instruction is a 16-bit instruction from the 'C' ISA
+extension, or that the instructionis a regular 32-bit instruction.  In
+all cases, there could have been a change in the machine state, and
+hence it returns the updated machine state.
+
+The code that follows the above excerpt first reads 2 bytes from
+memory, and checks if it encodes a possible 'C' instruction. If not,
+it then reads 2 more bytes from memory and returns it as a full 32-bit
+instruction.  Of course, either of these two reads can fault, and this
+is the reason we read two bytes at a time: the first read may succeed
+with a 'C' instruction, in which case we do not want to encounter a
+fault for reading two more bytes which may be unnecessary in the
+program flow.
+
+% ================================================================
+
+\subsection{General structure of spec instruction-semantics functions}
+
+The spec is written as a collection of functions, generally one per
+major opcode (7 least-significant bits of an instruction).  Each
+function has the following structure:
+
+{\small
+\begin{Verbatim}[frame=single, numbers=left, commandchars=\\\{\}]
+spec_{\it{}OPCODE} :: Machine_State -> Instr -> (Bool, Machine_State) \\
+spec_{\it{}OPCODE} mstate  instr =
+    -- Instr fields: {\it X}-type
+    {\it ... extract instruction fields from standard X format ...}
+
+    -- Decode check
+    is_legal = {\it ... check if legal OPCODE and fields ...}
+
+    -- Semantics
+    mstate1 = {\it ... instruction-specific semantics based on {\tt mstate} ...}
+
+    mstate2 = {\it ... small family of ``finish'' functions}
+  in
+    (is_legal, mstate2)
+\end{Verbatim}
+}
+
+The function takes a machine state and an instruction as arguments,
+and returns a 2-tuple: a Boolean and a new machine state.  The Boolean
+result indicates whether the instruction is a legal OPCODE instruction
+(it's 7 least-significant bits code for OPCODE, and other constraints
+on other fields are met, such as must-be-zero).
+
+If the Boolean result is True, the second component of the 2-tuple
+result is the updated state due to execution of the instruction.
+
+\subsubsection{Example: the ADD instruction}
+
+The ADD instruction is handled by the following function:
+
+\input{Extracted/spec_ADD_1}
+...
+\input{Extracted/spec_ADD_2}
+
+It first extracts the fields of an R-type instruction.  Then we define
+some booleans like \verb|is_ADD| that check the sub-opcodes of the
+instruction.  Then we compute \verb|is_legal| to checks the opcode and
+all the sub-opcodes covered by this function.
+
+The next few lines express the semantics of this family of
+instructions.  We read the Rs1 and Rs2 registers:
+
+\input{Extracted/spec_ADD_3}
+
+and we compute the value to be stored in the Rd register:
+
+\input{Extracted/spec_ADD_4}
+
+Note that ADD, SUB and SLT treat the register values as signed values,
+whereas SLTU treats them as unsigned values. Finally, we invoke the
+``finish'' function that writes a value to Rd and increments PC by 4
+(and increments MINSTRET), see discussion in
+Sec.~\ref{sec_standard_finish_functions}.
+
+\input{Extracted/spec_ADD_5}
+
+
+
+% ================================================================
+
+\subsection{Standard ``finish'' functions}
+
+\label{sec_standard_finish_functions}
+
+All instructions ``finish'' in one of a few common ways, and these are
+captured as functions.  For example: this function captures the common
+finish of all ALU instructions, which write a result value
+\verb|rd_val| to the GPR \verb|rd|, increment the PC by 4, and
+increment the MINSTRET (instructions retired) counter.
+
+\input{Extracted/finish_rd_and_pc_plus_4}
+
+% ================================================================
+
+\subsection{Interrupts}
+
+\label{sec_interrupts}
+
+\input{Extracted/take_interrupt}
+
+The \verb|take_interrupt_if_any| function can be applied between any
+two instruction executions. It uses the function
+\verb|fn_interrupt_pending| that examines MSTATUS, MIP, MIE and the
+current privilege level to check if there is an interrupt is pending
+and the hart is ready to handle it.  If so, it applies
+\verb|mstate_upd_on_trap| to update the machine state, which it
+returns along with True.  Otherwise, it returns False and the
+unchanged machine state.
+
+% ================================================================
+
+\subsection{Sequential (one-instruction-at-a-time)  interpretation}
+
+The sequential interpreter has a machine state \verb|M| as described
+in Sec.~\ref{sec_machine_state}, and a list \emph{spec\_fns} of spec
+functions as described in the previous section, i.e., each having the
+type:
+
+\hmmm {\tt Machine\_State -> Instr -> (Bool, Machine\_State)}
+
+The interpreter performs the following, forever:
+
+\hmm \begin{minipage}[t]{5in}
+
+It uses the memory-access API function \verb|mstate_mem_read| to read
+an instruction from \verb|M|.  It then applies each function from
+\emph{spec\_fns}, one by one until one of them returns
+\verb|(True,M')|, i.e., one of them successfully decodes and executes
+the instruction.
+
+\vspace*{1ex}
+
+If all the functions in \emph{spec\_fns} return \verb|(False,...)|,
+the interpreter applies the \verb|finish_trap| function to \verb|M|
+with the \verb|ILLEGAL_INSTRUCTION| exception code to produce the next
+state \verb|M'|.
+
+\end{minipage}
+
+% ****************************************************************
+
+\section{Files GPR\_File.hs (General Purpose Registers and CSR\_File.hs (Control and Status Registers)}
+
+\label{sec_gprs_csrs}
+
+\verb|GPR_File.hs| implements a file of general-purpose registers, and
+the API functions \verb|gpr_read| and \verb|gpr_write|; it is simple
+enough that we do not discuss it further here.
+
+\verb|CSR_File.hs| implements a file of Control and Status registers,
+and the API functions \verb|csr_read| and \verb|csr_write|.  The main
+subtlety here is that the distinct CSR addresses refer to ``views'' of
+the same underlying register with various restrictions:
+
+\begin{itemize}
+\item
+\verb|USTATUS| and \verb|SSTATUS| are restricted views of \verb|MSTATUS|
+
+\item
+\verb|UIE| and \verb|SIE| are restricted views of \verb|MIE|
+
+\item
+\verb|UIP| and \verb|SIP| are restricted views of \verb|MIP|
+\end{itemize}
+
+
+The functions \verb|mstatus_stack_fields| and
+\verb|mstatus_upd_stack_fields| encapsulate reading and writing the
+``stack'' in the MSTATUS register containing the ``previous
+privilege'', ``previous interrupt enable'' and ``interrupt enable''
+fields.  This stack is pushed on traps/interrupts, and popped on
+URET/SRET/MRET instructions.
+
+The function \verb|fn_interrupt_pending| was mentioned earlier in
+Sec.~\ref{sec_interrupts}; it analyzes the MSTATUS, MIP, MIE and
+current privilege level to decide whether a machine/supervisor/user
+external/software/timer interrupt is pending, and if so, which one.
+
+% ****************************************************************
+
+\newpage
+
+\markboth{BIBLIOGRAPHY}{\copyrightnotice}
+
+\addcontentsline{toc}{section}{Bibliography}
+
+\bibliographystyle{abbrv}
+\bibliography{forvis_reading_guide}
+
+% ****************************************************************
+
+\end{document}
