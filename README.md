@@ -131,9 +131,9 @@ World!" program and the "Thuemorse" program:
         $ make test_hello
         $ make test_thue
 
-You can follow the above template to execute any of the many
-pre-compiled RISC-V ELF binaries that can be found in
-`Test_Programs/'.  Please see `README.txt` in that directory for more
+You can follow the template of any of the above tests to execute any
+of the many pre-compiled RISC-V ELF binaries found in
+`Test_Programs/`.  Please see `README.txt` in that directory for more
 information on the binaries.
 
 ----------------------------------------------------------------
