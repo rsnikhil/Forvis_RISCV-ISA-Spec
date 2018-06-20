@@ -1,5 +1,5 @@
 >----------------------------------------------------------------
-The directory:    `TestPrograms/riscv-tests/isa/`
+The directory:    `Test_Programs/riscv-tests/isa/`
 contains ELF binaries for all the "ISA Tests" that one
 gets when one follows the directions given at:
 
@@ -21,7 +21,7 @@ riscv-tools repo at:
         riscv-tools/riscv-tests/isa/
 
 >----------------------------------------------------------------
-The directory:    'TestPrograms/MIT'
+The directory:    'Test_Programs/MIT'
 contains ELF binaries and corresponding ".dump" disassemblies of two
 programs written in C and compiled using RISC-V gcc:
 

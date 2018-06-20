@@ -31,7 +31,7 @@ $(EXE_FILE):
 # (Substitute SAMPLE_ISA_TEST and SAMPLE_ISA_TEST_RV for a different ISA test.)
 # (See Regression_Testing/Makefile for running all the ISA tests)
 
-TEST_PROGRAMS      = TestPrograms
+TEST_PROGRAMS      = Test_Programs
 SAMPLE_ISA_TEST    = rv32ui-p-add
 SAMPLE_ISA_TEST_RV = RV32
 

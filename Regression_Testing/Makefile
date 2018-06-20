@@ -3,11 +3,11 @@
 # See LICENSE in this repo for license details.
 
 # Runs a Python script
-#    which runs the Forvis executable on all ELF tests in ../TestPrograms/
+#    which runs the Forvis executable on all ELF tests in ../Test_Programs/
 #    placing the output log for each test into Logs/
 #    (see Python code for tests ignored because features are not yet implemented)
 
 .PHONY: default
 default: ../forvis_exe
 	mkdir  -p  Logs
-	./Run_all_tests.py  ../TestPrograms  Logs
+	./Run_all_tests.py  ../Test_Programs  Logs

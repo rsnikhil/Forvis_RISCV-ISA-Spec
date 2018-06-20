@@ -1,7 +1,7 @@
 In this directory you can run a "regression", i.e.,
 
     Run the Forvis executable as a RISC-V simulator
-    on each of the ELF files in the TestPrograms/ directory and sub-directories,
+    on each of the ELF files in the Test_Programs/ directory and sub-directories,
     placing a log for each in the Logs/ directory
     and printing out a final summary of number of tests run and number of tests that "passed".
 
@@ -25,7 +25,7 @@ Note: the regression is run by the Python program 'Run_all_tests.py'
     In particular:
 
     - It has an 'ignore_list' to filter out certain files in the
-        TestPrograms directory, such as tests for features that Forvis
+        Test_Programs directory, such as tests for features that Forvis
         does not yet implement
 
     - It has some other ad hoc and fragile ways to ignore .dump files

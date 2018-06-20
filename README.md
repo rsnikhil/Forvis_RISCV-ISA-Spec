@@ -74,7 +74,7 @@ Haskell code, and is not a standalone document.  It displays code
 fragments automatically extracted from the actual code.  We suggest
 reading the code in this order:
 
->       Arch_Defs.hs
+>         Arch_Defs.hs
 >         Machine_State.hs
 >
 >         Forvis_Spec.hs
@@ -131,12 +131,16 @@ World!" program and the "Thuemorse" program:
         $ make test_hello
         $ make test_thue
 
+You can follow the above template to execute any of the many
+pre-compiled RISC-V ELF binaries that can be found in
+`Test_Programs/'.  Please see `README.txt` in that directory for more
+information on the binaries.
 
 ----------------------------------------------------------------
 
 ### Running all RISC-V ISA tests:
 
 Please see `Regression_Testing/README.txt` for how to automatically
-run Forvis on all ELF files in a directory tree such as `TestPrograms/`.
+run Forvis on all ELF files in a directory tree such as `Test_Programs/`.
 
 ----------------------------------------------------------------
