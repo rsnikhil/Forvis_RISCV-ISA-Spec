@@ -7,9 +7,9 @@ module Mem_Ops where
 -- and size of memory operations.
 
 -- Note: these are duplicates of defs in Forvis_Spec.hs where they are
--- used to decode LOAD, STORE and SMO instructions.  They are repeated
--- here because this information is also needed by memory and I/O
--- servers, and by top-level execution and debug wrappers.
+-- used in the specs of LOAD, STORE and AMO instructions.  They are
+-- repeated here because this information is also needed by memory and
+-- I/O servers, and by top-level execution and debug wrappers.
 
 -- Forvis_Spec.hs could have just imported this module, but these defs
 -- are repeated there for local, self-contained readability.

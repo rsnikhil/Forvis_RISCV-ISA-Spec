@@ -2,14 +2,15 @@ SOURCES = \
 		Makefile \
 		blankpage.tex \
 		forvis_reading_guide.tex \
-		forvis_reading_guide.bib
+		forvis_reading_guide.bib \
+		Extracted
 
 .PHONY: default
-default: $(SOURCES)
+default: $(SOURCES)  extract
 	pdflatex  forvis_reading_guide
 
 .PHONY: full
-full: $(SOURCES)
+full: $(SOURCES)  extract
 	pdflatex  forvis_reading_guide
 	bibtex    forvis_reading_guide
 	pdflatex  forvis_reading_guide
@@ -20,9 +21,11 @@ bib:
 	bibtex  forvis_reading_guide
 
 .PHONY: extract
-extract:
-	mkdir -p  Extracted
+extract: Extracted
 	./Extract_latex_from_hs.py  ../src  Extracted
+
+Extracted:
+	mkdir -p  Extracted
 
 .PHONY: clean
 clean:
@@ -31,4 +34,4 @@ clean:
 .PHONY: fullclean
 full_clean:
 	make clean
-	rm  forvis_reading_guide.pdf
+	rm  -r -f  forvis_reading_guide.pdf  Extracted

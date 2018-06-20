@@ -1,5 +1,15 @@
 # RISCV-ISA-Spec
 
+****************************************************************
+****************************************************************
+
+THIS CODE IS OBSOLETE; PLEASE IGNORE
+THIS WAS A FIRST CUT AT WRITING A RISC-V FORMAL SPEC
+AND WAS ABANDONED AROUND MARCH 2018 DUE TO A COMPLETE REWRITE.
+
+****************************************************************
+****************************************************************
+
 This is a formal (and executable) specification for the RISC-V ISA
 (Instruction Set Architecture), written in "Elementary" Haskell.
 

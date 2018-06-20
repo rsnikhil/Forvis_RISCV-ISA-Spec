@@ -169,6 +169,8 @@ PC    & Program Counter \\
 \hline
 RVWMO & RISC-V Weak Memory Ordering (default memory model) \\
 \hline
+spec  & Specification \\
+\hline
 Sv32  & Virtual Memory System in RV32 systems \\
 \hline
 Sv39  & Virtual Memory System in RV64 systems \\
@@ -249,58 +251,47 @@ work.
 
 % ================================================================
 
-This document is in the style of ``literate programming''
-(Knuth~1984~\cite{Knuth1984}).  The Forvis spec is actually a
-collection of program source files written in the well-known
-functional programming language Haskell~\cite{PeytonJones2003}, and
-this document is just a reading guide.  All the code fragments herein
-are automatically extracted from the actual Haskell code.
+This is a reading guide to FORVIS, a formal RISC-V ISA specification
+written in ``extremely elementary'' Haskell. It can be executed as a
+RISC-V simulator which, in turn, executes RISC-V binaries.
 
-In particular: you should not try to read this document on its own;
-you should have the code in front of you and refer to this document on
-the side for clarification and commentary.
+This is a work-in-progress, one of several similar concurrent efforts
+within the ``ISA Formal Specification'' Technical Group constituted by
+The RISC-V Foundation ({\tt https://riscv.org}).  We welcome your
+feedback, comments and suggestions.\footnote{Forvis, and this
+document, are available at: {\tt https://github.com/rsnikhil/RISCV-ISA-Spec}}
 
-Forvis spec code is meant to be readable by people who may be totally
-unfamiliar with Haskell and who may have no interest in learning
-Haskell.  It uses a \emph{very} small, extremely simple subset of
-Haskell\footnote{
-We believe that the Haskell used here is simple enough that only minor
-syntactic transformation would be needed to render it into some other
-functional language such as SML, OCaml, or Scheme.}
-(just simple types, function definition and function
-application) and none of the features that may be even slightly
-unfamiliar to the audience (no Currying/partial-application, no
-lambda-expressions, no laziness, no typeclasses, no monads, etc.)  For
-those without prior exposure to Haskell, this document explains the
-minimal Haskell notation necessary to read the Forvis spec code.
+Forvis corresponds to these original English-text specs:
+\begin{itemize}
 
-Using extremely simple Haskell will also make it easier for authors of
-new ISA extensions to extend these specs to cover their ISA
-extensions, even if they are unfamiliar with Haskell.
+\item {\it The RISC-V Instruction Set Manual, Volume I: User Level
+    ISA},
+    Andrew Waterman and Krste Asanovic (eds.),
+    Document Version 2.2,
+    May 7, 2017.~\cite{Waterman2017_user}
 
-Using extremely simple Haskell will also make it easy to parse and
-connect to other tools, such as proof assistants, theorem provers, and
-so on (including the alternate ``concurrent'' interpreter described at
-the end of the next section).
+\item {\it The RISC-V Instruction Set Manual, Volume II: Privileged
+    Architecture, Privileged Architecture Version 1.10}, 
+    Andrew Waterman and Krste Asanovic (eds.),
+    Document Version 1.10,
+    May 7, 2017.~\cite{Waterman2017_priv}:
+
+\end{itemize}
 
 % ================================================================
 
-\subsection{About Forvis}
+\subsection{Forvis goals}
 
 Forvis is a formal specification of the RISC-V Instruction Set
-Architecture, expressed in the Haskell functional programming
-language.  By ``formal'' we mean that it is written in a formal
-language (Haskell), thereby reducing the possibility of ambiguity,
-inconsistency and incompleteness that comes with specifications
-written in a natural language such as English.
+Architecture, i.e., it is written in a precise, unambiguous language
+(here, Haskell) without regard to hardware implementation
+considerations; clarity and precision are paramount concerns.  In
+contrast, specs written a natural language such as English are often
+prone to ambiguity, inconsistency and incompleteness.  Further, a
+formal spec can be parsed and processed automatically, connecting to
+other formal analysis and transformation tools.  In addition to
+precision and completeness, Forvis also has these goals:
 
-We chose Haskell because it is a pure functional language, with no
-side effects.  ISA specs are sometimes hard to read because hidden
-state, and their updates by side-effect are hard to keep track of; in
-our Haskell code, all state is visible and all updates can be seen
-explicitly as recomputation of state.
-
-In addition to precision and completeness, Forvis also has these goals:
 \begin{itemize}
 
 \item {\bf Readability:} This spec should be readable by people who
@@ -374,22 +365,21 @@ file in the code repository explains how to execute the code.
 
 % ----------------
 
-\subsubsection{Extension for concurrent behavior and weak-memory models}
+\subsubsection{Extension for concurrent behavior and weak memory models}
 
-Forvis code, as written, may appear to be sequential (one complete
-instruction at a time) and, indeed, when executed as a Haskell program
-(i.e., on a Haskell interpreter), that is exactly what you get.
+Although it is convenient to directly execute this Haskell code as a
+Haskell program, thereby giving us a sequential RISC-V simulator for
+free, the code (specifically, the file \verb|Forvis_Spec.hs|) can also
+be treated as a generic functional program with an alternate
+interpretation (non-Haskell, and changing what we mean by the
+``Machine State'' that is an argument to each spec function).
 
-However, taking exactly the same specification code (in particular,
-the file \verb|Spec.hs|) and viewing it as a generic functional
-language (not Haskell); it can be given an alternate machine state
-(not the one in \verb|Machine_State.hs|), and it can be executed on an
-alternate interpreter (not a Haskell interpreter) that demonstrates
-all kinds of concurrencies (e.g., due to pipelining, different kinds
-of speculation, and more) and non-deterministic interaction with weak
-memory models.  We believe it can describe the complete range of
-concurrent behaviors seen in actual implementations (and more
-concurrent behaviors not seen in practical implementations).
+Such an alternate interpreter can demonstrate all kinds of
+concurrencies (e.g., due to out-of-order execution, pipelining,
+different kinds of speculation, and more) and non-deterministic
+interaction with weak memory models.  We believe it can describe the
+complete range of concurrent behaviors seen in actual implementations
+(and more concurrent behaviors not seen in practical implementations).
 
 Describing this alternate interpretation is planned as a follow-up
 document.  We have a general idea of how this concurrent interpreter
@@ -397,6 +387,52 @@ works but are still working out the details.  The concurrency is not
 exposed in the spec text, but is implicit in the data flow.  The
 central ideas come from ``implicit dataflow'' computation (cf.
 ``Implicit Parallel Programming in \emph{pH}''\cite{Nikhil2000a}).
+
+% ================================================================
+
+\subsection{About the choice of Haskell, and the level of Haskell features used}
+
+We chose to use the well-known programming language
+Haskell~\cite{PeytonJones2003} because it is a pure functional
+language, with no side effects.  ISA specs are sometimes hard to read
+because of hidden state, and their updates by side-effect are hard to
+keep track of; in our Haskell code, all state is visible and all
+updates can be seen explicitly as recomputation of new state.
+
+Forvis spec code is written in ``extremely elementary'' Haskell so
+that it is readable by people who may be totally unfamiliar with
+Haskell and who may have no interest in learning Haskell.  It uses a
+\emph{very} small, extremely simple subset of Haskell\footnote{ We
+believe that the Haskell used here is simple enough that only minor
+syntactic transformation would be needed to render it into some other
+functional language such as SML, OCaml, or Scheme.}  (just simple
+types, function definition and function application) and none of the
+features that may be even slightly unfamiliar to the audience (no
+Currying/partial-application, lambda-expressions, laziness,
+typeclasses, monads, etc.)  For those without prior exposure to
+Haskell, this document explains the minimal Haskell notation necessary
+to read the Forvis spec code.
+
+Using extremely simple Haskell will also make it easier for authors of
+new ISA extensions to extend these specs to cover their ISA
+extensions, even if they are unfamiliar with Haskell.
+
+Using extremely simple Haskell will also make it easy to parse and
+connect to other tools, such as proof assistants, theorem provers, and
+so on (including the alternate ``concurrent'' interpreter described at
+the end of the next section).
+
+% ----------------
+
+\subsubsection{The code in this document is real}
+
+This document is produced with a kind of ``literate programming''
+process (Knuth~1984~\cite{Knuth1984}).  The Forvis spec \emph{is} the
+collection of Haskell source code files, and this document is just a
+reading guide.  All the code fragments herein are automatically
+extracted from the actual Haskell code during document production.  As
+a reading guide, this document is not meant to be read on its own, but
+as an accompaniment to perusing the actual source code.
 
 % ================================================================
 
@@ -483,8 +519,9 @@ A definition like this:
 defines a new type; these will be explained as we go along.
 
 For readability, large expressions are sometimes deconstructed using
-``{\tt let}'' or ``{\tt where}'' expressions to provide meaningful names to
-intermediate sub-expressions. For example, instead of: \\
+``{\tt let}'' expressions to provide meaningful names to intermediate
+sub-expressions, define local help-functions, etc. For example,
+instead of: \\
 \hmmmm{\tt x + f y z - g a b c} \\
 we may write, equivalently: \\
 \hmmmm \
@@ -497,23 +534,21 @@ in \\
 \hmm result
 \end{minipage}
 
-or: \\
-\hmmmm \
-\begin{minipage}[t]{4in}\tt
-result \\
-where \\
-\hmm tmp1 = f y z \\
-\hmm tmp2 = g a b c \\
-\hmm result = x + tmp1 + tmp2
-\end{minipage}
-
-A conditional expression may be written as an if-then-else:
+Conditional expressions may be written using \verb|if-then-else| which can of course be nested:
 \begin{tabbing}
 \hmmm \= \emph{x} = \= {\tt if} \emph{cond-expr1} \\
       \>            \> {\tt then} \emph{expr1} \\
       \>            \> {\tt else} \= {\tt if} \emph{cond-expr2} \\
       \>            \>            \> {\tt then} \emph{expr2} \\
       \>            \>            \> {\tt else} \emph{expr3}
+\end{tabbing}
+or using \verb|case| which can also be nested:
+\begin{tabbing}
+\hmmm \= \emph{x} = \= {\tt case} \emph{cond-expr1} {\tt of}\\
+      \>            \> \hmm {\tt True -> } \emph{expr1} \\
+      \>            \> \hmm {\tt False ->} \= {\tt case} \emph{cond-expr2} {\tt of}\\
+      \>            \>                     \> \hmm {\tt True ->} \emph{expr2} \\
+      \>            \>                     \> \hmm {\tt False ->} \emph{expr3}
 \end{tabbing}
 or may be folded into a definition:
 \begin{tabbing}
@@ -522,8 +557,8 @@ or may be folded into a definition:
       \>          \> {\tt |} {\tt True}        \> {\tt =} \emph{expr3}
 \end{tabbing}
 
-The following table shows certain operators in Haskell and their
-counterparts in C where the notations differ.
+The following table shows some operators in Haskell and their
+counterparts in C, where the notations differ.
 
 \begin{tabular}{|c|c|l|}
 \hline
@@ -664,10 +699,10 @@ can simultaneously support both.  For example, machine-privilege code
 may run in RV64 mode while supervisor- and user-privilege code may run
 in RV32 mode.  There is also a future RV128 being defined.
 
-In this spec, which covers RV32 and RV64 and their simultaneous use,
-we represent everything using 64 bits.  The semantics of each
-instruction are defined to be governed by the current RV setting which
-is available in the architectural state (specifically, MISA.MXL,
+In Forvis, which covers RV32 and RV64 and their simultaneous use, we
+represent everything using 64 bits.  The semantics of each instruction
+are defined to be governed by the current RV setting which is
+available in the architectural state (specifically, MISA.MXL,
 MSTATUS.SXL, MSTATUS.UXL, etc.).  An RV32 setting can render some
 instructions illegal, and limits calculations on values to be done
 with 32-bit arithmetic.
@@ -689,12 +724,12 @@ state, gathered statistics, and so on.
 \input{Extracted/Machine_State}
 
 This record-with-fields is a purely internal representation choice in
-this module.  Clients of this module only access it via the API
-functions that follow.\footnote{Haskell has export-import mechanisms
-to enforce this external invisibility of our representation choice,
-but we have omitted them to avoid clutter.}
+this module.  Clients of this module only access it via the
+\verb|mstate_|{\it{}function} API that follows.\footnote{Haskell has
+export-import mechanisms to enforce this external invisibility of our
+representation choice, but we have omitted them to avoid clutter.}
 
-The following function is a constructor that returns a new machine.
+The following function is a constructor that returns a new machine state.
 
 \input{Extracted/Machine_State_constructor}
 
@@ -714,7 +749,7 @@ before using the ``raw'' \verb|gpr_write| function:
 
 % ****************************************************************
 
-\section{File Spec.hs: the ISA spec}
+\section{File Forvis\_Spec.hs: the ISA spec}
 
 \markboth{The ISA Spec}{\copyrightnotice}
 
@@ -745,12 +780,12 @@ registers, MTVEC/{\linebreak[0]}STVEC/{\linebreak[0]}UTVEC
 
 \item A function \verb|exec_instr| (and it's counterpart
 \verb|exec_instr_C| for 'C' compressed instructions) that uses all the
-\verb|spec_|{\it{}OPCODE} to update the machine state by executing one
-instruction.
+\verb|spec_|{\it{}OPCODE} to update the machine state by executing
+exactly one instruction.
 
 \item A function \verb|take_interrupt_if_any| that checks the machine
 state to see if an interrupt is pending and updates the machine state
-if so.
+if so (to be poised at the trap vector).
 
 \end{itemize}
 
@@ -913,7 +948,7 @@ state \verb|M'|.
 
 % ****************************************************************
 
-\section{Files GPR\_File.hs (General Purpose Registers and CSR\_File.hs (Control and Status Registers)}
+\section{Files GPR\_File.hs (General Purpose Registers) and CSR\_File.hs (Control and Status Registers)}
 
 \label{sec_gprs_csrs}
 
@@ -949,6 +984,54 @@ The function \verb|fn_interrupt_pending| was mentioned earlier in
 Sec.~\ref{sec_interrupts}; it analyzes the MSTATUS, MIP, MIE and
 current privilege level to decide whether a machine/supervisor/user
 external/software/timer interrupt is pending, and if so, which one.
+
+% ****************************************************************
+
+\section{Other source code files}
+
+\label{sec_misc}
+
+\verb|Main.hs| is a driver program that just dispatches to one of two
+use-cases, \verb|Main_RunProgram.hs| (free-running) or
+\verb|Main_TandemVerifier.hs| (Tandem Verification).
+
+\verb|Main_RunProgram.hs| reads RISC-V binaries (ELF), initializes
+architecture state and memory, and calls \verb|RunProgram| to run the
+loaded program, up to a specified maximum number of instructions.
+
+\verb|Run_Program.hs| contains the FETCH-EXECUTE loop, along with some
+heuristic stopping-conditions (maximum instruction count, detected
+self-loop, detected non-zero write into \verb|tohost| memory location,
+etc.
+
+\verb|Main_TandemVerifier.hs| sets up Forvis to be a slave processs to
+a tandem verifier, receiving commands on stdin and sending responses
+on stdout.  The commands allow a tandem verifier to initialize
+architecture state, execute 1 or more instructions, and query
+archtectural state. Responses include tandem verification packets
+which the verifier can use to check an implementation.
+
+\verb|Memory.hs| implements a memory model with read, write and AMO
+functions.
+
+\verb|MMIO.hs| implements the memory-mapped I/O system.  Currently it
+is very primitive, merely recording console I/O in a String in the
+\verb|Machine_State|.
+
+\verb|Mem_Ops.hs| defines instruction field values that specify the
+type and size of memory operations.  These are duplicates of defs in
+\verb|Forvis_Spec.hs| where they are in the specs of LOAD, STORE and
+AMO instructions.  They are repeated here because this information is
+also needed in \verb|Memory.hs|, \verb|MMIO.hs| and other places.
+
+\verb|Bit_Manipulation.hs| contains utilities for bit manipulation,
+including sign- and zero-extension, truncation, conversion, etc. that
+are relevant for these semantics.
+
+\verb|Elf.hs| and \verb|Read_Hex_File.hs| are not part of the
+semantics per se; the executable uses them to read ELF files and ``Hex
+Memory'' files, respectively.
+
 
 % ****************************************************************
 

@@ -1,7 +1,5 @@
-Log of make 
-Tue Jun 19 23:37:47 2018
-
 make[1]: Entering directory '/home/nikhil/GitHub/RISCV-ISA-Spec/Regression_Testing'
+mkdir  -p  Logs
 ./Run_all_tests.py  ../TestPrograms  Logs
 0 dir /home/nikhil/GitHub/RISCV-ISA-Spec/TestPrograms
   1 dir /home/nikhil/GitHub/RISCV-ISA-Spec/TestPrograms/riscv-tests
@@ -323,13 +321,10 @@ Test rv64ui-p-lw
 Test rv32ui-p-add
     PASS      Writing log: rv32ui-p-add.log
   1 dir /home/nikhil/GitHub/RISCV-ISA-Spec/TestPrograms/MIT
-Test thuemorse64
-    PASS      Writing log: thuemorse64.log
-Test hello64
-    PASS      Writing log: hello64.log
+Test rv64-thuemorse
+    PASS      Writing log: rv64-thuemorse.log
+Test rv64-hello
+    PASS      Writing log: rv64-hello.log
 Executed: 160 tests
 PASS:     160 tests
 make[1]: Leaving directory '/home/nikhil/GitHub/RISCV-ISA-Spec/Regression_Testing'
-
-Tue Jun 19 23:37:49 2018
-----------------

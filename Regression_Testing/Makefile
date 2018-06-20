@@ -8,5 +8,6 @@
 #    (see Python code for tests ignored because features are not yet implemented)
 
 .PHONY: default
-default:
+default: ../forvis_exe
+	mkdir  -p  Logs
 	./Run_all_tests.py  ../TestPrograms  Logs
