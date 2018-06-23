@@ -93,18 +93,25 @@ reading the code in this order:
 
 ### How to build Forvis and run it on RISC-V binaries
 
-One way to execute Forvis (exhibiting sequential,
-one-instruction-at-a-time semantics) is to build and execute it as a
-standard Haskell program.  If you do not already have the standard
-Haskell compiler `ghc` installed, you will need to to do so.  It is
-available as a standard package in most Linux distributions.  For
-example, on Debian and Ubuntu systems, you can say:
+Forvis can be executed as a sequential RISC-V simulator (sequential,
+one-instruction-at-a-time semantics), by building and executing it as
+a standard Haskell program.
+
+You will need the standard Haskell compiler `ghc` which is available
+for Linux, MacOS and Windows, along with its standard `elf` library
+for parsing ELF files.  These are available as standard packages in
+most Linux distributions.  For example, on Debian and Ubuntu systems,
+you can say:
 
         $ apt-get  install  ghc
+        $ apt-get  install  cabal
+	$ cabal install elf
 
-(The version of ghc should not matter, since Forvis is written in
+The version of ghc should not matter, since Forvis is written in
 "extremely elementary" Haskell that has been stable for more than a
-decade.)
+decade.  You can do the analogous package-install on other Linux
+distributions using their native package mechanisms, and use Macports
+on Apple OS X.  Full details can be found at `haskell.org`.
 
 Then, you can build the Forvis executable (`forvis_exe`) with:
 
