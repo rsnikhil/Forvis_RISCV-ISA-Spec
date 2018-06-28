@@ -134,7 +134,7 @@ on Apple OS X.  Full details can be found at `haskell.org`.
 
 Then, you can build the Forvis executable (`forvis_exe`) with:
 
-        $ make
+        $ make  exe
 
 Run the following to see command-line options on the executable:
 

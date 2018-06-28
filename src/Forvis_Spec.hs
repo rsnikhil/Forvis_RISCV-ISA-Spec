@@ -1686,27 +1686,4 @@ take_interrupt_if_any  mstate =
       Nothing        -> (False, mstate)
       Just  exc_code -> (True,  mstate_upd_on_trap  mstate  True  exc_code  tval)
 
--- ================================================================
--- Check if Virtual Memory is active or not
-
-fn_vm_is_active :: Machine_State -> Bool -> Bool
-fn_vm_is_active  mstate  is_instr =
-  let
-    rv      = mstate_rv_read  mstate
-
-    satp              = mstate_csr_read   mstate  csr_addr_satp
-    (satp_mode, _, _) = satp_fields  rv  satp
-
-    -- Compute effective privilege modulo MSTATUS.MPRV
-    priv    = mstate_priv_read  mstate
-    mstatus = mstate_csr_read   mstate  csr_addr_mstatus
-    mprv    = testBit  mstatus  mstatus_mprv_bitpos
-    mpp     = trunc_u64_to_u32  ((shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3)
-    priv'   = if (mprv && (not  is_instr)) then mpp else priv
-
-    vm_active | (rv == RV32) = ((priv' <= s_Priv_Level) && (satp_mode == sv32))
-              | (rv == RV64) = ((priv' <= s_Priv_Level) && ((satp_mode == sv39) || (satp_mode == sv48)))
-  in
-    vm_active
-
 -- ================================================================

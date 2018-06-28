@@ -987,6 +987,42 @@ external/software/timer interrupt is pending, and if so, which one.
 
 % ****************************************************************
 
+\section{File Virtual\_Mem.hs: Virtual Memory}
+
+\label{sec_vm}
+
+Essentially all the code to support virtual memory is in the file
+\verb|Virtual_Mem.hs|.
+
+There are four broad classes of memory access: instruction fetch,
+loads, stores, and AMOs.  The function \verb|fn_vm_is_active| checks
+whether the effective address computed in each kind of memory access
+is a virtual memory address that needs to be translated to a physical
+memory address.  It examines the current privilege level, and the
+value in the ``mode'' field of CSR SATP.  It also takes into account
+that if MSTATUS.MPRV is set, then loads, stores and AMOs should be
+regarded as occurring at the privilege level MSTATUS.MPP instead of
+the current privilege.
+
+\input{Extracted/fn_vm_is_active}
+
+In file \verb|Forvis_Spec.hs|, in the spec functions for the four
+classes of memory access (\verb|instr_fetch|, \verb|spec_LOAD|,
+\verb|spec_STORE| and \verb|spec_AMO|), the code first invokes
+\verb|fn_vm_is_active| to check if virtual-to-physical address
+translation is required.  If so, it then invokes the function
+\verb|vm_translate| to perform the translation.  This function can
+return a memory access fault or page fault, or a successful
+translation with a physical address.  We use the \verb|Memory_Result|
+type to return this range of results.  The \verb|vm_translate|
+function may also modify machine state (``access'' and ``dirty'' bits
+in page tables, internal cache- and TLB-tracking state, etc.), and so
+the machine state is both an argument and a result of the function.
+
+\input{Extracted/vm_translate}
+
+% ****************************************************************
+
 \section{Other source code files}
 
 \label{sec_misc}
