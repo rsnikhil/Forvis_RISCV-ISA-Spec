@@ -17,30 +17,41 @@ feedback, comments and suggestions.
 
 ### Current status
 
-- RV32 and RV64, I, M, A, Privilege Levels M and U.
-
-   - RV32 and RV64 are supported simultaneously, e.g., a program can
-       have parts running in RV64 mode at Machine privilege and other
-       parts running in Supervisor or User privilege in RV32 mode, by
-       setting MISA.MXL, MSTATUS.SXL and MSTATUS.UXL appropriately.
+- Forvis supports the following features
+    - Base instruction sets: RV32I and RV64I
+        - RV32 and RV64 are supported simultaneously, e.g., a program
+          can have parts running in RV64 mode at Machine privilege and
+          other parts running in Supervisor or User privilege in RV32
+          mode, by setting MISA.MXL, MSTATUS.SXL and MSTATUS.UXL
+          appropriately.
+    - Standard extension M (integer multiply/divide)
+    - Standard extension A (atomic memory ops)
+    - Privilege Level M (Machine)
+    - Privilege Level S (Supervisor)
+        - Virtual Memory schemes SV32, SV39 and SV48
+    - Privilege Level U (User)
 
 - Forvis can be executed today as a Haskell program, which in turn
     executes RISC-V ELF binaries.  This is a sequential
     interpretation: one-instruction-at-a-time, sequential memory
-    model.
+    model (a concurrent interpreter will follow, later).
 
-- Passes all RISC-V ISA tests in the following sets:
-   - `rv32ui-p-*`, `rv64ui-p-*`
-   - `rv32um-p-*`, `rv64um-p-*`
-   - `rv32ua-p-*`, `rv64ua-p-*`
-   - `rv32mi-p-*`, `rv64mi-p-*`
+- Passes all RISC-V ISA tests in the following sets (currently 310 tests):
 
-   These tests are all provided in this repo, along with a script to
-   run them as a regression.
+    - `rv32ui-p-*`, `rv64ui-p-*`    (Base instruction set)
+    - `rv32um-p-*`, `rv64um-p-*`    (M extension)
+    - `rv32ua-p-*`, `rv64ua-p-*`    (A extension)
+    - `rv32mi-p-*`, `rv64mi-p-*`    (Machine privilege)
+    - `rv32ui-v-*`, `rv64ui-v-*`    (Base instruction set in virtual memory)
+    - `rv32um-v-*`, `rv64um-v-*`    (M extension in virtual memory)
+    - `rv32ua-v-*`, `rv64ua-v-*`    (A extension in virtual memory)
+    - `rv32si-p-*`, `rv64si-p-*`    (Supervisor privilege)
+
+   In this repo we provide pre-compiled binaries (ELF files) for all
+   these tests, a script to run them as a regression, and sample
+   output logs.
 
 ### What's coming soon (target: July/August 2018)
-
-- S privilege level (Supervisor) with Sv32, Sv39 and Sv48 Virtual Memory schemes.
 
 - RISC-V extensions C (compressed), F (single precision floating
     point) and D (double precision floating point)
@@ -78,6 +89,7 @@ reading the code in this order:
 >         Machine_State.hs
 >
 >         Forvis_Spec.hs
+>         Virtual_Mem.hs
 >
 >         GPR_File.hs
 >         CSR_File.hs
@@ -86,8 +98,15 @@ reading the code in this order:
 >         MMIO.hs
 >
 >         Run_Program.hs
->         Main_RunProgram.hs
->         Main_TandemVerifier.hs
+>         Main_Run_Program.hs
+>         Main.hs
+
+You can ignore the following, which are used for testing virtual
+memory translation and Tandem Verification, respectively (you're
+welcome to read them, if you're curious):
+
+>         Main_Test_Virtual_Mem.hs
+>         Main_Tandem_Verifier.hs
 
 ----------------------------------------------------------------
 
@@ -105,7 +124,7 @@ you can say:
 
         $ apt-get  install  ghc
         $ apt-get  install  cabal
-	$ cabal install elf
+        $ cabal install elf
 
 The version of ghc should not matter, since Forvis is written in
 "extremely elementary" Haskell that has been stable for more than a

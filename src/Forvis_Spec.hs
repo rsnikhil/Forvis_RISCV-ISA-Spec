@@ -18,6 +18,7 @@ import Bit_Manipulation
 import Arch_Defs
 import Machine_State
 import CSR_File
+import Virtual_Mem
 
 -- ================================================================ \begin_latex{instr_fetch}
 -- Instruction fetch
@@ -28,55 +29,74 @@ import CSR_File
 -- not, we can decide if it's a C instruction, and read the next 2
 -- bytes if it is not a C instruction; this, too, may trap.
 
-data Fetch_Result = Fetch_Trap
-                  | Fetch_C  Word16
-                  | Fetch    Word32
+data Fetch_Result = Fetch_Trap  Exc_Code
+                  | Fetch_C     Word16
+                  | Fetch       Word32
                   deriving (Show)
 
 instr_fetch :: Machine_State -> (Fetch_Result, Machine_State)
 instr_fetch  mstate =
-                                                                   -- \end_latex{instr_fetch}
-  let rv                = mstate_rv_read  mstate
-      pc | (rv == RV32) = (mstate_pc_read  mstate .&. 0xFFFFFFFF)
-         | (rv == RV64) = mstate_pc_read  mstate
-      -- Read first 2 bytes (LH)
-      (load_result1, mstate1) = (mstate_mem_read
-                                  mstate
-                                  exc_code_instr_access_fault
-                                  funct3_LH
-                                  pc)
+  let                                                              -- \end_latex{instr_fetch}
+    rv                = mstate_rv_read  mstate
+    pc | (rv == RV32) = (mstate_pc_read  mstate .&. 0xFFFFFFFF)
+       | (rv == RV64) = mstate_pc_read  mstate
+
+    -- Read 2 instr bytes
+    -- with virtual-to-physical translation if necessary.
+    (result1, mstate1) = read_2_instr_bytes  mstate  pc
   in
-    case load_result1 of
+    case result1 of
       Mem_Result_Err  exc_code -> (let
                                       tval    = pc
                                       mstate2 = finish_trap  mstate1  exc_code  tval
                                    in
-                                     (Fetch_Trap, mstate2))
-                                      
-      Mem_Result_Ok   u64_lo   -> (let
-                                      u16_lo = trunc_u64_to_u16  u64_lo
-                                   in
-                                     if is_instr_C  u16_lo then
-                                       (Fetch_C u16_lo, mstate1)
-                                     else
-                                       (let
-                                           (load_result2, mstate2) = (mstate_mem_read
-                                                                       mstate1
-                                                                       exc_code_instr_access_fault
-                                                                       funct3_LH
-                                                                       (pc + 2))
-                                        in
-                                          case load_result2 of
-                                            Mem_Result_Err  exc_code -> (let
-                                                                            tval = pc + 2
-                                                                            mstate3 = finish_trap  mstate2  exc_code  tval
-                                                                          in
-                                                                           (Fetch_Trap, mstate3))
-                                            Mem_Result_Ok  u64_hi    -> (let
-                                                                            u16_hi = trunc_u64_to_u16  u64_hi
-                                                                            u32    = concat_u16_u16_to_u32  u16_lo  u16_hi
-                                                                         in
-                                                                           (Fetch  u32, mstate2))))
+                                      (Fetch_Trap  exc_code, mstate2))
+
+      Mem_Result_Ok   u64_lo ->
+        (let
+            u16_lo = trunc_u64_to_u16  u64_lo
+         in
+            if is_instr_C  u16_lo then
+              -- Is a 'C' instruction; done
+              (Fetch_C  u16_lo, mstate1)
+            else
+              (let
+                  -- Not a 'C' instruction; read remaining 2 instr bytes
+                  -- with virtual-to-physical translation if necessary.
+                  -- Note: pc and pc+2 may translate to non-contiguous pages.
+                  (result2, mstate2) = read_2_instr_bytes  mstate  (pc + 2)
+               in
+                  case result2 of
+                    Mem_Result_Err  exc_code -> (let
+                                                    tval = pc + 2
+                                                    mstate3 = finish_trap  mstate2  exc_code  tval
+                                                 in
+                                                   (Fetch_Trap  exc_code, mstate3))
+                    Mem_Result_Ok  u64_hi    -> (let
+                                                    u16_hi = trunc_u64_to_u16  u64_hi
+                                                    u32    = concat_u16_u16_to_u32  u16_lo  u16_hi
+                                                 in
+                                                   (Fetch  u32, mstate2))))
+
+read_2_instr_bytes :: Machine_State -> Word64 -> (Mem_Result, Machine_State)
+read_2_instr_bytes  mstate  va =
+  let
+    is_instr = True
+    is_read  = True
+
+    --     If Virtual Mem is active, translate pc to a physical addr
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  va
+                         else
+                           (Mem_Result_Ok  va, mstate)
+
+    --     If no trap due to Virtual Mem translation, read 2 bytes from memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   pa ->
+                             mstate_mem_read   mstate1  exc_code_instr_access_fault  funct3_LH  pa
+  in
+    (result2, mstate2)
 
 -- ================================================================
 -- LUI
@@ -288,31 +308,44 @@ spec_LOAD    mstate       instr =
     is_LB    = (funct3 == funct3_LB)
     is_LH    = (funct3 == funct3_LH)
     is_LW    = (funct3 == funct3_LW)
-    is_LD    = ((funct3 == funct3_LD) && (rv == RV64))
+    is_LD    = (funct3 == funct3_LD)
     is_LBU   = (funct3 == funct3_LBU)
     is_LHU   = (funct3 == funct3_LHU)
-    is_LWU   = ((funct3 == funct3_LWU) && (rv == RV64))
+    is_LWU   = (funct3 == funct3_LWU)
     is_legal = ((opcode == opcode_LOAD)
                 && (is_LB
                     || is_LH
                     || is_LW
-                    || is_LD
+                    || (is_LD && (rv == RV64))
                     || is_LBU
                     || is_LHU
-                    || is_LWU))
+                    || (is_LWU && (rv == RV64))))
     -- Semantics
+    --     Compute effective address
     rs1_val = mstate_gpr_read  mstate  rs1
-
     x_u64   = zeroExtend_u32_to_u64  imm12
     y_u64   = signExtend  x_u64  12           -- sign-extend 12 lsbs
     eaddr1  = cvt_s64_to_u64 ((cvt_u64_to_s64  y_u64) + (cvt_u64_to_s64  rs1_val))
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
-    (result, mstate1) = mstate_mem_read   mstate  exc_code_load_access_fault  funct3  eaddr2
+    --     If Virtual Mem is active, translate to a physical addr
+    is_instr = False
+    is_read  = True
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  eaddr2
+                         else
+                           (Mem_Result_Ok  eaddr2, mstate)
 
-    mstate2 = case result of
+    --     If no trap due to Virtual Mem translation, read from memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   eaddr2_pa ->
+                             mstate_mem_read   mstate1  exc_code_load_access_fault  funct3  eaddr2_pa
+
+    --     Finally: finish with trap, or finish with loading Rd with load-value
+    mstate3 = case result2 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  mstate1  exc_code  eaddr2
+                  finish_trap  mstate2  exc_code  eaddr2
 
                 Mem_Result_Ok  d_u64    ->
                   let rd_val | is_LB = signExtend  d_u64  8
@@ -320,9 +353,9 @@ spec_LOAD    mstate       instr =
                              | is_LW = signExtend  d_u64  32
                              | True  = d_u64
                   in
-                    finish_rd_and_pc_plus_4  mstate1  rd  rd_val
+                    finish_rd_and_pc_plus_4  mstate2  rd  rd_val
   in
-    (is_legal, mstate2)
+    (is_legal, mstate3)
 
 -- ================================================================
 -- STORE:
@@ -357,21 +390,35 @@ spec_STORE    mstate       instr =
                     || is_SD))
 
     -- Semantics
-    rs1_val = mstate_gpr_read  mstate  rs1    -- address base
     rs2_val = mstate_gpr_read  mstate  rs2    -- store value
 
+    --     Compute effective address
+    rs1_val = mstate_gpr_read  mstate  rs1    -- address base
     x_u64   = zeroExtend_u32_to_u64  imm12
     y_u64   = signExtend  x_u64  12           -- sign-extend 12 lsbs
     eaddr1  = cvt_s64_to_u64 ((cvt_u64_to_s64  rs1_val) + (cvt_u64_to_s64  y_u64))
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
-    (result, mstate1) = mstate_mem_write   mstate  funct3  eaddr2  rs2_val
+    --     If Virtual Mem is active, translate to a physical addr
+    is_instr = False
+    is_read  = False
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  eaddr2
+                         else
+                           (Mem_Result_Ok  eaddr2, mstate)
 
-    mstate2 = case result of
-                Mem_Result_Err exc_code -> finish_trap  mstate1  exc_code  eaddr2
-                Mem_Result_Ok  _        -> finish_pc_plus_4  mstate1
+    --     If no trap due to Virtual Mem translation, store to memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   eaddr2_pa ->
+                             mstate_mem_write   mstate1  funct3  eaddr2_pa  rs2_val
+
+    --     Finally: finish with trap, or finish with fall-through
+    mstate3 = case result2 of
+                Mem_Result_Err exc_code -> finish_trap  mstate2  exc_code  eaddr2
+                Mem_Result_Ok  _        -> finish_pc_plus_4  mstate2
   in
-    (is_legal, mstate2)
+    (is_legal, mstate3)
 
 -- ================================================================
 -- OP_IMM: ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
@@ -659,7 +706,7 @@ spec_SYSTEM_xRET    mstate       instr =
 
     -- Semantics
     mstatus   = mstate_csr_read  mstate  csr_addr_mstatus
-    tsr_fault = ((priv == s_Priv_Level) && (testBit  mstatus  mstatus_tsr_bitpos))
+    tsr_fault = (is_SRET && (priv == s_Priv_Level) && (testBit  mstatus  mstatus_tsr_bitpos))
     (mpp,spp,mpie,spie,upie,mie,sie,uie) = mstatus_stack_fields  mstatus
     rv        = mstate_rv_read   mstate
     misa      = mstate_csr_read  mstate  csr_addr_misa
@@ -1334,24 +1381,38 @@ spec_AMO  mstate  instr =
                     || (msbs5 == msbs5_AMO_MAXU)))
 
     -- Semantics
+    rs2_val = mstate_gpr_read  mstate  rs2
+
+    --     Compute effective address
     eaddr1  = mstate_gpr_read  mstate  rs1
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
-    rs2_val = mstate_gpr_read  mstate  rs2
+    --     If Virtual Mem is active, translate to a physical addr
+    is_instr = False
+    is_read  = False
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  eaddr2
+                         else
+                           (Mem_Result_Ok  eaddr2, mstate)
 
-    (result, mstate1) = mstate_mem_amo  mstate  eaddr2  funct3  msbs5  aq  rl  rs2_val
+    --     If no trap due to Virtual Mem translation, do AMO op in memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   eaddr2_pa ->
+                             mstate_mem_amo  mstate1  eaddr2_pa  funct3  msbs5  aq  rl  rs2_val
 
-    mstate2 = case result of
+    --     Finally: finish with trap, or finish with loading Rd with AMO result
+    mstate3 = case result2 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  mstate1  exc_code  eaddr2
+                  finish_trap  mstate2  exc_code  eaddr2
 
                 Mem_Result_Ok  d_u64    ->
                   let rd_val | (funct3 == funct3_AMO_W) = signExtend  d_u64  32
                              | (funct3 == funct3_AMO_D) = d_u64
                   in
-                    finish_rd_and_pc_plus_4  mstate1  rd  rd_val
+                    finish_rd_and_pc_plus_4  mstate2  rd  rd_val
   in
-    (is_legal, mstate2)
+    (is_legal, mstate3)
 
 -- ================================================================
 -- Common ways to finish an instruction.
@@ -1624,5 +1685,28 @@ take_interrupt_if_any  mstate =
     case (fn_interrupt_pending  mstatus  mip  mie  priv) of
       Nothing        -> (False, mstate)
       Just  exc_code -> (True,  mstate_upd_on_trap  mstate  True  exc_code  tval)
+
+-- ================================================================
+-- Check if Virtual Memory is active or not
+
+fn_vm_is_active :: Machine_State -> Bool -> Bool
+fn_vm_is_active  mstate  is_instr =
+  let
+    rv      = mstate_rv_read  mstate
+
+    satp              = mstate_csr_read   mstate  csr_addr_satp
+    (satp_mode, _, _) = satp_fields  rv  satp
+
+    -- Compute effective privilege modulo MSTATUS.MPRV
+    priv    = mstate_priv_read  mstate
+    mstatus = mstate_csr_read   mstate  csr_addr_mstatus
+    mprv    = testBit  mstatus  mstatus_mprv_bitpos
+    mpp     = trunc_u64_to_u32  ((shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3)
+    priv'   = if (mprv && (not  is_instr)) then mpp else priv
+
+    vm_active | (rv == RV32) = ((priv' <= s_Priv_Level) && (satp_mode == sv32))
+              | (rv == RV64) = ((priv' <= s_Priv_Level) && ((satp_mode == sv39) || (satp_mode == sv48)))
+  in
+    vm_active
 
 -- ================================================================

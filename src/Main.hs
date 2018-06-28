@@ -16,17 +16,28 @@ module Main where
 
 import Main_Run_Program
 import Main_Tandem_Verifier
+import Main_Test_Virtual_Mem
 
 -- ================================================================
 
 main :: IO ()
 
--- Uncomment just one of the following use-cases
+-- Uncomment just one of the following 'main = ' use-cases
 
--- As standalone execution engine: ELF filename(s) on command line: load ELF and run
+-- ================================================================
+-- Use this for a standalone RISC-V simulator that loads and runs an
+-- ELF file
+
 main = main_run_program
 
--- As Tandem Verifier
+-- ================================================================
+-- Use this section for a Tandem Verifier server
+
 -- main = main_tandem_verifier
+
+-- ================================================================
+-- Use this section to test Virtual Memory translation
+
+-- main = main_test_virtual_mem
 
 -- ================================================================

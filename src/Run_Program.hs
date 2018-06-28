@@ -116,9 +116,9 @@ fetch_and_execute  mstate = do
       priv                    = mstate_priv_read  mstate2
 
   case fetch_result of
-    Fetch_Trap   -> (do
-                        putStrLn "    Instruction Access Fault"
-                        return mstate2)
+    Fetch_Trap  ec -> (do
+                          putStrLn ("Fetch Trap:" ++ show_trap_exc_code  ec)
+                          return mstate2)
     Fetch_C  u16 -> (do
                         -- Exec 'C' instruction
                         let (mstate3, spec_name) = (exec_instr_C  mstate2  u16)

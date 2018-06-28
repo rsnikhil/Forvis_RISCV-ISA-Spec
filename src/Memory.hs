@@ -26,7 +26,8 @@ import Mem_Ops
 -- This is just for debugging convenience, not part of the spec.
 
 uninitialized_byte :: Word8
-uninitialized_byte = 0xaa
+uninitialized_byte = 0x00
+-- uninitialized_byte = 0xaa
 
 -- ================================================================
 -- Memory representation: Data.Map.Map from Word64 (address) to bytes

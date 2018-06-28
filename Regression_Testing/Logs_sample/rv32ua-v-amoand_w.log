@@ -1,0 +1,11 @@
+Type -h, -H or --help for help.
+Running file: '/home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amoand_w' (RV32)
+Initial addr range: 80000000..80002e1b
+tohost addr: 80001000
+Running program up to 1000000 instructions
+Fetch Trap:exc_code_Instruction_Page_Fault
+Fetch Trap:exc_code_Instruction_Page_Fault
+<tohost> = 1 (instret = 19429); exiting
+PASS  file: '/home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amoand_w' (RV32)
+Console output:
+--none--

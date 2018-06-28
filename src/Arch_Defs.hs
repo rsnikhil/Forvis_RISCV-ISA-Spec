@@ -198,6 +198,37 @@ exc_code_Instruction_Page_Fault    :: Exc_Code;    exc_code_Instruction_Page_Fau
 exc_code_Load_Page_Fault           :: Exc_Code;    exc_code_Load_Page_Fault           = 13;
 exc_code_Store_AMO_Page_Fault      :: Exc_Code;    exc_code_Store_AMO_Page_Fault      = 15;
 
+-- ================
+-- For debugging
+
+show_interrupt_exc_code :: Exc_Code -> String
+show_interrupt_exc_code  ec  | (ec == exc_code_u_software_interrupt) = "exc_code_u_software_interrupt"
+show_interrupt_exc_code  ec  | (ec == exc_code_s_software_interrupt) = "exc_code_s_software_interrupt"
+show_interrupt_exc_code  ec  | (ec == exc_code_m_software_interrupt) = "exc_code_m_software_interrupt"
+show_interrupt_exc_code  ec  | (ec == exc_code_u_timer_interrupt)    = "exc_code_u_timer_interrupt"
+show_interrupt_exc_code  ec  | (ec == exc_code_s_timer_interrupt)    = "exc_code_s_timer_interrupt"
+show_interrupt_exc_code  ec  | (ec == exc_code_m_timer_interrupt)    = "exc_code_m_timer_interrupt"
+show_interrupt_exc_code  ec  | (ec == exc_code_u_external_interrupt) = "exc_code_u_external_interrupt"
+show_interrupt_exc_code  ec  | (ec == exc_code_s_external_interrupt) = "exc_code_s_external_interrupt"
+show_interrupt_exc_code  ec  | (ec == exc_code_m_external_interrupt) = "exc_code_m_external_interrupt"
+
+
+show_trap_exc_code :: Exc_Code -> String
+show_trap_exc_code  ec  | (ec == exc_code_instr_addr_misaligned)     = "exc_code_instr_addr_misaligned"
+show_trap_exc_code  ec  | (ec == exc_code_instr_access_fault)        = "exc_code_instr_access_fault"
+show_trap_exc_code  ec  | (ec == exc_code_illegal_instruction)       = "exc_code_illegal_instruction"
+show_trap_exc_code  ec  | (ec == exc_code_breakpoint)                = "exc_code_breakpoint"
+show_trap_exc_code  ec  | (ec == exc_code_load_addr_misaligned)      = "exc_code_load_addr_misaligned"
+show_trap_exc_code  ec  | (ec == exc_code_load_access_fault)         = "exc_code_load_access_fault"
+show_trap_exc_code  ec  | (ec == exc_code_store_AMO_addr_misaligned) = "exc_code_store_AMO_addr_misaligned"
+show_trap_exc_code  ec  | (ec == exc_code_store_AMO_access_fault)    = "exc_code_store_AMO_access_fault"
+show_trap_exc_code  ec  | (ec == exc_code_ECall_from_U)              = "exc_code_ECall_from_U"
+show_trap_exc_code  ec  | (ec == exc_code_ECall_from_S)              = "exc_code_ECall_from_S"
+show_trap_exc_code  ec  | (ec == exc_code_ECall_from_M)              = "exc_code_ECall_from_M"
+show_trap_exc_code  ec  | (ec == exc_code_Instruction_Page_Fault)    = "exc_code_Instruction_Page_Fault"
+show_trap_exc_code  ec  | (ec == exc_code_Load_Page_Fault)           = "exc_code_Load_Page_Fault"
+show_trap_exc_code  ec  | (ec == exc_code_Store_AMO_Page_Fault)      = "exc_code_Store_AMO_Page_Fault"
+
 -- ================================================================
 -- Memory access results                           \begin_latex{Mem_Result}
 -- Either Ok with value, or Err with an exception code
@@ -521,6 +552,7 @@ mstatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
                      .|. (shiftL  1  mstatus_mxr_bitpos)
                      .|. (shiftL  1  mstatus_sum_bitpos)
+                     .|. (shiftL  1  mstatus_mprv_bitpos)
 
                      .|. (shiftL  3  mstatus_xs_bitpos)
                      .|. (shiftL  3  mstatus_fs_bitpos)
@@ -548,6 +580,7 @@ mstatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
 
                      .|. (shiftL  1  mstatus_mxr_bitpos)
                      .|. (shiftL  1  mstatus_sum_bitpos)
+                     .|. (shiftL  1  mstatus_mprv_bitpos)
 
                      .|. (shiftL  3  mstatus_xs_bitpos)
                      .|. (shiftL  3  mstatus_fs_bitpos)

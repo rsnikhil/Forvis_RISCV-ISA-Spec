@@ -83,7 +83,7 @@ m_csr_reset_values  rv =
                                       .|. (shiftL  1  misa_I_bitpos)
                                       .|. (shiftL  1  misa_M_bitpos)
                                       .|. (shiftL  1  misa_N_bitpos)
-                                      -- .|. (shiftL  1  misa_S_bitpos)    TODO: uncomment after adding S-mode
+                                      .|. (shiftL  1  misa_S_bitpos)
                                       .|. (shiftL  1  misa_U_bitpos))
                               msbs | (rv == RV32) = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
                                    | (rv == RV64) = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)

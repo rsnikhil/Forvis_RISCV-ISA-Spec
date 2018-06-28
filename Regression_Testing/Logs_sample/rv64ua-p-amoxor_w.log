@@ -1,9 +1,9 @@
 Type -h, -H or --help for help.
-Running file: '/home/nikhil/GitHub/RISCV-ISA-Spec/TestPrograms/riscv-tests/isa/rv64ua-p-amoxor_w' (RV64)
+Running file: '/home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoxor_w' (RV64)
 Initial addr range: 80000000..80001047
 tohost addr: 80001000
 Running program up to 1000000 instructions
 <tohost> = 1 (instret = 70); exiting
-PASS  file: '/home/nikhil/GitHub/RISCV-ISA-Spec/TestPrograms/riscv-tests/isa/rv64ua-p-amoxor_w' (RV64)
+PASS  file: '/home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoxor_w' (RV64)
 Console output:
 --none--

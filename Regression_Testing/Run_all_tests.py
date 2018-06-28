@@ -16,11 +16,10 @@ import subprocess
 # ================================================================
 # Ignores files with the following in their names
 
-ignore_list = [".",                                      # Files with extensions (e.g., foo.dump)
-               "-v-",                                    # Virtual mem not yet implemented
-               "rv32uc", "rv64uc",                       # C (compressed) not yet implemented
-               "rv32uf", "rv32ud", "rv64uf", "rv64ud",   # Floating point not yet implemented
-               "rv32si", "rv64si"]                       # S (Supervisor) not yet implemented
+ignore_list = [".",                   # Files with extensions (e.g., foo.dump)
+               "rv32uc", "rv64uc",    # C (compressed) not yet implemented
+               "rv32uf", "rv64uf",    # Single precision floating point not yet implemented
+               "rv32ud", "rv64ud"]    # Double precision floating point not yet implemented
 
 # ================================================================
 

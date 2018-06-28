@@ -4,6 +4,7 @@ tmp_haskell
 dist
 dist-*
 cabal-dev
+*~
 *.o
 *.hi
 *.chi
