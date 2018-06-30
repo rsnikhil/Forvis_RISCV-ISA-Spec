@@ -1674,15 +1674,18 @@ exec_instr_C  mstate  instr =
 take_interrupt_if_any :: Machine_State -> (Bool, Machine_State)
 take_interrupt_if_any  mstate =
   let                                                              -- \end_latex{take_interrupt}
+    misa    = mstate_csr_read  mstate  csr_addr_misa
     mstatus = mstate_csr_read  mstate  csr_addr_mstatus
     mip     = mstate_csr_read  mstate  csr_addr_mip
     mie     = mstate_csr_read  mstate  csr_addr_mie
+    mideleg = mstate_csr_read  mstate  csr_addr_mideleg
+    sideleg = mstate_csr_read  mstate  csr_addr_sideleg
 
     priv    = mstate_priv_read  mstate
 
     tval    = 0
   in
-    case (fn_interrupt_pending  mstatus  mip  mie  priv) of
+    case (fn_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv) of
       Nothing        -> (False, mstate)
       Just  exc_code -> (True,  mstate_upd_on_trap  mstate  True  exc_code  tval)
 

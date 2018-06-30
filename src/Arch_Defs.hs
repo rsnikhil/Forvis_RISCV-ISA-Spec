@@ -722,55 +722,72 @@ uip_mask = ((    shiftL 1 mip_ueip_bitpos)
 --     whether or not an interrupt is pending,
 -- and if so, the corresponding exception code
 
-fn_interrupt_pending :: Word64 -> Word64 -> Word64 -> Priv_Level -> Maybe Exc_Code
-
-fn_interrupt_pending  mstatus  mip  mie  priv =
+fn_interrupt_pending :: Word64 ->                    -- MISA
+                        Word64 ->                    -- MSTATUS
+                        Word64 ->                    -- MIP
+                        Word64 ->                    -- MIE
+                        Word64 ->                    -- MIDELEG
+                        Word64 ->                    -- SIDELEG
+                        Priv_Level -> Maybe Exc_Code
+fn_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv =
   let
-    -- From mie and mip, find which interrupts are pending
-    mi_p_and_e = (mip .&. mie)
-    (meip, seip, ueip) = (testBit  mi_p_and_e  mip_meip_bitpos,
-                          testBit  mi_p_and_e  mip_seip_bitpos,
-                          testBit  mi_p_and_e  mip_ueip_bitpos)
+    fn_interrupt_i_pending :: Exc_Code -> Bool
+    fn_interrupt_i_pending  ec =
+      let
+        i = (fromIntegral ec :: Int)
+        intr_pending = ((testBit  mip  i) && (testBit  mie  i))
+        handler_priv = if (testBit  mideleg  i) then
+                         if (misa_flag  misa  'U') then
+                           if (misa_flag  misa  'S') then
+                             -- System with M, S, U
+                             if (testBit  sideleg  i) then
+                               if (misa_flag  misa 'N') then
+                                 -- M->S->U delegation
+                                 u_Priv_Level
+                               else
+                                 -- Error: SIDELEG [i] should not be 1 if MISA.N is 0
+                                 m_Priv_Level
+                             else
+                               -- M->S delegation
+                               s_Priv_Level
+                           else
+                             -- System with M, U
+                             if (misa_flag  misa  'N') then
+                               -- M->U delegation
+                               u_Priv_Level
+                             else
+                               -- Error: MIDELEG [i] should not be 1 if MISA.N is 0
+                               m_Priv_Level
+                         else
+                           -- Error: System with M only; MIDELEG [i] should not be 1
+                           m_Priv_Level
+                       else
+                         -- no delegation
+                         m_Priv_Level
 
-    (mtip, stip, utip) = (testBit  mi_p_and_e  mip_mtip_bitpos,
-                          testBit  mi_p_and_e  mip_stip_bitpos,
-                          testBit  mi_p_and_e  mip_utip_bitpos)
+        xie :: Bool
+        xie | (priv == u_Priv_Level) = (testBit  mstatus  mstatus_uie_bitpos)
+            | (priv == s_Priv_Level) = (testBit  mstatus  mstatus_sie_bitpos)
+            | (priv == m_Priv_Level) = (testBit  mstatus  mstatus_mie_bitpos)
 
-    (msip, ssip, usip) = (testBit  mi_p_and_e  mip_msip_bitpos,
-                          testBit  mi_p_and_e  mip_ssip_bitpos,
-                          testBit  mi_p_and_e  mip_usip_bitpos)
+        glob_enabled :: Bool
+        glob_enabled = ((priv < handler_priv) || ((priv == handler_priv) && xie))
+      in
+        (intr_pending && glob_enabled)
 
-    -- Priotitize 'external' > 'software' > 'timer'
-    exc_code_m | meip = exc_code_m_external_interrupt
-               | msip = exc_code_m_software_interrupt
-               | mtip = exc_code_m_timer_interrupt
-
-    exc_code_s | seip = exc_code_s_external_interrupt
-               | ssip = exc_code_s_software_interrupt
-               | stip = exc_code_s_timer_interrupt
-
-    exc_code_u | ueip = exc_code_u_external_interrupt
-               | usip = exc_code_u_software_interrupt
-               | utip = exc_code_u_timer_interrupt
-
-    mstatus_mie = testBit  mstatus  mstatus_mie_bitpos
-    mstatus_sie = testBit  mstatus  mstatus_sie_bitpos
-    mstatus_uie = testBit  mstatus  mstatus_uie_bitpos
-
-    m_exc_code | ((priv == m_Priv_Level) && mstatus_mie && (meip || mtip || msip)) = Just exc_code_m
-               | ((priv == m_Priv_Level) && mstatus_mie && (seip || stip || ssip)) = Just exc_code_s
-               | ((priv == m_Priv_Level) && mstatus_mie && (ueip || utip || usip)) = Just exc_code_u
-
-               -- TODO: the following should use 'sstatus', not 'mstatus'?
-               | ((priv == s_Priv_Level) && mstatus_sie && (seip || stip || ssip)) = Just exc_code_s
-               | ((priv == s_Priv_Level) && mstatus_sie && (ueip || utip || usip)) = Just exc_code_u
-
-               -- TODO: the following should use 'ustatus', not 'mstatus'?
-               | ((priv == u_Priv_Level) && mstatus_uie && (ueip || utip || usip)) = Just exc_code_u
-
-               | True                                                              = Nothing
+    -- Check all interrupts in the following decreasing priority order
+    m_ec | fn_interrupt_i_pending (exc_code_m_external_interrupt) = Just exc_code_m_external_interrupt
+         | fn_interrupt_i_pending (exc_code_m_software_interrupt) = Just exc_code_m_software_interrupt
+         | fn_interrupt_i_pending (exc_code_m_timer_interrupt)    = Just exc_code_m_timer_interrupt
+         | fn_interrupt_i_pending (exc_code_s_external_interrupt) = Just exc_code_s_external_interrupt
+         | fn_interrupt_i_pending (exc_code_s_software_interrupt) = Just exc_code_s_software_interrupt
+         | fn_interrupt_i_pending (exc_code_s_timer_interrupt)    = Just exc_code_s_timer_interrupt
+         | fn_interrupt_i_pending (exc_code_u_external_interrupt) = Just exc_code_u_external_interrupt
+         | fn_interrupt_i_pending (exc_code_u_software_interrupt) = Just exc_code_u_software_interrupt
+         | fn_interrupt_i_pending (exc_code_u_timer_interrupt)    = Just exc_code_u_timer_interrupt
+         | True                                                   = Nothing
   in
-    m_exc_code
+    m_ec
 
 -- ================================================================
 -- MCAUSE bit fields
