@@ -289,7 +289,7 @@ mstate_mem_fence_i  mstate = mstate
 mstate_mem_sfence_vm  :: Machine_State -> Word64 -> Word64 -> Machine_State
 mstate_mem_sfence_vm  mstate  rs1_val  rs2_val = mstate
 
--- Consume console output
+-- I/O: Consume console output
 
 mstate_mem_consume_console_output :: Machine_State -> (String, Machine_State)
 mstate_mem_consume_console_output  mstate =
@@ -300,7 +300,7 @@ mstate_mem_consume_console_output  mstate =
   in
     (console_output, mstate')
 
--- Read all console output
+-- I/O: Read all console output
 
 mstate_mem_read_all_console_output :: Machine_State -> String
 mstate_mem_read_all_console_output  mstate =
@@ -308,6 +308,29 @@ mstate_mem_read_all_console_output  mstate =
     mmio                      = f_mmio  mstate
   in
     mmio_read_all_console_output  mmio
+
+-- I/O: Tick mtime and set CSR MIP.MTIP (timer interrupt pending) if triggered
+
+mstate_mem_tick_mtime :: Machine_State -> Machine_State
+mstate_mem_tick_mtime  mstate =
+  let
+    -- Tick mtime
+    mmio         = f_mmio  mstate
+    (tip, mmio') = mmio_tick_mtime  mmio
+    mstate1      = mstate { f_mmio = mmio' }
+
+    -- Set MIP.MTIP if triggered a timer interrupt
+    mstate2 = if (tip) then
+                let
+                  mip     = mstate_csr_read  mstate1  csr_addr_mip
+                  mip'    = (mip .|. (shiftL  1  mip_mtip_bitpos))
+                  mstate' = mstate_csr_write  mstate1  csr_addr_mip  mip'
+                in
+                  mstate'
+              else
+                mstate1
+  in
+    mstate2
 
 -- ================================================================
 -- read/write misc debug convenience

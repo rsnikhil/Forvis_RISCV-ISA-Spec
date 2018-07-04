@@ -34,6 +34,7 @@ import Machine_State
 import Run_Program
 import Mem_Ops
 import Memory
+import MMIO
 
 -- ================================================================
 
@@ -187,14 +188,19 @@ run_file  rv  filename  num_instrs  verbosity = do
   -- Debug dump
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
 
+  -- Create the initial machine state with initial memory contents
   let initial_PC = 0x80000000
-      mem_base   = 0x80000000
-      mem_size   = 0x80000000    -- 1 GiB
-      addr_console_out_base = 0xff80
-      addr_console_out_size = 0x80
-      addr_ranges = [(mem_base, mem_base + mem_size),
-                     (addr_console_out_base, addr_console_out_base + addr_console_out_size)
-                    ]
+      -- Berkeley ISA tests are compiled in this range
+      mem_base = 0x80000000
+      mem_size = 0x10000000    -- 256 MiB
+
+      -- HTIF are memory-like locations used in the Berkeley tests
+      -- Note: one address (addr_htif_console_out = 0xfff4) in this range is treated as I/O
+      addr_base_htif = 0xff80
+      addr_size_htif = 0x80
+      addr_ranges    = [(mem_base,       mem_base + mem_size),
+                        (addr_base_htif, addr_base_htif + addr_size_htif)
+                       ] ++ mmio_addr_ranges
 
       mstate1    = mkMachine_State  rv  initial_PC  addr_ranges  addr_byte_list
 
@@ -203,6 +209,7 @@ run_file  rv  filename  num_instrs  verbosity = do
       -- Set verbosity: 0: quiet (only console out); 1: also instruction trace; 2: also CPU arch state
       mstate2 = mstate_verbosity_write  mstate1  verbosity
 
+  -- Run the program that is in memory, and report PASS/FAIL
   putStrLn ("Running program up to " ++ show (num_instrs) ++ " instructions")
   (exit_value, mstate3) <- run_program  num_instrs  m_tohost_addr  mstate2
 
@@ -214,11 +221,14 @@ run_file  rv  filename  num_instrs  verbosity = do
   -- When verbosity > 0 we repeat all console output here for
   -- convenience since console output would have been interleaved with
   -- trace messages and may have been difficult to read.
-
   when (verbosity > 0) (do
                            let all_console_output = mstate_mem_read_all_console_output  mstate3
                            putStrLn "All console output:"
                            putStr   (if (all_console_output == "") then "--none--\n" else all_console_output))
+
+  -- Info only: show final mtime
+  let (mem_result, _) = mstate_mem_read  mstate3  exc_code_load_access_fault  funct3_LD  addr_mtime
+  putStrLn ("Final value of mtime: " ++ show (mem_result))
 
   return exit_value
 

@@ -57,6 +57,14 @@ test_v2: $(EXE_FILE)
 test_hello: $(EXE_FILE)
 	./$(EXE_FILE)  --RV64  $(TEST_PROGRAMS)/MIT/rv64-hello
 
+.PHONY: test_hello_v1
+test_hello_v1: $(EXE_FILE)
+	./$(EXE_FILE)  --RV64  --verbosity 1  $(TEST_PROGRAMS)/MIT/rv64-hello
+
+.PHONY: test_hello_v2
+test_hello_v2: $(EXE_FILE)
+	./$(EXE_FILE)  --RV64  --verbosity 2  $(TEST_PROGRAMS)/MIT/rv64-hello
+
 # C program that does some computation and prints out a string of 0s and 1s
 .PHONY: test_thue
 test_thue: $(EXE_FILE)

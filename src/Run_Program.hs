@@ -103,34 +103,36 @@ mstate_mem_read_tohost  mstate  (Just tohost_addr) =
 -- ================================================================
 -- Fetch and execute an instruction (RV32 32b instr or RV32C 16b compressed instr)
 
--- First check if any interrupt is pending, and update the state to
--- the trap vector if so (so, fetched instr will be first in trap
--- vector).
+-- First tick mtime (which may register a timer interrupt).
+-- Then check if any interrupt is pending, and update the state to
+--     the trap vector if so (so, fetched instr will be first in trap
+--     vector).
 
 fetch_and_execute :: Machine_State -> IO  Machine_State
 fetch_and_execute  mstate = do
-  let verbosity = mstate_verbosity_read  mstate
+  let verbosity            = mstate_verbosity_read  mstate
+      mstate1              = mstate_mem_tick_mtime  mstate
+      (interrupt, mstate2) = take_interrupt_if_any  mstate1
 
-      (interrupt, mstate1) = take_interrupt_if_any  mstate
-
+  -- Debug-print when we take an interrupt
   when (interrupt)
     (do
         when (verbosity >= 1) (putStrLn  "Taking interrupt")
-        when (verbosity >  1) (mstate_print  "  "  mstate1))
+        when (verbosity >  1) (mstate_print  "  "  mstate2))
 
   -- Fetch an instruction
-  let pc                      = mstate_pc_read  mstate1
-      instret                 = mstate_csr_read  mstate1  csr_addr_minstret
-      (fetch_result, mstate2) = instr_fetch  mstate1
-      priv                    = mstate_priv_read  mstate2
+  let pc                      = mstate_pc_read  mstate2
+      instret                 = mstate_csr_read  mstate2  csr_addr_minstret
+      (fetch_result, mstate3) = instr_fetch  mstate2
+      priv                    = mstate_priv_read  mstate3
 
   case fetch_result of
     Fetch_Trap  ec -> (do
                           putStrLn ("Fetch Trap:" ++ show_trap_exc_code  ec)
-                          return mstate2)
+                          return mstate3)
     Fetch_C  u16 -> (do
                         -- Exec 'C' instruction
-                        let (mstate3, spec_name) = (exec_instr_C  mstate2  u16)
+                        let (mstate4, spec_name) = (exec_instr_C  mstate3  u16)
                         when (verbosity >= 1)
                           (do
                               putStr  ("inum:" ++ show (instret + 1))
@@ -138,11 +140,11 @@ fetch_and_execute  mstate = do
                               putStr  ("  instr.C 0x" ++ showHex u16 "")
                               putStr  ("  priv " ++ show (priv))
                               putStrLn ("  " ++ spec_name))
-                        when (verbosity > 1) (mstate_print  "  "  mstate3)
-                        return  mstate3)
+                        when (verbosity > 1) (mstate_print  "  "  mstate4)
+                        return  mstate4)
     Fetch    u32 -> (do
                         -- Exec 32b instruction
-                        let (mstate3, spec_name) = (exec_instr  mstate2  u32)
+                        let (mstate4, spec_name) = (exec_instr  mstate3  u32)
                         when (verbosity >= 1)
                           (do
                               putStr  ("inum:" ++ show (instret + 1))
@@ -150,7 +152,7 @@ fetch_and_execute  mstate = do
                               putStr  ("  instr 0x" ++ showHex u32 "")
                               putStr  ("  priv " ++ show (priv))
                               putStrLn ("  " ++ spec_name))
-                        when (verbosity > 1) (mstate_print  "  "  mstate3)
-                        return  mstate3)
+                        when (verbosity > 1) (mstate_print  "  "  mstate4)
+                        return  mstate4)
 
 -- ================================================================
