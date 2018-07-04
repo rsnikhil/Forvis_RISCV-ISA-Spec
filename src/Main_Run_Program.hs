@@ -14,7 +14,7 @@ module Main_Run_Program where
 
 import System.IO
 import System.Environment
-import System.Console.GetOpt    -- getOpt, usageInfo, ArgOrder, OptDescr
+import System.Console.GetOpt    -- getOpt, usageInfo, OptDescr
 import System.Exit
 
 import Control.Monad
@@ -46,7 +46,7 @@ main_run_program = do
   putStrLn "Type -h, -H or --help for help."
   progName <- getProgName
   args     <- getArgs
-  let (opts, filenames, unrecognizeds, errs) = getOpt' RequireOrder options args
+  let (opts, filenames, unrecognizeds, errs) = System.Console.GetOpt.getOpt'  RequireOrder  options  args
   {- DEBUG
       putStrLn ("Opts " ++ show opts)
       putStrLn ("Other " ++ show extras)
@@ -57,7 +57,7 @@ main_run_program = do
   let usage_header     = "Usage: " ++ progName ++ "  <flags>  <executable files>\n" ++
                          "  <executable files>:  one or more RISC-V ELF and/or Verilog mem-hex files\n" ++
                          "  <flags>:"
-      usage_string     = usageInfo  usage_header   options
+      usage_string     = System.Console.GetOpt.usageInfo  usage_header   options
       has_help         = elem  Opt_Help  opts
       errs2            = [ err      | Opt_Err err <- opts]
       vs               = [ v | Opt_Verbosity v <- opts ]
@@ -105,7 +105,7 @@ main_run_program = do
     else
     do
       let rv = if rv32 then RV32 else RV64
-      retval <- run_files  rv  filenames  num_instrs  verbosity
+      retval <- run_program_from_files  rv  filenames  num_instrs  verbosity
       exitWith (if retval == 0 then
                    ExitSuccess
                 else
@@ -140,13 +140,13 @@ data MyOpt = Opt_Help
 --        's' is a string is used in the 'usage' message as a place-holder
 --            for the option value string
 
-options :: [OptDescr MyOpt]
+options :: [System.Console.GetOpt.OptDescr  MyOpt]
 options =
-     [ Option ['h', 'H']  ["help"]       (NoArg  Opt_Help)                  "help"
-     , Option []          ["RV32"]       (NoArg  Opt_RV32)                  "executables are for RV32"
-     , Option []          ["RV64"]       (NoArg  Opt_RV64)                  "executables are for RV64"
-     , Option ['v']       ["verbosity"]  (ReqArg to_Opt_Verbosity  "<int>") "0 quiet, 1 instr trace, 2 more info"
-     , Option ['n']       ["num_instrs"] (ReqArg to_Opt_Num_Instrs "<int>") "max instrs executed (default 1,000,000)"
+     [ Option ['h', 'H'] ["help"]       (NoArg  Opt_Help)                  "help"
+     , Option []         ["RV32"]       (NoArg  Opt_RV32)                  "executables are for RV32"
+     , Option []         ["RV64"]       (NoArg  Opt_RV64)                  "executables are for RV64"
+     , Option ['v']      ["verbosity"]  (ReqArg to_Opt_Verbosity  "<int>") "0 quiet, 1 instr trace, 2 more info"
+     , Option ['n']      ["num_instrs"] (ReqArg to_Opt_Num_Instrs "<int>") "max instrs executed (default 1,000,000)"
      ]
 
 to_Opt_Verbosity :: String -> MyOpt
@@ -160,32 +160,22 @@ to_Opt_Num_Instrs s = case (readDec s) of
                         _        -> Opt_Err s
 
 -- ================================================================
--- Run all the RISC-V ELF/Hex programs in the list of file arguments
+-- Run RISC-V program specified in the ELF/Hex file arguments
 
-run_files :: RV -> [String] -> Int -> Int -> IO Int
-run_files  rv  (file:files)  num_instrs  verbosity = do
-    myreturn     <- run_file  rv  file  num_instrs  verbosity
-    othersreturn <- run_files  rv  files  num_instrs  verbosity
-    if  myreturn  /=  0
-      then  return  myreturn
-      else  return  othersreturn
-run_files _  []  _  _ = return 0
-
--- Run a single RISC-V ELF/Hex program in file argument
-
-run_file :: RV -> String -> Int -> Int -> IO Int
-run_file  rv  filename  num_instrs  verbosity = do
-  putStrLn ("Running file: '" ++ filename ++ "' (" ++ show (rv) ++ ")")
-  (m_tohost_addr, addr_byte_list) <- read_program  filename
+run_program_from_files :: RV -> [String] -> Int -> Int -> IO Int
+run_program_from_files  rv  files  num_instrs  verbosity = do
+  -- Read the ELF and Memhex files
+  (m_tohost_addr, addr_byte_list) <- read_files  files
   let min_addr = minimum (map  (\(x,y) -> x)  addr_byte_list)
       max_addr = maximum (map  (\(x,y) -> x)  addr_byte_list)
 
+  -- Print for info
   putStrLn ("Initial addr range: " ++ (showHex min_addr "") ++ ".." ++ (showHex max_addr ""))
   case m_tohost_addr of
     Nothing -> putStrLn ("tohost addr: none")
     Just x  -> putStrLn ("tohost addr: " ++ showHex  x  "")
 
-  -- Debug dump
+  -- Debug only: dump mem
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
 
   -- Create the initial machine state with initial memory contents
@@ -202,12 +192,10 @@ run_file  rv  filename  num_instrs  verbosity = do
                         (addr_base_htif, addr_base_htif + addr_size_htif)
                        ] ++ mmio_addr_ranges
 
-      mstate1    = mkMachine_State  rv  initial_PC  addr_ranges  addr_byte_list
-
-      -- dump_mem  mstate1  0x80002000  0x80002010
+      mstate1        = mkMachine_State  rv  initial_PC  addr_ranges  addr_byte_list
 
       -- Set verbosity: 0: quiet (only console out); 1: also instruction trace; 2: also CPU arch state
-      mstate2 = mstate_verbosity_write  mstate1  verbosity
+      mstate2        = mstate_verbosity_write  mstate1  verbosity
 
   -- Run the program that is in memory, and report PASS/FAIL
   putStrLn ("Running program up to " ++ show (num_instrs) ++ " instructions")
@@ -216,34 +204,58 @@ run_file  rv  filename  num_instrs  verbosity = do
   if (exit_value == 0)
     then putStr  "PASS"
     else putStr  ("FAIL: test " ++ show exit_value)
-  putStrLn ("  file: '" ++ filename ++ "' (" ++ show (rv) ++ ")")
+  -- putStrLn ("  file: '" ++ filename ++ "' (" ++ show (rv) ++ ")")
+  putStr ("  Files ("  ++ show (rv) ++ "): ")
+  mapM_ (\filename -> putStrLn (" '" ++ filename ++ "'"))  files
 
   -- When verbosity > 0 we repeat all console output here for
   -- convenience since console output would have been interleaved with
   -- trace messages and may have been difficult to read.
   when (verbosity > 0) (do
                            let all_console_output = mstate_mem_read_all_console_output  mstate3
-                           putStrLn "All console output:"
+                           putStrLn "Repeating all console output:"
                            putStr   (if (all_console_output == "") then "--none--\n" else all_console_output))
 
   -- Info only: show final mtime
   let (mem_result, _) = mstate_mem_read  mstate3  exc_code_load_access_fault  funct3_LD  addr_mtime
-  putStrLn ("Final value of mtime: " ++ show (mem_result))
+  case mem_result of
+    Mem_Result_Ok   t -> putStrLn ("Final value of mtime: " ++ show t)
+    Mem_Result_Err  _ -> return ()
 
   return exit_value
-
+  
 -- ================================================================
--- Read an RISC-V ELF/Hex file and return a memory (list of (addr,byte))
+-- Read a list of ELF or Memhex files
+-- and return possibly a 'tohost' address
+--        and memory contents (list of (addr, byte))
+-- If more than one file contains a 'tohost' addr, the first one is returned
 
-default_tohost_addr :: Word64
-default_tohost_addr = 0x80001000
+read_files :: [String] -> IO (Maybe Word64, [(Int, Word8)])
+read_files  []           = return (Nothing, [])
+read_files  (file:files) = do
+  (m_tohost_addr_1, mem_contents_1) <- read_file   file
+  (m_tohost_addr_2, mem_contents_2) <- read_files  files
 
-read_program :: String -> IO (Maybe Word64, [(Int, Word8)])
-read_program filename = do
+  putStrLn ("Reading file: " ++ file ++ "; m_tohost_addr = " ++ show m_tohost_addr_1)
+
+  let mem_contents = mem_contents_1 ++ mem_contents_2
+  case (m_tohost_addr_1, m_tohost_addr_2) of
+    (Nothing, _) -> return (m_tohost_addr_2, mem_contents)
+    (Just a1, _) -> return (m_tohost_addr_1, mem_contents)
+
+-- ----------------
+-- Read a single ELF or Memhex file
+-- and return possibly a 'tohost' address
+--        and memory contents (list of (addr, byte))
+
+-- Berkeleley ISA tests typically have tohost_addr = (0x80001000 :: Word64)
+
+read_file :: String -> IO (Maybe Word64, [(Int, Word8)])
+read_file filename = do
   if (".hex" `isSuffixOf` filename)
     then (do
              mem <- read_hex_file  filename
-             return (Just default_tohost_addr, mem))
+             return (Nothing, mem))
     else (do
              mem <- read_elf  filename
              m_tohost_addr <- read_elf_symbol  "tohost"  filename
