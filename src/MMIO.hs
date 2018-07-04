@@ -38,11 +38,15 @@ is_IO_addr  addr = (addr == addr_console_out)
 -- This is a private internal representation that can be changed at
 -- will; only the exported API can be used by clients.
 
-data MMIO = MMIO { f_console_out :: String
+-- 'f_console_out_a' is console output that has already been consumed and printed
+-- 'f_console_out_b' is console output that nas not yet been consumed and printed
+
+data MMIO = MMIO { f_console_out_a :: String,
+                   f_console_out_b :: String
                  }
 
 mkMMIO :: MMIO
-mkMMIO = MMIO []
+mkMMIO = MMIO { f_console_out_a = [],  f_console_out_b = [] }
 
 -- ================================================================
 -- Read data from MMIO
@@ -61,9 +65,9 @@ mmio_write  mmio  funct3  addr  val =
   if (addr == addr_console_out) then
     let
       -- Console output
-      console_out = f_console_out  mmio
-      char        = chr (fromIntegral val)
-      mmio'       = mmio { f_console_out = console_out ++ [char] }
+      console_out_b = f_console_out_b  mmio
+      char          = chr (fromIntegral val)
+      mmio'         = mmio { f_console_out_b = console_out_b ++ [char] }
     in
       (Mem_Result_Ok 0, mmio')
 
@@ -87,9 +91,22 @@ mmio_amo  mmio  addr  funct3  msbs5  aq  rl  val =
 mmio_consume_console_output :: MMIO -> (String, MMIO)
 mmio_consume_console_output  mmio =
   let
-    console_output = f_console_out  mmio
-    mmio' = MMIO { f_console_out = "" }
+    console_output_a = f_console_out_a  mmio
+    console_output_b = f_console_out_b  mmio
+    mmio' = MMIO { f_console_out_a = console_output_a ++ console_output_b,
+                   f_console_out_b = "" }
   in
-    (console_output, mmio')
+    (console_output_b, mmio')
+
+-- ================================================================
+-- Read all console output
+
+mmio_read_all_console_output :: MMIO -> String
+mmio_read_all_console_output  mmio =
+  let
+    console_output_a = f_console_out_a  mmio
+    console_output_b = f_console_out_b  mmio
+  in
+    console_output_a ++ console_output_b
 
 -- ================================================================

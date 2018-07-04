@@ -16,6 +16,8 @@ import System.IO
 import System.Environment
 import System.Console.GetOpt    -- getOpt, usageInfo, ArgOrder, OptDescr
 import System.Exit
+
+import Control.Monad
 import Data.Int
 import Data.List
 import Data.Word
@@ -209,10 +211,14 @@ run_file  rv  filename  num_instrs  verbosity = do
     else putStr  ("FAIL: test " ++ show exit_value)
   putStrLn ("  file: '" ++ filename ++ "' (" ++ show (rv) ++ ")")
 
-  let (console_output, mstate4) = mstate_mem_consume_console_output  mstate3
+  -- When verbosity > 0 we repeat all console output here for
+  -- convenience since console output would have been interleaved with
+  -- trace messages and may have been difficult to read.
 
-  putStrLn "Console output:"
-  putStr   (if (console_output == "") then "--none--\n" else console_output)
+  when (verbosity > 0) (do
+                           let all_console_output = mstate_mem_read_all_console_output  mstate3
+                           putStrLn "All console output:"
+                           putStr   (if (all_console_output == "") then "--none--\n" else all_console_output))
 
   return exit_value
 

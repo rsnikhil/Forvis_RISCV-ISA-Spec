@@ -289,7 +289,7 @@ mstate_mem_fence_i  mstate = mstate
 mstate_mem_sfence_vm  :: Machine_State -> Word64 -> Word64 -> Machine_State
 mstate_mem_sfence_vm  mstate  rs1_val  rs2_val = mstate
 
--- Consuming console output
+-- Consume console output
 
 mstate_mem_consume_console_output :: Machine_State -> (String, Machine_State)
 mstate_mem_consume_console_output  mstate =
@@ -299,6 +299,15 @@ mstate_mem_consume_console_output  mstate =
     mstate' = mstate { f_mmio = mmio' }
   in
     (console_output, mstate')
+
+-- Read all console output
+
+mstate_mem_read_all_console_output :: Machine_State -> String
+mstate_mem_read_all_console_output  mstate =
+  let
+    mmio                      = f_mmio  mstate
+  in
+    mmio_read_all_console_output  mmio
 
 -- ================================================================
 -- read/write misc debug convenience

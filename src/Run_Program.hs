@@ -67,17 +67,26 @@ run_program  maxinstrs  m_tohost_addr  mstate = do
 
     -- Fetch-and-execute instruction and continue
     else (do
+             -- Fetch and execute one instruction (may be 0 instrs if
+             -- recognize interrupt and just set up exception handler)
              mstate2 <- fetch_and_execute  mstate1
+
+             -- Consume and print out new console output, if any
+             let (console_output, mstate3) = mstate_mem_consume_console_output  mstate2
+             when (console_output /= "") (putStr  console_output)
+
+             -- Continue
              let pc1 = mstate_pc_read  mstate1
                  pc2 = mstate_pc_read  mstate2
-             -- Loop (tail recursive) for the next instr
              if (pc1 == pc2)
                then (do
+                        -- For simulation debugging only: stop on self loop
                         putStrLn ("Self-loop at PC " ++ (showHex pc1 "") ++
                                   "; instret = " ++ show instret ++ "; exiting")
-                        return (0, mstate2))
+                        return (0, mstate3))
                else (do
-                        run_program  maxinstrs  m_tohost_addr  mstate2))
+                        -- Loop (tail recursive) for the next instr
+                        run_program  maxinstrs  m_tohost_addr  mstate3))
 
 -- Read the word in mem [tohost_addr], if possible
 
