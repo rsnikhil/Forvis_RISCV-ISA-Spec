@@ -1,9 +1,8 @@
 Type -h, -H or --help for help.
-Running file: '/home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-hello' (RV64)
-Initial addr range: 80000000..80002007
-tohost addr: none
 Running program up to 1000000 instructions
-Self-loop at PC 80000088; instret = 446; exiting
-PASS  file: '/home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-hello' (RV64)
-Console output:
 Hello, world!
+Self-loop at PC 80000088; instret = 451; exiting
+PASS  Files (RV64): 
+    ../Test_Programs/boot_ROM_RV64.hex32
+    /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-hello
+Final value of mtime: 453

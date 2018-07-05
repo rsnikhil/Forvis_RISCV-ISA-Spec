@@ -166,30 +166,29 @@ run_program_from_files :: RV -> [String] -> Int -> Int -> IO Int
 run_program_from_files  rv  files  num_instrs  verbosity = do
   -- Read the ELF and Memhex files
   (m_tohost_addr, addr_byte_list) <- read_files  files
-  let min_addr = minimum (map  (\(x,y) -> x)  addr_byte_list)
-      max_addr = maximum (map  (\(x,y) -> x)  addr_byte_list)
-
-  -- Print for info
-  putStrLn ("Initial addr range: " ++ (showHex min_addr "") ++ ".." ++ (showHex max_addr ""))
-  case m_tohost_addr of
-    Nothing -> putStrLn ("tohost addr: none")
-    Just x  -> putStrLn ("tohost addr: " ++ showHex  x  "")
 
   -- Debug only: dump mem
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
 
   -- Create the initial machine state with initial memory contents
-  let initial_PC = 0x80000000
+  let initial_PC = 0x1000
+      -- initial_PC = 0x80000000
+
+      -- Boot ROM addr range
+      addr_base_boot = 0x1000
+      addr_size_boot = 0x1000
+
       -- Berkeley ISA tests are compiled in this range
-      mem_base = 0x80000000
-      mem_size = 0x10000000    -- 256 MiB
+      addr_base_mem = 0x80000000
+      addr_size_mem = 0x10000000    -- 256 MiB
 
       -- HTIF are memory-like locations used in the Berkeley tests
       -- Note: one address (addr_htif_console_out = 0xfff4) in this range is treated as I/O
       addr_base_htif = 0xff80
       addr_size_htif = 0x80
-      addr_ranges    = [(mem_base,       mem_base + mem_size),
-                        (addr_base_htif, addr_base_htif + addr_size_htif)
+      addr_ranges    = [(addr_base_boot,  addr_base_boot + addr_size_boot),
+                        (addr_base_mem,   addr_base_mem  + addr_size_mem),
+                        (addr_base_htif,  addr_base_htif + addr_size_htif)
                        ] ++ mmio_addr_ranges
 
       mstate1        = mkMachine_State  rv  initial_PC  addr_ranges  addr_byte_list
@@ -204,9 +203,8 @@ run_program_from_files  rv  files  num_instrs  verbosity = do
   if (exit_value == 0)
     then putStr  "PASS"
     else putStr  ("FAIL: test " ++ show exit_value)
-  -- putStrLn ("  file: '" ++ filename ++ "' (" ++ show (rv) ++ ")")
-  putStr ("  Files ("  ++ show (rv) ++ "): ")
-  mapM_ (\filename -> putStrLn (" '" ++ filename ++ "'"))  files
+  putStrLn ("  Files ("  ++ show (rv) ++ "): ")
+  mapM_ (\filename -> putStrLn ("    " ++ filename))  files
 
   -- When verbosity > 0 we repeat all console output here for
   -- convenience since console output would have been interleaved with
@@ -233,10 +231,9 @@ run_program_from_files  rv  files  num_instrs  verbosity = do
 read_files :: [String] -> IO (Maybe Word64, [(Int, Word8)])
 read_files  []           = return (Nothing, [])
 read_files  (file:files) = do
+  -- putStrLn ("Reading file " ++ file)
   (m_tohost_addr_1, mem_contents_1) <- read_file   file
   (m_tohost_addr_2, mem_contents_2) <- read_files  files
-
-  putStrLn ("Reading file: " ++ file ++ "; m_tohost_addr = " ++ show m_tohost_addr_1)
 
   let mem_contents = mem_contents_1 ++ mem_contents_2
   case (m_tohost_addr_1, m_tohost_addr_2) of
@@ -252,14 +249,34 @@ read_files  (file:files) = do
 
 read_file :: String -> IO (Maybe Word64, [(Int, Word8)])
 read_file filename = do
-  if (".hex" `isSuffixOf` filename)
-    then (do
-             mem <- read_hex_file  filename
-             return (Nothing, mem))
-    else (do
-             mem <- read_elf  filename
-             m_tohost_addr <- read_elf_symbol  "tohost"  filename
-             return (m_tohost_addr, mem))
+  (m_tohost_addr, addr_byte_list) <- do
+    if (".hex8"  `isSuffixOf`  filename)
+      then (do
+               mem <- read_hex8_file  filename
+               return (Nothing, mem))
+
+      else if (".hex32"  `isSuffixOf`  filename)
+      then (do
+               mem <- read_hex32_file  filename
+               return (Nothing, mem))
+
+      else (do
+               mem <- read_elf  filename
+               m_tohost_addr <- read_elf_symbol  "tohost"  filename
+               return (m_tohost_addr, mem))
+
+  let min_addr = minimum (map  (\(x,y) -> x)  addr_byte_list)
+      max_addr = maximum (map  (\(x,y) -> x)  addr_byte_list)
+
+  -- Print file info
+  {-
+  putStrLn ("    File addr range: " ++ (showHex min_addr "") ++ ".." ++ (showHex max_addr ""))
+  case m_tohost_addr of
+    Nothing -> putStrLn ("    tohost addr: none")
+    Just x  -> putStrLn ("    tohost addr: " ++ showHex  x  "")
+  -}
+
+  return (m_tohost_addr, addr_byte_list)
 
 -- ================================================================
 -- For debugging

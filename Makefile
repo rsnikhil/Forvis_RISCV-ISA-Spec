@@ -25,7 +25,7 @@ TMP_DIR  = tmp_haskell
 .PHONY: exe
 exe:
 	mkdir -p  $(TMP_DIR)
-	ghc  -o  $(EXE_FILE)  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  Main
+	ghc  -o  $(EXE_FILE)  -g  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  Main
 
 # ================================================================
 # Running a sample ISA test
@@ -39,15 +39,21 @@ N = 100000
 
 .PHONY: test
 test: $(EXE_FILE)
-	./$(EXE_FILE)  --$(SAMPLE_ISA_TEST_RV)  --n $(N)      $(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
+	./$(EXE_FILE)  --$(SAMPLE_ISA_TEST_RV)  --n $(N) \
+		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
 .PHONY: test_v1
 test_v1: $(EXE_FILE)
-	./$(EXE_FILE)  --$(SAMPLE_ISA_TEST_RV)  --n $(N)  --verbosity 1  $(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
+	./$(EXE_FILE)  --$(SAMPLE_ISA_TEST_RV)  --n $(N)  --verbosity 1  \
+		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
 .PHONY: test_v2
 test_v2: $(EXE_FILE)
-	./$(EXE_FILE)  --$(SAMPLE_ISA_TEST_RV)  --n $(N)  --verbosity 2  $(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
+	./$(EXE_FILE)  --$(SAMPLE_ISA_TEST_RV)  --n $(N)  --verbosity 2  \
+		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
 # ================================================================
 # Running sample C programs compiled by gcc to ELF files
@@ -55,20 +61,28 @@ test_v2: $(EXE_FILE)
 # Standard C program that prints "Hello World!\n"
 .PHONY: test_hello
 test_hello: $(EXE_FILE)
-	./$(EXE_FILE)  --RV64  $(TEST_PROGRAMS)/MIT/rv64-hello
+	./$(EXE_FILE)  --RV64  \
+		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/MIT/rv64-hello
 
 .PHONY: test_hello_v1
 test_hello_v1: $(EXE_FILE)
-	./$(EXE_FILE)  --RV64  --verbosity 1  $(TEST_PROGRAMS)/MIT/rv64-hello
+	./$(EXE_FILE)  --RV64  --verbosity 1  \
+		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/MIT/rv64-hello
 
 .PHONY: test_hello_v2
 test_hello_v2: $(EXE_FILE)
-	./$(EXE_FILE)  --RV64  --verbosity 2  $(TEST_PROGRAMS)/MIT/rv64-hello
+	./$(EXE_FILE)  --RV64  --verbosity 2  \
+		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/MIT/rv64-hello
 
 # C program that does some computation and prints out a string of 0s and 1s
 .PHONY: test_thue
 test_thue: $(EXE_FILE)
-	./$(EXE_FILE)  --RV64  $(TEST_PROGRAMS)/MIT/rv64-thuemorse
+	./$(EXE_FILE)  --RV64  \
+		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/MIT/rv64-thuemorse
 
 # ================================================================
 # Cleanup

@@ -93,17 +93,6 @@ def do_regular_file_function (level, dirname, basename, logs_path):
     for x in ignore_list:
         if basename.find (x) != -1: return
 
-#    if basename.find (".")      != -1: return
-#    if basename.find ("-v-")    != -1: return    # Virtual Mem not yet implemented
-#    if basename.find ("rv32uc") != -1: return    # C not yet implemented
-#    if basename.find ("rv32uf") != -1: return    # Floating Point not yet implemented
-#    if basename.find ("rv32ud") != -1: return    # Floating Point not yet implemented
-#    if basename.find ("rv32si") != -1: return    # S Privilege not yet implemented
-#    if basename.find ("rv64uc") != -1: return    # C not yet implemented
-#    if basename.find ("rv64uf") != -1: return    # Floating Point not yet implemented
-#    if basename.find ("rv64ud") != -1: return    # Floating Point not yet implemented
-#    if basename.find ("rv64si") != -1: return    # S Privilege not yet implemented
-
     rv = None
     if basename.find ("32") != -1:
         rv = "--RV32"
@@ -119,13 +108,9 @@ def do_regular_file_function (level, dirname, basename, logs_path):
     for j in range (level): prefix = "  " + prefix
     # sys.stdout.write ("{0}{1} ACTION:    {2}\n".format (prefix, level, elf_file))
 
-    command = [forvis_exe, rv, elf_file]
+    command = [forvis_exe,  rv,  "../Test_Programs/boot_ROM_RV64.hex32",  elf_file]
 
     sys.stdout.write ("Test {0}\n".format (basename))
-    # for s in command:
-    #    sys.stdout.write ("  ")
-    #    sys.stdout.write (s)
-    # sys.stdout.write ("\n")
 
     # Run command command as a sub-process
     completed_process = subprocess.run (args = command,

@@ -1,9 +1,7 @@
 Type -h, -H or --help for help.
-Running file: '/home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-srliw' (RV64)
-Initial addr range: 80000000..80001047
-tohost addr: 80001000
 Running program up to 1000000 instructions
-<tohost> = 1 (instret = 251); exiting
-PASS  file: '/home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-srliw' (RV64)
-Console output:
---none--
+<tohost> = 1 (instret = 256); exiting
+PASS  Files (RV64): 
+    ../Test_Programs/boot_ROM_RV64.hex32
+    /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-srliw
+Final value of mtime: 257
