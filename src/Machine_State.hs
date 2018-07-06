@@ -27,6 +27,7 @@ import CSR_File
 import Mem_Ops
 import Memory
 import MMIO
+import Address_Map
 
 -- ================================================================
 -- Architectural State data structure.
@@ -314,23 +315,35 @@ mstate_mem_read_all_console_output  mstate =
 mstate_mem_tick_mtime :: Machine_State -> Machine_State
 mstate_mem_tick_mtime  mstate =
   let
-    -- Tick mtime
-    mmio         = f_mmio  mstate
-    (tip, mmio') = mmio_tick_mtime  mmio
-    mstate1      = mstate { f_mmio = mmio' }
+    -- Tick CSR MCYCLE
+    rv           = f_rv    mstate
+    csrs         = f_csrs  mstate
+    mcycle       = csr_read   rv  csrs  csr_addr_mcycle
+    csrs1        = csr_write  rv  csrs  csr_addr_mcycle  (mcycle + 1)
 
-    -- Set MIP.MTIP if triggered a timer interrupt
-    mstate2 = if (tip) then
-                let
-                  mip     = mstate_csr_read  mstate1  csr_addr_mip
-                  mip'    = (mip .|. (shiftL  1  mip_mtip_bitpos))
-                  mstate' = mstate_csr_write  mstate1  csr_addr_mip  mip'
-                in
-                  mstate'
-              else
-                mstate1
+    -- Tick memory-mapped location MTIME
+    mmio         = f_mmio  mstate
+    (tip, mmio1) = mmio_tick_mtime  mmio
+
+    -- Set MIP.MTIP if ticking MTIME triggered a timer interrupt
+    csrs2        = if (tip) then
+                     (let
+                         mip   = csr_read   rv  csrs1  csr_addr_mip
+                         mip'  = (mip .|. (shiftL  1  mip_mtip_bitpos))
+                      in
+                        csr_write  rv  csrs1  csr_addr_mip  mip')
+                   else
+                     csrs1
+
+    mstate1      = mstate { f_mmio = mmio1, f_csrs = csrs2 }
   in
-    mstate2
+    mstate1
+
+-- I/O: convenience function to read mtime
+-- (instead of using mstate_mem_read, which can raise exceptions etc.)
+
+mstate_mem_read_mtime :: Machine_State -> Word64
+mstate_mem_read_mtime  mstate = mmio_read_mtime  (f_mmio  mstate)
 
 -- ================================================================
 -- read/write misc debug convenience

@@ -214,13 +214,16 @@ csr_read  rv  (CSR_File dm)  csr_addr =
     ustatus_mask = if (rv == RV32) then ustatus_mask_RV32 else ustatus_mask_RV64
     sstatus_mask = if (rv == RV32) then sstatus_mask_RV32 else sstatus_mask_RV64
 
-    val | (csr_addr == csr_addr_ustatus) = (mstatus .&. ustatus_mask)
+    val | (csr_addr == csr_addr_ustatus)  = (mstatus .&. ustatus_mask)
+        | (csr_addr == csr_addr_uip)      = (mip .&. uip_mask)
+        | (csr_addr == csr_addr_uie)      = (mie .&. uip_mask)
+        | (csr_addr == csr_addr_cycle)    = fromMaybe  0  (Data_Map.lookup  csr_addr_mcycle    dm)
+        | (csr_addr == csr_addr_cycleh)   = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_mcycle    dm))  32)
+        | (csr_addr == csr_addr_instret)  = fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm)
+        | (csr_addr == csr_addr_instreth) = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm))  32)
+
         | (csr_addr == csr_addr_sstatus) = (mstatus .&. sstatus_mask)
-
-        | (csr_addr == csr_addr_uip)     = (mip .&. uip_mask)
         | (csr_addr == csr_addr_sip)     = (mip .&. sip_mask)
-
-        | (csr_addr == csr_addr_uie)     = (mie .&. uip_mask)
         | (csr_addr == csr_addr_sie)     = (mie .&. sip_mask)
 
         | True                           = fromMaybe  0  (Data_Map.lookup  csr_addr  dm)

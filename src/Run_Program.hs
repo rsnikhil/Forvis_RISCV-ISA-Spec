@@ -68,12 +68,20 @@ run_program  maxinstrs  m_tohost_addr  mstate = do
     -- Fetch-and-execute instruction and continue
     else (do
              -- Fetch and execute one instruction (may be 0 instrs if
-             -- recognize interrupt and just set up exception handler)
+             -- exception on fetch, which just sets up exception handler
+             -- for next fetch-and-execute)
              mstate2 <- fetch_and_execute  mstate1
 
              -- Consume and print out new console output, if any
              let (console_output, mstate3) = mstate_mem_consume_console_output  mstate2
-             when (console_output /= "") (putStr  console_output)
+             when (console_output /= "") (do
+                                             let mtime = mstate_mem_read_mtime  mstate3
+                                                 ch    = last  console_output
+                                                 chs   = if ((last  console_output) == '\n') then
+                                                           (console_output ++ "MTIME:" ++ (show  mtime) ++ "  ")
+                                                         else
+                                                           console_output
+                                             putStr  chs)
 
              -- Continue
              let pc1 = mstate_pc_read  mstate1

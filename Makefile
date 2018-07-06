@@ -25,7 +25,7 @@ TMP_DIR  = tmp_haskell
 .PHONY: exe
 exe:
 	mkdir -p  $(TMP_DIR)
-	ghc  -o  $(EXE_FILE)  -g  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  Main
+	ghc  -o  $(EXE_FILE)  -O2  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  Main
 
 # ================================================================
 # Running a sample ISA test
@@ -83,6 +83,13 @@ test_thue: $(EXE_FILE)
 	./$(EXE_FILE)  --RV64  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-thuemorse
+
+# Linux kernel
+.PHONY: test_linux_boot
+test_linux_boot: $(EXE_FILE)
+	./$(EXE_FILE)  --RV64  -n 200000000 \
+		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/Linux_kernel/rv64-vmlinux.elf
 
 # ================================================================
 # Cleanup

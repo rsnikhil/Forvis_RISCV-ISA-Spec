@@ -18,6 +18,7 @@ import Bit_Manipulation
 import Arch_Defs
 import Machine_State
 import CSR_File
+import Address_Map
 import Virtual_Mem
 
 -- ================================================================ \begin_latex{instr_fetch}
@@ -896,9 +897,19 @@ spec_SYSTEM_CSRRW    mstate       instr =
 
     -- Read CSR only if rd is not 0
     old_csr_val = if (rd /= 0) then
-                    mstate_csr_read  mstate  csr_addr
+                    if (csr_addr == csr_addr_time) then
+                      let
+                        -- CSR TIME is a read-only shadow of MTIME,
+                        -- which is actually a memory-mapped location,
+                        -- not a CSR
+                        mtime = mstate_mem_read_mtime  mstate
+                      in
+                        mtime
+                    else
+                      mstate_csr_read  mstate  csr_addr
                   else
                     0    -- arbitrary; will be discarded (rd==0)
+
     rs1_val     = mstate_gpr_read  mstate  rs1
 
     new_csr_val | is_CSRRW  = rs1_val

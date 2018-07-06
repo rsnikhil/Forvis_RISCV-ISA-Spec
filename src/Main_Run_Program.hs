@@ -35,6 +35,7 @@ import Run_Program
 import Mem_Ops
 import Memory
 import MMIO
+import Address_Map
 
 -- ================================================================
 
@@ -171,40 +172,23 @@ run_program_from_files  rv  files  num_instrs  verbosity = do
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
 
   -- Create the initial machine state with initial memory contents
-  let initial_PC = 0x1000
-      -- initial_PC = 0x80000000
-
-      -- Boot ROM addr range
-      addr_base_boot = 0x1000
-      addr_size_boot = 0x1000
-
-      -- Berkeley ISA tests are compiled in this range
-      addr_base_mem = 0x80000000
-      addr_size_mem = 0x10000000    -- 256 MiB
-
-      -- HTIF are memory-like locations used in the Berkeley tests
-      -- Note: one address (addr_htif_console_out = 0xfff4) in this range is treated as I/O
-      addr_base_htif = 0xff80
-      addr_size_htif = 0x80
-      addr_ranges    = [(addr_base_boot,  addr_base_boot + addr_size_boot),
-                        (addr_base_mem,   addr_base_mem  + addr_size_mem),
-                        (addr_base_htif,  addr_base_htif + addr_size_htif)
-                       ] ++ mmio_addr_ranges
-
-      mstate1        = mkMachine_State  rv  initial_PC  addr_ranges  addr_byte_list
+  let mstate1        = mkMachine_State  rv  pc_reset_value  addr_ranges  addr_byte_list
 
       -- Set verbosity: 0: quiet (only console out); 1: also instruction trace; 2: also CPU arch state
       mstate2        = mstate_verbosity_write  mstate1  verbosity
 
   -- Run the program that is in memory, and report PASS/FAIL
-  putStrLn ("Running program up to " ++ show (num_instrs) ++ " instructions")
-  (exit_value, mstate3) <- run_program  num_instrs  m_tohost_addr  mstate2
+  putStrLn ("PC reset: 0x" ++ showHex  pc_reset_value "" ++
+            "; " ++ show (rv) ++ 
+            "; instret limit: " ++ show (num_instrs))
+  (exit_value, mstate3) <- run_program  num_instrs  m_tohost_addr  mstate2    -- For ISA tests, test_hello,
+  -- (exit_value, mstate3) <- run_program  num_instrs  Nothing  mstate2    -- For Linux
 
   if (exit_value == 0)
-    then putStr  "PASS"
-    else putStr  ("FAIL: test " ++ show exit_value)
-  putStrLn ("  Files ("  ++ show (rv) ++ "): ")
-  mapM_ (\filename -> putStrLn ("    " ++ filename))  files
+    then putStrLn  ("PASS")
+    else putStrLn  ("FAIL: test " ++ show exit_value)
+  -- putStrLn ("  Files")
+  -- mapM_ (\filename -> putStrLn ("    " ++ filename))  files
 
   -- When verbosity > 0 we repeat all console output here for
   -- convenience since console output would have been interleaved with
@@ -269,12 +253,11 @@ read_file filename = do
       max_addr = maximum (map  (\(x,y) -> x)  addr_byte_list)
 
   -- Print file info
-  {-
-  putStrLn ("    File addr range: " ++ (showHex min_addr "") ++ ".." ++ (showHex max_addr ""))
+  putStrLn ("Input file: " ++ filename)
+  putStrLn ("    Addr range: " ++ (showHex min_addr "") ++ ".." ++ (showHex max_addr ""))
   case m_tohost_addr of
     Nothing -> putStrLn ("    tohost addr: none")
     Just x  -> putStrLn ("    tohost addr: " ++ showHex  x  "")
-  -}
 
   return (m_tohost_addr, addr_byte_list)
 

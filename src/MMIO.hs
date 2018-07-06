@@ -19,49 +19,7 @@ import Numeric (showHex, readHex)
 
 import Arch_Defs
 import Mem_Ops
-
--- ================================================================
--- Memory-mapped IO defs
--- Trivial for now
-
--- Berkeley ISA tests use htif_console
-addr_htif_console_out :: Word64;    addr_htif_console_out = 0xfff4
-
--- Other programs and tests use a UART for console I/O
-addr_base_UART        :: Word64;    addr_base_UART = 10000 -- 0xC0000000
-addr_size_UART        :: Word64;    addr_size_UART = 0x80
-addr_UART_out         :: Word64;    addr_UART_out  = (addr_base_UART + 0)
-
--- Real-time counter
-addr_mtime            :: Word64;    addr_mtime     = 0x0200BFF8
-
--- Real-time timer-compare, for timer interrupts
-addr_mtimecmp         :: Word64;    addr_mtimecmp  = 0x02004000
-
--- Generation of software interrupts
-addr_msip             :: Word64;    addr_msip      = 0x02000000
-
--- Supported address ranges (part of the SoC address map)
-mmio_addr_ranges :: [ (Word64, Word64) ]
-mmio_addr_ranges = [ (addr_htif_console_out,  (addr_htif_console_out + 8)),
-                     (addr_base_UART,         (addr_base_UART        + addr_size_UART)),
-                     (addr_mtime,             (addr_mtime            + 8)),
-                     (addr_mtimecmp,          (addr_mtimecmp         + 8)),
-                     (addr_msip,              (addr_msip             + 8))
-                   ]
-
--- Check if the given addr is an I/O addr
-is_IO_addr :: Word64 -> Bool
-is_IO_addr  addr =
-  let
-    check :: [(Word64, Word64)] -> Bool
-    check  []                  = False
-    check  ((base,lim):ranges) = if ((base <= addr) && (addr < lim)) then
-                                   True
-                                 else
-                                   check  ranges
-  in
-    check  mmio_addr_ranges
+import Address_Map
 
 -- ================================================================
 -- IO subsystem representation
@@ -210,5 +168,11 @@ mmio_tick_mtime  mmio =
                           f_mtimecmp = mtimecmp' }
   in
     (interrupt, mmio')
+
+-- ================================================================
+-- Convenience function to read MTIME
+
+mmio_read_mtime :: MMIO -> Word64
+mmio_read_mtime  mmio = f_mtime  mmio
 
 -- ================================================================

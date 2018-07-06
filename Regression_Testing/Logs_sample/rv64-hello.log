@@ -1,8 +1,12 @@
 Type -h, -H or --help for help.
-Running program up to 1000000 instructions
+Input file: ../Test_Programs/boot_ROM_RV64.hex32
+    Addr range: 1000..1fff
+    tohost addr: none
+Input file: /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-hello
+    Addr range: 80000000..80002007
+    tohost addr: none
+PC reset: 0x1000; RV64; instret limit: 1000000
 Hello, world!
-Self-loop at PC 80000088; instret = 451; exiting
-PASS  Files (RV64): 
-    ../Test_Programs/boot_ROM_RV64.hex32
-    /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-hello
+MTIME:434  Self-loop at PC 80000088; instret = 451; exiting
+PASS
 Final value of mtime: 453
