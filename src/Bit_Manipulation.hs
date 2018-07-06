@@ -132,6 +132,14 @@ signExtend_s32_to_u64  s32 =
   in
     u64
 
+
+zeroExtend_u8_to_u32 :: Word8 -> Word32
+zeroExtend_u8_to_u32  u8 = fromIntegral u8
+
+zeroExtend_u16_to_u32 :: Word16 -> Word32
+zeroExtend_u16_to_u32  u16 = fromIntegral u16
+
+
 zeroExtend_u8_to_u64 :: Word8 -> Word64
 zeroExtend_u8_to_u64  u8 = fromIntegral u8
 
