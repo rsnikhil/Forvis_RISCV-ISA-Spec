@@ -38,52 +38,74 @@ data Fetch_Result = Fetch_Trap  Exc_Code
 instr_fetch :: Machine_State -> (Fetch_Result, Machine_State)
 instr_fetch  mstate =
   let                                                              -- \end_latex{instr_fetch}
-    rv                = mstate_rv_read  mstate
+    rv                = mstate_rv_read   mstate
     pc | (rv == RV32) = (mstate_pc_read  mstate .&. 0xFFFFFFFF)
-       | (rv == RV64) = mstate_pc_read  mstate
-
-    -- Read 2 instr bytes
-    -- with virtual-to-physical translation if necessary.
-    (result1, mstate1) = read_2_instr_bytes  mstate  pc
+       | (rv == RV64) = mstate_pc_read   mstate
+    misa              = mstate_csr_read  mstate  csr_addr_misa
   in
-    case result1 of
-      Mem_Result_Err  exc_code -> (let
-                                      tval    = pc
-                                      mstate2 = finish_trap  mstate1  exc_code  tval
-                                   in
-                                      (Fetch_Trap  exc_code, mstate2))
+    if (not  (misa_flag  misa  'C')) then
+      -- 32b instructions only
+      let
+        -- Read 4 instr bytes
+        -- with virtual-to-physical translation if necessary.
+        (result1, mstate1) = read_n_instr_bytes  mstate  4  pc
+      in
+        case result1 of
+          Mem_Result_Err  exc_code -> (let
+                                          tval    = pc
+                                          mstate2 = finish_trap  mstate1  exc_code  tval
+                                       in
+                                          (Fetch_Trap  exc_code,  mstate2))
+          Mem_Result_Ok  u64       -> (let
+                                          u32 = trunc_u64_to_u32  u64
+                                       in
+                                          (Fetch  u32,  mstate1))
 
-      Mem_Result_Ok   u64_lo ->
-        (let
-            u16_lo = trunc_u64_to_u16  u64_lo
-         in
-            if is_instr_C  u16_lo then
-              -- Is a 'C' instruction; done
-              (Fetch_C  u16_lo, mstate1)
-            else
-              (let
-                  -- Not a 'C' instruction; read remaining 2 instr bytes
-                  -- with virtual-to-physical translation if necessary.
-                  -- Note: pc and pc+2 may translate to non-contiguous pages.
-                  (result2, mstate2) = read_2_instr_bytes  mstate  (pc + 2)
-               in
-                  case result2 of
-                    Mem_Result_Err  exc_code -> (let
-                                                    tval = pc + 2
-                                                    mstate3 = finish_trap  mstate2  exc_code  tval
-                                                 in
-                                                   (Fetch_Trap  exc_code, mstate3))
-                    Mem_Result_Ok  u64_hi    -> (let
-                                                    u16_hi = trunc_u64_to_u16  u64_hi
-                                                    u32    = concat_u16_u16_to_u32  u16_lo  u16_hi
-                                                 in
-                                                   (Fetch  u32, mstate2))))
+    else
+      let
+        -- 16b and 32b instructions; read 2 instr bytes first
+        -- with virtual-to-physical translation if necessary.
+        (result1, mstate1) = read_n_instr_bytes  mstate  2  pc
+      in
+        case result1 of
+          Mem_Result_Err  exc_code -> (let
+                                          tval    = pc
+                                          mstate2 = finish_trap  mstate1  exc_code  tval
+                                       in
+                                         (Fetch_Trap  exc_code, mstate2))
 
-read_2_instr_bytes :: Machine_State -> Word64 -> (Mem_Result, Machine_State)
-read_2_instr_bytes  mstate  va =
+          Mem_Result_Ok   u64_lo ->
+            (let
+                u16_lo = trunc_u64_to_u16  u64_lo
+             in
+               if is_instr_C  u16_lo then
+                 -- Is a 'C' instruction; done
+                 (Fetch_C  u16_lo,  mstate1)
+               else
+                 (let
+                     -- Not a 'C' instruction; read remaining 2 instr bytes
+                     -- with virtual-to-physical translation if necessary.
+                     -- Note: pc and pc+2 may translate to non-contiguous pages.
+                     (result2, mstate2) = read_n_instr_bytes  mstate  2  (pc + 2)
+                  in
+                    case result2 of
+                      Mem_Result_Err  exc_code -> (let
+                                                      tval = pc + 2
+                                                      mstate3 = finish_trap  mstate2  exc_code  tval
+                                                   in
+                                                     (Fetch_Trap  exc_code, mstate3))
+                      Mem_Result_Ok  u64_hi    -> (let
+                                                      u16_hi = trunc_u64_to_u16  u64_hi
+                                                      u32    = concat_u16_u16_to_u32  u16_lo  u16_hi
+                                                   in
+                                                     (Fetch  u32,  mstate2))))
+
+read_n_instr_bytes :: Machine_State -> Int -> Word64 -> (Mem_Result, Machine_State)
+read_n_instr_bytes  mstate  n_bytes  va =
   let
     is_instr = True
     is_read  = True
+    funct3   = if (n_bytes == 4) then  funct3_LW  else  funct3_LH
 
     --     If Virtual Mem is active, translate pc to a physical addr
     (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
@@ -95,7 +117,7 @@ read_2_instr_bytes  mstate  va =
     (result2, mstate2) = case result1 of
                            Mem_Result_Err  exc_code -> (result1, mstate1)
                            Mem_Result_Ok   pa ->
-                             mstate_mem_read   mstate1  exc_code_instr_access_fault  funct3_LH  pa
+                             mstate_mem_read   mstate1  exc_code_instr_access_fault  funct3  pa
   in
     (result2, mstate2)
 

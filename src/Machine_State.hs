@@ -296,7 +296,7 @@ mstate_mem_consume_console_output :: Machine_State -> (String, Machine_State)
 mstate_mem_consume_console_output  mstate =
   let
     mmio                      = f_mmio  mstate
-    (console_output, mmio')   = mmio_consume_console_output  mmio
+    (console_output, mmio')   = mmio_deq_console_output  mmio
     mstate' = mstate { f_mmio = mmio' }
   in
     (console_output, mstate')
@@ -306,9 +306,9 @@ mstate_mem_consume_console_output  mstate =
 mstate_mem_read_all_console_output :: Machine_State -> String
 mstate_mem_read_all_console_output  mstate =
   let
-    mmio                      = f_mmio  mstate
+    mmio = f_mmio  mstate
   in
-    mmio_read_all_console_output  mmio
+    mmio_all_console_output  mmio
 
 -- I/O: Tick mtime and set CSR MIP.MTIP (timer interrupt pending) if triggered
 

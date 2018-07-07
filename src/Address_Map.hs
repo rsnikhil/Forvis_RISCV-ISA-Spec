@@ -62,9 +62,8 @@ memory_addr_ranges = [(addr_base_boot,  addr_base_boot + addr_size_boot),
 addr_htif_console_out :: Word64;    addr_htif_console_out = 0xfff4
 
 -- Other programs and tests use a UART for console I/O
-addr_base_UART = 0xC0000000            :: Word64
-addr_size_UART = 0x80                  :: Word64
-addr_UART_out  = (addr_base_UART + 0)  :: Word64
+addr_base_UART = 0xC0000000               :: Word64
+addr_size_UART = 0x80                     :: Word64
 
 -- Real-time counter
 addr_mtime     = 0x0200BFF8 :: Word64
