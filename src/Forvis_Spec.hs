@@ -124,8 +124,7 @@ read_n_instr_bytes  mstate  n_bytes  va =
 -- ================================================================
 -- LUI
 
-opcode_LUI :: InstrField
-opcode_LUI = 0x37    -- 7'b_01_101_11
+opcode_LUI = 0x37 :: InstrField   -- 7'b_01_101_11
 
 spec_LUI :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_LUI    mstate       instr =
@@ -147,8 +146,7 @@ spec_LUI    mstate       instr =
 -- ================================================================
 -- AUIPC
 
-opcode_AUIPC :: InstrField
-opcode_AUIPC = 0x17    -- 7'b_00_101_11
+opcode_AUIPC = 0x17 :: InstrField   -- 7'b_00_101_11
 
 spec_AUIPC :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_AUIPC    mstate       instr =
@@ -172,8 +170,7 @@ spec_AUIPC    mstate       instr =
 -- ================================================================
 -- JAL
 
-opcode_JAL :: InstrField
-opcode_JAL = 0x6F    -- 7'b_11_011_11
+opcode_JAL = 0x6F :: InstrField    -- 7'b_11_011_11
 
 spec_JAL :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_JAL    mstate       instr =
@@ -205,8 +202,7 @@ spec_JAL    mstate       instr =
 -- ================================================================
 -- JALR
 
-opcode_JALR :: InstrField
-opcode_JALR = 0x67    -- 7'b_11_001_11
+opcode_JALR = 0x67 :: InstrField    -- 7'b_11_001_11
 
 spec_JALR :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_JALR    mstate       instr =
@@ -241,15 +237,14 @@ spec_JALR    mstate       instr =
 -- ================================================================
 -- BRANCH: BEQ, BNE, BLT, BGE, BLTU, BGEU
 
-opcode_BRANCH :: InstrField
-opcode_BRANCH = 0x63    -- 7'b_11_000_11
+opcode_BRANCH = 0x63 :: InstrField    -- 7'b_11_000_11
 
-funct3_BEQ  :: InstrField;    funct3_BEQ  = 0x0     -- 3'b_000
-funct3_BNE  :: InstrField;    funct3_BNE  = 0x1     -- 3'b_001
-funct3_BLT  :: InstrField;    funct3_BLT  = 0x4     -- 3'b_100
-funct3_BGE  :: InstrField;    funct3_BGE  = 0x5     -- 3'b_101
-funct3_BLTU :: InstrField;    funct3_BLTU = 0x6     -- 3'b_110
-funct3_BGEU :: InstrField;    funct3_BGEU = 0x7     -- 3'b_111
+funct3_BEQ  = 0x0 :: InstrField     -- 3'b_000
+funct3_BNE  = 0x1 :: InstrField     -- 3'b_001
+funct3_BLT  = 0x4 :: InstrField     -- 3'b_100
+funct3_BGE  = 0x5 :: InstrField     -- 3'b_101
+funct3_BLTU = 0x6 :: InstrField     -- 3'b_110
+funct3_BGEU = 0x7 :: InstrField     -- 3'b_111
 
 spec_BRANCH :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_BRANCH    mstate       instr =
@@ -308,17 +303,16 @@ spec_BRANCH    mstate       instr =
 --    RV32: LB, LH, LW, LBU, LHU
 --    RV64: LWU, LD
 
-opcode_LOAD :: InstrField
-opcode_LOAD = 0x03    -- 7'b_00_000_11
+opcode_LOAD = 0x03 :: InstrField    -- 7'b_00_000_11
 
 -- Note: these are duplicates of defs in Mem_Ops.hs
-funct3_LB  :: InstrField;    funct3_LB  = 0x0     -- 3'b_000
-funct3_LH  :: InstrField;    funct3_LH  = 0x1     -- 3'b_001
-funct3_LW  :: InstrField;    funct3_LW  = 0x2     -- 3'b_010
-funct3_LD  :: InstrField;    funct3_LD  = 0x3     -- 3'b_011
-funct3_LBU :: InstrField;    funct3_LBU = 0x4     -- 3'b_100
-funct3_LHU :: InstrField;    funct3_LHU = 0x5     -- 3'b_101
-funct3_LWU :: InstrField;    funct3_LWU = 0x6     -- 3'b_110
+funct3_LB  = 0x0 :: InstrField     -- 3'b_000
+funct3_LH  = 0x1 :: InstrField     -- 3'b_001
+funct3_LW  = 0x2 :: InstrField     -- 3'b_010
+funct3_LD  = 0x3 :: InstrField     -- 3'b_011
+funct3_LBU = 0x4 :: InstrField     -- 3'b_100
+funct3_LHU = 0x5 :: InstrField     -- 3'b_101
+funct3_LWU = 0x6 :: InstrField     -- 3'b_110
 
 spec_LOAD :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_LOAD    mstate       instr =
@@ -385,14 +379,13 @@ spec_LOAD    mstate       instr =
 --    RV32: SB, SH, SW
 --    RV64: SD
 
-opcode_STORE :: InstrField
-opcode_STORE = 0x23    -- 7'b_01_000_11
+opcode_STORE = 0x23 :: InstrField    -- 7'b_01_000_11
 
 -- Note: these are duplicates of defs in Mem_Ops.hs
-funct3_SB :: InstrField;    funct3_SB = 0x0     -- 3'b_000
-funct3_SH :: InstrField;    funct3_SH = 0x1     -- 3'b_001
-funct3_SW :: InstrField;    funct3_SW = 0x2     -- 3'b_010
-funct3_SD :: InstrField;    funct3_SD = 0x3     -- 3'b_011
+funct3_SB = 0x0 :: InstrField     -- 3'b_000
+funct3_SH = 0x1 :: InstrField     -- 3'b_001
+funct3_SW = 0x2 :: InstrField     -- 3'b_010
+funct3_SD = 0x3 :: InstrField     -- 3'b_011
 
 spec_STORE :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_STORE    mstate       instr =
@@ -446,28 +439,27 @@ spec_STORE    mstate       instr =
 -- ================================================================
 -- OP_IMM: ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
 
-opcode_OP_IMM :: InstrField
-opcode_OP_IMM = 0x13    -- 7'b_00_100_11
+opcode_OP_IMM = 0x13 :: InstrField    -- 7'b_00_100_11
 
-funct3_ADDI  :: InstrField;    funct3_ADDI  = 0x0      -- 3'b_000
-funct3_SLTI  :: InstrField;    funct3_SLTI  = 0x2      -- 3'b_010
-funct3_SLTIU :: InstrField;    funct3_SLTIU = 0x3      -- 3'b_011
-funct3_XORI  :: InstrField;    funct3_XORI  = 0x4      -- 3'b_100
-funct3_ORI   :: InstrField;    funct3_ORI   = 0x6      -- 3'b_110
-funct3_ANDI  :: InstrField;    funct3_ANDI  = 0x7      -- 3'b_111
-funct3_SLLI  :: InstrField;    funct3_SLLI  = 0x1      -- 3'b_001
-funct3_SRLI  :: InstrField;    funct3_SRLI  = 0x5      -- 3'b_101
-funct3_SRAI  :: InstrField;    funct3_SRAI  = 0x5      -- 3'b_101
-
--- OP_IMM.SLLI/SRLI/SRAI for RV64
-msbs7_SLLI  :: InstrField;     msbs7_SLLI  = 0x00     -- 7'b_0000000
-msbs7_SRLI  :: InstrField;     msbs7_SRLI  = 0x00     -- 7'b_0000000
-msbs7_SRAI  :: InstrField;     msbs7_SRAI  = 0x20     -- 7'b_0100000
+funct3_ADDI  = 0x0 :: InstrField      -- 3'b_000
+funct3_SLTI  = 0x2 :: InstrField      -- 3'b_010
+funct3_SLTIU = 0x3 :: InstrField      -- 3'b_011
+funct3_XORI  = 0x4 :: InstrField      -- 3'b_100
+funct3_ORI   = 0x6 :: InstrField      -- 3'b_110
+funct3_ANDI  = 0x7 :: InstrField      -- 3'b_111
+funct3_SLLI  = 0x1 :: InstrField      -- 3'b_001
+funct3_SRLI  = 0x5 :: InstrField      -- 3'b_101
+funct3_SRAI  = 0x5 :: InstrField      -- 3'b_101
 
 -- OP_IMM.SLLI/SRLI/SRAI for RV64
-msbs6_SLLI  :: InstrField;     msbs6_SLLI  = 0x00     -- 6'b_000000
-msbs6_SRLI  :: InstrField;     msbs6_SRLI  = 0x00     -- 6'b_000000
-msbs6_SRAI  :: InstrField;     msbs6_SRAI  = 0x10     -- 6'b_010000
+msbs7_SLLI  = 0x00 :: InstrField     -- 7'b_0000000
+msbs7_SRLI  = 0x00 :: InstrField     -- 7'b_0000000
+msbs7_SRAI  = 0x20 :: InstrField     -- 7'b_0100000
+
+-- OP_IMM.SLLI/SRLI/SRAI for RV64
+msbs6_SLLI  = 0x00 :: InstrField     -- 6'b_000000
+msbs6_SRLI  = 0x00 :: InstrField     -- 6'b_000000
+msbs6_SRAI  = 0x10 :: InstrField     -- 6'b_010000
 
 
 spec_OP_IMM :: Machine_State -> Instr -> (Bool, Machine_State)
@@ -532,38 +524,37 @@ spec_OP_IMM    mstate       instr =
 -- ================================================================
 -- OP: ADD, SUB, SLT, SLTU, XOR, OR, AND, SLL, SRL, SRA
 
-opcode_OP :: InstrField
-opcode_OP = 0x33    -- 7'b_01_100_11
+opcode_OP = 0x33 :: InstrField    -- 7'b_01_100_11
 
-funct3_ADD  :: InstrField;    funct3_ADD  = 0x0     -- 3'b_000
-funct7_ADD  :: InstrField;    funct7_ADD  = 0x00    -- 7'b_000_0000
+funct3_ADD  = 0x0 :: InstrField     -- 3'b_000
+funct7_ADD  = 0x00 :: InstrField    -- 7'b_000_0000
 
-funct3_SUB  :: InstrField;    funct3_SUB  = 0x0     -- 3'b_000
-funct7_SUB  :: InstrField;    funct7_SUB  = 0x20    -- 7'b_010_0000
+funct3_SUB  = 0x0 :: InstrField     -- 3'b_000
+funct7_SUB  = 0x20 :: InstrField    -- 7'b_010_0000
 
-funct3_SLT  :: InstrField;    funct3_SLT  = 0x2     -- 3'b_010
-funct7_SLT  :: InstrField;    funct7_SLT  = 0x00    -- 7'b_000_0000
+funct3_SLT  = 0x2 :: InstrField     -- 3'b_010
+funct7_SLT  = 0x00 :: InstrField    -- 7'b_000_0000
 
-funct3_SLTU :: InstrField;    funct3_SLTU = 0x3     -- 3'b_011
-funct7_SLTU :: InstrField;    funct7_SLTU = 0x00    -- 7'b_000_0000
+funct3_SLTU = 0x3 :: InstrField     -- 3'b_011
+funct7_SLTU = 0x00 :: InstrField    -- 7'b_000_0000
 
-funct3_XOR  :: InstrField;    funct3_XOR  = 0x4     -- 3'b_100
-funct7_XOR  :: InstrField;    funct7_XOR  = 0x00    -- 7'b_000_0000
+funct3_XOR  = 0x4 :: InstrField     -- 3'b_100
+funct7_XOR  = 0x00 :: InstrField    -- 7'b_000_0000
 
-funct3_OR   :: InstrField;    funct3_OR   = 0x6     -- 3'b_110
-funct7_OR   :: InstrField;    funct7_OR   = 0x00    -- 7'b_000_0000
+funct3_OR   = 0x6 :: InstrField     -- 3'b_110
+funct7_OR   = 0x00 :: InstrField    -- 7'b_000_0000
 
-funct3_AND  :: InstrField;    funct3_AND  = 0x7     -- 3'b_111
-funct7_AND  :: InstrField;    funct7_AND  = 0x00    -- 7'b_000_0000
+funct3_AND  = 0x7 :: InstrField     -- 3'b_111
+funct7_AND  = 0x00 :: InstrField    -- 7'b_000_0000
 
-funct3_SLL  :: InstrField;    funct3_SLL  = 0x1     -- 3'b_001
-funct7_SLL  :: InstrField;    funct7_SLL  = 0x00    -- 7'b_000_0000
+funct3_SLL  = 0x1 :: InstrField     -- 3'b_001
+funct7_SLL  = 0x00 :: InstrField    -- 7'b_000_0000
 
-funct3_SRL  :: InstrField;    funct3_SRL  = 0x5     -- 3'b_101
-funct7_SRL  :: InstrField;    funct7_SRL  = 0x00    -- 7'b_000_0000
+funct3_SRL  = 0x5 :: InstrField     -- 3'b_101
+funct7_SRL  = 0x00 :: InstrField    -- 7'b_000_0000
 
-funct3_SRA  :: InstrField;    funct3_SRA  = 0x5     -- 3'b_101
-funct7_SRA  :: InstrField;    funct7_SRA  = 0x20    -- 7'b_010_0000
+funct3_SRA  = 0x5 :: InstrField     -- 3'b_101
+funct7_SRA  = 0x20 :: InstrField    -- 7'b_010_0000
 
                                                                     -- \begin_latex{spec_ADD_1}
 spec_OP :: Machine_State -> Instr -> (Bool, Machine_State)
@@ -630,11 +621,10 @@ spec_OP    mstate       instr =
 -- These are technically architectural 'no-ops', but they can modify
 -- hidden micro-arch state that affects future memory ops
 
-opcode_MISC_MEM :: InstrField
-opcode_MISC_MEM  = 0x0F    -- 7'b_00_011_11
+opcode_MISC_MEM  = 0x0F :: InstrField    -- 7'b_00_011_11
 
-funct3_FENCE   :: InstrField;    funct3_FENCE   = 0x0      -- 3'b_000
-funct3_FENCE_I :: InstrField;    funct3_FENCE_I = 0x1      -- 3'b_001
+funct3_FENCE   = 0x0 :: InstrField      -- 3'b_000
+funct3_FENCE_I = 0x1 :: InstrField      -- 3'b_001
 
 spec_MISC_MEM :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_MISC_MEM    mstate       instr =
@@ -664,16 +654,15 @@ spec_MISC_MEM    mstate       instr =
 --    PRIV:  ECALL, EBREAK, MRET, SRET, URET, WFI
 --    other: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
 
-opcode_SYSTEM :: InstrField
-opcode_SYSTEM = 0x73    -- 7'b_11_100_11
+opcode_SYSTEM = 0x73 :: InstrField    -- 7'b_11_100_11
 
 -- SYSTEM sub-opcodes
-funct3_PRIV   :: InstrField;    funct3_PRIV   = 0x0     -- 3'b_000
+funct3_PRIV = 0x0 :: InstrField     -- 3'b_000
 
 -- ----------------
 -- SYSTEM.PRIV.ECALL
 
-funct12_ECALL    :: InstrField;    funct12_ECALL    = 0x000    -- 12'b_0000_0000_0000
+funct12_ECALL = 0x000 :: InstrField    -- 12'b_0000_0000_0000
 
 spec_SYSTEM_ECALL :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_SYSTEM_ECALL    mstate       instr =
@@ -703,9 +692,9 @@ spec_SYSTEM_ECALL    mstate       instr =
 -- ----------------
 -- SYSTEM.PRIV.MRET/SRET/URET
 
-funct12_URET     :: InstrField;    funct12_URET     = 0x002    -- 12'b_0000_0000_0010
-funct12_SRET     :: InstrField;    funct12_SRET     = 0x102    -- 12'b_0001_0000_0010
-funct12_MRET     :: InstrField;    funct12_MRET     = 0x302    -- 12'b_0011_0000_0010
+funct12_URET     = 0x002 :: InstrField    -- 12'b_0000_0000_0010
+funct12_SRET     = 0x102 :: InstrField    -- 12'b_0001_0000_0010
+funct12_MRET     = 0x302 :: InstrField    -- 12'b_0011_0000_0010
 
 spec_SYSTEM_xRET :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_SYSTEM_xRET    mstate       instr =
@@ -790,7 +779,7 @@ spec_SYSTEM_xRET    mstate       instr =
 -- ----------------
 -- SYSTEM.PRIV.EBREAK
 
-funct12_EBREAK   :: InstrField;    funct12_EBREAK   = 0x001    -- 12'b_0000_0000_0001
+funct12_EBREAK   = 0x001 :: InstrField    -- 12'b_0000_0000_0001
 
 spec_SYSTEM_EBREAK :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_SYSTEM_EBREAK    mstate       instr =
@@ -816,7 +805,7 @@ spec_SYSTEM_EBREAK    mstate       instr =
 -- ----------------
 -- SYSTEM.PRIV.WFI
 
-funct12_WFI :: InstrField;    funct12_WFI = 0x105    -- 12'b_0001_0000_0101
+funct12_WFI = 0x105 :: InstrField    -- 12'b_0001_0000_0101
 
 spec_SYSTEM_WFI :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_SYSTEM_WFI    mstate       instr =
@@ -854,7 +843,7 @@ spec_SYSTEM_WFI    mstate       instr =
 -- ----------------
 -- SYSTEM.PRIV.SFENCE.VM
 
-funct7_SFENCE_VM :: InstrField;    funct7_SFENCE_VM = 0x09     --  7'b_000_1001
+funct7_SFENCE_VM = 0x09 :: InstrField    --  7'b_000_1001
 
 spec_SYSTEM_SFENCE_VM :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_SYSTEM_SFENCE_VM    mstate       instr =
@@ -894,8 +883,8 @@ spec_SYSTEM_SFENCE_VM    mstate       instr =
 -- ----------------
 -- SYSTEM.not PRIV: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
 
-funct3_CSRRW  :: InstrField;    funct3_CSRRW  = 0x1     -- 3'b_001
-funct3_CSRRWI :: InstrField;    funct3_CSRRWI = 0x5     -- 3'b_101
+funct3_CSRRW  = 0x1 :: InstrField     -- 3'b_001
+funct3_CSRRWI = 0x5 :: InstrField     -- 3'b_101
 
 spec_SYSTEM_CSRRW :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_SYSTEM_CSRRW    mstate       instr =
@@ -950,10 +939,10 @@ spec_SYSTEM_CSRRW    mstate       instr =
   in
     (is_legal, mstate1)
 
-funct3_CSRRS  :: InstrField;    funct3_CSRRS  = 0x2     -- 3'b_010
-funct3_CSRRC  :: InstrField;    funct3_CSRRC  = 0x3     -- 3'b_011
-funct3_CSRRSI :: InstrField;    funct3_CSRRSI = 0x6     -- 3'b_110
-funct3_CSRRCI :: InstrField;    funct3_CSRRCI = 0x7     -- 3'b_111
+funct3_CSRRS  = 0x2 :: InstrField     -- 3'b_010
+funct3_CSRRC  = 0x3 :: InstrField     -- 3'b_011
+funct3_CSRRSI = 0x6 :: InstrField     -- 3'b_110
+funct3_CSRRCI = 0x7 :: InstrField     -- 3'b_111
 
 spec_SYSTEM_CSRR_S_C :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_SYSTEM_CSRR_S_C    mstate       instr =
@@ -1009,17 +998,17 @@ spec_SYSTEM_CSRR_S_C    mstate       instr =
 -- ----------------
 -- OP: MUL, MULH, MULHSU, MULHU
 
-funct3_MUL    :: InstrField;    funct3_MUL    = 0x0     -- 3'b_000
-funct7_MUL    :: InstrField;    funct7_MUL    = 0x01    -- 7'b_000_0001
+funct3_MUL    = 0x0 :: InstrField     -- 3'b_000
+funct7_MUL    = 0x01 :: InstrField    -- 7'b_000_0001
 
-funct3_MULH   :: InstrField;    funct3_MULH   = 0x1     -- 3'b_001
-funct7_MULH   :: InstrField;    funct7_MULH   = 0x01    -- 7'b_000_0001
+funct3_MULH   = 0x1 :: InstrField     -- 3'b_001
+funct7_MULH   = 0x01 :: InstrField    -- 7'b_000_0001
 
-funct3_MULHSU :: InstrField;    funct3_MULHSU = 0x2     -- 3'b_010
-funct7_MULHSU :: InstrField;    funct7_MULHSU = 0x01    -- 7'b_000_0001
+funct3_MULHSU = 0x2 :: InstrField     -- 3'b_010
+funct7_MULHSU = 0x01 :: InstrField    -- 7'b_000_0001
 
-funct3_MULHU  :: InstrField;    funct3_MULHU  = 0x3     -- 3'b_011
-funct7_MULHU  :: InstrField;    funct7_MULHU  = 0x01    -- 7'b_000_0001
+funct3_MULHU  = 0x3 :: InstrField     -- 3'b_011
+funct7_MULHU  = 0x01 :: InstrField    -- 7'b_000_0001
 
 spec_OP_MUL :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_OP_MUL    mstate       instr =
@@ -1071,11 +1060,11 @@ spec_OP_MUL    mstate       instr =
 -- ----------------
 -- OP: DIV, DIVU
 
-funct3_DIV    :: InstrField;    funct3_DIV    = 0x4     -- 3'b_100
-funct7_DIV    :: InstrField;    funct7_DIV    = 0x01    -- 7'b_000_0001
+funct3_DIV    = 0x4 :: InstrField     -- 3'b_100
+funct7_DIV    = 0x01 :: InstrField    -- 7'b_000_0001
 
-funct3_DIVU   :: InstrField;    funct3_DIVU   = 0x5     -- 3'b_101
-funct7_DIVU   :: InstrField;    funct7_DIVU   = 0x01    -- 7'b_000_0001
+funct3_DIVU   = 0x5 :: InstrField     -- 3'b_101
+funct7_DIVU   = 0x01 :: InstrField    -- 7'b_000_0001
 
 spec_OP_DIV :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_OP_DIV    mstate       instr =
@@ -1126,11 +1115,11 @@ spec_OP_DIV    mstate       instr =
 -- ----------------
 -- OP: REM, REMU
 
-funct3_REM    :: InstrField;    funct3_REM    = 0x6     -- 3'b_110
-funct7_REM    :: InstrField;    funct7_REM    = 0x01    -- 7'b_000_0001
+funct3_REM    = 0x6 :: InstrField     -- 3'b_110
+funct7_REM    = 0x01 :: InstrField    -- 7'b_000_0001
 
-funct3_REMU   :: InstrField;    funct3_REMU   = 0x7     -- 3'b_111
-funct7_REMU   :: InstrField;    funct7_REMU   = 0x01    -- 7'b_000_0001
+funct3_REMU   = 0x7 :: InstrField     -- 3'b_111
+funct7_REMU   = 0x01 :: InstrField    -- 7'b_000_0001
 
 spec_OP_REM :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_OP_REM    mstate       instr =
@@ -1172,19 +1161,18 @@ spec_OP_REM    mstate       instr =
 -- ================================================================
 -- OP-IMM-32: ADDIW, SLLIW, SRLIW, SRAIW
 
-opcode_OP_IMM_32 :: InstrField
-opcode_OP_IMM_32 = 0x1B    -- 7'b_00_110_11
+opcode_OP_IMM_32 = 0x1B :: InstrField    -- 7'b_00_110_11
 
-funct3_ADDIW :: InstrField;    funct3_ADDIW = 0x0     -- 3'b_000
+funct3_ADDIW = 0x0 :: InstrField     -- 3'b_000
 
-funct3_SLLIW :: InstrField;    funct3_SLLIW = 0x1     -- 3'b_001
-funct7_SLLIW :: InstrField;    funct7_SLLIW = 0x00    -- 7'b_0000000
+funct3_SLLIW = 0x1 :: InstrField     -- 3'b_001
+funct7_SLLIW = 0x00 :: InstrField    -- 7'b_0000000
 
-funct3_SRLIW :: InstrField;    funct3_SRLIW = 0x5     -- 3'b_101
-funct7_SRLIW :: InstrField;    funct7_SRLIW = 0x00    -- 7'b_0000000
+funct3_SRLIW = 0x5 :: InstrField     -- 3'b_101
+funct7_SRLIW = 0x00 :: InstrField    -- 7'b_0000000
 
-funct3_SRAIW :: InstrField;    funct3_SRAIW = 0x5     -- 3'b_101
-funct7_SRAIW :: InstrField;    funct7_SRAIW = 0x20    -- 7'b_0100000
+funct3_SRAIW = 0x5 :: InstrField     -- 3'b_101
+funct7_SRAIW = 0x20 :: InstrField    -- 7'b_0100000
 
 spec_OP_IMM_32 :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_OP_IMM_32    mstate       instr =
@@ -1229,23 +1217,22 @@ spec_OP_IMM_32    mstate       instr =
 -- ================================================================
 -- OP-32: for RV64: ADDW, SUBW, SLLW, SRLW, SRAW
 
-opcode_OP_32 :: InstrField
-opcode_OP_32     = 0x3B    -- 7'b_01_110_11
+opcode_OP_32     = 0x3B :: InstrField    -- 7'b_01_110_11
 
-funct3_ADDW  :: InstrField;    funct3_ADDW  = 0x0     --- 3'b_000
-funct7_ADDW  :: InstrField;    funct7_ADDW  = 0x00    --- 7'b_000_0000
+funct3_ADDW  = 0x0  :: InstrField    --- 3'b_000
+funct7_ADDW  = 0x00 :: InstrField    --- 7'b_000_0000
 
-funct3_SUBW  :: InstrField;    funct3_SUBW  = 0x0     --- 3'b_000
-funct7_SUBW  :: InstrField;    funct7_SUBW  = 0x20    --- 7'b_010_0000
+funct3_SUBW  = 0x0  :: InstrField    --- 3'b_000
+funct7_SUBW  = 0x20 :: InstrField    --- 7'b_010_0000
 
-funct3_SLLW  :: InstrField;    funct3_SLLW  = 0x1     --- 3'b_001
-funct7_SLLW  :: InstrField;    funct7_SLLW  = 0x00    --- 7'b_000_0000
+funct3_SLLW  = 0x1  :: InstrField    --- 3'b_001
+funct7_SLLW  = 0x00 :: InstrField    --- 7'b_000_0000
 
-funct3_SRLW  :: InstrField;    funct3_SRLW  = 0x5     --- 3'b_101
-funct7_SRLW  :: InstrField;    funct7_SRLW  = 0x00    --- 7'b_000_0000
+funct3_SRLW  = 0x5  :: InstrField    --- 3'b_101
+funct7_SRLW  = 0x00 :: InstrField    --- 7'b_000_0000
 
-funct3_SRAW  :: InstrField;    funct3_SRAW  = 0x5     --- 3'b_101
-funct7_SRAW  :: InstrField;    funct7_SRAW  = 0x20    --- 7'b_010_0000
+funct3_SRAW  = 0x5  :: InstrField    --- 3'b_101
+funct7_SRAW  = 0x20 :: InstrField    --- 7'b_010_0000
 
 spec_OP_32 :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_OP_32    mstate       instr =
@@ -1292,20 +1279,20 @@ spec_OP_32    mstate       instr =
 -- ================================================================
 -- OP-32: 'M' Extension for RV64: MULW, DIVW, DIVUW, REMW, REMUW
 
-funct3_MULW  :: InstrField;    funct3_MULW  = 0x0     --- 3'b_000
-funct7_MULW  :: InstrField;    funct7_MULW  = 0x01    --- 7'b_000_0001
+funct3_MULW  = 0x0  :: InstrField    --- 3'b_000
+funct7_MULW  = 0x01 :: InstrField    --- 7'b_000_0001
 
-funct3_DIVW  :: InstrField;    funct3_DIVW  = 0x4     --- 3'b_100
-funct7_DIVW  :: InstrField;    funct7_DIVW  = 0x01    --- 7'b_000_0001
+funct3_DIVW  = 0x4  :: InstrField    --- 3'b_100
+funct7_DIVW  = 0x01 :: InstrField    --- 7'b_000_0001
 
-funct3_DIVUW :: InstrField;    funct3_DIVUW = 0x5     --- 3'b_101
-funct7_DIVUW :: InstrField;    funct7_DIVUW = 0x01    --- 7'b_000_0001
+funct3_DIVUW = 0x5  :: InstrField    --- 3'b_101
+funct7_DIVUW = 0x01 :: InstrField    --- 7'b_000_0001
 
-funct3_REMW  :: InstrField;    funct3_REMW  = 0x6     --- 3'b_110
-funct7_REMW  :: InstrField;    funct7_REMW  = 0x01    --- 7'b_000_0001
+funct3_REMW  = 0x6  :: InstrField    --- 3'b_110
+funct7_REMW  = 0x01 :: InstrField    --- 7'b_000_0001
 
-funct3_REMUW :: InstrField;    funct3_REMUW = 0x7     --- 3'b_111
-funct7_REMUW :: InstrField;    funct7_REMUW = 0x01    --- 7'b_000_0001
+funct3_REMUW = 0x7  :: InstrField    --- 3'b_111
+funct7_REMUW = 0x01 :: InstrField    --- 7'b_000_0001
 
 spec_OP_32_M :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_OP_32_M    mstate       instr =
@@ -1370,24 +1357,23 @@ spec_OP_32_M    mstate       instr =
 -- ================================================================
 -- 'A' Extension
 
-opcode_AMO :: InstrField
-opcode_AMO     = 0x2F    -- 7'b_01_011_11
+opcode_AMO     = 0x2F :: InstrField    -- 7'b_01_011_11
 
 -- Note: these are duplicates of defs in Mem_Ops.hs
-funct3_AMO_W   :: InstrField;    funct3_AMO_W   = 0x2     -- 3'b010
-funct3_AMO_D   :: InstrField;    funct3_AMO_D   = 0x3     -- 3'b011
+funct3_AMO_W   = 0x2 :: InstrField     -- 3'b010
+funct3_AMO_D   = 0x3 :: InstrField     -- 3'b011
 
-msbs5_AMO_LR   :: InstrField;    msbs5_AMO_LR   = 0x02    -- 5'b00010;
-msbs5_AMO_SC   :: InstrField;    msbs5_AMO_SC   = 0x03    -- 5'b00011;
-msbs5_AMO_ADD  :: InstrField;    msbs5_AMO_ADD  = 0x00    -- 5'b00000;
-msbs5_AMO_SWAP :: InstrField;    msbs5_AMO_SWAP = 0x01    -- 5'b00001;
-msbs5_AMO_XOR  :: InstrField;    msbs5_AMO_XOR  = 0x04    -- 5'b00100;
-msbs5_AMO_AND  :: InstrField;    msbs5_AMO_AND  = 0x0C    -- 5'b01100;
-msbs5_AMO_OR   :: InstrField;    msbs5_AMO_OR   = 0x08    -- 5'b01000;
-msbs5_AMO_MIN  :: InstrField;    msbs5_AMO_MIN  = 0x10    -- 5'b10000;
-msbs5_AMO_MAX  :: InstrField;    msbs5_AMO_MAX  = 0x14    -- 5'b10100;
-msbs5_AMO_MINU :: InstrField;    msbs5_AMO_MINU = 0x18    -- 5'b11000;
-msbs5_AMO_MAXU :: InstrField;    msbs5_AMO_MAXU = 0x1C    -- 5'b11100;
+msbs5_AMO_LR   = 0x02 :: InstrField    -- 5'b00010;
+msbs5_AMO_SC   = 0x03 :: InstrField    -- 5'b00011;
+msbs5_AMO_ADD  = 0x00 :: InstrField    -- 5'b00000;
+msbs5_AMO_SWAP = 0x01 :: InstrField    -- 5'b00001;
+msbs5_AMO_XOR  = 0x04 :: InstrField    -- 5'b00100;
+msbs5_AMO_AND  = 0x0C :: InstrField    -- 5'b01100;
+msbs5_AMO_OR   = 0x08 :: InstrField    -- 5'b01000;
+msbs5_AMO_MIN  = 0x10 :: InstrField    -- 5'b10000;
+msbs5_AMO_MAX  = 0x14 :: InstrField    -- 5'b10100;
+msbs5_AMO_MINU = 0x18 :: InstrField    -- 5'b11000;
+msbs5_AMO_MAXU = 0x1C :: InstrField    -- 5'b11100;
 
 spec_AMO :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_AMO  mstate  instr =

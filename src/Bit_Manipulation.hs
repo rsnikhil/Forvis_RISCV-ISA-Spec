@@ -82,53 +82,35 @@ signExtend_bit_in_u32  word  n =
 signExtend_u8_to_u64 :: Word8 -> Word64
 signExtend_u8_to_u64  u8 =
   let
-    s8  :: Int8
-    s8  = fromIntegral u8
-
-    s64 :: Int64
-    s64 = fromIntegral s8
-
-    u64 :: Word64
-    u64 = fromIntegral s64
+    s8  = (fromIntegral  u8) :: Int8
+    s64 = (fromIntegral  s8) :: Int64
+    u64 = (fromIntegral s64) :: Word64
   in
     u64
 
 signExtend_u16_to_u64 :: Word16 -> Word64
 signExtend_u16_to_u64  u16 =
   let
-    s16 :: Int16
-    s16 = fromIntegral u16
-
-    s64 :: Int64
-    s64 = fromIntegral s16
-
-    u64 :: Word64
-    u64 = fromIntegral s64
+    s16 = (fromIntegral u16) :: Int16
+    s64 = (fromIntegral s16) :: Int64
+    u64 = (fromIntegral s64) :: Word64
   in
     u64
 
 signExtend_u32_to_u64 :: Word32 -> Word64
 signExtend_u32_to_u64  u32 =
   let
-    s32 :: Int32
-    s32 = fromIntegral u32
-
-    s64 :: Int64
-    s64 = fromIntegral s32
-
-    u64 :: Word64
-    u64 = fromIntegral s64
+    s32 = (fromIntegral u32) :: Int32
+    s64 = (fromIntegral s32) :: Int64
+    u64 = (fromIntegral s64) :: Word64
   in
     u64
 
 signExtend_s32_to_u64 :: Int32 -> Word64
 signExtend_s32_to_u64  s32 =
   let
-    s64 :: Int64
-    s64 = fromIntegral s32
-
-    u64 :: Word64
-    u64 = fromIntegral s64
+    s64 = (fromIntegral s32) :: Int64
+    u64 = (fromIntegral s64) :: Word64
   in
     u64
 
@@ -164,10 +146,8 @@ cvt_u64_to_u8  u64 = fromIntegral u64
 trunc_u64_to_s32 :: Word64 -> Int32
 trunc_u64_to_s32  u64 =
   let
-    u32 :: Word32
-    u32 = fromIntegral u64
-    s32 :: Int32
-    s32 = fromIntegral u32
+    u32 = (fromIntegral u64) :: Word32
+    s32 = (fromIntegral u32) :: Int32
   in
     s32
 
@@ -221,8 +201,7 @@ concat_u16_u16_to_u32  u16_lo  u16_hi =
 set_bit :: Word64 -> Int -> Word64
 set_bit  x  position =
   let
-    mask :: Word64
-    mask  = 1
+    mask  = 1 :: Word64
     mask' = shiftL mask position
 
     x'    = (x .|. mask')
@@ -232,8 +211,7 @@ set_bit  x  position =
 clear_bit :: Word64 -> Int -> Word64
 clear_bit  x  position =
   let
-    mask :: Word64
-    mask  = 1
+    mask  = 1 :: Word64
     mask' = complement (shiftL mask position)
 
     x'   = (x .&. mask')

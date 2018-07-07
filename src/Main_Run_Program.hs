@@ -194,7 +194,7 @@ run_program_from_files  rv  files  num_instrs  verbosity = do
   -- convenience since console output would have been interleaved with
   -- trace messages and may have been difficult to read.
   when (verbosity > 0) (do
-                           let all_console_output = mstate_mem_read_all_console_output  mstate3
+                           let all_console_output = mstate_mem_all_console_output  mstate3
                            putStrLn "Repeating all console output:"
                            putStr   (if (all_console_output == "") then "--none--\n" else all_console_output))
 

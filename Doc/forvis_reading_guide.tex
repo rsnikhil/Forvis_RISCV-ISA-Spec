@@ -486,8 +486,7 @@ looks like this:
 
 \hmmmm \
 \begin{minipage}[t]{4in}\it
-{\tt foo ::} type \\
-{\tt foo = } value-expression
+{\tt foo = } value-expression {\tt ::} type
 \end{minipage}
 
 A function definition looks like this:
@@ -634,11 +633,11 @@ instructions use \verb|bitSlice|, shift functions, bitwise OR
 
 \subsection{Exception Codes}
 
-We define a type for exception codes, and the values of all the standard exception codes:
+We define a type for exception codes, and the values of all the standard exception codes for interrupts:
 
 \input{Extracted/exception_codes_A}
 
-...
+... and for traps:
 
 \input{Extracted/exception_codes_B}
 
@@ -808,14 +807,16 @@ extension, or that the instructionis a regular 32-bit instruction.  In
 all cases, there could have been a change in the machine state, and
 hence it returns the updated machine state.
 
-The code that follows the above excerpt first reads 2 bytes from
-memory, and checks if it encodes a possible 'C' instruction. If not,
-it then reads 2 more bytes from memory and returns it as a full 32-bit
-instruction.  Of course, either of these two reads can fault, and this
-is the reason we read two bytes at a time: the first read may succeed
-with a 'C' instruction, in which case we do not want to encounter a
-fault for reading two more bytes which may be unnecessary in the
-program flow.
+The body of the \verb|instr_fetch| function first checks the 'C' flag
+in CSR MISA to see if compressed instructions are supported.  If not,
+it reads a 4-byte (32-bit) instruction from memory.  If 'C' is
+supported, it first reads 2 bytes from memory, and checks if it
+encodes a possible 'C' instruction. If not, it then reads 2 more bytes
+from memory and returns it as a full 32-bit instruction.  Of course,
+either of these two reads can fault, and this is the reason we read
+two bytes at a time: the first read may succeed with a 'C'
+instruction, in which case we do not want to encounter a fault for
+reading two more bytes which may be unnecessary in the program flow.
 
 % ================================================================
 
@@ -1027,6 +1028,15 @@ the machine state is both an argument and a result of the function.
 
 \label{sec_misc}
 
+\verb|Bit_Manipulation.hs| contains utilities for bit manipulation,
+including sign- and zero-extension, truncation, conversion, etc. that
+are relevant for these semantics.
+
+Most of the remaining files are not part of ISA semantics, but
+infrastructure for building a ``system'': a boot ROM, a memory, and
+I/O devices such as a timer (MTIME and MTIMECMP), a software-interrupt
+location (MSIP), and a UART for console I/O.
+
 \verb|Main.hs| is a driver program that just dispatches to one of two
 use-cases, \verb|Main_RunProgram.hs| (free-running) or
 \verb|Main_TandemVerifier.hs| (Tandem Verification).
@@ -1047,12 +1057,13 @@ architecture state, execute 1 or more instructions, and query
 archtectural state. Responses include tandem verification packets
 which the verifier can use to check an implementation.
 
+\verb|Addres_Map.hs| specifies the address map for the ``system'': the
+base address and address range for each memory and I/O device.
+
 \verb|Memory.hs| implements a memory model with read, write and AMO
 functions.
 
-\verb|MMIO.hs| implements the memory-mapped I/O system.  Currently it
-is very primitive, merely recording console I/O in a String in the
-\verb|Machine_State|.
+\verb|MMIO.hs| implements the memory-mapped I/O system.
 
 \verb|Mem_Ops.hs| defines instruction field values that specify the
 type and size of memory operations.  These are duplicates of defs in
@@ -1060,14 +1071,11 @@ type and size of memory operations.  These are duplicates of defs in
 AMO instructions.  They are repeated here because this information is
 also needed in \verb|Memory.hs|, \verb|MMIO.hs| and other places.
 
-\verb|Bit_Manipulation.hs| contains utilities for bit manipulation,
-including sign- and zero-extension, truncation, conversion, etc. that
-are relevant for these semantics.
+\verb|UART.hs| is a model of the popular National Semiconductor
+NS16550A UART.
 
-\verb|Elf.hs| and \verb|Read_Hex_File.hs| are not part of the
-semantics per se; the executable uses them to read ELF files and ``Hex
-Memory'' files, respectively.
-
+\verb|Elf.hs| and \verb|Read_Hex_File.hs| are functions for reading
+ELF files and ``Hex Memory'' files, respectively.
 
 % ****************************************************************
 

@@ -173,11 +173,11 @@ vm_translate    mstate           is_instr  is_read  va =
 -- ================================================================
 -- Supervisor Mode Virtual Memory modes
 
-sv32 :: Word64;    sv32 = 1
-sv39 :: Word64;    sv39 = 8
-sv48 :: Word64;    sv48 = 9
--- sv57 :: Word64;    sv57 = 10    -- Future
--- sv64 :: Word64;    sv64 = 11    -- Future
+sv32 = 1 :: Word64
+sv39 = 8 :: Word64
+sv48 = 9 :: Word64
+-- sv57 = 10 :: Word64    -- Future
+-- sv64 = 11 :: Word64    -- Future
 
 -- ================================================================
 -- Extract VPN [J] and OFFSET from a virtual address
@@ -229,13 +229,6 @@ pte_X :: Word64 -> Bool;    pte_X  pte = testBit   pte  3
 pte_W :: Word64 -> Bool;    pte_W  pte = testBit   pte  2
 pte_R :: Word64 -> Bool;    pte_R  pte = testBit   pte  1
 pte_V :: Word64 -> Bool;    pte_V  pte = testBit   pte  0
-
-{- DELETE
-pte_ppn :: Word64 -> Word64 -> Word64
-pte_ppn  sv  pte | (sv == sv32) = bitSlice  pte  31  10
-                 | (sv == sv39) = bitSlice  pte  53  10
-                 | (sv == sv48) = bitSlice  pte  53  10
--}
 
 pte_ppn_J :: Word64 -> Word64 -> Int -> Word64
 pte_ppn_J  sv  pte  0 | (sv == sv32) = bitSlice  pte  19  10

@@ -73,7 +73,7 @@ run_program  maxinstrs  m_tohost_addr  mstate = do
              mstate2 <- fetch_and_execute  mstate1
 
              -- Consume and print out new console output, if any
-             let (console_output, mstate3) = mstate_mem_consume_console_output  mstate2
+             let (console_output, mstate3) = mstate_mem_deq_console_output  mstate2
              when (console_output /= "") (do
                                              let mtime = mstate_mem_read_mtime  mstate3
                                                  ch    = last  console_output

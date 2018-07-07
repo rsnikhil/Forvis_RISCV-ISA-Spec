@@ -292,19 +292,20 @@ mstate_mem_sfence_vm  mstate  rs1_val  rs2_val = mstate
 
 -- I/O: Consume console output
 
-mstate_mem_consume_console_output :: Machine_State -> (String, Machine_State)
-mstate_mem_consume_console_output  mstate =
+mstate_mem_deq_console_output :: Machine_State -> (String, Machine_State)
+mstate_mem_deq_console_output  mstate =
   let
-    mmio                      = f_mmio  mstate
-    (console_output, mmio')   = mmio_deq_console_output  mmio
-    mstate' = mstate { f_mmio = mmio' }
+    mmio                    = f_mmio  mstate
+    (console_output, mmio') = mmio_deq_console_output  mmio
+    mstate'                 = if (console_output == "") then mstate
+                              else mstate { f_mmio = mmio' }
   in
     (console_output, mstate')
 
 -- I/O: Read all console output
 
-mstate_mem_read_all_console_output :: Machine_State -> String
-mstate_mem_read_all_console_output  mstate =
+mstate_mem_all_console_output :: Machine_State -> String
+mstate_mem_all_console_output  mstate =
   let
     mmio = f_mmio  mstate
   in

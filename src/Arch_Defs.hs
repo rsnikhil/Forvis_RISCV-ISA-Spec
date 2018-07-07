@@ -170,33 +170,33 @@ r_funct7_fields_for_AMO  funct7 = (bitSlice  funct7  6  2,
 
 type Exc_Code = Word64
 
-exc_code_u_software_interrupt      :: Exc_Code;    exc_code_u_software_interrupt      =  0;
-exc_code_s_software_interrupt      :: Exc_Code;    exc_code_s_software_interrupt      =  1;
+exc_code_u_software_interrupt      =  0 :: Exc_Code
+exc_code_s_software_interrupt      =  1 :: Exc_Code
                                                 -- \end_latex{exception_codes_A}
-exc_code_m_software_interrupt      :: Exc_Code;    exc_code_m_software_interrupt      =  3;
-exc_code_u_timer_interrupt         :: Exc_Code;    exc_code_u_timer_interrupt         =  4;
-exc_code_s_timer_interrupt         :: Exc_Code;    exc_code_s_timer_interrupt         =  5;
-exc_code_m_timer_interrupt         :: Exc_Code;    exc_code_m_timer_interrupt         =  7;
-exc_code_u_external_interrupt      :: Exc_Code;    exc_code_u_external_interrupt      =  8;
-exc_code_s_external_interrupt      :: Exc_Code;    exc_code_s_external_interrupt      =  9;
-exc_code_m_external_interrupt      :: Exc_Code;    exc_code_m_external_interrupt      = 11;
+exc_code_m_software_interrupt      =  3 :: Exc_Code
+exc_code_u_timer_interrupt         =  4 :: Exc_Code
+exc_code_s_timer_interrupt         =  5 :: Exc_Code
+exc_code_m_timer_interrupt         =  7 :: Exc_Code
+exc_code_u_external_interrupt      =  8 :: Exc_Code
+exc_code_s_external_interrupt      =  9 :: Exc_Code
+exc_code_m_external_interrupt      = 11 :: Exc_Code
 
                                                 -- \begin_latex{exception_codes_B}
-exc_code_instr_addr_misaligned     :: Exc_Code;    exc_code_instr_addr_misaligned     =  0;
-exc_code_instr_access_fault        :: Exc_Code;    exc_code_instr_access_fault        =  1;
+exc_code_instr_addr_misaligned     =  0 :: Exc_Code
+exc_code_instr_access_fault        =  1 :: Exc_Code
                                                 -- \end_latex{exception_codes_B}
-exc_code_illegal_instruction       :: Exc_Code;    exc_code_illegal_instruction       =  2;
-exc_code_breakpoint                :: Exc_Code;    exc_code_breakpoint                =  3;
-exc_code_load_addr_misaligned      :: Exc_Code;    exc_code_load_addr_misaligned      =  4;
-exc_code_load_access_fault         :: Exc_Code;    exc_code_load_access_fault         =  5;
-exc_code_store_AMO_addr_misaligned :: Exc_Code;    exc_code_store_AMO_addr_misaligned =  6;
-exc_code_store_AMO_access_fault    :: Exc_Code;    exc_code_store_AMO_access_fault    =  7;
-exc_code_ECall_from_U              :: Exc_Code;    exc_code_ECall_from_U              =  8;
-exc_code_ECall_from_S              :: Exc_Code;    exc_code_ECall_from_S              =  9;
-exc_code_ECall_from_M              :: Exc_Code;    exc_code_ECall_from_M              = 11;
-exc_code_Instruction_Page_Fault    :: Exc_Code;    exc_code_Instruction_Page_Fault    = 12;
-exc_code_Load_Page_Fault           :: Exc_Code;    exc_code_Load_Page_Fault           = 13;
-exc_code_Store_AMO_Page_Fault      :: Exc_Code;    exc_code_Store_AMO_Page_Fault      = 15;
+exc_code_illegal_instruction       =  2 :: Exc_Code
+exc_code_breakpoint                =  3 :: Exc_Code
+exc_code_load_addr_misaligned      =  4 :: Exc_Code
+exc_code_load_access_fault         =  5 :: Exc_Code
+exc_code_store_AMO_addr_misaligned =  6 :: Exc_Code
+exc_code_store_AMO_access_fault    =  7 :: Exc_Code
+exc_code_ECall_from_U              =  8 :: Exc_Code
+exc_code_ECall_from_S              =  9 :: Exc_Code
+exc_code_ECall_from_M              = 11 :: Exc_Code
+exc_code_Instruction_Page_Fault    = 12 :: Exc_Code
+exc_code_Load_Page_Fault           = 13 :: Exc_Code
+exc_code_Store_AMO_Page_Fault      = 15 :: Exc_Code
 
 -- ================
 -- For debugging
@@ -243,35 +243,35 @@ data Mem_Result = Mem_Result_Ok   Word64
 
 type Priv_Level = InstrField
 
-m_Priv_Level :: Priv_Level;    m_Priv_Level  = 3
-s_Priv_Level :: Priv_Level;    s_Priv_Level  = 1
-u_Priv_Level :: Priv_Level;    u_Priv_Level  = 0
+m_Priv_Level  = 3 :: Priv_Level
+s_Priv_Level  = 1 :: Priv_Level
+u_Priv_Level  = 0 :: Priv_Level
 
                                                 -- \end_latex{Priv_Level}
 -- ================================================================
 -- User-Level CSR addresses
 
-csr_addr_ustatus    :: CSR_Addr;    csr_addr_ustatus    = 0x000
-csr_addr_uie        :: CSR_Addr;    csr_addr_uie        = 0x004
-csr_addr_utvec      :: CSR_Addr;    csr_addr_utvec      = 0x005
+csr_addr_ustatus    = 0x000 :: CSR_Addr
+csr_addr_uie        = 0x004 :: CSR_Addr
+csr_addr_utvec      = 0x005 :: CSR_Addr
 
-csr_addr_uscratch   :: CSR_Addr;    csr_addr_uscratch   = 0x040
-csr_addr_uepc       :: CSR_Addr;    csr_addr_uepc       = 0x041
-csr_addr_ucause     :: CSR_Addr;    csr_addr_ucause     = 0x042
-csr_addr_utval      :: CSR_Addr;    csr_addr_utval      = 0x043
-csr_addr_uip        :: CSR_Addr;    csr_addr_uip        = 0x044
+csr_addr_uscratch   = 0x040 :: CSR_Addr
+csr_addr_uepc       = 0x041 :: CSR_Addr
+csr_addr_ucause     = 0x042 :: CSR_Addr
+csr_addr_utval      = 0x043 :: CSR_Addr
+csr_addr_uip        = 0x044 :: CSR_Addr
 
-csr_addr_fflags     :: CSR_Addr;    csr_addr_fflags     = 0x001
-csr_addr_frm        :: CSR_Addr;    csr_addr_frm        = 0x002
-csr_addr_fcsr       :: CSR_Addr;    csr_addr_fcsr       = 0x003
+csr_addr_fflags     = 0x001 :: CSR_Addr
+csr_addr_frm        = 0x002 :: CSR_Addr
+csr_addr_fcsr       = 0x003 :: CSR_Addr
 
-csr_addr_cycle      :: CSR_Addr;    csr_addr_cycle      = 0xC00
-csr_addr_time       :: CSR_Addr;    csr_addr_time       = 0xC01
-csr_addr_instret    :: CSR_Addr;    csr_addr_instret    = 0xC02
+csr_addr_cycle      = 0xC00 :: CSR_Addr
+csr_addr_time       = 0xC01 :: CSR_Addr
+csr_addr_instret    = 0xC02 :: CSR_Addr
 
-csr_addr_cycleh     :: CSR_Addr;    csr_addr_cycleh     = 0xC80
-csr_addr_timeh      :: CSR_Addr;    csr_addr_timeh      = 0xC81
-csr_addr_instreth   :: CSR_Addr;    csr_addr_instreth   = 0xC82
+csr_addr_cycleh     = 0xC80 :: CSR_Addr
+csr_addr_timeh      = 0xC81 :: CSR_Addr
+csr_addr_instreth   = 0xC82 :: CSR_Addr
 
 -- TODO: hpmcounterN, hpmcounterNh
 
@@ -303,20 +303,20 @@ u_csr_addrs_and_names  =
 -- ================================================================
 -- Supervisor-Level CSR addresses
 
-csr_addr_sstatus    :: CSR_Addr;    csr_addr_sstatus    = 0x100
-csr_addr_sedeleg    :: CSR_Addr;    csr_addr_sedeleg    = 0x102
-csr_addr_sideleg    :: CSR_Addr;    csr_addr_sideleg    = 0x103
-csr_addr_sie        :: CSR_Addr;    csr_addr_sie        = 0x104
-csr_addr_stvec      :: CSR_Addr;    csr_addr_stvec      = 0x105
-csr_addr_scounteren :: CSR_Addr;    csr_addr_scounteren = 0x106
+csr_addr_sstatus    = 0x100 :: CSR_Addr
+csr_addr_sedeleg    = 0x102 :: CSR_Addr
+csr_addr_sideleg    = 0x103 :: CSR_Addr
+csr_addr_sie        = 0x104 :: CSR_Addr
+csr_addr_stvec      = 0x105 :: CSR_Addr
+csr_addr_scounteren = 0x106 :: CSR_Addr
 
-csr_addr_sscratch   :: CSR_Addr;    csr_addr_sscratch   = 0x140
-csr_addr_sepc       :: CSR_Addr;    csr_addr_sepc       = 0x141
-csr_addr_scause     :: CSR_Addr;    csr_addr_scause     = 0x142
-csr_addr_stval      :: CSR_Addr;    csr_addr_stval      = 0x143
-csr_addr_sip        :: CSR_Addr;    csr_addr_sip        = 0x144
+csr_addr_sscratch   = 0x140 :: CSR_Addr
+csr_addr_sepc       = 0x141 :: CSR_Addr
+csr_addr_scause     = 0x142 :: CSR_Addr
+csr_addr_stval      = 0x143 :: CSR_Addr
+csr_addr_sip        = 0x144 :: CSR_Addr
 
-csr_addr_satp       :: CSR_Addr;    csr_addr_satp       = 0x180
+csr_addr_satp       = 0x180 :: CSR_Addr
 
 -- The following list is in the order printed by print_CSR_File()
 
@@ -340,45 +340,45 @@ s_csr_addrs_and_names  =
 -- ================================================================
 -- Machine-Level CSR addresses
 
-csr_addr_mvendorid  :: CSR_Addr;    csr_addr_mvendorid  = 0xF11
-csr_addr_marchid    :: CSR_Addr;    csr_addr_marchid    = 0xF12
-csr_addr_mimpid     :: CSR_Addr;    csr_addr_mimpid     = 0xF13
-csr_addr_mhartid    :: CSR_Addr;    csr_addr_mhartid    = 0xF14
+csr_addr_mvendorid  = 0xF11 :: CSR_Addr
+csr_addr_marchid    = 0xF12 :: CSR_Addr
+csr_addr_mimpid     = 0xF13 :: CSR_Addr
+csr_addr_mhartid    = 0xF14 :: CSR_Addr
 
-csr_addr_mstatus    :: CSR_Addr;    csr_addr_mstatus    = 0x300
-csr_addr_misa       :: CSR_Addr;    csr_addr_misa       = 0x301
-csr_addr_medeleg    :: CSR_Addr;    csr_addr_medeleg    = 0x302
-csr_addr_mideleg    :: CSR_Addr;    csr_addr_mideleg    = 0x303
-csr_addr_mie        :: CSR_Addr;    csr_addr_mie        = 0x304
-csr_addr_mtvec      :: CSR_Addr;    csr_addr_mtvec      = 0x305
-csr_addr_mcounteren :: CSR_Addr;    csr_addr_mcounteren = 0x306
+csr_addr_mstatus    = 0x300 :: CSR_Addr
+csr_addr_misa       = 0x301 :: CSR_Addr
+csr_addr_medeleg    = 0x302 :: CSR_Addr
+csr_addr_mideleg    = 0x303 :: CSR_Addr
+csr_addr_mie        = 0x304 :: CSR_Addr
+csr_addr_mtvec      = 0x305 :: CSR_Addr
+csr_addr_mcounteren = 0x306 :: CSR_Addr
 
-csr_addr_mscratch   :: CSR_Addr;    csr_addr_mscratch   = 0x340
-csr_addr_mepc       :: CSR_Addr;    csr_addr_mepc       = 0x341
-csr_addr_mcause     :: CSR_Addr;    csr_addr_mcause     = 0x342
-csr_addr_mtval      :: CSR_Addr;    csr_addr_mtval      = 0x343
-csr_addr_mip        :: CSR_Addr;    csr_addr_mip        = 0x344
+csr_addr_mscratch   = 0x340 :: CSR_Addr
+csr_addr_mepc       = 0x341 :: CSR_Addr
+csr_addr_mcause     = 0x342 :: CSR_Addr
+csr_addr_mtval      = 0x343 :: CSR_Addr
+csr_addr_mip        = 0x344 :: CSR_Addr
 
 -- TODO: pmpcfgN, pmpaddrN
 
-csr_addr_mcycle     :: CSR_Addr;    csr_addr_mcycle     = 0xB00
-csr_addr_minstret   :: CSR_Addr;    csr_addr_minstret   = 0xB02
+csr_addr_mcycle     = 0xB00 :: CSR_Addr
+csr_addr_minstret   = 0xB02 :: CSR_Addr
 
 -- TODO: mhpmcounterN
 
-csr_addr_mcycleh    :: CSR_Addr;    csr_addr_mcycleh    = 0xB80
-csr_addr_minstreth  :: CSR_Addr;    csr_addr_minstreth  = 0xB82
+csr_addr_mcycleh    = 0xB80 :: CSR_Addr
+csr_addr_minstreth  = 0xB82 :: CSR_Addr
 
 -- TODO: mhpmcounterNh
 
-csr_addr_tselect    :: CSR_Addr;    csr_addr_tselect    = 0x7A0
-csr_addr_data1      :: CSR_Addr;    csr_addr_data1      = 0x7A1
-csr_addr_data2      :: CSR_Addr;    csr_addr_data2      = 0x7A2
-csr_addr_data3      :: CSR_Addr;    csr_addr_data3      = 0x7A3
+csr_addr_tselect    = 0x7A0 :: CSR_Addr
+csr_addr_data1      = 0x7A1 :: CSR_Addr
+csr_addr_data2      = 0x7A2 :: CSR_Addr
+csr_addr_data3      = 0x7A3 :: CSR_Addr
 
-csr_addr_dcsr       :: CSR_Addr;    csr_addr_dcsr       = 0x7B0
-csr_addr_dpc        :: CSR_Addr;    csr_addr_dpc        = 0x7B1
-csr_addr_dscratch   :: CSR_Addr;    csr_addr_dscratch   = 0x7B2
+csr_addr_dcsr       = 0x7B0 :: CSR_Addr
+csr_addr_dpc        = 0x7B1 :: CSR_Addr
+csr_addr_dscratch   = 0x7B2 :: CSR_Addr
 
 -- The following list is in the order printed by print_CSR_File()
 
@@ -429,77 +429,77 @@ misa_flag  misa  letter | isAsciiLower  letter = (((shiftR  misa  ((ord letter) 
                         | otherwise            = False
 
 -- Codes for MXL, SXL, UXL
-xl_rv32  :: Word64;    xl_rv32  = 1
-xl_rv64  :: Word64;    xl_rv64  = 2
-xl_rv128 :: Word64;    xl_rv128 = 3
+xl_rv32  = 1 :: Word64
+xl_rv64  = 2 :: Word64
+xl_rv128 = 3 :: Word64
 
 -- Bit fields
-misa_A_bitpos :: Int;    misa_A_bitpos = 0
-misa_B_bitpos :: Int;    misa_B_bitpos = 1
-misa_C_bitpos :: Int;    misa_C_bitpos = 2
-misa_D_bitpos :: Int;    misa_D_bitpos = 3
+misa_A_bitpos = 0 :: Int
+misa_B_bitpos = 1 :: Int
+misa_C_bitpos = 2 :: Int
+misa_D_bitpos = 3 :: Int
 
-misa_E_bitpos :: Int;    misa_E_bitpos = 4
-misa_F_bitpos :: Int;    misa_F_bitpos = 5
-misa_G_bitpos :: Int;    misa_G_bitpos = 6
-misa_H_bitpos :: Int;    misa_H_bitpos = 7
+misa_E_bitpos = 4 :: Int
+misa_F_bitpos = 5 :: Int
+misa_G_bitpos = 6 :: Int
+misa_H_bitpos = 7 :: Int
 
-misa_I_bitpos :: Int;    misa_I_bitpos = 8
-misa_J_bitpos :: Int;    misa_J_bitpos = 9
-misa_K_bitpos :: Int;    misa_K_bitpos = 10
-misa_L_bitpos :: Int;    misa_L_bitpos = 11
+misa_I_bitpos = 8 :: Int
+misa_J_bitpos = 9 :: Int
+misa_K_bitpos = 10 :: Int
+misa_L_bitpos = 11 :: Int
 
-misa_M_bitpos :: Int;    misa_M_bitpos = 12
-misa_N_bitpos :: Int;    misa_N_bitpos = 13
-misa_O_bitpos :: Int;    misa_O_bitpos = 14
-misa_P_bitpos :: Int;    misa_P_bitpos = 15
+misa_M_bitpos = 12 :: Int
+misa_N_bitpos = 13 :: Int
+misa_O_bitpos = 14 :: Int
+misa_P_bitpos = 15 :: Int
 
-misa_Q_bitpos :: Int;    misa_Q_bitpos = 16
-misa_R_bitpos :: Int;    misa_R_bitpos = 17
-misa_S_bitpos :: Int;    misa_S_bitpos = 18
-misa_T_bitpos :: Int;    misa_T_bitpos = 19
+misa_Q_bitpos = 16 :: Int
+misa_R_bitpos = 17 :: Int
+misa_S_bitpos = 18 :: Int
+misa_T_bitpos = 19 :: Int
 
-misa_U_bitpos :: Int;    misa_U_bitpos = 20
-misa_V_bitpos :: Int;    misa_V_bitpos = 21
-misa_W_bitpos :: Int;    misa_W_bitpos = 22
-misa_X_bitpos :: Int;    misa_X_bitpos = 23
+misa_U_bitpos = 20 :: Int
+misa_V_bitpos = 21 :: Int
+misa_W_bitpos = 22 :: Int
+misa_X_bitpos = 23 :: Int
 
-misa_Y_bitpos :: Int;    misa_Y_bitpos = 24
-misa_Z_bitpos :: Int;    misa_Z_bitpos = 25
+misa_Y_bitpos = 24 :: Int
+misa_Z_bitpos = 25 :: Int
 
-misa_MXL_bitpos_RV32 :: Int;    misa_MXL_bitpos_RV32 = 30
-misa_MXL_bitpos_RV64 :: Int;    misa_MXL_bitpos_RV64 = 62
+misa_MXL_bitpos_RV32 = 30 :: Int
+misa_MXL_bitpos_RV64 = 62 :: Int
 
 -- ================================================================
 -- MSTATUS bit fields
 
-mstatus_sd_bitpos_RV64  :: Int;  mstatus_sd_bitpos_RV64 = 63
-mstatus_sd_bitpos_RV32  :: Int;  mstatus_sd_bitpos_RV32 = 31
+mstatus_sd_bitpos_RV64 = 63 :: Int
+mstatus_sd_bitpos_RV32 = 31 :: Int
 
-mstatus_sxl_bitpos      :: Int;  mstatus_sxl_bitpos     = 34
-mstatus_uxl_bitpos      :: Int;  mstatus_uxl_bitpos     = 32
+mstatus_sxl_bitpos     = 34 :: Int
+mstatus_uxl_bitpos     = 32 :: Int
 
-mstatus_tsr_bitpos      :: Int;  mstatus_tsr_bitpos     = 22
-mstatus_tw_bitpos       :: Int;  mstatus_tw_bitpos      = 21
-mstatus_tvm_bitpos      :: Int;  mstatus_tvm_bitpos     = 20
+mstatus_tsr_bitpos     = 22 :: Int
+mstatus_tw_bitpos      = 21 :: Int
+mstatus_tvm_bitpos     = 20 :: Int
 
-mstatus_mxr_bitpos      :: Int;  mstatus_mxr_bitpos     = 19
-mstatus_sum_bitpos      :: Int;  mstatus_sum_bitpos     = 18
-mstatus_mprv_bitpos     :: Int;  mstatus_mprv_bitpos    = 17
+mstatus_mxr_bitpos     = 19 :: Int
+mstatus_sum_bitpos     = 18 :: Int
+mstatus_mprv_bitpos    = 17 :: Int
 
-mstatus_xs_bitpos       :: Int;  mstatus_fs_bitpos      = 15
-mstatus_fs_bitpos       :: Int;  mstatus_xs_bitpos      = 13
+mstatus_fs_bitpos      = 15 :: Int
+mstatus_xs_bitpos      = 13 :: Int
 
-mstatus_mpp_bitpos      :: Int;  mstatus_mpp_bitpos     = 11
-mstatus_spp_bitpos      :: Int;  mstatus_spp_bitpos     =  8
+mstatus_mpp_bitpos     = 11 :: Int
+mstatus_spp_bitpos     =  8 :: Int
 
-mstatus_mpie_bitpos     :: Int;  mstatus_mpie_bitpos    =  7
-mstatus_spie_bitpos     :: Int;  mstatus_spie_bitpos    =  5
-mstatus_upie_bitpos     :: Int;  mstatus_upie_bitpos    =  4
+mstatus_mpie_bitpos    =  7 :: Int
+mstatus_spie_bitpos    =  5 :: Int
+mstatus_upie_bitpos    =  4 :: Int
 
-mstatus_mie_bitpos      :: Int;  mstatus_mie_bitpos     =  3
-mstatus_sie_bitpos      :: Int;  mstatus_sie_bitpos     =  1
-mstatus_uie_bitpos      :: Int;  mstatus_uie_bitpos     =  0
+mstatus_mie_bitpos     =  3 :: Int
+mstatus_sie_bitpos     =  1 :: Int
+mstatus_uie_bitpos     =  0 :: Int
 
 -- MSTATUS contains a ``stack'' of ``previous-privilege'' and ``interrupt-enable'' bits
 
@@ -676,8 +676,8 @@ ustatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
 tvec_mode :: Word64 -> Word64
 tvec_mode  tvec = (tvec .&. 3)
 
-tvec_mode_DIRECT   :: Word64;  tvec_mode_DIRECT   = 0
-tvec_mode_VECTORED :: Word64;  tvec_mode_VECTORED = 1
+tvec_mode_DIRECT   = 0 :: Word64
+tvec_mode_VECTORED = 1 :: Word64
 
 tvec_base :: Word64 -> Word64
 tvec_base  tvec = shiftL (shiftR  tvec  2) 2
@@ -686,17 +686,17 @@ tvec_base  tvec = shiftL (shiftR  tvec  2) 2
 -- MIP bit fields (Machine privilege level Interrupt Pending)
 -- MIE bit fields (Machine privilege level Interrupt Enable)
 
-mip_usip_bitpos :: Int;  mip_usip_bitpos =  0
-mip_ssip_bitpos :: Int;  mip_ssip_bitpos =  1
-mip_msip_bitpos :: Int;  mip_msip_bitpos =  3
+mip_usip_bitpos =  0 :: Int
+mip_ssip_bitpos =  1 :: Int
+mip_msip_bitpos =  3 :: Int
 
-mip_utip_bitpos :: Int;  mip_utip_bitpos =  4
-mip_stip_bitpos :: Int;  mip_stip_bitpos =  5
-mip_mtip_bitpos :: Int;  mip_mtip_bitpos =  7
+mip_utip_bitpos =  4 :: Int
+mip_stip_bitpos =  5 :: Int
+mip_mtip_bitpos =  7 :: Int
 
-mip_ueip_bitpos :: Int;  mip_ueip_bitpos =  8
-mip_seip_bitpos :: Int;  mip_seip_bitpos =  9
-mip_meip_bitpos :: Int;  mip_meip_bitpos = 11
+mip_ueip_bitpos =  8 :: Int
+mip_seip_bitpos =  9 :: Int
+mip_meip_bitpos = 11 :: Int
 
 -- SIP is a ``view'' of MIP for Supervisor privilege level
 -- SIE is a ``view'' of MIE for Supervisor privilege level, with the same mask
@@ -792,8 +792,8 @@ fn_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv =
 -- ================================================================
 -- MCAUSE bit fields
 
-mcause_interrupt_bitpos_RV32 :: Int; mcause_interrupt_bitpos_RV32 = 31
-mcause_interrupt_bitpos_RV64 :: Int; mcause_interrupt_bitpos_RV64 = 63
+mcause_interrupt_bitpos_RV32 = 31 :: Int
+mcause_interrupt_bitpos_RV64 = 63 :: Int
 
 -- Constructor: make an MCAUSE value depending interrupt or trap, and exception code
 
