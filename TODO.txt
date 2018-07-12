@@ -1,17 +1,4 @@
-Status:
-- rv32ui-p-*    (39 tests)    Passed    2018-06-03
-- rv64ui-p-*    (51 tests)    Passed    2018-06-03
-
-- rv32ua-p-*    (10 tests)    Passed    2018-06-03
-- rv64ua-p-*    (19 tests)    Passed    2018-06-03
-
-- rv32um-p-*    (8 tests)     Passed    2018-06-03
-- rv64um-p-*    (13 tests)    Passed    2018-06-03
-
-- rv32mi-p-*    (9 tests)     Passed    2018-06-19
-- rv64mi-p-*    (9 tests)     Passed    2018-06-19
-
->================================================================
+TODO:
 
 - Investigate false positive: rv32/64mi-p-breakpoint is a PASS, but Forvis' trace is different from Spike
     Spike:
@@ -38,7 +25,6 @@ Status:
         80000124:	10b51063          	bne	a0,a1,80000224 <pass>
 
 - Features to be added and tested:
-    - Add Priv_Mode_S, Sv39 and Sv48; do si, -v- tests
     - Add 'C' extension, do uc tests
     - Add timer; boot Linux
     - Add an OPTIONS list in Arch State to support arch options:
@@ -65,15 +51,6 @@ Status:
 
 ----------------
 Tests to be done
-
- 6 x rv32si-p-*
- 6 x rv64si-p-*
-
-39 x rv32ui-v-*
-51 x rv64ui-v-*
-
-14 x rv64um-v-*
-19 x rv64ua-v-*
 
 ----------------
 'C' extension tests
