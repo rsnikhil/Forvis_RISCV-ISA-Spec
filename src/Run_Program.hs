@@ -81,7 +81,8 @@ run_program  maxinstrs  m_tohost_addr  mstate = do
                                                            (console_output ++ "MTIME:" ++ (show  mtime) ++ "  ")
                                                          else
                                                            console_output
-                                             putStr  chs)
+                                             putStr  chs
+                                             hFlush  stdout)
 
              -- Continue
              let pc1 = mstate_pc_read  mstate1
@@ -136,7 +137,7 @@ fetch_and_execute  mstate = do
 
   case fetch_result of
     Fetch_Trap  ec -> (do
-                          putStrLn ("Fetch Trap:" ++ show_trap_exc_code  ec)
+                          when (verbosity >= 1) (putStrLn ("Fetch Trap:" ++ show_trap_exc_code  ec))
                           return mstate3)
     Fetch_C  u16 -> (do
                         -- Exec 'C' instruction

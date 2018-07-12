@@ -96,7 +96,7 @@ instr_fetch  mstate =
                                                      (Fetch_Trap  exc_code, mstate3))
                       Mem_Result_Ok  u64_hi    -> (let
                                                       u16_hi = trunc_u64_to_u16  u64_hi
-                                                      u32    = concat_u16_u16_to_u32  u16_lo  u16_hi
+                                                      u32    = bitconcat_u16_u16_to_u32  u16_lo  u16_hi
                                                    in
                                                      (Fetch  u32,  mstate2))))
 

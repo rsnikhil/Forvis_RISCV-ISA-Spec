@@ -125,14 +125,126 @@ mmio_write  mmio  funct3  addr  val =
 
 -- ================================================================
 -- AMO op
--- Currently AMO is not supported on I/O addrs; return access fault.
 -- TODO: find out if does LR also return STORE_AMO_ACCESS_FAULT or LOAD_ACCESS_FAULT?
 
 mmio_amo :: MMIO -> Word64 -> InstrField -> InstrField -> InstrField -> InstrField -> Word64 ->
            (Mem_Result, MMIO)
 
-mmio_amo  mmio  addr  funct3  msbs5  aq  rl  val =
-  (Mem_Result_Err exc_code_store_AMO_access_fault,  mmio)
+mmio_amo  mmio  addr  funct3  msbs5  aq  rl  stv_d =
+  if (not (is_AMO_aligned  funct3  addr)) then
+    (Mem_Result_Err exc_code_store_AMO_addr_misaligned,  mmio)
+
+  else if ((addr /= addr_msip) &&
+           (addr /= addr_mtimecmp) &&
+           (addr /= addr_mtime)) then
+         (Mem_Result_Err exc_code_store_AMO_access_fault,  mmio)
+
+  else
+    let
+      stv_w0 = trunc_u64_to_u32  stv_d
+      stv_w1 = trunc_u64_to_u32  (shiftR  stv_d  32)
+
+      -- Get old values (omvs)
+      omv_d  = if (addr == addr_msip) then f_msip mmio
+               else if (addr == addr_mtimecmp) then f_mtimecmp  mmio
+                    else if (addr == addr_mtime) then f_mtime  mmio
+                         else 0
+      omv_w0 = trunc_u64_to_u32  omv_d
+      omv_w1 = trunc_u64_to_u32  (shiftR  omv_d  32)
+
+      -- Load-value (to be returned to CPU)
+      ldv | (msbs5  == msbs5_AMO_SC) = 1    -- always fail (SC success = 0, SC failure = non-zero)
+          | (funct3 == funct3_AMO_W) = bitconcat_u32_u32_to_u64  0  omv_w0
+          | (funct3 == funct3_AMO_D) = omv_d
+
+      -- New memory value (to be stored back)
+      (nmv_w1, nmv_w0) | (msbs5 == msbs5_AMO_SC)   = (stv_w1, stv_w0)
+                       | (msbs5 == msbs5_AMO_SWAP) = (stv_w1, stv_w0)
+                       | (msbs5 == msbs5_AMO_ADD)  = (if (funct3 == funct3_AMO_W) then
+                                                        let
+                                                          z_w = cvt_s32_to_u32 ((cvt_u32_to_s32  omv_w0) + (cvt_u32_to_s32  stv_w0))
+                                                        in
+                                                          (0, z_w)
+                                                      else
+                                                        let
+                                                          z_d = cvt_s64_to_u64 ((cvt_u64_to_s64  omv_d) + (cvt_u64_to_s64  stv_d))
+                                                        in
+                                                          (trunc_u64_to_u32 (shiftR  z_d  32),  trunc_u64_to_u32  z_d))
+
+                       | (msbs5 == msbs5_AMO_AND)  = ((omv_w1 .&. stv_w1),
+                                                      (omv_w0 .&. stv_w0))
+
+                       | (msbs5 == msbs5_AMO_OR)   = ((omv_w1 .|. stv_w1),
+                                                      (omv_w0 .|. stv_w0))
+
+                       | (msbs5 == msbs5_AMO_XOR)  = ((xor  omv_w1  stv_w1),
+                                                      (xor  omv_w0  stv_w0))
+
+                       | (msbs5 == msbs5_AMO_MAX)  = (if (funct3 == funct3_AMO_W) then
+                                                        let
+                                                          z_w = if ((cvt_u32_to_s32  omv_w0) > (cvt_u32_to_s32  stv_w0)) then
+                                                                  omv_w0
+                                                                else
+                                                                  stv_w0
+                                                        in
+                                                          (0, z_w)
+                                                      else
+                                                        if ((cvt_u64_to_s64  omv_d) > (cvt_u64_to_s64  stv_d)) then
+                                                          (omv_w1, omv_w0)
+                                                        else
+                                                          (stv_w1, stv_w0))
+
+                       | (msbs5 == msbs5_AMO_MIN)  = (if (funct3 == funct3_AMO_W) then
+                                                        let
+                                                          z_w = if ((cvt_u32_to_s32  omv_w0) < (cvt_u32_to_s32  stv_w0)) then
+                                                                  omv_w0
+                                                                else
+                                                                  stv_w0
+                                                        in
+                                                          (0, z_w)
+                                                      else
+                                                        if ((cvt_u64_to_s64  omv_d) < (cvt_u64_to_s64  stv_d)) then
+                                                          (omv_w1, omv_w0)
+                                                        else
+                                                          (stv_w1, stv_w0))
+
+                       | (msbs5 == msbs5_AMO_MAXU) = (if (funct3 == funct3_AMO_W) then
+                                                        let
+                                                          z_w = if (omv_w0 > stv_w0) then
+                                                                  omv_w0
+                                                                else
+                                                                  stv_w0
+                                                        in
+                                                          (0, z_w)
+                                                      else
+                                                        if (omv_d > stv_d) then
+                                                          (omv_w1, omv_w0)
+                                                        else
+                                                          (stv_w1, stv_w0))
+                       | (msbs5 == msbs5_AMO_MINU) = (if (funct3 == funct3_AMO_W) then
+                                                        let
+                                                          z_w = if (omv_w0 < stv_w0) then
+                                                                  omv_w0
+                                                                else
+                                                                  stv_w0
+                                                        in
+                                                          (0, z_w)
+                                                      else
+                                                        if (omv_d < stv_d) then
+                                                          (omv_w1, omv_w0)
+                                                        else
+                                                          (stv_w1, stv_w0))
+      nmv_d = bitconcat_u32_u32_to_u64  nmv_w1  nmv_w0
+
+      -- Update locations
+      mmio' | (msbs5 == msbs5_AMO_LR)  = mmio
+            | (msbs5 == msbs5_AMO_SC)  = mmio
+            | True                     = if (addr == addr_mtime) then mmio {f_mtime = nmv_d}
+                                         else if (addr == addr_mtimecmp) then mmio {f_mtimecmp = nmv_d}
+                                              else if (addr == addr_msip) then mmio {f_msip = nmv_d}
+                                                   else mmio
+    in
+      (Mem_Result_Ok  ldv, mmio')
 
 -- ================================================================
 -- Tick mtime and check if timer interrupt

@@ -18,6 +18,7 @@ module Mem_Ops where
 -- Standard Haskell imports
 
 import Data.Word
+import Data.Bits
 
 -- Project imports
 
@@ -34,6 +35,12 @@ funct3_LBU = 0x4 :: InstrField     -- 3'b_100
 funct3_LHU = 0x5 :: InstrField     -- 3'b_101
 funct3_LWU = 0x6 :: InstrField     -- 3'b_110
 
+is_LOAD_aligned :: InstrField -> Word64 -> Bool
+is_LOAD_aligned  funct3  addr = ((    (funct3 == funct3_LB) || (funct3 == funct3_LBU))
+                                 || (((funct3 == funct3_LH) || (funct3 == funct3_LHU)) && ((addr .&. 0x1) == 0))
+                                 || (((funct3 == funct3_LW) || (funct3 == funct3_LWU)) && ((addr .&. 0x3) == 0))
+                                 || ( (funct3 == funct3_LD)                            && ((addr .&. 0x7) == 0)))
+
 -- ================================================================
 -- Definitions within opcode_STORE
 
@@ -41,6 +48,12 @@ funct3_SB  = 0x0 :: InstrField     -- 3'b_000
 funct3_SH  = 0x1 :: InstrField     -- 3'b_001
 funct3_SW  = 0x2 :: InstrField     -- 3'b_010
 funct3_SD  = 0x3 :: InstrField     -- 3'b_011
+
+is_STORE_aligned :: InstrField -> Word64 -> Bool
+is_STORE_aligned  funct3  addr = ((funct3 == funct3_SB)
+                                  || ((funct3 == funct3_SH) && ((addr .&. 0x1) == 0))
+                                  || ((funct3 == funct3_SW) && ((addr .&. 0x3) == 0))
+                                  || ((funct3 == funct3_SD) && ((addr .&. 0x7) == 0)))
 
 -- ================================================================
 -- Definitions within opcode_AMO
@@ -59,5 +72,9 @@ msbs5_AMO_MIN  = 0x10 :: InstrField    -- 5'b10000
 msbs5_AMO_MAX  = 0x14 :: InstrField    -- 5'b10100
 msbs5_AMO_MINU = 0x18 :: InstrField    -- 5'b11000
 msbs5_AMO_MAXU = 0x1C :: InstrField    -- 5'b11100
+
+is_AMO_aligned :: InstrField -> Word64 -> Bool
+is_AMO_aligned  funct3  addr = ((   (funct3 == funct3_AMO_W) && ((addr .&. 0x3) == 0))
+                                || ((funct3 == funct3_AMO_D) && ((addr .&. 0x7) == 0)))
 
 -- ================================================================

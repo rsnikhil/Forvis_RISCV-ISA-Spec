@@ -186,14 +186,22 @@ cvt_u64_to_Int  u = fromIntegral u
 -- ================================================================
 -- Bit concatenations
 
-concat_u16_u16_to_u32 :: Word16 -> Word16 -> Word32
-concat_u16_u16_to_u32  u16_lo  u16_hi =
+bitconcat_u16_u16_to_u32 :: Word16 -> Word16 -> Word32
+bitconcat_u16_u16_to_u32  u16_lo  u16_hi =
   let
     u32_lo = fromIntegral  u16_lo
     u32_hi = fromIntegral  u16_hi
     u32   = (shiftL u32_hi  16) .|. u32_lo
   in
     u32
+
+bitconcat_u32_u32_to_u64  :: Word32 -> Word32 -> Word64
+bitconcat_u32_u32_to_u64  w1  w0 =
+  let
+    d0 = zeroExtend_u32_to_u64  w0
+    d1 = zeroExtend_u32_to_u64  w1
+  in
+    ((shiftL  d1  32) .|.  d0)
 
 -- ================================================================
 -- Set and clear specific bits

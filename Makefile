@@ -87,7 +87,7 @@ test_thue: $(EXE_FILE)
 # Linux kernel
 .PHONY: test_linux_boot
 test_linux_boot: $(EXE_FILE)
-	./$(EXE_FILE)  --RV64  -n 200000000 \
+	./$(EXE_FILE)  --RV64  -n 400000000 \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/Linux_kernel/rv64-vmlinux.elf
 

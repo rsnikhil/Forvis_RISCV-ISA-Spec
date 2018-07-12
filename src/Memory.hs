@@ -320,41 +320,11 @@ mem_amo  mem  addr  funct3  msbs5  aq  rl  stv_d =
       (Mem_Result_Err exc_code_store_AMO_addr_misaligned,  mem)
 
 -- ================================================================
--- Tests for address alignment
-
-is_LOAD_aligned :: InstrField -> Word64 -> Bool
-is_LOAD_aligned  funct3  addr = ((    (funct3 == funct3_LB) || (funct3 == funct3_LBU))
-                                 || (((funct3 == funct3_LH) || (funct3 == funct3_LHU)) && ((addr .&. 0x1) == 0))
-                                 || (((funct3 == funct3_LW) || (funct3 == funct3_LWU)) && ((addr .&. 0x3) == 0))
-                                 || ( (funct3 == funct3_LD)                            && ((addr .&. 0x7) == 0)))
-
-is_STORE_aligned :: InstrField -> Word64 -> Bool
-is_STORE_aligned  funct3  addr = ((funct3 == funct3_SB)
-                                  || ((funct3 == funct3_SH) && ((addr .&. 0x1) == 0))
-                                  || ((funct3 == funct3_SW) && ((addr .&. 0x3) == 0))
-                                  || ((funct3 == funct3_SD) && ((addr .&. 0x7) == 0)))
-
-is_AMO_aligned :: InstrField -> Word64 -> Bool
-is_AMO_aligned  funct3  addr = ((   (funct3 == funct3_AMO_W) && ((addr .&. 0x3) == 0))
-                                || ((funct3 == funct3_AMO_D) && ((addr .&. 0x7) == 0)))
-
--- ================================================================
 -- For LR/SC, check if addr range (a1, a2) overlaps with addr range (r1, r2)
 -- Note: both ranges are either 4-bytes or 8-bytes
 
 addrs_overlap :: Word64 -> Word64 -> Word64 -> Word64 -> Bool
 addrs_overlap  a1  a2  r1  r2 = ((   (a1 <= r1) && (r1 <= a2))
                                  || ((a1 <= r2) && (r2 <= a2)))
-
--- ================================================================
--- Utility to combine bytes into words (u32) and doublewords (u64)
-
-bitconcat_u32_u32_to_u64  :: Word32 -> Word32 -> Word64
-bitconcat_u32_u32_to_u64  w1  w0 =
-  let
-    d0 = zeroExtend_u32_to_u64  w0
-    d1 = zeroExtend_u32_to_u64  w1
-  in
-    ((shiftL  d1  32) .|.  d0)
 
 -- ================================================================
