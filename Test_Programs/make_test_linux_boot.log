@@ -1,84 +1,145 @@
-MTIME:835197  [    0.000000] Linux version 4.15.0-rc6-g87cb3b7 (quark@cobalt) (gcc version 7.2.0 (GCC)) #1 SMP Fri May 11 15:43:59 EDT 2018
-MTIME:855263  [    0.000000] bootconsole [early0] enabled
-MTIME:865603  [    0.000000] Initial ramdisk at: 0x        (ptrval) (1080371 bytes)
-MTIME:880415  [    0.000000] Zone ranges:
-MTIME:925998  [    0.000000]   DMA      [mem 0x0000000080200000-0x000000008fffffff]
-MTIME:942062  [    0.000000]   Normal   empty
-MTIME:951014  [    0.000000] Movable zone start for each node
-MTIME:961339  [    0.000000] Early memory node ranges
-MTIME:970371  [    0.000000]   node   0: [mem 0x0000000080200000-0x000000008fffffff]
-MTIME:985470  [    0.000000] Initmem setup node 0 [mem 0x0000000080200000-0x000000008fffffff]
-MTIME:1002237  [    0.000000] elf_hwcap is 0x1101
-MTIME:5961752  [    0.000000] percpu: Embedded 14 pages/cpu @        (ptrval) s28632 r0 d28712 u57344
-MTIME:5976119  [    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 64135
-MTIME:6045752  [    0.000000] Kernel command line: 
-MTIME:6054640  [    0.000000] Dentry cache hash table entries: 32768 (order: 6, 262144 bytes)
-MTIME:6118328  [    0.000000] Inode-cache hash table entries: 16384 (order: 5, 131072 bytes)
-MTIME:6159187  [    0.000000] Sorting __ex_table...
-MTIME:6167686  [    0.000000] Memory: 248880K/260096K available (4180K kernel code, 201K rwdata, 765K rodata, 1239K init, 779K bss, 11216K reserved, 0K cma-reserved)
-MTIME:8183663  [    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
-MTIME:8317201  [    0.000000] Hierarchical RCU implementation.
-MTIME:8390015  [    0.000000] 	RCU event tracing is enabled.
-MTIME:8400009  [    0.000000] 	RCU restricting CPUs from NR_CPUS=8 to nr_cpu_ids=1.
-MTIME:8414337  [    0.000000] RCU: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=1
-MTIME:8429905  [    0.000000] NR_IRQS: 0, nr_irqs: 0, preallocated irqs: 0
-MTIME:8444727  [    0.000000] riscv,cpu_intc,0: 64l local interrupts mapped
-MTIME:8468003  [    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x171024e7e0, max_idle_ns: 440795205315 ns
-MTIME:8496594  [    0.000000] console [hvc0] enabled
-MTIME:8512001  [    0.000000] console [hvc0] enabled
-MTIME:8517327  [    0.000000] bootconsole [early0] disabled
-MTIME:8528879  [    0.000000] bootconsole [early0] disabled
-MTIME:8535150  [    0.000000] Calibrating delay loop (skipped), value calculated using timer frequency.. 200.00 BogoMIPS (lpj=1000000)
-MTIME:8566963  [    0.000000] pid_max: default: 32768 minimum: 301
-MTIME:8579902  [    0.000000] Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
-MTIME:8654567  [    0.000000] Mountpoint-cache hash table entries: 512 (order: 0, 4096 bytes)
-MTIME:8674000  [    0.000000] Hierarchical SRCU implementation.
-MTIME:9015113  [    0.000000] smp: Bringing up secondary CPUs ...
-MTIME:9266763  [    0.000000] smp: Brought up 1 node, 1 CPU
-MTIME:9278925  [    0.000000] devtmpfs: initialized
-MTIME:9398749  [    0.000000] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
-MTIME:9666696  [    0.000000] futex hash table entries: 256 (order: 2, 16384 bytes)
-MTIME:9684176  [    0.000000] random: get_random_u32 called from bucket_table_alloc+0x134/0x3c0 with crng_init=0
-MTIME:9789968  [    0.000000] NET: Registered protocol family 16
-MTIME:9866227  [    0.000000] vgaarb: loaded
-MTIME:11816101  [    0.000000] SCSI subsystem initialized
-MTIME:11949076  [    0.000000] usbcore: registered new interface driver usbfs
-MTIME:12030402  [    0.000000] usbcore: registered new interface driver hub
-MTIME:12057228  [    0.000000] usbcore: registered new device driver usb
-MTIME:12085571  [    0.000000] pps_core: LinuxPPS API ver. 1 registered
-MTIME:12128979  [    0.000000] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
-MTIME:12150927  [    0.000000] PTP clock support registered
-MTIME:12167406  [    0.000000] clocksource: Switched to clocksource riscv_clocksource
-MTIME:12332000  [    0.000000] NET: Registered protocol family 2
-MTIME:12673923  [    0.000000] TCP established hash table entries: 2048 (order: 2, 16384 bytes)
-MTIME:12963623  [    0.000000] TCP bind hash table entries: 2048 (order: 3, 32768 bytes)
-MTIME:13006694  [    0.000000] TCP: Hash tables configured (established 2048 bind 2048)
-MTIME:13047977  [    0.000000] UDP hash table entries: 256 (order: 1, 8192 bytes)
-MTIME:13085478  [    0.000000] UDP-Lite hash table entries: 256 (order: 1, 8192 bytes)
-MTIME:13111315  [    0.000000] NET: Registered protocol family 1
-MTIME:13177057  [    0.000000] Unpacking initramfs...
-MTIME:58667526  [    0.000000] Initialise system trusted keyrings
-MTIME:106045227  [    0.000000] workingset: timestamp_bits=62 max_order=16 bucket_order=0
-MTIME:106102958  [    0.000000] random: fast init done
-MTIME:110005228  [    0.000000] jitterentropy: Initialization failed with host not compliant with requirements: 1
-MTIME:110243687  [    0.000000] Key type asymmetric registered
-MTIME:110255238  [    0.000000] Asymmetric key parser 'x509' registered
-MTIME:110268478  [    0.000000] io scheduler noop registered
-MTIME:110283466  [    0.000000] io scheduler cfq registered (default)
-MTIME:110400163  [    0.000000] io scheduler mq-deadline registered
-MTIME:110412963  [    0.000000] io scheduler kyber registered
-MTIME:110424679  [    0.000000] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
-MTIME:123833284  [    0.000000] c0000000.uart: ttyS0 at MMIO 0xc0000000 (irq = 0, base_baud = 6250000) is a 16550A
-MTIME:124204731  [    0.000000] e1000e: Intel(R) PRO/1000 Network Driver - 3.2.6-k
-MTIME:124411576  [    0.000000] e1000e: Copyright(c) 1999 - 2015 Intel Corporation.
-MTIME:124426535  [    0.000000] ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver
-MTIME:124467750  [    0.000000] ehci-pci: EHCI PCI platform driver
-MTIME:124479880  [    0.000000] usbcore: registered new interface driver usb-storage
-MTIME:124534289  [    0.000000] usbcore: registered new interface driver usbhid
-MTIME:124586059  [    0.000000] usbhid: USB HID core driver
-MTIME:124596602  [    0.000000] NET: Registered protocol family 17
-MTIME:124698185  [    0.000000] Loading compiled-in X.509 certificates
-MTIME:124817502  [    0.000000] Freeing unused kernel memory: 1236K
-MTIME:125224237  [    0.000000] This architecture does not have kernel memory protection.
-MTIME:125240090  
-MTIME:127538432  Please press Enter to activate this console. 
+Log of make test_linux_boot 
+Fri Jul 13 12:47:04 2018
+
+make[1]: Entering directory '/home/nikhil/GitHub/RISCV-ISA-Spec'
+nice -n19  ./forvis_exe  +RTS -K10M -M4G -RTS\
+	--RV64  -n 400000000 \
+	Test_Programs/boot_ROM_RV64.hex32 \
+	Test_Programs/Linux_kernel/rv64-vmlinux.elf
+Type -h, -H or --help for help.
+Input file: Test_Programs/boot_ROM_RV64.hex32
+    Addr range: 1000..1fff
+    tohost addr: none
+Input file: Test_Programs/Linux_kernel/rv64-vmlinux.elf
+    Addr range: 80000000..809028a3
+    tohost addr: 80007008
+PC reset: 0x1000; RV64; instret limit: 400000000
+Instret = 0; MTIME = 1; Mem num_entries = 2362921
+Console input: [][]
+[    0.000000] OF: fdt: Ignoring memory range 0x80000000 - 0x80200000
+[    0.000000] Linux version 4.15.0-rc6-g87cb3b7 (quark@cobalt) (gcc version 7.2.0 (GCC)) #1 SMP Fri May 11 15:43:59 EDT 2018
+[    0.000000] bootconsole [early0] enabled
+[    0.000000] Initial ramdisk at: 0x        (ptrval) (1080371 bytes)
+[    0.000000] Zone ranges:
+[    0.000000]   DMA      [mem 0x0000000080200000-0x000000008fffffff]
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080200000-0x000000008fffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080200000-0x000000008fffffff]
+[    0.000000] elf_hwcap is 0x1101
+[    0.000000] percpu: Embedded 14 pages/cpu @        (ptrval) s28632 r0 d28712 u57344
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 64135
+[    0.000000] Kernel command line: 
+[    0.000000] Dentry cache hash table entries: 32768 (order: 6, 262144 bytes)
+[    0.000000] Inode-cache hash table entries: 16384 (order: 5, 131072 bytes)
+[    0.000000] Sorting __ex_table...
+[    0.000000] Memory: 248880K/260096K available (4180K kernel code, 201K rwdata, 765K rodata, 1239K init, 779K bss, 11216K reserved, 0K cma-reserved)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] Hierarchical RCU implementation.
+[    0.000000] 	RCU event tracing is enabled.
+[    0.000000] 	RCU restricting CPUs from NR_CPUS=8 to nr_cpu_ids=1.
+[    0.000000] RCU: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=1
+[    0.000000] NR_IRQS: 0, nr_irqs: 0, preallocated irqs: 0
+[    0.000000] riscv,cpu_intc,0: 64l local interrupts mapped
+[    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x171024e7e0, max_idle_ns: 440795205315 ns
+[    0.000000] console [hvc0] enabled
+[    0.000000] console [hvc0] enabled
+[    0.000000] bootconsole [early0] disabled
+[    0.000000] bootconsole [early0] disabled
+[    0.000000] Calibrating delay loop (skipped), value calculated using timer frequency.. 200.00 BogoMIPS (lpj=1000000)
+[    0.000000] pid_max: default: 32768 minimum: 301
+[    0.000000] Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
+[    0.000000] Mountpoint-cache hash table entries: 512 (order: 0, 4096 bytes)
+[    0.000000] Hierarchical SRCU implementation.
+[    0.000000] smp: Bringing up secondary CPUs ...
+[    0.000000] smp: Brought up 1 node, 1 CPU
+[    0.000000] devtmpfs: initialized
+[    0.000000] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+[    0.000000] futex hash table entries: 256 (order: 2, 16384 bytes)
+[    0.000000] random: get_random_u32 called from bucket_table_alloc+0x134/0x3c0 with crng_init=0
+[    0.000000] NET: Registered protocol family 16
+Instret = 10000000; MTIME = 10000001; Mem num_entries = 3478388
+Console input: [][]
+[    0.000000] vgaarb: loaded
+[    0.000000] SCSI subsystem initialized
+[    0.000000] usbcore: registered new interface driver usbfs
+[    0.000000] usbcore: registered new interface driver hub
+[    0.000000] usbcore: registered new device driver usb
+[    0.000000] pps_core: LinuxPPS API ver. 1 registered
+[    0.000000] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[    0.000000] PTP clock support registered
+[    0.000000] clocksource: Switched to clocksource riscv_clocksource
+[    0.000000] NET: Registered protocol family 2
+[    0.000000] TCP established hash table entries: 2048 (order: 2, 16384 bytes)
+[    0.000000] TCP bind hash table entries: 2048 (order: 3, 32768 bytes)
+[    0.000000] TCP: Hash tables configured (established 2048 bind 2048)
+[    0.000000] UDP hash table entries: 256 (order: 1, 8192 bytes)
+[    0.000000] UDP-Lite hash table entries: 256 (order: 1, 8192 bytes)
+[    0.000000] NET: Registered protocol family 1
+Instret = 20000000; MTIME = 20000001; Mem num_entries = 3665265
+Console input: [][]
+Instret = 30000000; MTIME = 30000001; Mem num_entries = 3788150
+Console input: [][]
+Instret = 40000000; MTIME = 40000001; Mem num_entries = 3911030
+Console input: [][]
+Instret = 50000000; MTIME = 50000001; Mem num_entries = 4042103
+Console input: [][]
+[    0.000000] Unpacking initramfs...
+Instret = 60000000; MTIME = 60000001; Mem num_entries = 4154859
+Console input: [][]
+Instret = 70000000; MTIME = 70000001; Mem num_entries = 4159979
+Console input: [][]
+Instret = 80000000; MTIME = 80000001; Mem num_entries = 4176363
+Console input: [][]
+Instret = 90000000; MTIME = 90000001; Mem num_entries = 4209131
+Console input: [][]
+Instret = 100000000; MTIME = 100000001; Mem num_entries = 4224279
+Console input: [][]
+[    0.000000] Initialise system trusted keyrings
+[    0.000000] workingset: timestamp_bits=62 max_order=16 bucket_order=0
+[  Instret = 110000000; MTIME = 110000001; Mem num_entries = 4364500
+Console input: [][]
+  0.000000] random: fast init done
+[    0.000000] jitterentropy: Initialization failed with host not compliant with requirements: 1
+[    0.000000] Key type asymmetric registered
+[    0.000000] Asymmetric key parser 'x509' registered
+[    0.000000] io scheduler noop registered
+[    0.000000] io scheduler cfq registered (default)
+[    0.000000] io scheduler mq-deadline registered
+[    0.000000] io scheduler kyber registered
+Instret = 120000000; MTIME = 120000001; Mem num_entries = 4602654
+Console input: [][]
+[    0.000000] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    0.000000] c0000000.uart: ttyS0 at MMIO 0xc0000000 (irq = 0, base_baud = 6250000) is a 16550A
+[    0.000000] e1000e: Intel(R) PRO/1000 Network Driver - 3.2.6-k
+[    0.000000] e1000e: Copyright(c) 1999 - 2015 Intel Corporation.
+[    0.000000] ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver
+[    0.000000] ehci-pci: EHCI PCI platform driver
+[    0.000000] usbcore: registered new interface driver usb-storage
+[    0.000000] usbcore: registered new interface driver usbhid
+[    0.000000] usbhid: USB HID core driver
+[    0.000000] NET: Registered protocol family 17
+[    0.000000] Loading compiled-in X.509 certificates
+[    0.000000] Freeing unused kernel memory: 1236K
+[    0.000000] This architecture does not have kernel memory protection.
+
+Please press Enter to activate this console. Instret = 130000000; MTIME = 130000001; Mem num_entries = 4724108
+Console input: [][]
+Providing input to UART: [
+]
+Instret = 140000000; MTIME = 140000001; Mem num_entries = 4724108
+Console input: [][
+]
+Instret = 150000000; MTIME = 150000001; Mem num_entries = 4724108
+Console input: [][
+]
+Instret = 160000000; MTIME = 160000001; Mem num_entries = 4724108
+Console input: [][
+]
+Makefile:90: recipe for target 'test_linux_boot' failed
+make[1]: *** [test_linux_boot] Interrupt
+makedied with signal 2
+
+Fri Jul 13 13:06:11 2018
+----------------

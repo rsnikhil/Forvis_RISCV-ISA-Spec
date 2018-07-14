@@ -18,6 +18,7 @@ module Run_Program where
 import Control.Monad
 import System.IO
 import Data.Int
+import Data.Char
 import Data.List
 import Data.Word
 import Data.Bits
@@ -44,6 +45,10 @@ import Forvis_Spec
 run_program :: Int -> (Maybe Word64) -> Machine_State -> IO (Int, Machine_State)
 run_program  maxinstrs  m_tohost_addr  mstate = do
   let instret               = mstate_csr_read  mstate  csr_addr_minstret
+      mtime                 = mstate_mem_read_mtime  mstate
+      num_entries           = mstate_mem_num_entries  mstate
+      (in_a, in_b)          = mstate_mem_all_console_input  mstate
+
       (tohost_u64, mstate1) = mstate_mem_read_tohost  mstate  m_tohost_addr
 
   if (tohost_u64 /= 0)
@@ -67,25 +72,38 @@ run_program  maxinstrs  m_tohost_addr  mstate = do
 
     -- Fetch-and-execute instruction and continue
     else (do
+             -- Debugging: print instret and memory size every 10M instrs
+             when ((instret `mod` 10000000) == 0) (do
+                                                      putStr  ("Instret = " ++ show instret)
+                                                      putStr  ("; MTIME = " ++ show mtime)
+                                                      putStr  ("; Mem num_entries = " ++ show  num_entries)
+                                                      putStrLn ""
+                                                      putStrLn ("Console input: [" ++ in_a ++ "][" ++ in_b ++ "]")
+                                                      hFlush  stdout)
+
+             -- Check for console input (for efficiency, only check at certain mtime intervals)
+             console_input <- if (mtime .&. 0xFFF == 0) then hGetLine_polled  stdin
+                              else return ""
+             when (console_input /= "") (do
+                                            putStrLn ("Providing input to UART: [" ++ console_input ++ "]")
+                                            hFlush  stdout)
+             -- Feed console input, if any, to Machine_State.Mem.MMIO.UART
+             let mstate1a = if (console_input == "") then mstate1
+                            else mstate_mem_enq_console_input  mstate1  console_input
+
              -- Fetch and execute one instruction (may be 0 instrs if
              -- exception on fetch, which just sets up exception handler
              -- for next fetch-and-execute)
-             mstate2 <- fetch_and_execute  mstate1
+             mstate2 <- fetch_and_execute  mstate1a
 
              -- Consume and print out new console output, if any
              let (console_output, mstate3) = mstate_mem_deq_console_output  mstate2
              when (console_output /= "") (do
-                                             let mtime = mstate_mem_read_mtime  mstate3
-                                                 ch    = last  console_output
-                                                 chs   = if ((last  console_output) == '\n') then
-                                                           (console_output ++ "MTIME:" ++ (show  mtime) ++ "  ")
-                                                         else
-                                                           console_output
-                                             putStr  chs
+                                             putStr  console_output
                                              hFlush  stdout)
 
              -- Continue
-             let pc1 = mstate_pc_read  mstate1
+             let pc1 = mstate_pc_read  mstate1a
                  pc2 = mstate_pc_read  mstate2
              if (pc1 == pc2)
                then (do
@@ -110,6 +128,25 @@ mstate_mem_read_tohost  mstate  (Just tohost_addr) =
       Mem_Result_Ok   u64      -> (u64, mstate')
 
 -- ================================================================
+-- Get a line from stdin if any input is available.
+-- Return empty string if none available.
+-- We loop using hGetChar, instead of just calling hGetLine, to also
+--     get the '\n' at the end if it exists  (hGetLine drops '\n').
+-- Note: with normal stdin buffering, this don't actually return
+-- anything until a complete line has been typed in, in ending in \n
+-- or EOF.
+
+hGetLine_polled  :: Handle -> IO (String)
+hGetLine_polled h = do
+  input_available <- hWaitForInput  h  0
+  if not input_available
+    then return ""
+    else (do
+             ch  <- hGetChar  h
+             chs <- hGetLine_polled  h
+             return  (ch:chs))
+
+-- ================================================================
 -- Fetch and execute an instruction (RV32 32b instr or RV32C 16b compressed instr)
 
 -- First tick mtime (which may register a timer interrupt).
@@ -120,7 +157,7 @@ mstate_mem_read_tohost  mstate  (Just tohost_addr) =
 fetch_and_execute :: Machine_State -> IO  Machine_State
 fetch_and_execute  mstate = do
   let verbosity            = mstate_verbosity_read  mstate
-      mstate1              = mstate_mem_tick_mtime  mstate
+      mstate1              = mstate_mem_tick        mstate
       (interrupt, mstate2) = take_interrupt_if_any  mstate1
 
   -- Debug-print when we take an interrupt

@@ -48,6 +48,25 @@ mkMMIO = MMIO { f_mtime         = 1,    -- greater than mtimecmp
               }
 
 -- ================================================================
+-- Tick mtime and check if timer interrupt
+
+mmio_tick_mtime :: MMIO -> (Bool, Bool, MMIO)
+mmio_tick_mtime  mmio =
+  let
+    uart             = f_uart  mmio
+    (eip, uart')     = uart_tick  uart
+
+    mtime            = f_mtime     mmio
+    mtimecmp         = f_mtimecmp  mmio
+    (tip, mtimecmp') = if (mtimecmp >= mtime) then (True, 0)
+                       else (False, mtimecmp)
+    mmio'            = mmio { f_mtime    = mtime + 1,
+                              f_mtimecmp = mtimecmp',
+                              f_uart     = uart'}
+  in
+    (eip, tip, mmio')
+
+-- ================================================================
 -- Read data from MMIO
 -- Currently returns a 'ok' with bogus value on most addrs
 
@@ -247,28 +266,25 @@ mmio_amo  mmio  addr  funct3  msbs5  aq  rl  stv_d =
       (Mem_Result_Ok  ldv, mmio')
 
 -- ================================================================
--- Tick mtime and check if timer interrupt
-
-mmio_tick_mtime :: MMIO -> (Bool, MMIO)
-mmio_tick_mtime  mmio =
-  let
-    mtime                  = f_mtime     mmio
-    mtimecmp               = f_mtimecmp  mmio
-    (interrupt, mtimecmp') = if (mtimecmp >= mtime) then (True, 0)
-                             else (False, mtimecmp)
-    mmio'        = mmio { f_mtime    = mtime + 1,
-                          f_mtimecmp = mtimecmp' }
-  in
-    (interrupt, mmio')
-
--- ================================================================
 -- Convenience function to read MTIME
 
 mmio_read_mtime :: MMIO -> Word64
 mmio_read_mtime  mmio = f_mtime  mmio
 
 -- ================================================================
--- Consume the recorded console-output
+-- Enqueue (tty -> UART -> MMIO -> CPU) console input
+
+mmio_enq_console_input :: MMIO -> String -> MMIO
+mmio_enq_console_input  mmio  s =
+  let
+    uart  = f_uart  mmio
+    uart' = uart_enq_input  uart  s
+    mmio' = mmio {f_uart = uart'}
+  in
+    mmio'
+
+-- ================================================================
+-- Dequeue (CPU -> MMIO -> UART -> tty) console output
 
 mmio_deq_console_output :: MMIO -> (String, MMIO)
 mmio_deq_console_output  mmio =
@@ -281,9 +297,19 @@ mmio_deq_console_output  mmio =
     (s, mmio')
 
 -- ================================================================
+-- Read all console input
+
+mmio_all_console_input :: MMIO -> (String, String)
+mmio_all_console_input  mmio =
+  let
+    uart = f_uart  mmio
+  in
+    uart_all_input  uart
+
+-- ================================================================
 -- Read all console output
 
-mmio_all_console_output :: MMIO -> String
+mmio_all_console_output :: MMIO -> (String, String)
 mmio_all_console_output  mmio =
   let
     uart = f_uart  mmio

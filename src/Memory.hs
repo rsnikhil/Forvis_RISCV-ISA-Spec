@@ -328,3 +328,14 @@ addrs_overlap  a1  a2  r1  r2 = ((   (a1 <= r1) && (r1 <= a2))
                                  || ((a1 <= r2) && (r2 <= a2)))
 
 -- ================================================================
+-- For debugging only
+-- Returns number of entries in the Data.Map
+
+mem_num_entries :: Mem -> Int
+mem_num_entries  mem =
+  let
+    dm = f_dm  mem
+  in
+    Data_Map.size  dm
+
+-- ================================================================

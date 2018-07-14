@@ -290,7 +290,18 @@ mstate_mem_fence_i  mstate = mstate
 mstate_mem_sfence_vm  :: Machine_State -> Word64 -> Word64 -> Machine_State
 mstate_mem_sfence_vm  mstate  rs1_val  rs2_val = mstate
 
--- I/O: Consume console output
+-- I/O: enq (CPU <- MMIO <- UART <- tty) console input
+
+mstate_mem_enq_console_input :: Machine_State -> String -> Machine_State
+mstate_mem_enq_console_input  mstate  s =
+  let
+    mmio                    = f_mmio  mstate
+    mmio'                   = mmio_enq_console_input  mmio  s
+    mstate'                 = mstate { f_mmio = mmio' }
+  in
+    mstate'
+
+-- I/O: deq (CPU -> MMIO -> UART -> tty) console output
 
 mstate_mem_deq_console_output :: Machine_State -> (String, Machine_State)
 mstate_mem_deq_console_output  mstate =
@@ -302,37 +313,53 @@ mstate_mem_deq_console_output  mstate =
   in
     (console_output, mstate')
 
+-- I/O: Read all console input
+
+mstate_mem_all_console_input :: Machine_State -> (String, String)
+mstate_mem_all_console_input  mstate =
+  let
+    mmio = f_mmio  mstate
+  in
+    mmio_all_console_input  mmio
+
 -- I/O: Read all console output
 
-mstate_mem_all_console_output :: Machine_State -> String
+mstate_mem_all_console_output :: Machine_State -> (String, String)
 mstate_mem_all_console_output  mstate =
   let
     mmio = f_mmio  mstate
   in
     mmio_all_console_output  mmio
 
--- I/O: Tick mtime and set CSR MIP.MTIP (timer interrupt pending) if triggered
+-- I/O: Tick
+--     incr CSR.MCYCLE
+--     incr MMIO.MTIME, set CSR MIP.MTIP (timer interrupt pending) if triggered
+--     tick MMIO.UART
 
-mstate_mem_tick_mtime :: Machine_State -> Machine_State
-mstate_mem_tick_mtime  mstate =
+mstate_mem_tick :: Machine_State -> Machine_State
+mstate_mem_tick  mstate =
   let
-    -- Tick CSR MCYCLE
-    rv           = f_rv    mstate
-    csrs         = f_csrs  mstate
-    mcycle       = csr_read   rv  csrs  csr_addr_mcycle
-    csrs1        = csr_write  rv  csrs  csr_addr_mcycle  (mcycle + 1)
+    -- Tick CSR.MCYCLE
+    rv     = f_rv    mstate
+    csrs   = f_csrs  mstate
+    mcycle = csr_read   rv  csrs  csr_addr_mcycle
+    csrs1  = csr_write  rv  csrs  csr_addr_mcycle  (mcycle + 1)
 
-    -- Tick memory-mapped location MTIME
-    mmio         = f_mmio  mstate
-    (tip, mmio1) = mmio_tick_mtime  mmio
+    -- Tick memory-mapped location MMIO.MTIME and MMIO.UART
+    mmio              = f_mmio  mstate
+    (eip, tip, mmio1) = mmio_tick_mtime  mmio
 
-    -- Set MIP.MTIP if ticking MTIME triggered a timer interrupt
-    csrs2        = if (tip) then
+    -- Set MIP.MEIP and/or MIP.MTIP if ticking MMIO.MTIME triggered a
+    -- device or timer interrupt
+    csrs2        = if (eip || tip) then
                      (let
-                         mip   = csr_read   rv  csrs1  csr_addr_mip
-                         mip'  = (mip .|. (shiftL  1  mip_mtip_bitpos))
+                         mip0 = csr_read   rv  csrs1  csr_addr_mip
+                         mip1 = if (eip) then (mip0 .|. (shiftL  1  mip_meip_bitpos))
+                                else mip0
+                         mip2 = if (tip) then (mip1 .|. (shiftL  1  mip_mtip_bitpos))
+                                else mip1
                       in
-                        csr_write  rv  csrs1  csr_addr_mip  mip')
+                        csr_write  rv  csrs1  csr_addr_mip  mip2)
                    else
                      csrs1
 
@@ -345,6 +372,17 @@ mstate_mem_tick_mtime  mstate =
 
 mstate_mem_read_mtime :: Machine_State -> Word64
 mstate_mem_read_mtime  mstate = mmio_read_mtime  (f_mmio  mstate)
+
+-- ----------------
+-- For debugging only
+-- Returns number of entries in the Data.Map
+
+mstate_mem_num_entries :: Machine_State -> Int
+mstate_mem_num_entries  mstate =
+  let
+    mem = f_mem  mstate
+  in
+    mem_num_entries  mem
 
 -- ================================================================
 -- read/write misc debug convenience
