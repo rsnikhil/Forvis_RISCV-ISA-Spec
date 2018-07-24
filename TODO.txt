@@ -26,7 +26,6 @@ TODO:
 
 - Features to be added and tested:
     - Add 'C' extension, do uc tests
-    - Add timer; boot Linux
     - Add an OPTIONS list in Arch State to support arch options:
         - Support or trap misaligned addrs?
         - Support or trap on 'A' and 'D' bits in PTEs

@@ -1,3 +1,4 @@
+-- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module MMIO where
@@ -32,6 +33,7 @@ data MMIO = MMIO {
   -- real time comparison point, to generate timer interrupts
   f_mtime    :: Word64,
   f_mtimecmp :: Word64,
+  f_mtip     :: Bool,
 
   -- Location for generating software interrupts
   f_msip :: Word64,
@@ -41,34 +43,49 @@ data MMIO = MMIO {
   }
 
 mkMMIO :: MMIO
-mkMMIO = MMIO { f_mtime         = 1,    -- greater than mtimecmp
+mkMMIO = MMIO { f_mtime         = 1,    -- greater than mtimecmp, to avoid initial interrupt
                 f_mtimecmp      = 0,
+                f_mtip          = False,
+
                 f_msip          = 0,
+
                 f_uart          = mkUART
               }
 
 -- ================================================================
--- Tick mtime and check if timer interrupt
+-- Tick mtime.
+-- Set mtip field if mtime reaches mtimecmp.
 
-mmio_tick_mtime :: MMIO -> (Bool, Bool, MMIO)
+mmio_tick_mtime :: MMIO -> MMIO
 mmio_tick_mtime  mmio =
   let
-    uart             = f_uart  mmio
-    (eip, uart')     = uart_tick  uart
-
     mtime            = f_mtime     mmio
     mtimecmp         = f_mtimecmp  mmio
-    (tip, mtimecmp') = if (mtimecmp >= mtime) then (True, 0)
-                       else (False, mtimecmp)
-    mmio'            = mmio { f_mtime    = mtime + 1,
-                              f_mtimecmp = mtimecmp',
-                              f_uart     = uart'}
+    mtip             = f_mtip      mmio
+
+    mtime'           = mtime + 1
+    mtip'            = (mtip || (mtime' >= mtimecmp))
+
+    mmio'            = mmio { f_mtime    = mtime',
+                              f_mtip     = mtip'}
   in
-    (eip, tip, mmio')
+    mmio'
+
+-- ================================================================
+-- Check for interrupts (external, timer, software)
+
+mmio_has_interrupts :: MMIO -> (Bool, Bool, Bool)
+mmio_has_interrupts  mmio =
+  let
+    eip  = uart_has_interrupt  (f_uart  mmio)
+    tip  = f_mtip  mmio
+    sip  = ((f_msip  mmio) /= 0)
+  in
+    (eip, tip, sip)
 
 -- ================================================================
 -- Read data from MMIO
--- Currently returns a 'ok' with bogus value on most addrs
+-- TODO: currently returns 'ok' with bogus value on most addrs; should return Mem_Result_Err
 
 mmio_read :: MMIO -> InstrField -> Word64 -> (Mem_Result, MMIO)
 mmio_read  mmio  funct3  addr =
@@ -100,25 +117,17 @@ mmio_read  mmio  funct3  addr =
       (Mem_Result_Ok  v_u64,  mmio')
 
   else
-    let
-      bogus_val = 0xAAAAAAAAAAAAAAAA
-    in
-      (Mem_Result_Ok  bogus_val,  mmio)
+    (Mem_Result_Err  exc_code_load_access_fault,  mmio)
 
 -- ================================================================
 -- Write data into MMIO
 
 mmio_write :: MMIO -> InstrField -> Word64 -> Word64 -> (Mem_Result, MMIO)
 mmio_write  mmio  funct3  addr  val =
-  if (addr == addr_mtime) then
+  if (addr == addr_mtimecmp) then
     let
-      mmio' = mmio { f_mtime = val }
-    in
-      (Mem_Result_Ok  0,  mmio')
-
-  else if (addr == addr_mtimecmp) then
-    let
-      mmio' = mmio { f_mtimecmp = val }
+      mmio' = mmio { f_mtimecmp = val,
+                     f_mtip     = False }
     in
       (Mem_Result_Ok  0,  mmio')
 
@@ -129,7 +138,7 @@ mmio_write  mmio  funct3  addr  val =
       (Mem_Result_Ok  0,  mmio')
 
   else if (addr == addr_htif_console_out) then
-    mmio_write  mmio  funct3  (addr_base_UART + addr_UART_txd)  val
+    mmio_write  mmio  funct3  (addr_base_UART + addr_UART_thr)  val
 
   else if ((addr_base_UART <= addr) && (addr < (addr_base_UART + addr_size_UART))) then
     let
@@ -154,8 +163,7 @@ mmio_amo  mmio  addr  funct3  msbs5  aq  rl  stv_d =
     (Mem_Result_Err exc_code_store_AMO_addr_misaligned,  mmio)
 
   else if ((addr /= addr_msip) &&
-           (addr /= addr_mtimecmp) &&
-           (addr /= addr_mtime)) then
+           (addr /= addr_mtimecmp)) then
          (Mem_Result_Err exc_code_store_AMO_access_fault,  mmio)
 
   else
@@ -163,7 +171,7 @@ mmio_amo  mmio  addr  funct3  msbs5  aq  rl  stv_d =
       stv_w0 = trunc_u64_to_u32  stv_d
       stv_w1 = trunc_u64_to_u32  (shiftR  stv_d  32)
 
-      -- Get old values (omvs)
+      -- Get old values (omvs)    -- TODO: UART locations
       omv_d  = if (addr == addr_msip) then f_msip mmio
                else if (addr == addr_mtimecmp) then f_mtimecmp  mmio
                     else if (addr == addr_mtime) then f_mtime  mmio
@@ -258,10 +266,11 @@ mmio_amo  mmio  addr  funct3  msbs5  aq  rl  stv_d =
       -- Update locations
       mmio' | (msbs5 == msbs5_AMO_LR)  = mmio
             | (msbs5 == msbs5_AMO_SC)  = mmio
-            | True                     = if (addr == addr_mtime) then mmio {f_mtime = nmv_d}
-                                         else if (addr == addr_mtimecmp) then mmio {f_mtimecmp = nmv_d}
-                                              else if (addr == addr_msip) then mmio {f_msip = nmv_d}
-                                                   else mmio
+            | True                     = if (addr == addr_mtimecmp) then mmio {f_mtimecmp = nmv_d,
+                                                                               f_mtip     = False}
+                                         else if (addr == addr_msip)
+                                              then mmio {f_msip = nmv_d}
+                                              else mmio    -- TODO: UART addrs
     in
       (Mem_Result_Ok  ldv, mmio')
 

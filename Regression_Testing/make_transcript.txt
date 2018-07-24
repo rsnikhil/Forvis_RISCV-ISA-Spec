@@ -5,630 +5,943 @@ mkdir  -p  Logs
   1 dir /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests
     2 dir /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa
 Test rv64ui-v-sraw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sraw
     PASS      Writing log: rv64ui-v-sraw.log
 Test rv64ui-v-or
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-or
     PASS      Writing log: rv64ui-v-or.log
 Test rv32ui-v-bne
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-bne
     PASS      Writing log: rv32ui-v-bne.log
 Test rv64si-p-wfi
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64si-p-wfi
     PASS      Writing log: rv64si-p-wfi.log
 Test rv32ui-v-jal
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-jal
     PASS      Writing log: rv32ui-v-jal.log
 Test rv32um-v-mulhu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-v-mulhu
     PASS      Writing log: rv32um-v-mulhu.log
 Test rv64ui-p-lwu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-lwu
     PASS      Writing log: rv64ui-p-lwu.log
 Test rv32ui-p-bge
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-bge
     PASS      Writing log: rv32ui-p-bge.log
 Test rv32mi-p-mcsr
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32mi-p-mcsr
     PASS      Writing log: rv32mi-p-mcsr.log
 Test rv64ui-p-andi
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-andi
     PASS      Writing log: rv64ui-p-andi.log
 Test rv64ui-p-addiw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-addiw
     PASS      Writing log: rv64ui-p-addiw.log
 Test rv32ui-v-sb
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-sb
     PASS      Writing log: rv32ui-v-sb.log
 Test rv32ui-v-bgeu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-bgeu
     PASS      Writing log: rv32ui-v-bgeu.log
 Test rv64ua-v-amoor_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoor_d
     PASS      Writing log: rv64ua-v-amoor_d.log
 Test rv32ui-v-sll
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-sll
     PASS      Writing log: rv32ui-v-sll.log
 Test rv32ui-v-xor
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-xor
     PASS      Writing log: rv32ui-v-xor.log
 Test rv64mi-p-access
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64mi-p-access
     PASS      Writing log: rv64mi-p-access.log
 Test rv32ui-p-or
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-or
     PASS      Writing log: rv32ui-p-or.log
 Test rv64ua-p-amomax_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amomax_w
     PASS      Writing log: rv64ua-p-amomax_w.log
 Test rv32si-p-wfi
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32si-p-wfi
     PASS      Writing log: rv32si-p-wfi.log
 Test rv32um-v-mulh
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-v-mulh
     PASS      Writing log: rv32um-v-mulh.log
 Test rv32ui-p-srl
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-srl
     PASS      Writing log: rv32ui-p-srl.log
 Test rv64ui-p-fence_i
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-fence_i
     PASS      Writing log: rv64ui-p-fence_i.log
 Test rv32ui-v-addi
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-addi
     PASS      Writing log: rv32ui-v-addi.log
 Test rv64ui-v-beq
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-beq
     PASS      Writing log: rv64ui-v-beq.log
 Test rv32ui-v-bge
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-bge
     PASS      Writing log: rv32ui-v-bge.log
 Test rv64ui-p-sraw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sraw
     PASS      Writing log: rv64ui-p-sraw.log
 Test rv64ua-v-amomin_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amomin_w
     PASS      Writing log: rv64ua-v-amomin_w.log
 Test rv32ui-p-bltu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-bltu
     PASS      Writing log: rv32ui-p-bltu.log
 Test rv64ui-p-xori
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-xori
     PASS      Writing log: rv64ui-p-xori.log
 Test rv64ua-v-amoand_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoand_d
     PASS      Writing log: rv64ua-v-amoand_d.log
 Test rv32ui-p-lh
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-lh
     PASS      Writing log: rv32ui-p-lh.log
 Test rv64ui-v-srl
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-srl
     PASS      Writing log: rv64ui-v-srl.log
 Test rv32ui-p-lhu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-lhu
     PASS      Writing log: rv32ui-p-lhu.log
 Test rv64si-p-dirty
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64si-p-dirty
     PASS      Writing log: rv64si-p-dirty.log
 Test rv32ua-p-amominu_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-amominu_w
     PASS      Writing log: rv32ua-p-amominu_w.log
 Test rv64ui-v-srlw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-srlw
     PASS      Writing log: rv64ui-v-srlw.log
 Test rv64ui-p-srlw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-srlw
     PASS      Writing log: rv64ui-p-srlw.log
 Test rv32ui-v-srai
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-srai
     PASS      Writing log: rv32ui-v-srai.log
 Test rv32mi-p-sbreak
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32mi-p-sbreak
     PASS      Writing log: rv32mi-p-sbreak.log
 Test rv64ui-p-subw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-subw
     PASS      Writing log: rv64ui-p-subw.log
 Test rv64um-p-mulw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-mulw
     PASS      Writing log: rv64um-p-mulw.log
 Test rv64ui-p-lh
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-lh
     PASS      Writing log: rv64ui-p-lh.log
 Test rv64ui-p-sb
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sb
     PASS      Writing log: rv64ui-p-sb.log
 Test rv64ua-v-amoadd_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoadd_d
     PASS      Writing log: rv64ua-v-amoadd_d.log
 Test rv64um-v-mulhu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-mulhu
     PASS      Writing log: rv64um-v-mulhu.log
 Test rv64ui-p-lui
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-lui
     PASS      Writing log: rv64ui-p-lui.log
 Test rv64ua-v-amomin_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amomin_d
     PASS      Writing log: rv64ua-v-amomin_d.log
 Test rv32ui-v-auipc
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-auipc
     PASS      Writing log: rv32ui-v-auipc.log
 Test rv32um-v-remu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-v-remu
     PASS      Writing log: rv32um-v-remu.log
 Test rv32ui-p-andi
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-andi
     PASS      Writing log: rv32ui-p-andi.log
 Test rv64ui-p-ori
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-ori
     PASS      Writing log: rv64ui-p-ori.log
 Test rv64ui-v-srliw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-srliw
     PASS      Writing log: rv64ui-v-srliw.log
 Test rv32ui-v-bltu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-bltu
     PASS      Writing log: rv32ui-v-bltu.log
 Test rv32mi-p-breakpoint
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32mi-p-breakpoint
     PASS      Writing log: rv32mi-p-breakpoint.log
 Test rv32ua-p-amoswap_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-amoswap_w
     PASS      Writing log: rv32ua-p-amoswap_w.log
 Test rv32mi-p-ma_addr
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32mi-p-ma_addr
     PASS      Writing log: rv32mi-p-ma_addr.log
 Test rv64ui-v-ori
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-ori
     PASS      Writing log: rv64ui-v-ori.log
 Test rv64ui-p-xor
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-xor
     PASS      Writing log: rv64ui-p-xor.log
 Test rv32ui-p-sra
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-sra
     PASS      Writing log: rv32ui-p-sra.log
 Test rv32ui-p-slt
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-slt
     PASS      Writing log: rv32ui-p-slt.log
 Test rv64ui-p-auipc
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-auipc
     PASS      Writing log: rv64ui-p-auipc.log
 Test rv32ua-v-amoadd_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amoadd_w
     PASS      Writing log: rv32ua-v-amoadd_w.log
 Test rv64ui-v-lb
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-lb
     PASS      Writing log: rv64ui-v-lb.log
 Test rv64ui-v-lbu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-lbu
     PASS      Writing log: rv64ui-v-lbu.log
 Test rv32ua-p-amoadd_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-amoadd_w
     PASS      Writing log: rv32ua-p-amoadd_w.log
 Test rv32um-p-div
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-p-div
     PASS      Writing log: rv32um-p-div.log
 Test rv64ui-p-blt
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-blt
     PASS      Writing log: rv64ui-p-blt.log
 Test rv64ui-v-sw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sw
     PASS      Writing log: rv64ui-v-sw.log
 Test rv32ui-p-lw
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-lw
     PASS      Writing log: rv32ui-p-lw.log
 Test rv64ui-p-bgeu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-bgeu
     PASS      Writing log: rv64ui-p-bgeu.log
 Test rv64ui-p-srliw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-srliw
     PASS      Writing log: rv64ui-p-srliw.log
 Test rv64ui-p-srli
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-srli
     PASS      Writing log: rv64ui-p-srli.log
 Test rv32ui-v-sw
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-sw
     PASS      Writing log: rv32ui-v-sw.log
 Test rv64ua-p-amoswap_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoswap_w
     PASS      Writing log: rv64ua-p-amoswap_w.log
 Test rv32mi-p-csr
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32mi-p-csr
     PASS      Writing log: rv32mi-p-csr.log
 Test rv64ua-p-amoand_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoand_w
     PASS      Writing log: rv64ua-p-amoand_w.log
 Test rv64ui-p-sub
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sub
     PASS      Writing log: rv64ui-p-sub.log
 Test rv64um-p-remuw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-remuw
     PASS      Writing log: rv64um-p-remuw.log
 Test rv32ua-v-lrsc
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-lrsc
     PASS      Writing log: rv32ua-v-lrsc.log
 Test rv64ua-p-amomaxu_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amomaxu_w
     PASS      Writing log: rv64ua-p-amomaxu_w.log
 Test rv64mi-p-ma_fetch
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64mi-p-ma_fetch
     PASS      Writing log: rv64mi-p-ma_fetch.log
 Test rv32mi-p-shamt
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32mi-p-shamt
     PASS      Writing log: rv32mi-p-shamt.log
 Test rv64ui-v-slli
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-slli
     PASS      Writing log: rv64ui-v-slli.log
 Test rv64ui-p-sll
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sll
     PASS      Writing log: rv64ui-p-sll.log
 Test rv64ui-v-ld
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-ld
     PASS      Writing log: rv64ui-v-ld.log
 Test rv32ui-p-jalr
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-jalr
     PASS      Writing log: rv32ui-p-jalr.log
 Test rv64ua-p-lrsc
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-lrsc
     PASS      Writing log: rv64ua-p-lrsc.log
 Test rv64ui-v-lhu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-lhu
     PASS      Writing log: rv64ui-v-lhu.log
 Test rv64ui-p-sra
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sra
     PASS      Writing log: rv64ui-p-sra.log
 Test rv64ui-p-or
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-or
     PASS      Writing log: rv64ui-p-or.log
 Test rv64ua-v-amoadd_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoadd_w
     PASS      Writing log: rv64ua-v-amoadd_w.log
 Test rv64um-p-remw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-remw
     PASS      Writing log: rv64um-p-remw.log
 Test rv64ua-v-amominu_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amominu_w
     PASS      Writing log: rv64ua-v-amominu_w.log
 Test rv32ui-v-sub
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-sub
     PASS      Writing log: rv32ui-v-sub.log
 Test rv32ua-p-lrsc
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-lrsc
     PASS      Writing log: rv32ua-p-lrsc.log
 Test rv64um-v-mulh
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-mulh
     PASS      Writing log: rv64um-v-mulh.log
 Test rv32um-p-mul
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-p-mul
     PASS      Writing log: rv32um-p-mul.log
 Test rv64ui-v-sllw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sllw
     PASS      Writing log: rv64ui-v-sllw.log
 Test rv32um-p-mulhu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-p-mulhu
     PASS      Writing log: rv32um-p-mulhu.log
 Test rv64ui-v-sra
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sra
     PASS      Writing log: rv64ui-v-sra.log
 Test rv32ui-v-slli
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-slli
     PASS      Writing log: rv32ui-v-slli.log
 Test rv32si-p-csr
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32si-p-csr
     PASS      Writing log: rv32si-p-csr.log
 Test rv32ui-v-simple
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-simple
     PASS      Writing log: rv32ui-v-simple.log
 Test rv32ui-p-bne
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-bne
     PASS      Writing log: rv32ui-p-bne.log
 Test rv32ui-v-or
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-or
     PASS      Writing log: rv32ui-v-or.log
 Test rv32ui-p-bgeu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-bgeu
     PASS      Writing log: rv32ui-p-bgeu.log
 Test rv32um-v-mul
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-v-mul
     PASS      Writing log: rv32um-v-mul.log
 Test rv64ui-p-ld
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-ld
     PASS      Writing log: rv64ui-p-ld.log
 Test rv32ui-v-lui
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-lui
     PASS      Writing log: rv32ui-v-lui.log
 Test rv64ua-p-amoxor_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoxor_d
     PASS      Writing log: rv64ua-p-amoxor_d.log
 Test rv32ui-v-lhu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-lhu
     PASS      Writing log: rv32ui-v-lhu.log
 Test rv32si-p-sbreak
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32si-p-sbreak
     PASS      Writing log: rv32si-p-sbreak.log
 Test rv64ui-v-slt
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-slt
     PASS      Writing log: rv64ui-v-slt.log
 Test rv64ui-p-sllw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sllw
     PASS      Writing log: rv64ui-p-sllw.log
 Test rv64ui-p-lb
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-lb
     PASS      Writing log: rv64ui-p-lb.log
 Test rv64ui-p-sraiw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sraiw
     PASS      Writing log: rv64ui-p-sraiw.log
 Test rv64mi-p-ma_addr
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64mi-p-ma_addr
     PASS      Writing log: rv64mi-p-ma_addr.log
 Test rv32ui-p-lb
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-lb
     PASS      Writing log: rv32ui-p-lb.log
 Test rv32mi-p-ma_fetch
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32mi-p-ma_fetch
     PASS      Writing log: rv32mi-p-ma_fetch.log
 Test rv32ui-p-slti
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-slti
     PASS      Writing log: rv32ui-p-slti.log
 Test rv64um-v-rem
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-rem
     PASS      Writing log: rv64um-v-rem.log
 Test rv64ui-p-sd
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sd
     PASS      Writing log: rv64ui-p-sd.log
 Test rv64ui-p-bne
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-bne
     PASS      Writing log: rv64ui-p-bne.log
 Test rv64ui-v-jal
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-jal
     PASS      Writing log: rv64ui-v-jal.log
 Test rv32ua-v-amoand_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amoand_w
     PASS      Writing log: rv32ua-v-amoand_w.log
 Test rv32ua-p-amoor_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-amoor_w
     PASS      Writing log: rv32ua-p-amoor_w.log
 Test rv64ua-p-amoadd_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoadd_w
     PASS      Writing log: rv64ua-p-amoadd_w.log
 Test rv32ui-p-lui
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-lui
     PASS      Writing log: rv32ui-p-lui.log
 Test rv64um-p-mulh
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-mulh
     PASS      Writing log: rv64um-p-mulh.log
 Test rv64si-p-csr
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64si-p-csr
     PASS      Writing log: rv64si-p-csr.log
 Test rv32ui-v-andi
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-andi
     PASS      Writing log: rv32ui-v-andi.log
 Test rv64ua-p-amoand_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoand_d
     PASS      Writing log: rv64ua-p-amoand_d.log
 Test rv64mi-p-breakpoint
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64mi-p-breakpoint
     PASS      Writing log: rv64mi-p-breakpoint.log
 Test rv64um-v-mulhsu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-mulhsu
     PASS      Writing log: rv64um-v-mulhsu.log
 Test rv64ua-p-amoor_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoor_w
     PASS      Writing log: rv64ua-p-amoor_w.log
 Test rv64ui-p-addi
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-addi
     PASS      Writing log: rv64ui-p-addi.log
 Test rv32mi-p-scall
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32mi-p-scall
     PASS      Writing log: rv32mi-p-scall.log
 Test rv64ua-v-amoor_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoor_w
     PASS      Writing log: rv64ua-v-amoor_w.log
 Test rv32um-p-divu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-p-divu
     PASS      Writing log: rv32um-p-divu.log
 Test rv64ui-p-slti
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-slti
     PASS      Writing log: rv64ui-p-slti.log
 Test rv64um-p-mulhu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-mulhu
     PASS      Writing log: rv64um-p-mulhu.log
 Test rv64ui-v-sd
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sd
     PASS      Writing log: rv64ui-v-sd.log
 Test rv64ui-p-simple
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-simple
     PASS      Writing log: rv64ui-p-simple.log
 Test rv64ui-v-bge
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-bge
     PASS      Writing log: rv64ui-v-bge.log
 Test rv32ui-v-jalr
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-jalr
     PASS      Writing log: rv32ui-v-jalr.log
 Test rv64ui-v-slliw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-slliw
     PASS      Writing log: rv64ui-v-slliw.log
 Test rv64ui-v-lw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-lw
     PASS      Writing log: rv64ui-v-lw.log
 Test rv64um-v-mulw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-mulw
     PASS      Writing log: rv64um-v-mulw.log
 Test rv32ua-v-amoswap_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amoswap_w
     PASS      Writing log: rv32ua-v-amoswap_w.log
 Test rv64ui-v-xor
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-xor
     PASS      Writing log: rv64ui-v-xor.log
 Test rv32ua-v-amominu_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amominu_w
     PASS      Writing log: rv32ua-v-amominu_w.log
 Test rv64ui-p-addw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-addw
     PASS      Writing log: rv64ui-p-addw.log
 Test rv64ua-v-amomaxu_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amomaxu_w
     PASS      Writing log: rv64ua-v-amomaxu_w.log
 Test rv64ui-v-sltiu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sltiu
     PASS      Writing log: rv64ui-v-sltiu.log
 Test rv64ui-v-fence_i
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-fence_i
     PASS      Writing log: rv64ui-v-fence_i.log
 Test rv32um-v-div
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-v-div
     PASS      Writing log: rv32um-v-div.log
 Test rv32ui-v-srli
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-srli
     PASS      Writing log: rv32ui-v-srli.log
 Test rv32ui-p-sltu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-sltu
     PASS      Writing log: rv32ui-p-sltu.log
 Test rv32ui-v-slt
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-slt
     PASS      Writing log: rv32ui-v-slt.log
 Test rv64mi-p-illegal
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64mi-p-illegal
     PASS      Writing log: rv64mi-p-illegal.log
 Test rv64ui-v-bgeu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-bgeu
     PASS      Writing log: rv64ui-v-bgeu.log
 Test rv64ui-p-bltu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-bltu
     PASS      Writing log: rv64ui-p-bltu.log
 Test rv64si-p-scall
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64si-p-scall
     PASS      Writing log: rv64si-p-scall.log
 Test rv32ua-p-amoxor_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-amoxor_w
     PASS      Writing log: rv32ua-p-amoxor_w.log
 Test rv64um-p-divu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-divu
     PASS      Writing log: rv64um-p-divu.log
 Test rv64um-p-divuw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-divuw
     PASS      Writing log: rv64um-p-divuw.log
 Test rv32ui-p-addi
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-addi
     PASS      Writing log: rv32ui-p-addi.log
 Test rv64ui-p-slliw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-slliw
     PASS      Writing log: rv64ui-p-slliw.log
 Test rv32ui-v-sra
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-sra
     PASS      Writing log: rv32ui-v-sra.log
 Test rv64ui-v-lwu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-lwu
     PASS      Writing log: rv64ui-v-lwu.log
 Test rv64si-p-sbreak
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64si-p-sbreak
     PASS      Writing log: rv64si-p-sbreak.log
 Test rv32um-p-remu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-p-remu
     PASS      Writing log: rv32um-p-remu.log
 Test rv64ui-v-simple
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-simple
     PASS      Writing log: rv64ui-v-simple.log
 Test rv64mi-p-sbreak
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64mi-p-sbreak
     PASS      Writing log: rv64mi-p-sbreak.log
 Test rv64ui-v-srai
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-srai
     PASS      Writing log: rv64ui-v-srai.log
 Test rv32ui-v-sh
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-sh
     PASS      Writing log: rv32ui-v-sh.log
 Test rv64ui-v-andi
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-andi
     PASS      Writing log: rv64ui-v-andi.log
 Test rv32ui-p-simple
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-simple
     PASS      Writing log: rv32ui-p-simple.log
 Test rv32ui-p-xori
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-xori
     PASS      Writing log: rv32ui-p-xori.log
 Test rv32ui-v-blt
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-blt
     PASS      Writing log: rv32ui-v-blt.log
 Test rv64ui-v-sraiw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sraiw
     PASS      Writing log: rv64ui-v-sraiw.log
 Test rv64um-p-div
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-div
     PASS      Writing log: rv64um-p-div.log
 Test rv64ui-p-add
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-add
     PASS      Writing log: rv64ui-p-add.log
 Test rv32ua-v-amomax_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amomax_w
     PASS      Writing log: rv32ua-v-amomax_w.log
 Test rv64ui-v-sh
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sh
     PASS      Writing log: rv64ui-v-sh.log
 Test rv64ui-p-beq
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-beq
     PASS      Writing log: rv64ui-p-beq.log
 Test rv32ui-p-jal
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-jal
     PASS      Writing log: rv32ui-p-jal.log
 Test rv64ui-p-sltu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sltu
     PASS      Writing log: rv64ui-p-sltu.log
 Test rv64ui-p-srl
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-srl
     PASS      Writing log: rv64ui-p-srl.log
 Test rv32ua-v-amomin_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amomin_w
     PASS      Writing log: rv32ua-v-amomin_w.log
 Test rv64mi-p-scall
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64mi-p-scall
     PASS      Writing log: rv64mi-p-scall.log
 Test rv32si-p-ma_fetch
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32si-p-ma_fetch
     PASS      Writing log: rv32si-p-ma_fetch.log
 Test rv32ui-p-ori
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-ori
     PASS      Writing log: rv32ui-p-ori.log
 Test rv32si-p-dirty
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32si-p-dirty
     PASS      Writing log: rv32si-p-dirty.log
 Test rv64um-p-divw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-divw
     PASS      Writing log: rv64um-p-divw.log
 Test rv32ui-p-and
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-and
     PASS      Writing log: rv32ui-p-and.log
 Test rv64um-v-div
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-div
     PASS      Writing log: rv64um-v-div.log
 Test rv32ui-p-sh
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-sh
     PASS      Writing log: rv32ui-p-sh.log
 Test rv64ua-v-amomax_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amomax_w
     PASS      Writing log: rv64ua-v-amomax_w.log
 Test rv32um-p-rem
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-p-rem
     PASS      Writing log: rv32um-p-rem.log
 Test rv64ui-p-sh
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sh
     PASS      Writing log: rv64ui-p-sh.log
 Test rv64ua-p-amomin_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amomin_w
     PASS      Writing log: rv64ua-p-amomin_w.log
 Test rv32ui-p-srai
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-srai
     PASS      Writing log: rv32ui-p-srai.log
 Test rv64um-p-mul
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-mul
     PASS      Writing log: rv64um-p-mul.log
 Test rv64ua-v-amoxor_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoxor_w
     PASS      Writing log: rv64ua-v-amoxor_w.log
 Test rv64ua-p-amomin_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amomin_d
     PASS      Writing log: rv64ua-p-amomin_d.log
 Test rv64um-v-remuw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-remuw
     PASS      Writing log: rv64um-v-remuw.log
 Test rv64si-p-ma_fetch
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64si-p-ma_fetch
     PASS      Writing log: rv64si-p-ma_fetch.log
 Test rv32ui-v-beq
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-beq
     PASS      Writing log: rv32ui-v-beq.log
 Test rv32ui-v-slti
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-slti
     PASS      Writing log: rv32ui-v-slti.log
 Test rv64ua-v-lrsc
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-lrsc
     PASS      Writing log: rv64ua-v-lrsc.log
 Test rv64ua-p-amoadd_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoadd_d
     PASS      Writing log: rv64ua-p-amoadd_d.log
 Test rv64ui-v-blt
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-blt
     PASS      Writing log: rv64ui-v-blt.log
 Test rv64um-v-remw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-remw
     PASS      Writing log: rv64um-v-remw.log
 Test rv64ui-v-lui
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-lui
     PASS      Writing log: rv64ui-v-lui.log
 Test rv64ua-v-amomax_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amomax_d
     PASS      Writing log: rv64ua-v-amomax_d.log
 Test rv32ui-v-lh
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-lh
     PASS      Writing log: rv32ui-v-lh.log
 Test rv32ui-p-sb
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-sb
     PASS      Writing log: rv32ui-p-sb.log
 Test rv64ui-p-sw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sw
     PASS      Writing log: rv64ui-p-sw.log
 Test rv32ui-p-sll
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-sll
     PASS      Writing log: rv32ui-p-sll.log
 Test rv64ua-v-amomaxu_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amomaxu_d
     PASS      Writing log: rv64ua-v-amomaxu_d.log
 Test rv32ui-v-lw
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-lw
     PASS      Writing log: rv32ui-v-lw.log
 Test rv32ui-v-and
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-and
     PASS      Writing log: rv32ui-v-and.log
 Test rv32ui-v-ori
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-ori
     PASS      Writing log: rv32ui-v-ori.log
 Test rv64ui-p-sltiu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-sltiu
     PASS      Writing log: rv64ui-p-sltiu.log
 Test rv32ui-p-sw
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-sw
     PASS      Writing log: rv32ui-p-sw.log
 Test rv64um-p-mulhsu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-mulhsu
     PASS      Writing log: rv64um-p-mulhsu.log
 Test rv32ui-v-fence_i
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-fence_i
     PASS      Writing log: rv32ui-v-fence_i.log
 Test rv64ui-p-jalr
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-jalr
     PASS      Writing log: rv64ui-p-jalr.log
 Test rv64ui-v-addw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-addw
     PASS      Writing log: rv64ui-v-addw.log
 Test rv32si-p-scall
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32si-p-scall
     PASS      Writing log: rv32si-p-scall.log
 Test rv64ua-p-amomax_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amomax_d
     PASS      Writing log: rv64ua-p-amomax_d.log
 Test rv32ui-p-sub
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-sub
     PASS      Writing log: rv32ui-p-sub.log
 Test rv64ui-v-lh
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-lh
     PASS      Writing log: rv64ui-v-lh.log
 Test rv64ui-v-sll
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sll
     PASS      Writing log: rv64ui-v-sll.log
 Test rv32ui-p-xor
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-xor
     PASS      Writing log: rv32ui-p-xor.log
 Test rv32ui-p-blt
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-blt
     PASS      Writing log: rv32ui-p-blt.log
 Test rv32ua-p-amomaxu_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-amomaxu_w
     PASS      Writing log: rv32ua-p-amomaxu_w.log
 Test rv64ui-v-bne
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-bne
     PASS      Writing log: rv64ui-v-bne.log
 Test rv64ui-p-lbu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-lbu
     PASS      Writing log: rv64ui-p-lbu.log
 Test rv64um-p-rem
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-rem
     PASS      Writing log: rv64um-p-rem.log
 Test rv64mi-p-csr
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64mi-p-csr
     PASS      Writing log: rv64mi-p-csr.log
 Test rv64mi-p-mcsr
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64mi-p-mcsr
     PASS      Writing log: rv64mi-p-mcsr.log
 Test rv64ua-v-amoxor_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoxor_d
     PASS      Writing log: rv64ua-v-amoxor_d.log
 Test rv64ui-v-bltu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-bltu
     PASS      Writing log: rv64ui-v-bltu.log
 Test rv64ui-v-sb
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sb
     PASS      Writing log: rv64ui-v-sb.log
 Test rv32ui-p-auipc
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-auipc
     PASS      Writing log: rv32ui-p-auipc.log
 Test rv64um-v-remu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-remu
     PASS      Writing log: rv64um-v-remu.log
 Test rv64ui-v-sub
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sub
     PASS      Writing log: rv64ui-v-sub.log
 Test rv32ua-v-amomaxu_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amomaxu_w
     PASS      Writing log: rv32ua-v-amomaxu_w.log
 Test rv64ui-v-and
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-and
     PASS      Writing log: rv64ui-v-and.log
 Test rv32ui-v-lbu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-lbu
     PASS      Writing log: rv32ui-v-lbu.log
 Test rv32ui-v-xori
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-xori
     PASS      Writing log: rv32ui-v-xori.log
 Test rv32um-p-mulhsu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-p-mulhsu
     PASS      Writing log: rv32um-p-mulhsu.log
 Test rv64ui-p-lhu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-lhu
     PASS      Writing log: rv64ui-p-lhu.log
 Test rv64um-p-remu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-p-remu
     PASS      Writing log: rv64um-p-remu.log
 Test rv32um-v-mulhsu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-v-mulhsu
     PASS      Writing log: rv32um-v-mulhsu.log
 Test rv32um-p-mulh
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-p-mulh
     PASS      Writing log: rv32um-p-mulh.log
 Test rv64ui-v-subw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-subw
     PASS      Writing log: rv64ui-v-subw.log
 Test rv64um-v-divu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-divu
     PASS      Writing log: rv64um-v-divu.log
 Test rv32ua-p-amomin_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-amomin_w
     PASS      Writing log: rv32ua-p-amomin_w.log
 Test rv64ua-p-amoxor_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoxor_w
     PASS      Writing log: rv64ua-p-amoxor_w.log
 Test rv64ui-p-slli
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-slli
     PASS      Writing log: rv64ui-p-slli.log
 Test rv64um-v-mul
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-mul
     PASS      Writing log: rv64um-v-mul.log
 Test rv64ui-v-sltu
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-sltu
     PASS      Writing log: rv64ui-v-sltu.log
 Test rv64ua-v-amoand_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoand_w
     PASS      Writing log: rv64ua-v-amoand_w.log
 Test rv32ui-p-lbu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-lbu
     PASS      Writing log: rv32ui-p-lbu.log
 Test rv64ui-p-slt
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-slt
     PASS      Writing log: rv64ui-p-slt.log
 Test rv64um-v-divuw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-divuw
     PASS      Writing log: rv64um-v-divuw.log
 Test rv32ua-v-amoxor_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amoxor_w
     PASS      Writing log: rv32ua-v-amoxor_w.log
 Test rv32ui-p-sltiu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-sltiu
     PASS      Writing log: rv32ui-p-sltiu.log
 Test rv32ui-v-add
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-add
     PASS      Writing log: rv32ui-v-add.log
 Test rv32ui-p-fence_i
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-fence_i
     PASS      Writing log: rv32ui-p-fence_i.log
 Test rv32ua-p-amomax_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-amomax_w
     PASS      Writing log: rv32ua-p-amomax_w.log
 Test rv64ua-p-amoor_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoor_d
     PASS      Writing log: rv64ua-p-amoor_d.log
 Test rv64ua-p-amominu_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amominu_w
     PASS      Writing log: rv64ua-p-amominu_w.log
 Test rv64ui-v-add
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-add
     PASS      Writing log: rv64ui-v-add.log
 Test rv32ui-p-slli
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-slli
     PASS      Writing log: rv32ui-p-slli.log
 Test rv64ui-v-srli
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-srli
     PASS      Writing log: rv64ui-v-srli.log
 Test rv64ua-p-amoswap_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amoswap_d
     PASS      Writing log: rv64ua-p-amoswap_d.log
 Test rv64ui-v-addi
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-addi
     PASS      Writing log: rv64ui-v-addi.log
 Test rv32ui-p-beq
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-beq
     PASS      Writing log: rv32ui-p-beq.log
 Test rv32um-v-divu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-v-divu
     PASS      Writing log: rv32um-v-divu.log
 Test rv64ui-p-jal
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-jal
     PASS      Writing log: rv64ui-p-jal.log
 Test rv64ua-v-amoswap_w
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoswap_w
     PASS      Writing log: rv64ua-v-amoswap_w.log
 Test rv64ua-v-amominu_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amominu_d
     PASS      Writing log: rv64ua-v-amominu_d.log
 Test rv64ui-p-bge
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-bge
     PASS      Writing log: rv64ui-p-bge.log
 Test rv64ui-v-xori
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-xori
     PASS      Writing log: rv64ui-v-xori.log
 Test rv32ua-p-amoand_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-p-amoand_w
     PASS      Writing log: rv32ua-p-amoand_w.log
 Test rv64ui-v-addiw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-addiw
     PASS      Writing log: rv64ui-v-addiw.log
 Test rv64ua-p-amominu_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amominu_d
     PASS      Writing log: rv64ua-p-amominu_d.log
 Test rv64ui-p-srai
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-srai
     PASS      Writing log: rv64ui-p-srai.log
 Test rv32ui-p-srli
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-srli
     PASS      Writing log: rv32ui-p-srli.log
 Test rv32ui-v-lb
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-lb
     PASS      Writing log: rv32ui-v-lb.log
 Test rv64ui-v-auipc
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-auipc
     PASS      Writing log: rv64ui-v-auipc.log
 Test rv32mi-p-illegal
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32mi-p-illegal
     PASS      Writing log: rv32mi-p-illegal.log
 Test rv32ui-v-sltu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-sltu
     PASS      Writing log: rv32ui-v-sltu.log
 Test rv64ua-p-amomaxu_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-p-amomaxu_d
     PASS      Writing log: rv64ua-p-amomaxu_d.log
 Test rv64um-v-divw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64um-v-divw
     PASS      Writing log: rv64um-v-divw.log
 Test rv32um-v-rem
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32um-v-rem
     PASS      Writing log: rv32um-v-rem.log
 Test rv64ui-v-slti
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-slti
     PASS      Writing log: rv64ui-v-slti.log
 Test rv64ui-p-and
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-and
     PASS      Writing log: rv64ui-p-and.log
 Test rv64ua-v-amoswap_d
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ua-v-amoswap_d
     PASS      Writing log: rv64ua-v-amoswap_d.log
 Test rv32ui-v-sltiu
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-sltiu
     PASS      Writing log: rv32ui-v-sltiu.log
 Test rv64ui-p-lw
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-p-lw
     PASS      Writing log: rv64ui-p-lw.log
 Test rv64ui-v-jalr
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv64ui-v-jalr
     PASS      Writing log: rv64ui-v-jalr.log
 Test rv32ua-v-amoor_w
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ua-v-amoor_w
     PASS      Writing log: rv32ua-v-amoor_w.log
 Test rv32ui-v-srl
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-v-srl
     PASS      Writing log: rv32ui-v-srl.log
 Test rv32ui-p-add
+    Exec: ../forvis_exe --RV32 --tohost ../Test_Programs/boot_ROM_RV32.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ui-p-add
     PASS      Writing log: rv32ui-p-add.log
   1 dir /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT
 Test rv64-thuemorse
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-thuemorse
     PASS      Writing log: rv64-thuemorse.log
 Test rv64-hello
+    Exec: ../forvis_exe --RV64 --tohost ../Test_Programs/boot_ROM_RV64.hex32 /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-hello
     PASS      Writing log: rv64-hello.log
+  1 dir /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/Linux_kernel
 Executed: 312 tests
 PASS:     312 tests
 make[1]: Leaving directory '/home/nikhil/GitHub/RISCV-ISA-Spec/Regression_Testing'

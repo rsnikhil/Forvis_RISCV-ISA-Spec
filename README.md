@@ -3,7 +3,9 @@
 Forvis: A Formal RISC-V ISA Specification
 -----------------------------------------
 
-Author: Rishiyur S. Nikhil, Bluespec, Inc.
+Copyright (c) Rishiyur S. Nikhil, Bluespec, Inc.
+
+See LICENSE for license details.
 
 This is a formal (and executable) specification for the RISC-V ISA
 (Instruction Set Architecture), written in "extremely elementary" Haskell.
@@ -16,6 +18,8 @@ feedback, comments and suggestions.
 ----------------------------------------------------------------
 
 ### Current status
+
+- **July 24, 2018: Now booting an RV64 Linux kernel! Try it! See below.**
 
 - Forvis supports the following features
     - Base instruction sets: RV32I and RV64I
@@ -168,5 +172,62 @@ information on the binaries.
 
 Please see `Regression_Testing/README.txt` for how to automatically
 run Forvis on all ELF files in a directory tree such as `Test_Programs/`.
+
+----------------------------------------------------------------
+
+### Booting an RV64 Linux kernel:
+
+We have provided a pre-built Linux kernel ELF file in: `Test_Programs/Linux_kernel/rv64-vmlinux.elf`
+
+We have provided an RV64 boot ROM containing a compiled device tree in: `Test_Programs/boot_ROM_RV64.hex32`
+
+The kernel has been built for RV64IMAUS.  It expects to access the following:
+
+- A boot ROM with a compiled device tree;
+- A 256 MiB memory;
+- A timer implementing the memory-mapped MTIME and MTIMECMP locations, capable of generating timer interrupts;
+- A memory-mapped location MSIP for generaing software interrupts;
+- A model of the National Semiconductor NS16550 UART for console I/O.
+
+All these are supplied in the source code and incorporated into the Forvis executable.
+
+To boot the Linux kernel, in the top-level directory, after you have
+created the Forvis executable (see above):
+
+        $ make test_linux_boot
+
+This takes about 8 minutes on a 2.60GHz Intel Core i7-6700HQ with 6
+MiB cache, with 16 GiB of memory (Forvis, when running, takes about
+3.1 GiB of memory).  Please see `Linux_boot_log.txt` for an example of
+what you should see on your console.  At the end of the boot sequence,
+you will see a prompt:
+
+        ... <various boot progress messages> ...
+        [    0.080000] This architecture does not have kernel memory protection.
+
+        Please press Enter to activate this console. 
+
+Press the <ENTER> key, and after a short delay you should see a shell
+prompt, at which you can type various shell commands.  When done,
+press Control-C to exit.  Examples:
+
+        / # ls
+        bin      etc      linuxrc  root     sys      usr
+        dev      init     proc     sbin     tmp
+
+        / # cat  /proc/cpuinfo
+        cat  /proc/cpuinfo
+        hart    : 0
+        isa     : rv64imaus
+        mmu     : sv39
+
+        / # cat  /etc/inittab
+        cat  /etc/inittab
+        ::sysinit:/etc/init.d/rcS
+        console::askfirst:/bin/sh
+
+        / # ^C
+
+Caveat: the shell response is sluggish; please wait for a bit for each response.
 
 ----------------------------------------------------------------

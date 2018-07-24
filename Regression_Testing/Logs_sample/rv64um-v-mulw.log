@@ -6,8 +6,7 @@ Input file: /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv6
     Addr range: 80000000..8000309f
     tohost addr: 80001000
 PC reset: 0x1000; RV64; instret limit: 1000000
-Fetch Trap:exc_code_Instruction_Page_Fault
-Fetch Trap:exc_code_Instruction_Page_Fault
-<tohost> = 1 (instret = 6968); exiting
+[Forvis: instret = 0; MTIME = 2]
+Stopping due to write to <tohost> = 1; instret = 6968
 PASS
-Final value of mtime: 6969
+Final value of mtime: 6970

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright 
+# Copyright (c) 2018 Rishiyur S. Nikhil
 # See LICENCE for license details
 
 usage_line = "Usage:    {0}    <root-dir-for-ISA-tests>    <logs_dir>\n"
@@ -108,9 +108,18 @@ def do_regular_file_function (level, dirname, basename, logs_path):
     for j in range (level): prefix = "  " + prefix
     # sys.stdout.write ("{0}{1} ACTION:    {2}\n".format (prefix, level, elf_file))
 
-    command = [forvis_exe,  rv,  "../Test_Programs/boot_ROM_RV64.hex32",  elf_file]
+    if (rv == "--RV32"):
+        boot_rom_file = "../Test_Programs/boot_ROM_RV32.hex32"
+    else:
+        boot_rom_file = "../Test_Programs/boot_ROM_RV64.hex32"
+
+    command = [forvis_exe,  rv,  "--tohost",  boot_rom_file,  elf_file]
 
     sys.stdout.write ("Test {0}\n".format (basename))
+    sys.stdout.write ("    Exec:")
+    for x in command:
+        sys.stdout.write (" {0}".format (x))
+    sys.stdout.write ("\n")
 
     # Run command command as a sub-process
     completed_process = subprocess.run (args = command,

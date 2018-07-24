@@ -6,7 +6,8 @@ Input file: /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-thuemorse
     Addr range: 80000000..80002007
     tohost addr: none
 PC reset: 0x1000; RV64; instret limit: 1000000
+[Forvis: instret = 0; MTIME = 2]
 01101001100101101001011001101001100101100110100101101001100101101001011001101001011010011001011001101001100101101001011001101001
-MTIME:25313  Self-loop at PC 80000088; instret = 25328; exiting
+Stopping due to self-loop at PC 80000088; instret = 25328
 PASS
 Final value of mtime: 25330

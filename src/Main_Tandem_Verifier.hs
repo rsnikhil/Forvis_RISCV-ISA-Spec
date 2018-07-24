@@ -1,3 +1,4 @@
+-- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module Main_Tandem_Verifier where
@@ -269,7 +270,7 @@ process_cmd  mstate  ["exec", n_s, tv_s] = do
   putStrLn ("    Doing exec " ++ n_s ++ " " ++ tv_s)
   let n             = read  n_s
       m_tohost_addr = Nothing
-  (exit_value, mstate1) <- run_program  (fromIntegral n)  m_tohost_addr  mstate
+  (exit_value, mstate1) <- run_loop  (fromIntegral n)  m_tohost_addr  mstate
   let run_state = mstate_run_state_read  mstate1
   putStrLn ("OK " ++ (show run_state))
   return mstate1

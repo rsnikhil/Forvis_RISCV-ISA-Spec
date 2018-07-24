@@ -1,16 +1,19 @@
+-- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module Run_Program where
 
 -- ================================================================
--- This module has a 'run loop' for a RISV-V program:
--- It repeatedly calls 'instr_fetch', 'exec_instr', and 'exec_instr_C'
--- from the ISA spec.
+-- This module has a 'run loop' for a purely sequential execution of a
+-- RISV-V program: it repeatedly calls 'instr_fetch', 'exec_instr',
+-- and 'exec_instr_C' from the ISA spec.
 
--- This module is not part of the ISA specification, it's just a
--- wrapper representing one possible way to invoke the spec functions.
--- Other execution models are possible modeling more concurrency
--- (pipelineing, weak memory models, multiple harts, etc.)
+-- This module is OUTSIDE the ISA specification and is NOT part of the
+-- ISA specification.  It's just a wrapper representing one possible
+-- way to invoke the spec functions.  Other execution models are
+-- possible modeling more concurrency (pipelineing, weak memory
+-- models, multiple harts, etc.).  The run_loop function here has
+-- several simulation aids (not part of the ISA specification).
 
 -- ================================================================
 -- Standard Haskell imports
@@ -34,137 +37,117 @@ import CSR_File
 import Forvis_Spec
 
 -- ================================================================
--- The 'run loop': runs a program until:
---   - the given maximum # of instructions have executed
---   - something is written into the 'tohost_addr' mem location
---   - stopped for some other reason
+-- The 'run loop's main function is to repeatedly fetch and execute an
+-- instruction, with the following simulation-friendly nuances:
+--   - stop at a given maximum # of instructions executed
+--   - stop if something interesting is written into the 'tohost_addr' mem location
+--   - stop due to any other reason (e.g., breakpoint into debugger)
 
 -- Takes an architecture state and returns the new architecture state.
 -- Fetches and executes one instruction; and repeats.
 
-run_program :: Int -> (Maybe Word64) -> Machine_State -> IO (Int, Machine_State)
-run_program  maxinstrs  m_tohost_addr  mstate = do
-  let instret               = mstate_csr_read  mstate  csr_addr_minstret
-      mtime                 = mstate_mem_read_mtime  mstate
-      num_entries           = mstate_mem_num_entries  mstate
-      (in_a, in_b)          = mstate_mem_all_console_input  mstate
+run_loop :: Int -> (Maybe Word64) -> Machine_State -> IO (Int, Machine_State)
+run_loop  maxinstrs  m_tohost_addr  mstate = do
+  let instret   = mstate_csr_read        mstate  csr_addr_minstret
+      run_state = mstate_run_state_read  mstate
 
-      (tohost_u64, mstate1) = mstate_mem_read_tohost  mstate  m_tohost_addr
+      -- Tick: regular maintenance (increment cycle count, real-time
+      -- timer, propagate interrupts, etc.)
+      mstate1 = mstate_mem_tick  mstate
+
+      -- Simulation/testing: read <tohost> location, if any
+      (tohost_u64, mstate2) = mstate_mem_read_tohost  mstate1  m_tohost_addr
 
   if (tohost_u64 /= 0)
     -- Simulation/Testing aid: Stop due to value written to <tohost>
     then (do
-             putStrLn ("<tohost> = " ++ (show  tohost_u64) ++ " (instret = " ++ show  instret ++ "); exiting")
+             putStrLn ("Stopping due to write to <tohost> = " ++ (show  tohost_u64) ++
+                       "; instret = " ++ show  instret)
              let exit_value = (fromIntegral  (shiftR  tohost_u64  1)) :: Int
-             return (exit_value, mstate1))
+             return (exit_value, mstate2))
 
     -- Simulation aid: Stop due to instruction limit
     else if instret >= fromIntegral maxinstrs
     then (do
-             putStrLn ("Reached instret limit (" ++ show maxinstrs ++ "); exiting")
-             return (0, mstate_run_state_write  mstate1  Run_State_Instr_Limit))
+             putStrLn ("Stopping due to instret limit (" ++ show maxinstrs ++ ")")
+             return (0, mstate2))
 
     -- Simulation aid: Stop due to any other reason
-    else if (mstate_run_state_read  mstate1 /= Run_State_Running)
+    else if ((run_state /= Run_State_Running) && (run_state /= Run_State_WFI))
     then (do
-             putStrLn ("Stopped; instret = " ++ show instret ++ "; exiting")
-             return (0, mstate1))
+             putStrLn ("Stopping due to runstate " ++ show run_state ++ "; instret = " ++ show instret)
+             return (0, mstate2))
 
-    -- Fetch-and-execute instruction and continue
+    -- Fetch-and-execute instruction or WFI-resume, and continue run-loop
     else (do
-             -- Debugging: print instret and memory size every 10M instrs
+             -- Debugging: print progress-report every 10M instrs
              when ((instret `mod` 10000000) == 0) (do
-                                                      putStr  ("Instret = " ++ show instret)
-                                                      putStr  ("; MTIME = " ++ show mtime)
-                                                      putStr  ("; Mem num_entries = " ++ show  num_entries)
-                                                      putStrLn ""
-                                                      putStrLn ("Console input: [" ++ in_a ++ "][" ++ in_b ++ "]")
+                                                      let mtime = mstate_mem_read_mtime  mstate2
+                                                      putStrLn  ("[Forvis: instret = " ++ show instret ++
+                                                                 "; MTIME = " ++ show mtime ++
+                                                                 "]")
                                                       hFlush  stdout)
 
-             -- Check for console input (for efficiency, only check at certain mtime intervals)
-             console_input <- if (mtime .&. 0xFFF == 0) then hGetLine_polled  stdin
-                              else return ""
-             when (console_input /= "") (do
-                                            putStrLn ("Providing input to UART: [" ++ console_input ++ "]")
-                                            hFlush  stdout)
-             -- Feed console input, if any, to Machine_State.Mem.MMIO.UART
-             let mstate1a = if (console_input == "") then mstate1
-                            else mstate_mem_enq_console_input  mstate1  console_input
+             -- Check for tty console input and, if any, buffer it into the UART
+             mstate3 <- get_tty_input  mstate2
 
-             -- Fetch and execute one instruction (may be 0 instrs if
-             -- exception on fetch, which just sets up exception handler
-             -- for next fetch-and-execute)
-             mstate2 <- fetch_and_execute  mstate1a
+             -- If running, fetch-and-execute; if in WFI pause, check resumption
+             mstate4 <- if (run_state == Run_State_Running) then
+                          fetch_and_execute  mstate3
 
-             -- Consume and print out new console output, if any
-             let (console_output, mstate3) = mstate_mem_deq_console_output  mstate2
-             when (console_output /= "") (do
-                                             putStr  console_output
-                                             hFlush  stdout)
+                        else
+                          -- run_state == Run_State_WFI
+                          do
+                            let resume    = mstate_wfi_resume  mstate3
+                                mstate3_a = if (resume) then
+                                              mstate_run_state_write  mstate3  Run_State_Running
+                                            else
+                                              mstate3
+                            return mstate3_a
+ 
+             -- If the UART has buffered output, consume and print out to the tty console
+             mstate5 <- put_tty_output  mstate4
 
-             -- Continue
-             let pc1 = mstate_pc_read  mstate1a
-                 pc2 = mstate_pc_read  mstate2
-             if (pc1 == pc2)
+             -- Continue the run-loop
+             -- (except, as simulation heuristic aid, stop if PC did not change around fetch_and_execute)
+             let pc3        = mstate_pc_read         mstate3
+                 run_state3 = mstate_run_state_read  mstate3
+                 pc5        = mstate_pc_read         mstate5
+                 run_state5 = mstate_run_state_read  mstate5
+             if ((pc3 == pc5) && (run_state3 == Run_State_Running) && (run_state5 == Run_State_Running))
                then (do
-                        -- For simulation debugging only: stop on self loop
-                        putStrLn ("Self-loop at PC " ++ (showHex pc1 "") ++
-                                  "; instret = " ++ show instret ++ "; exiting")
-                        return (0, mstate3))
+                        putStrLn ("Stopping due to self-loop at PC " ++ (showHex pc5 "") ++
+                                  "; instret = " ++ show instret)
+                        return (0, mstate5))
                else (do
-                        -- Loop (tail recursive) for the next instr
-                        run_program  maxinstrs  m_tohost_addr  mstate3))
-
--- Read the word in mem [tohost_addr], if possible
-
-mstate_mem_read_tohost :: Machine_State -> Maybe Word64 -> (Word64, Machine_State)
-mstate_mem_read_tohost  mstate  Nothing            = (0, mstate)
-mstate_mem_read_tohost  mstate  (Just tohost_addr) =
-  let
-    (load_result, mstate') = mstate_mem_read  mstate  exc_code_load_access_fault  funct3_LW  tohost_addr
-  in
-    case load_result of
-      Mem_Result_Err  exc_code -> (  0, mstate')
-      Mem_Result_Ok   u64      -> (u64, mstate')
-
--- ================================================================
--- Get a line from stdin if any input is available.
--- Return empty string if none available.
--- We loop using hGetChar, instead of just calling hGetLine, to also
---     get the '\n' at the end if it exists  (hGetLine drops '\n').
--- Note: with normal stdin buffering, this don't actually return
--- anything until a complete line has been typed in, in ending in \n
--- or EOF.
-
-hGetLine_polled  :: Handle -> IO (String)
-hGetLine_polled h = do
-  input_available <- hWaitForInput  h  0
-  if not input_available
-    then return ""
-    else (do
-             ch  <- hGetChar  h
-             chs <- hGetLine_polled  h
-             return  (ch:chs))
+                        -- Continue run-loop (tail recursive)
+                        run_loop  maxinstrs  m_tohost_addr  mstate5))
 
 -- ================================================================
 -- Fetch and execute an instruction (RV32 32b instr or RV32C 16b compressed instr)
-
--- First tick mtime (which may register a timer interrupt).
--- Then check if any interrupt is pending, and update the state to
---     the trap vector if so (so, fetched instr will be first in trap
---     vector).
+-- First check if any interrupt is pending and, if so, update the
+--     state to the trap vector (so, the fetched instr will be the
+--     first instruction in the trap vector).
 
 fetch_and_execute :: Machine_State -> IO  Machine_State
 fetch_and_execute  mstate = do
-  let verbosity            = mstate_verbosity_read  mstate
-      mstate1              = mstate_mem_tick        mstate
-      (interrupt, mstate2) = take_interrupt_if_any  mstate1
+  let verbosity               = mstate_verbosity_read  mstate
+      (intr_pending, mstate2) = take_interrupt_if_any  mstate
 
   -- Debug-print when we take an interrupt
-  when (interrupt)
-    (do
-        when (verbosity >= 1) (putStrLn  "Taking interrupt")
-        when (verbosity >  1) (mstate_print  "  "  mstate2))
+  case intr_pending of
+    Nothing       -> return ()
+    Just exc_code -> do
+      let instret = mstate_csr_read  mstate2  csr_addr_minstret
+      when (verbosity >= 1) (putStrLn  ("Taking interrupt; instret = " ++ show instret ++
+                                        "; exc_code = " ++ (showHex  exc_code  "") ++
+                                        "\n"))
+      when (verbosity >= 2) (do
+                                putStrLn "---------------- State before interrupt trap setup"
+                                (mstate_print  "  "  mstate)
+                                putStrLn "---------------- State after interrupt trap setup"
+                                (mstate_print  "  "  mstate2))
+  -- End debug-print
 
   -- Fetch an instruction
   let pc                      = mstate_pc_read  mstate2
@@ -172,6 +155,7 @@ fetch_and_execute  mstate = do
       (fetch_result, mstate3) = instr_fetch  mstate2
       priv                    = mstate_priv_read  mstate3
 
+  -- Handle fetch-exception of execute
   case fetch_result of
     Fetch_Trap  ec -> (do
                           when (verbosity >= 1) (putStrLn ("Fetch Trap:" ++ show_trap_exc_code  ec))
@@ -200,5 +184,74 @@ fetch_and_execute  mstate = do
                               putStrLn ("  " ++ spec_name))
                         when (verbosity > 1) (mstate_print  "  "  mstate4)
                         return  mstate4)
+
+-- ================================================================
+-- Read the word in mem [tohost_addr], if such an addr is given,
+-- and if no read exception.
+
+mstate_mem_read_tohost :: Machine_State -> Maybe Word64 -> (Word64, Machine_State)
+mstate_mem_read_tohost  mstate  Nothing            = (0, mstate)
+mstate_mem_read_tohost  mstate  (Just tohost_addr) =
+  let
+    (load_result, mstate') = mstate_mem_read  mstate  exc_code_load_access_fault  funct3_LW  tohost_addr
+  in
+    case load_result of
+      Mem_Result_Err  exc_code -> (  0, mstate')
+      Mem_Result_Ok   u64      -> (u64, mstate')
+
+-- ================================================================
+-- Check for tty console input and, if any, buffer it in the UART.
+
+get_tty_input  :: Machine_State -> IO (Machine_State)
+get_tty_input  mstate = do
+  let mtime = mstate_mem_read_mtime  mstate
+
+  -- Check for console input (for efficiency, only check at certain mtime intervals)
+  console_input <- if (mtime .&. 0x3FF == 0) then hGetLine_polled  stdin
+                   else return ""
+
+  {- Debugging
+  when (console_input /= "") (do
+                                 putStrLn ("Providing input to UART: [" ++ console_input ++ "]")
+                                   hFlush  stdout)
+  -}
+
+  -- Buffer console input, if any, into Machine_State.Mem.MMIO.UART
+  let mstate' = if (console_input == "") then
+                  mstate
+                else
+                  mstate_mem_enq_console_input  mstate  console_input
+
+  return mstate'
+
+-- ================
+-- Get a line from stdin if any input is available.
+-- Return empty string if none available.
+-- We loop using hGetChar, instead of just calling hGetLine, to also
+--     get the '\n' at the end if it exists  (hGetLine drops '\n').
+-- Note: with normal stdin buffering, this won't actually return
+-- anything until a complete line has been typed in, ending in \n or
+-- EOF.
+
+hGetLine_polled  :: Handle -> IO (String)
+hGetLine_polled h = do
+  input_available <- hWaitForInput  h  0
+  if not input_available
+    then return ""
+    else (do
+             ch  <- hGetChar  h
+             chs <- hGetLine_polled  h
+             return  (ch:chs))
+
+-- ================================================================
+-- If the UART has any buffered output, consume it and write it to the terminal
+
+put_tty_output :: Machine_State -> IO (Machine_State)
+put_tty_output  mstate = do
+  let (console_output, mstate') = mstate_mem_deq_console_output  mstate
+  when (console_output /= "") (do
+                                  putStr  console_output
+                                  hFlush  stdout)
+  return mstate'
 
 -- ================================================================

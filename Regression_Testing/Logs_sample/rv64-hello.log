@@ -6,7 +6,8 @@ Input file: /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-hello
     Addr range: 80000000..80002007
     tohost addr: none
 PC reset: 0x1000; RV64; instret limit: 1000000
+[Forvis: instret = 0; MTIME = 2]
 Hello, world!
-MTIME:434  Self-loop at PC 80000088; instret = 451; exiting
+Stopping due to self-loop at PC 80000088; instret = 451
 PASS
 Final value of mtime: 453

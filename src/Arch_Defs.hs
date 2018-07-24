@@ -1,3 +1,4 @@
+-- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module Arch_Defs where
@@ -745,7 +746,7 @@ fn_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv =
                                  -- M->S->U delegation
                                  u_Priv_Level
                                else
-                                 -- Error: SIDELEG [i] should not be 1 if MISA.N is 0
+                                 -- TODO: Error: SIDELEG [i] should not be 1 if MISA.N is 0
                                  m_Priv_Level
                              else
                                -- M->S delegation
@@ -756,7 +757,7 @@ fn_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv =
                                -- M->U delegation
                                u_Priv_Level
                              else
-                               -- Error: MIDELEG [i] should not be 1 if MISA.N is 0
+                               -- TODO: Error: MIDELEG [i] should not be 1 if MISA.N is 0
                                m_Priv_Level
                          else
                            -- Error: System with M only; MIDELEG [i] should not be 1

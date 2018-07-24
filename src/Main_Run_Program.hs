@@ -1,3 +1,4 @@
+-- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module Main_Run_Program where
@@ -7,7 +8,7 @@ module Main_Run_Program where
 -- want to load and ELF file and run it sequentially to completion:
 --   - Reads a list of filenames on the command-line
 --         (RISC-V ELF executable files, or hex-mem images if ending with ".hex")
---   - Executes each RISC-V program using run_program()
+--   - Executes each RISC-V program using run_loop()
 
 -- ================================================================
 -- Standard Haskell imports
@@ -71,8 +72,9 @@ main_run_program = do
                            []   -> 1000000
                            [n]  -> n
                            n:_  -> n
-      rv32             =  elem  Opt_RV32  opts
-      rv64             =  elem  Opt_RV64  opts
+      rv32             =  elem  Opt_RV32    opts
+      rv64             =  elem  Opt_RV64    opts
+      tohost           =  elem  Opt_ToHost  opts
 
   if has_help then
     putStr usage_string
@@ -89,7 +91,7 @@ main_run_program = do
 
     else if errs2 /= [] then
     do
-      putStrLn "Command-line hase parse errors:"
+      putStrLn "Command-line has parse errors:"
       mapM_ (\s -> putStrLn ("    " ++ s)) errs2
 
     else if length (filenames) == 0 then
@@ -106,7 +108,7 @@ main_run_program = do
     else
     do
       let rv = if rv32 then RV32 else RV64
-      retval <- run_program_from_files  rv  filenames  num_instrs  verbosity
+      retval <- run_program_from_files  rv  filenames  num_instrs  tohost  verbosity
       exitWith (if retval == 0 then
                    ExitSuccess
                 else
@@ -121,6 +123,7 @@ main_run_program = do
 data MyOpt = Opt_Help
            | Opt_RV32
            | Opt_RV64
+           | Opt_ToHost
            | Opt_Verbosity   Int
            | Opt_Num_Instrs  Int
            | Opt_Err         String
@@ -146,6 +149,7 @@ options =
      [ Option ['h', 'H'] ["help"]       (NoArg  Opt_Help)                  "help"
      , Option []         ["RV32"]       (NoArg  Opt_RV32)                  "executables are for RV32"
      , Option []         ["RV64"]       (NoArg  Opt_RV64)                  "executables are for RV64"
+     , Option []         ["tohost"]     (NoArg  Opt_ToHost)                "watch <tohost> location"
      , Option ['v']      ["verbosity"]  (ReqArg to_Opt_Verbosity  "<int>") "0 quiet, 1 instr trace, 2 more info"
      , Option ['n']      ["num_instrs"] (ReqArg to_Opt_Num_Instrs "<int>") "max instrs executed (default 1,000,000)"
      ]
@@ -163,10 +167,13 @@ to_Opt_Num_Instrs s = case (readDec s) of
 -- ================================================================
 -- Run RISC-V program specified in the ELF/Hex file arguments
 
-run_program_from_files :: RV -> [String] -> Int -> Int -> IO Int
-run_program_from_files  rv  files  num_instrs  verbosity = do
+run_program_from_files :: RV -> [String] -> Int -> Bool -> Int -> IO Int
+run_program_from_files  rv  files  num_instrs  watch_tohost  verbosity = do
   -- Read the ELF and Memhex files
   (m_tohost_addr, addr_byte_list) <- read_files  files
+
+  let m_tohost_addr1 = if (watch_tohost) then m_tohost_addr    -- e.g., for ISA tests, test_hello, etc.
+                       else Nothing                            -- e.g., for Linux kernel boot 
 
   -- Debug only: dump mem
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
@@ -181,8 +188,7 @@ run_program_from_files  rv  files  num_instrs  verbosity = do
   putStrLn ("PC reset: 0x" ++ showHex  pc_reset_value "" ++
             "; " ++ show (rv) ++ 
             "; instret limit: " ++ show (num_instrs))
-  (exit_value, mstate3) <- run_program  num_instrs  m_tohost_addr  mstate2    -- For ISA tests, test_hello,
-  -- (exit_value, mstate3) <- run_program  num_instrs  Nothing  mstate2    -- For Linux
+  (exit_value, mstate3) <- run_loop  num_instrs  m_tohost_addr1  mstate2
 
   if (exit_value == 0)
     then putStrLn  ("PASS")

@@ -1,3 +1,4 @@
+-- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module Machine_State where
@@ -55,11 +56,7 @@ data Machine_State =
                 }
                                                           -- \end_latex{Machine_State}
 data Run_State = Run_State_Running
-               | Run_State_Other
-               | Run_State_Break
-               | Run_State_WFI
-               | Run_State_Instr_Limit
-               | Run_State_Forced
+               | Run_State_WFI        -- Paused waiting for interrupt
   deriving (Eq, Show)
 
 mstate_print :: String -> Machine_State -> IO ()
@@ -243,9 +240,10 @@ mstate_mem_write  mstate  funct3  addr  val =
   else
     -- MMIO access
     let
-      (store_result, mmio') = mmio_write  (f_mmio mstate)  funct3  addr  val
+      (store_result, mmio') = mmio_write  (f_mmio  mstate)  funct3  addr  val
+      mstate1               = mstate { f_mmio = mmio' }
     in
-      (store_result, (mstate { f_mmio = mmio'}))
+      (store_result, mstate1)
 
 -- Atomic Memory Ops
 
@@ -333,37 +331,49 @@ mstate_mem_all_console_output  mstate =
 
 -- I/O: Tick
 --     incr CSR.MCYCLE
---     incr MMIO.MTIME, set CSR MIP.MTIP (timer interrupt pending) if triggered
---     tick MMIO.UART
+--     incr MMIO.MTIME
 
 mstate_mem_tick :: Machine_State -> Machine_State
 mstate_mem_tick  mstate =
   let
+    rv    = f_rv    mstate
+    csrs  = f_csrs  mstate
+    mmio  = f_mmio  mstate
+
     -- Tick CSR.MCYCLE
-    rv     = f_rv    mstate
-    csrs   = f_csrs  mstate
-    mcycle = csr_read   rv  csrs  csr_addr_mcycle
-    csrs1  = csr_write  rv  csrs  csr_addr_mcycle  (mcycle + 1)
+    csrs1  = (let
+                 mcycle = csr_read   rv  csrs  csr_addr_mcycle
+                 csrs'  = csr_write  rv  csrs  csr_addr_mcycle  (mcycle + 1)
+              in
+                 csrs')
 
-    -- Tick memory-mapped location MMIO.MTIME and MMIO.UART
-    mmio              = f_mmio  mstate
-    (eip, tip, mmio1) = mmio_tick_mtime  mmio
+    -- Tick memory-mapped location MMIO.MTIME
+    mmio1  = mmio_tick_mtime  mmio
 
-    -- Set MIP.MEIP and/or MIP.MTIP if ticking MMIO.MTIME triggered a
-    -- device or timer interrupt
-    csrs2        = if (eip || tip) then
-                     (let
-                         mip0 = csr_read   rv  csrs1  csr_addr_mip
-                         mip1 = if (eip) then (mip0 .|. (shiftL  1  mip_meip_bitpos))
-                                else mip0
-                         mip2 = if (tip) then (mip1 .|. (shiftL  1  mip_mtip_bitpos))
-                                else mip1
-                      in
-                        csr_write  rv  csrs1  csr_addr_mip  mip2)
-                   else
-                     csrs1
+    -- Set MIP.MEIP, MIP.MTIP and MIP.MSIP if these interrupts are present
+    mip_old = csr_read   rv  csrs1  csr_addr_mip
+    eip_old = testBit  mip_old  mip_meip_bitpos
+    tip_old = testBit  mip_old  mip_mtip_bitpos
+    sip_old = testBit  mip_old  mip_msip_bitpos
 
-    mstate1      = mstate { f_mmio = mmio1, f_csrs = csrs2 }
+    (eip_new, tip_new, sip_new) = mmio_has_interrupts  mmio1
+
+    csrs2 = if ((eip_new == eip_old) && (tip_new == tip_old) && (sip_new == sip_old)) then
+              csrs1
+            else
+              (let
+                  mip1 = if (eip_new) then (mip_old  .|.  (shiftL  1  mip_meip_bitpos))
+                         else              (mip_old  .&.  (complement (shiftL  1  mip_meip_bitpos)))
+
+                  mip2 = if (tip_new) then (mip1  .|.  (shiftL  1  mip_mtip_bitpos))
+                         else              (mip1  .&.  (complement (shiftL  1  mip_mtip_bitpos)))
+
+                  mip3 = if (sip_new) then (mip2  .|.  (shiftL  1  mip_msip_bitpos))
+                         else              (mip2  .&.  (complement (shiftL  1  mip_msip_bitpos)))
+               in
+                  csr_write  rv  csrs1  csr_addr_mip  mip3)
+
+    mstate1 = mstate { f_mmio = mmio1, f_csrs = csrs2 }
   in
     mstate1
 

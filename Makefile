@@ -1,3 +1,6 @@
+# Copyright (c) 2018 Rishiyur S. Nikhil
+# See LICENSE for license details
+
 FORVIS_EXE = forvis_exe
 
 # Compiles the Haskell source files in SRC_DIR into the FORVIS_EXE using
@@ -37,21 +40,24 @@ SAMPLE_ISA_TEST    = rv64ui-p-add
 SAMPLE_ISA_TEST_RV = RV64
 N = 100000
 
+# Run SAMPLE_ISA_TEST
 .PHONY: test
 test: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --$(SAMPLE_ISA_TEST_RV)  --n $(N) \
+	./$(FORVIS_EXE)  --$(SAMPLE_ISA_TEST_RV)  --tohost  --n $(N) \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
+# Same, with verbosity 1
 .PHONY: test_v1
 test_v1: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --$(SAMPLE_ISA_TEST_RV)  --n $(N)  --verbosity 1  \
+	./$(FORVIS_EXE)  --$(SAMPLE_ISA_TEST_RV)  --tohost  --n $(N)  --verbosity 1  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
+# Same, with verbosity 2
 .PHONY: test_v2
 test_v2: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --$(SAMPLE_ISA_TEST_RV)  --n $(N)  --verbosity 2  \
+	./$(FORVIS_EXE)  --$(SAMPLE_ISA_TEST_RV)  --tohost  --n $(N)  --verbosity 2  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
@@ -61,33 +67,35 @@ test_v2: $(FORVIS_EXE)
 # Standard C program that prints "Hello World!\n"
 .PHONY: test_hello
 test_hello: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --RV64  \
+	./$(FORVIS_EXE)  --RV64  --tohost  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-hello
 
+# Same, with verbosity 1
 .PHONY: test_hello_v1
 test_hello_v1: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --RV64  --verbosity 1  \
+	./$(FORVIS_EXE)  --RV64  --tohost  --verbosity 1  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-hello
 
+# Same, with verbosity 2
 .PHONY: test_hello_v2
 test_hello_v2: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --RV64  --verbosity 2  \
+	./$(FORVIS_EXE)  --RV64  --tohost  --verbosity 2  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-hello
 
 # C program that does some computation and prints out a string of 0s and 1s
 .PHONY: test_thue
 test_thue: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --RV64  \
+	./$(FORVIS_EXE)  --RV64  --tohost  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-thuemorse
 
-# Linux kernel
+# Linux kernel boot
 .PHONY: test_linux_boot
 test_linux_boot: $(FORVIS_EXE)
-	nice -n19  ./$(FORVIS_EXE)  +RTS -K10M -M4G -RTS\
+	nice -n19  ./$(FORVIS_EXE)  +RTS -K10M -M3G -RTS\
 		--RV64  -n 400000000 \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/Linux_kernel/rv64-vmlinux.elf

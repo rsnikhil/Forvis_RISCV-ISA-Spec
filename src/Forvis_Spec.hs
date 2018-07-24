@@ -1,3 +1,4 @@
+-- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module Forvis_Spec where
@@ -826,8 +827,7 @@ spec_SYSTEM_WFI    mstate       instr =
     -- If mstatus.tw is set, illegal instruction trap after bounded timeout
     --     (here, the timeout is 0)
     -- Otherwise it's functionally a no-op
-    --     Optionally: pause here until interrupt
-    --     TODO: set run_state to WFI, and wait in the outer fetch-execute loop
+    --     Optionally: pause here in WFI state until interrupt
     mstatus    = mstate_csr_read   mstate  csr_addr_mstatus
     tw_bit_set = testBit  mstatus  mstatus_tw_bitpos
     mstate1    = if (tw_bit_set)
@@ -836,7 +836,10 @@ spec_SYSTEM_WFI    mstate       instr =
                    in
                      finish_trap  mstate  exc_code_illegal_instruction  tval
                  else
-                   finish_pc_plus_4  mstate
+                   let
+                     mstate' = mstate_run_state_write  mstate  Run_State_WFI
+                   in
+                     finish_pc_plus_4  mstate'
   in
     (is_legal, mstate1)
 
@@ -1688,9 +1691,9 @@ exec_instr_C  mstate  instr =
     tryall  instr_C_specs
 
 -- ================================================================
--- Take interrupt                                                     \begin_latex{take_interrupt}
+-- Take interrupt if interrupts pending and enabled                   \begin_latex{take_interrupt}
 
-take_interrupt_if_any :: Machine_State -> (Bool, Machine_State)
+take_interrupt_if_any :: Machine_State -> (Maybe Exc_Code, Machine_State)
 take_interrupt_if_any  mstate =
   let                                                              -- \end_latex{take_interrupt}
     misa    = mstate_csr_read  mstate  csr_addr_misa
@@ -1703,9 +1706,31 @@ take_interrupt_if_any  mstate =
     priv    = mstate_priv_read  mstate
 
     tval    = 0
+    intr_pending = fn_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv
   in
-    case (fn_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv) of
-      Nothing        -> (False, mstate)
-      Just  exc_code -> (True,  mstate_upd_on_trap  mstate  True  exc_code  tval)
+    case intr_pending of
+      Nothing        -> (intr_pending, mstate)
+      Just  exc_code ->
+        let
+          mstate1 = mstate_upd_on_trap  mstate  True  exc_code  tval
+          mstate2 = mstate_run_state_write  mstate1  Run_State_Running
+        in
+          (intr_pending, mstate2)
+
+-- ================================================================
+-- Check if an interrupt is pending to resume from WFI state
+
+-- Note: this is a weaker condition than the condition of actually
+-- taking an interrupt since it is unaffected by MSTATUS.MIE/SIE/UIE
+-- and MIDELEG and MEDELEG.
+
+mstate_wfi_resume :: Machine_State -> Bool
+mstate_wfi_resume  mstate =
+  let
+    mip     = mstate_csr_read  mstate  csr_addr_mip
+    mie     = mstate_csr_read  mstate  csr_addr_mie
+    resume  = ((mip .&. mie) /= 0)
+  in
+    resume
 
 -- ================================================================

@@ -1,3 +1,4 @@
+-- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module CSR_File where
@@ -271,6 +272,11 @@ csr_write  rv  (CSR_File dm)  csr_addr  value =
                                                              .|. (value .&. sip_mask)))
       | (csr_addr == csr_addr_uie)     = (csr_addr_mie,     ((mie .&. (complement  uip_mask))
                                                              .|. (value .&. uip_mask)))
+
+      -- TODO: remove these if implementing all counters
+      | (csr_addr == csr_addr_mcounteren)  = (csr_addr,         (value .&. 0x7))
+      | (csr_addr == csr_addr_scounteren)  = (csr_addr,         (value .&. 0x7))
+
       | True                           = (csr_addr,         value)
 
     dm' = if (Data_Map.member csr_addr' dm)
