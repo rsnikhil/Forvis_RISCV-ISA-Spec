@@ -1437,6 +1437,13 @@ spec_AMO  mstate  instr =
     (is_legal, mstate3)
 
 -- ================================================================
+-- 'F' and 'D' extensions (floating point)
+-- TODO: not yet supported.
+
+opcode_LOAD_FP  = 0x07 :: InstrField   -- 7'b_00_001_11
+opcode_STORE_FP = 0x27 :: InstrField   -- 7'b_01_001_11
+
+-- ================================================================
 -- Common ways to finish an instruction.
 -- Each opcode of course does something unique, but they all finish with
 -- a few common actions:

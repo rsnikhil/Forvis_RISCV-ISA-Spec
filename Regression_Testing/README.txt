@@ -17,6 +17,10 @@ For reference:
 
 Note: the regression is run by the Python program 'Run_all_tests.py'
 
+    Caveat: This is a Python 3 program, so please make sure you have
+    Python 3 installed (many places still use Python 2 as the
+    default).
+
     Running it by itself with --help will list its command-line arguments:
         $ Run_all_tests.py  --help
 

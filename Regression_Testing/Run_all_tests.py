@@ -54,9 +54,8 @@ def traverse (max_level, level, path, logs_path):
     is_reg = stat.S_ISREG (st.st_mode)
     do_foreachfile_function (level, is_dir, is_reg, path, logs_path)
     if is_dir and level < max_level:
-        with os.scandir (path) as it:
-            for entry in it:
-                traverse (max_level, level + 1, path + "/" + entry.name, logs_path)
+        for entry in os.listdir (path):
+            traverse (max_level, level + 1, path + "/" + entry, logs_path)
     return 0
 
 # ================================================================
@@ -122,11 +121,7 @@ def do_regular_file_function (level, dirname, basename, logs_path):
     sys.stdout.write ("\n")
 
     # Run command command as a sub-process
-    completed_process = subprocess.run (args = command,
-                                        bufsize = 0,
-                                        stdout = subprocess.PIPE,
-                                        stderr = subprocess.STDOUT,
-                                        encoding='utf-8')
+    completed_process = run_command (command)
     num_executed = num_executed + 1
     passed = completed_process.stdout.find ("PASS") != -1
     if passed:
@@ -143,6 +138,30 @@ def do_regular_file_function (level, dirname, basename, logs_path):
     fd.close ()
 
     return
+
+# ================================================================
+# This is a wrapper around 'subprocess.run' because of an annoying
+# incompatible change in moving from Python 3.5 to 3.6
+
+def run_command (command):
+    python_minor_version = sys.version_info [1]
+    if python_minor_version < 6:
+        # Python 3.5 and earlier
+        sys.stdout.write ("Python 3.5\n")
+        result = subprocess.run (args = command,
+                                 bufsize = 0,
+                                 stdout = subprocess.PIPE,
+                                 stderr = subprocess.STDOUT,
+                                 universal_newlines = True)
+    else:
+        # Python 3.6 and later
+        sys.stdout.write ("Python 3.6\n")
+        result = subprocess.run (args = command,
+                                 bufsize = 0,
+                                 stdout = subprocess.PIPE,
+                                 stderr = subprocess.STDOUT,
+                                 encoding='utf-8')
+    return result
 
 # ================================================================
 # For non-interactive invocations, call main() and use its return value
