@@ -9,10 +9,17 @@ OUT=lib
 HANDMOD = \
 
 # Generated modules
-MODULES =       \
-  Arch_Defs     \
-  Machine_State \
-  Bit_Manipulation
+MODULES =          \
+  Arch_Defs        \
+  Machine_State    \
+  Address_Map      \
+  Bit_Manipulation \
+  UART             \
+  Mem_Ops          \
+  MMIO             \
+  Memory           \
+  CSR_File         \
+  GPR_File         \
 
 VFILES_GEN = $(addprefix $(OUT)/,$(addsuffix .v,$(MODULES)))
 VFILES_MAN = $(addprefix $(OUT)/,$(addsuffix .v,$(HANDMOD)))
@@ -27,6 +34,7 @@ $(OUT)/_CoqProject : Makefile $(OUT)/README.md
 	> $@
 	echo '-Q . ""' >> $@
 	echo '-R $(HS_TO_COQ_DIR)/base ""' >> $@
+	echo '-R $(HS_TO_COQ_DIR)/examples/containers/lib ""' >> $@
 	echo $(addsuffix .v,$(HANDMOD)) >> $@
 	echo $(addsuffix .v,$(MODULES)) >> $@
 
@@ -49,6 +57,7 @@ HS_TO_COQ_OPTS := \
   -e $(HS_TO_COQ_DIR)/base/edits \
   -e edits \
   --iface-dir $(HS_TO_COQ_DIR)/base/ \
+  --iface-dir $(HS_TO_COQ_DIR)/examples/containers/lib/ \
   --iface-dir $(OUT) \
   -N \
   -i ../src/ \

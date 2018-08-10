@@ -1,5 +1,6 @@
 skip module Data.Char
 skip module Numeric
+
 rename type GHC.Integer.Type.Integer = Coq.Numbers.BinNums.Z
 rename type GHC.Word.Word8 = Coq.Numbers.BinNums.N
 rename type GHC.Word.Word16 = Coq.Numbers.BinNums.N
@@ -14,5 +15,29 @@ skip Bit_Manipulation.read_vbin
 skip Bit_Manipulation.read_vhex
 skip Bit_Manipulation.read_hex
 
+# this is of course just bandaids
 rewrite forall x , GHC.Unicode.isAsciiUpper x = true
 rewrite forall x , GHC.Unicode.isAsciiLower x = true
+
+rename value UART.UART_NS16550A = UART.Mk_UART_NS16550A
+rename value MMIO.MMIO = MMIO.Mk_MMIO
+rename value Memory.Mem = Memory.Mk_Mem
+rename value Machine_State.Machine_State = Machine_State.Mk_Machine_State
+rename value CSR_File.CSR_File = CSR_File.Mk_CSR_File
+rename value GPR_File.GPR_File = GPR_File.Mk_GPR_File
+
+# Avoid the show in the error message
+in Memory.addr_byte_list_to_addr_word_list rewrite forall x, GHC.Err.error  x = GHC.Err.default
+
+# repeat does not work in Coq, no lazyness
+rewrite forall xs x, (GHC.List.zip xs (GHC.List.repeat x)) = (GHC.Base.map (fun y => pair y x) xs)
+
+skip Machine_State.mstate_print
+skip CSR_File.print_CSR_File
+skip GPR_File.print_GPR_File
+
+termination MMIO.mmio_write deferred
+
+# hs-to-coq’s containers does not have the strict variant yet
+rename value Data.Map.Strict.Internal.insert = Data.Map.Internal.insert
+rename value Data.Map.Strict.Internal.fromList = Data.Map.Internal.fromList
