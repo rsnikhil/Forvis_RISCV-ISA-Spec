@@ -1,0 +1,18 @@
+skip module Data.Char
+skip module Numeric
+rename type GHC.Integer.Type.Integer = Coq.Numbers.BinNums.Z
+rename type GHC.Word.Word8 = Coq.Numbers.BinNums.N
+rename type GHC.Word.Word16 = Coq.Numbers.BinNums.N
+rename type GHC.Word.Word32 = Coq.Numbers.BinNums.N
+rename type GHC.Word.Word64 = Coq.Numbers.BinNums.N
+rename type GHC.Int.Int8 = Coq.Numbers.BinNums.Z
+rename type GHC.Int.Int16 = Coq.Numbers.BinNums.Z
+rename type GHC.Int.Int32 = Coq.Numbers.BinNums.Z
+rename type GHC.Int.Int64 = Coq.Numbers.BinNums.Z
+
+skip Bit_Manipulation.read_vbin
+skip Bit_Manipulation.read_vhex
+skip Bit_Manipulation.read_hex
+
+rewrite forall x , GHC.Unicode.isAsciiUpper x = true
+rewrite forall x , GHC.Unicode.isAsciiLower x = true

@@ -11,7 +11,8 @@ HANDMOD = \
 # Generated modules
 MODULES =       \
   Arch_Defs     \
-  Machine_State
+  Machine_State \
+  Bit_Manipulation
 
 VFILES_GEN = $(addprefix $(OUT)/,$(addsuffix .v,$(MODULES)))
 VFILES_MAN = $(addprefix $(OUT)/,$(addsuffix .v,$(HANDMOD)))
