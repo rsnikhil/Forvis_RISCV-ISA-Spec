@@ -1,0 +1,53 @@
+# We do not have fixed-width numbers in the Coq library
+# yet, so for now, use unbounded numbers
+rename type GHC.Integer.Type.Integer = Coq.Numbers.BinNums.Z
+rename type GHC.Word.Word8 = Coq.Numbers.BinNums.N
+rename type GHC.Word.Word16 = Coq.Numbers.BinNums.N
+rename type GHC.Word.Word32 = Coq.Numbers.BinNums.N
+rename type GHC.Word.Word64 = Coq.Numbers.BinNums.N
+rename type GHC.Int.Int8 = Coq.Numbers.BinNums.Z
+rename type GHC.Int.Int16 = Coq.Numbers.BinNums.Z
+rename type GHC.Int.Int32 = Coq.Numbers.BinNums.Z
+rename type GHC.Int.Int64 = Coq.Numbers.BinNums.Z
+
+# This use Char-related functions that we don’t have
+# (and hopefully don’t need)
+skip Bit_Manipulation.read_vbin
+skip Bit_Manipulation.read_vhex
+skip Bit_Manipulation.read_hex
+
+# this is of course just bandaids, and a demonstration of the 
+# rewrite feature
+rewrite forall x , GHC.Unicode.isAsciiUpper x = true
+rewrite forall x , GHC.Unicode.isAsciiLower x = true
+
+# In Coq, types and terms share a namespace, so lets rename
+# all the constructors
+rename value UART.UART_NS16550A = UART.Mk_UART_NS16550A
+rename value MMIO.MMIO = MMIO.Mk_MMIO
+rename value Memory.Mem = Memory.Mk_Mem
+rename value Machine_State.Machine_State = Machine_State.Mk_Machine_State
+rename value CSR_File.CSR_File = CSR_File.Mk_CSR_File
+rename value GPR_File.GPR_File = GPR_File.Mk_GPR_File
+
+# The error message in this function uses show, which we do not support.
+# So lets simply remove the error message
+in Memory.addr_byte_list_to_addr_word_list rewrite forall x, GHC.Err.error x = GHC.Err.undefined
+
+# repeat does not work in Coq, no lazyness!
+# But laziness is not needeed here, a simple map works as well
+rewrite forall xs x, (GHC.List.zip xs (GHC.List.repeat x)) = (GHC.Base.map (fun y => pair y x) xs)
+
+# IO-related functions, hopefully not needed in a verification project
+skip Machine_State.mstate_print
+skip CSR_File.print_CSR_File
+skip GPR_File.print_GPR_File
+
+# This function is not structurally recursive.
+# Let us defer termination for now.
+termination MMIO.mmio_write deferred
+
+# hs-to-coq’s containers does not have the strict variant yet,
+# but this should not make a semantic difference
+rename value Data.Map.Strict.Internal.insert = Data.Map.Internal.insert
+rename value Data.Map.Strict.Internal.fromList = Data.Map.Internal.fromList
