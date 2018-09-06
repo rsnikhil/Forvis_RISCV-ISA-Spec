@@ -1,25 +1,39 @@
 # Adjust this
-HS_TO_COQ_DIR = /home/jojo/uni/UPenn/hs-to-coq
+HS_TO_COQ_DIR = /Users/sweirich/github/deepspec/hs-to-coq
 
 include $(HS_TO_COQ_DIR)/common.mk
 
 OUT=lib
 
 # Handwritten modules (usually by modification of generated version)
+#
+# These are axiomatizations of library definitions used by the
+# generated files below
 HANDMOD = \
+  IO \
+  Numeric \
+
+
 
 # Generated modules
 MODULES =          \
-  Arch_Defs        \
-  Machine_State    \
   Address_Map      \
+  Arch_Defs        \
   Bit_Manipulation \
-  UART             \
-  Mem_Ops          \
-  MMIO             \
-  Memory           \
   CSR_File         \
+  Forvis_Spec      \
   GPR_File         \
+  MMIO             \
+  Machine_State    \
+  Main_Test_Virtual_Mem \
+  Mem_Ops          \
+  Memory           \
+  Run_Program      \
+  UART             \
+  Virtual_Mem      \
+
+## The files in the src/ directory that we do not (yet) translate are: 
+##    Elf Main Main_Run_Program Main_Tandem_Verifier Read_Hex_File
 
 VFILES_GEN = $(addprefix $(OUT)/,$(addsuffix .v,$(MODULES)))
 VFILES_MAN = $(addprefix $(OUT)/,$(addsuffix .v,$(HANDMOD)))

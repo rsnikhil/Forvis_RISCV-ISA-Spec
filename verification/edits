@@ -10,7 +10,7 @@ rename type GHC.Int.Int16 = Coq.Numbers.BinNums.Z
 rename type GHC.Int.Int32 = Coq.Numbers.BinNums.Z
 rename type GHC.Int.Int64 = Coq.Numbers.BinNums.Z
 
-# This use Char-related functions that we don’t have
+# These use Char-related functions that we don’t have
 # (and hopefully don’t need)
 skip Bit_Manipulation.read_vbin
 skip Bit_Manipulation.read_vhex
@@ -34,20 +34,39 @@ rename value GPR_File.GPR_File = GPR_File.Mk_GPR_File
 # So lets simply remove the error message
 in Memory.addr_byte_list_to_addr_word_list rewrite forall x, GHC.Err.error x = GHC.Err.undefined
 
+# We could also remove all uses of show by replacing with a constant string.
+rewrite forall x, GHC.Show.show x = (GHC.Base.hs_string__ "ELIDED_STRING")
+
 # repeat does not work in Coq, no lazyness!
 # But laziness is not needeed here, a simple map works as well
 rewrite forall xs x, (GHC.List.zip xs (GHC.List.repeat x)) = (GHC.Base.map (fun y => pair y x) xs)
 
-# IO-related functions, hopefully not needed in a verification project
-skip Machine_State.mstate_print
-skip CSR_File.print_CSR_File
-skip GPR_File.print_GPR_File
 
-# This function is not structurally recursive.
+# These functions are not structurally recursive.
 # Let us defer termination for now.
 termination MMIO.mmio_write deferred
+in CSR_File.print_CSR_File termination unflatten deferred
 
 # hs-to-coq’s containers does not have the strict variant yet,
 # but this should not make a semantic difference
 rename value Data.Map.Strict.Internal.insert = Data.Map.Internal.insert
 rename value Data.Map.Strict.Internal.fromList = Data.Map.Internal.fromList
+
+
+# Axiomatization of IO-related functions
+# see manual/IO.v
+
+rename module System.IO IO
+rename type GHC.Types.IO = IO.IO
+
+rename value GHC.IO.Handle.hFlush = IO.hFlush 
+rename value GHC.IO.Handle.FD.stdin = IO.stdin 
+rename value GHC.IO.Handle.FD.stdout = IO.stdout
+rename value GHC.IO.Handle.Text.hGetChar = IO.hGetChar
+rename value GHC.IO.Handle.Text.hWaitForInput = IO.hWaitForInput
+rename type GHC.IO.Handle.Types.Handle = IO.Handle
+
+# more deferred termination
+termination Run_Program.hGetLine_polled deferred
+termination Run_Program.run_loop deferred
+termination Main_Test_Virtual_Mem.do_tests deferred
