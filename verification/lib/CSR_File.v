@@ -13,7 +13,7 @@ Require Coq.Program.Wf.
 (* Converted imports: *)
 
 Require Import Arch_Defs.
-Require Bit_Manipulation.
+Require Import Bit_Manipulation.
 Require Import Coq.Init.Datatypes.
 Require Import Coq.Numbers.BinNums.
 Require Data.Bits.
@@ -69,16 +69,14 @@ Definition csr_permission
   fun arg_0__ arg_1__ arg_2__ =>
     match arg_0__, arg_1__, arg_2__ with
     | Mk_CSR_File dm, priv, csr_addr =>
-        let addr_11_10 :=
-          Bit_Manipulation.bitSlice csr_addr (fromInteger 11) (fromInteger 10) in
+        let addr_11_10 := bitSlice csr_addr (fromInteger 11) (fromInteger 10) in
         let mstatus :=
           Data.Maybe.fromMaybe (fromInteger 0) (Data.Map.Internal.lookup csr_addr_mstatus
                                                 dm) in
         let tvm_fault :=
           (andb (csr_addr == csr_addr_satp) (Data.Bits.testBit mstatus
                  mstatus_tvm_bitpos)) in
-        let addr_9_8 :=
-          Bit_Manipulation.bitSlice csr_addr (fromInteger 9) (fromInteger 8) in
+        let addr_9_8 := bitSlice csr_addr (fromInteger 9) (fromInteger 8) in
         let priv_ok := priv >= addr_9_8 in
         let exists_ :=
           (orb (csr_addr == csr_addr_sstatus) (orb (csr_addr == csr_addr_ustatus) (orb
@@ -480,7 +478,7 @@ Definition mkCSR_File : RV -> CSR_File :=
 
 (* External variables:
      Build_Default CSR_Addr Default Eq_ Int N Priv_Level RV RV32 RV64 String andb app
-     bool cons csr_addr_cycle csr_addr_cycleh csr_addr_data1 csr_addr_data2
+     bitSlice bool cons csr_addr_cycle csr_addr_cycleh csr_addr_data1 csr_addr_data2
      csr_addr_data3 csr_addr_dcsr csr_addr_dpc csr_addr_dscratch csr_addr_fcsr
      csr_addr_fflags csr_addr_frm csr_addr_instret csr_addr_instreth csr_addr_marchid
      csr_addr_mcause csr_addr_mcounteren csr_addr_mcycle csr_addr_mcycleh
@@ -499,10 +497,10 @@ Definition mkCSR_File : RV -> CSR_File :=
      op_zeze____ op_zgze__ op_zgzg__ op_zsze____ op_zt__ orb pair patternFailure
      return_ s_csr_addrs_and_names sip_mask sstatus_mask_RV32 sstatus_mask_RV64 true
      tt u_csr_addrs_and_names uip_mask unit ustatus_mask_RV32 ustatus_mask_RV64
-     xl_rv32 xl_rv64 Bit_Manipulation.bitSlice Data.Bits.complement
-     Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__ Data.Bits.shiftL Data.Bits.shiftR
-     Data.Bits.testBit Data.Foldable.length Data.Foldable.mapM_ Data.Map.Internal.Map
-     Data.Map.Internal.fromList Data.Map.Internal.insert Data.Map.Internal.lookup
-     Data.Map.Internal.member Data.Maybe.fromMaybe GHC.DeferredFix.deferredFix2
-     GHC.List.drop GHC.List.take IO.IO IO.putStr IO.putStrLn Numeric.showHex
+     xl_rv32 xl_rv64 Data.Bits.complement Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__
+     Data.Bits.shiftL Data.Bits.shiftR Data.Bits.testBit Data.Foldable.length
+     Data.Foldable.mapM_ Data.Map.Internal.Map Data.Map.Internal.fromList
+     Data.Map.Internal.insert Data.Map.Internal.lookup Data.Map.Internal.member
+     Data.Maybe.fromMaybe GHC.DeferredFix.deferredFix2 GHC.List.drop GHC.List.take
+     IO.IO IO.putStr IO.putStrLn Numeric.showHex
 *)

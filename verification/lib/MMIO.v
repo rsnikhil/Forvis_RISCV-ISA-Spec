@@ -14,7 +14,7 @@ Require Coq.Program.Wf.
 
 Require Import Address_Map.
 Require Import Arch_Defs.
-Require Bit_Manipulation.
+Require Import Bit_Manipulation.
 Require Import Coq.Numbers.BinNums.
 Require Data.Bits.
 Require Import GHC.Base.
@@ -85,37 +85,30 @@ Definition mmio_amo
                      else if (addr == addr_mtime) : bool
                           then f_mtime mmio
                           else fromInteger 0 in
-              let omv_w0 := Bit_Manipulation.trunc_u64_to_u32 omv_d in
-              let omv_w1 :=
-                Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR omv_d (fromInteger 32)) in
+              let omv_w0 := trunc_u64_to_u32 omv_d in
+              let omv_w1 := trunc_u64_to_u32 (Data.Bits.shiftR omv_d (fromInteger 32)) in
               let ldv :=
                 if (msbs5 == msbs5_AMO_SC) : bool then fromInteger 1 else
                 if (funct3 == funct3_AMO_W) : bool
-                then Bit_Manipulation.bitconcat_u32_u32_to_u64 (fromInteger 0) omv_w0 else
+                then bitconcat_u32_u32_to_u64 (fromInteger 0) omv_w0 else
                 if (funct3 == funct3_AMO_D) : bool then omv_d else
                 patternFailure in
-              let stv_w1 :=
-                Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR stv_d (fromInteger 32)) in
-              let stv_w0 := Bit_Manipulation.trunc_u64_to_u32 stv_d in
+              let stv_w1 := trunc_u64_to_u32 (Data.Bits.shiftR stv_d (fromInteger 32)) in
+              let stv_w0 := trunc_u64_to_u32 stv_d in
               let 'pair nmv_w1 nmv_w0 := (if (msbs5 == msbs5_AMO_SC) : bool
                                           then pair stv_w1 stv_w0 else
                                           if (msbs5 == msbs5_AMO_SWAP) : bool then pair stv_w1 stv_w0 else
                                           if (msbs5 == msbs5_AMO_ADD) : bool
                                           then (if (funct3 == funct3_AMO_W) : bool
                                                 then let z_w :=
-                                                       Bit_Manipulation.cvt_s32_to_u32 ((Bit_Manipulation.cvt_u32_to_s32
-                                                                                         omv_w0) +
-                                                                                        (Bit_Manipulation.cvt_u32_to_s32
-                                                                                         stv_w0)) in
+                                                       cvt_s32_to_u32 ((cvt_u32_to_s32 omv_w0) +
+                                                                       (cvt_u32_to_s32 stv_w0)) in
                                                      pair (fromInteger 0) z_w
                                                 else let z_d :=
-                                                       Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64
-                                                                                         omv_d) +
-                                                                                        (Bit_Manipulation.cvt_u64_to_s64
-                                                                                         stv_d)) in
-                                                     pair (Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR z_d
-                                                                                              (fromInteger 32)))
-                                                          (Bit_Manipulation.trunc_u64_to_u32 z_d)) else
+                                                       cvt_s64_to_u64 ((cvt_u64_to_s64 omv_d) +
+                                                                       (cvt_u64_to_s64 stv_d)) in
+                                                     pair (trunc_u64_to_u32 (Data.Bits.shiftR z_d (fromInteger 32)))
+                                                          (trunc_u64_to_u32 z_d)) else
                                           if (msbs5 == msbs5_AMO_AND) : bool
                                           then pair (omv_w1 Data.Bits..&.(**) stv_w1) (omv_w0 Data.Bits..&.(**)
                                                      stv_w0) else
@@ -127,25 +120,21 @@ Definition mmio_amo
                                           if (msbs5 == msbs5_AMO_MAX) : bool
                                           then (if (funct3 == funct3_AMO_W) : bool
                                                 then let z_w :=
-                                                       if ((Bit_Manipulation.cvt_u32_to_s32 omv_w0) >
-                                                           (Bit_Manipulation.cvt_u32_to_s32 stv_w0)) : bool
+                                                       if ((cvt_u32_to_s32 omv_w0) > (cvt_u32_to_s32 stv_w0)) : bool
                                                        then omv_w0
                                                        else stv_w0 in
                                                      pair (fromInteger 0) z_w
-                                                else if ((Bit_Manipulation.cvt_u64_to_s64 omv_d) >
-                                                         (Bit_Manipulation.cvt_u64_to_s64 stv_d)) : bool
+                                                else if ((cvt_u64_to_s64 omv_d) > (cvt_u64_to_s64 stv_d)) : bool
                                                      then pair omv_w1 omv_w0
                                                      else pair stv_w1 stv_w0) else
                                           if (msbs5 == msbs5_AMO_MIN) : bool
                                           then (if (funct3 == funct3_AMO_W) : bool
                                                 then let z_w :=
-                                                       if ((Bit_Manipulation.cvt_u32_to_s32 omv_w0) <
-                                                           (Bit_Manipulation.cvt_u32_to_s32 stv_w0)) : bool
+                                                       if ((cvt_u32_to_s32 omv_w0) < (cvt_u32_to_s32 stv_w0)) : bool
                                                        then omv_w0
                                                        else stv_w0 in
                                                      pair (fromInteger 0) z_w
-                                                else if ((Bit_Manipulation.cvt_u64_to_s64 omv_d) <
-                                                         (Bit_Manipulation.cvt_u64_to_s64 stv_d)) : bool
+                                                else if ((cvt_u64_to_s64 omv_d) < (cvt_u64_to_s64 stv_d)) : bool
                                                      then pair omv_w1 omv_w0
                                                      else pair stv_w1 stv_w0) else
                                           if (msbs5 == msbs5_AMO_MAXU) : bool
@@ -163,7 +152,7 @@ Definition mmio_amo
                                                      then pair omv_w1 omv_w0
                                                      else pair stv_w1 stv_w0) else
                                           patternFailure) in
-              let nmv_d := Bit_Manipulation.bitconcat_u32_u32_to_u64 nmv_w1 nmv_w0 in
+              let nmv_d := bitconcat_u32_u32_to_u64 nmv_w1 nmv_w0 in
               let mmio' :=
                 if (msbs5 == msbs5_AMO_LR) : bool then mmio else
                 if (msbs5 == msbs5_AMO_SC) : bool then mmio else
@@ -218,7 +207,7 @@ Definition mmio_read : MMIO -> InstrField -> N -> (Mem_Result * MMIO)%type :=
                              (addr_base_UART + addr_size_UART))) : bool
                    then let uart := f_uart mmio in
                         let 'pair v uart' := uart_read uart (addr - addr_base_UART) in
-                        let v_u64 := Bit_Manipulation.zeroExtend_u8_to_u64 v in
+                        let v_u64 := zeroExtend_u8_to_u64 v in
                         let mmio' :=
                           let 'Mk_MMIO f_mtime_6__ f_mtimecmp_7__ f_mtip_8__ f_msip_9__ f_uart_10__ :=
                             mmio in
@@ -274,18 +263,15 @@ Definition mmio_write
 (* External variables:
      InstrField Mem_Result Mem_Result_Err Mem_Result_Ok N String UART_NS16550A
      addr_UART_thr addr_base_UART addr_htif_console_out addr_msip addr_mtime
-     addr_mtimecmp addr_size_UART andb bool exc_code_load_access_fault
+     addr_mtimecmp addr_size_UART andb bitconcat_u32_u32_to_u64 bool cvt_s32_to_u32
+     cvt_s64_to_u64 cvt_u32_to_s32 cvt_u64_to_s64 exc_code_load_access_fault
      exc_code_store_AMO_access_fault exc_code_store_AMO_addr_misaligned false
      fromInteger funct3_AMO_D funct3_AMO_W is_AMO_aligned mkUART msbs5_AMO_ADD
      msbs5_AMO_AND msbs5_AMO_LR msbs5_AMO_MAX msbs5_AMO_MAXU msbs5_AMO_MIN
      msbs5_AMO_MINU msbs5_AMO_OR msbs5_AMO_SC msbs5_AMO_SWAP msbs5_AMO_XOR negb
      op_zeze__ op_zg__ op_zgze__ op_zl__ op_zlze__ op_zm__ op_zp__ op_zsze__ op_zt__
-     orb pair patternFailure uart_all_input uart_all_output uart_deq_output
-     uart_enq_input uart_has_interrupt uart_read uart_write
-     Bit_Manipulation.bitconcat_u32_u32_to_u64 Bit_Manipulation.cvt_s32_to_u32
-     Bit_Manipulation.cvt_s64_to_u64 Bit_Manipulation.cvt_u32_to_s32
-     Bit_Manipulation.cvt_u64_to_s64 Bit_Manipulation.trunc_u64_to_u32
-     Bit_Manipulation.zeroExtend_u8_to_u64 Data.Bits.op_zizazi__
-     Data.Bits.op_zizbzi__ Data.Bits.shiftR Data.Bits.xor
-     GHC.DeferredFix.deferredFix4
+     orb pair patternFailure trunc_u64_to_u32 uart_all_input uart_all_output
+     uart_deq_output uart_enq_input uart_has_interrupt uart_read uart_write
+     zeroExtend_u8_to_u64 Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__
+     Data.Bits.shiftR Data.Bits.xor GHC.DeferredFix.deferredFix4
 *)

@@ -14,7 +14,7 @@ Require Coq.Program.Wf.
 
 Require Import Address_Map.
 Require Import Arch_Defs.
-Require Bit_Manipulation.
+Require Import Bit_Manipulation.
 Require Import CSR_File.
 Require Import Coq.Init.Datatypes.
 Require Import Coq.Numbers.BinNums.
@@ -243,7 +243,7 @@ Definition mstate_gpr_write : Machine_State -> GPR_Addr -> N -> Machine_State :=
     let gprs := f_gprs mstate in
     let rv := f_rv mstate in
     let val1 :=
-      if rv == RV32 : bool then Bit_Manipulation.signExtend val (fromInteger 32) else
+      if rv == RV32 : bool then signExtend val (fromInteger 32) else
       if rv == RV64 : bool then val else
       patternFailure in
     let gprs' := gpr_write gprs reg val1 in
@@ -440,7 +440,7 @@ Definition mstate_xlen_read : Machine_State -> Int :=
      mmio_deq_console_output mmio_enq_console_input mmio_has_interrupts mmio_read
      mmio_read_mtime mmio_tick_mtime mmio_write negb nil op_zeze__ op_zeze____
      op_zgze__ op_zgzg__ op_zlze__ op_zp__ op_zsze____ op_zt__ pair patternFailure
-     print_CSR_File print_GPR_File true unit Bit_Manipulation.signExtend
-     Data.Bits.complement Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__
-     Data.Bits.shiftL Data.Bits.testBit IO.IO IO.putStrLn Numeric.showHex
+     print_CSR_File print_GPR_File signExtend true unit Data.Bits.complement
+     Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__ Data.Bits.shiftL Data.Bits.testBit
+     IO.IO IO.putStrLn Numeric.showHex
 *)

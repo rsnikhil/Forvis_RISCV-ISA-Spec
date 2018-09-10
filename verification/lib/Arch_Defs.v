@@ -12,7 +12,7 @@ Require Coq.Program.Wf.
 
 (* Converted imports: *)
 
-Require Bit_Manipulation.
+Require Import Bit_Manipulation.
 Require Import Coq.Numbers.BinNums.
 Require Data.Bits.
 Require Import GHC.Base.
@@ -626,35 +626,35 @@ Definition show_interrupt_exc_code : Exc_Code -> String :=
 
 Definition i_imm12_fields_6_6 : InstrField -> (InstrField * InstrField)%type :=
   fun imm12 =>
-    pair (Bit_Manipulation.bitSlice imm12 (fromInteger 11) (fromInteger 6))
-         (Bit_Manipulation.bitSlice imm12 (fromInteger 5) (fromInteger 0)).
+    pair (bitSlice imm12 (fromInteger 11) (fromInteger 6)) (bitSlice imm12
+          (fromInteger 5) (fromInteger 0)).
 
 Definition i_imm12_fields_7_5 : InstrField -> (InstrField * InstrField)%type :=
   fun imm12 =>
-    pair (Bit_Manipulation.bitSlice imm12 (fromInteger 11) (fromInteger 5))
-         (Bit_Manipulation.bitSlice imm12 (fromInteger 4) (fromInteger 0)).
+    pair (bitSlice imm12 (fromInteger 11) (fromInteger 5)) (bitSlice imm12
+          (fromInteger 4) (fromInteger 0)).
 
 Definition i_imm12_fields_for_FENCE
    : InstrField -> (InstrField * InstrField * InstrField)%type :=
   fun imm12 =>
-    pair (pair (Bit_Manipulation.bitSlice imm12 (fromInteger 11) (fromInteger 8))
-               (Bit_Manipulation.bitSlice imm12 (fromInteger 7) (fromInteger 4)))
-         (Bit_Manipulation.bitSlice imm12 (fromInteger 3) (fromInteger 0)).
+    pair (pair (bitSlice imm12 (fromInteger 11) (fromInteger 8)) (bitSlice imm12
+                (fromInteger 7) (fromInteger 4))) (bitSlice imm12 (fromInteger 3) (fromInteger
+                                                                                   0)).
 
 Definition ifield_funct10 : Instr -> InstrField :=
   fun instr =>
-    (Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 31) (fromInteger
-                                                                        25)) (fromInteger 3)) Data.Bits..|.(**)
-    (Bit_Manipulation.bitSlice instr (fromInteger 14) (fromInteger 12)).
+    (Data.Bits.shift (bitSlice instr (fromInteger 31) (fromInteger 25)) (fromInteger
+                                                                         3)) Data.Bits..|.(**)
+    (bitSlice instr (fromInteger 14) (fromInteger 12)).
 
 Definition ifield_funct3 : Instr -> InstrField :=
-  fun instr => Bit_Manipulation.bitSlice instr (fromInteger 14) (fromInteger 12).
+  fun instr => bitSlice instr (fromInteger 14) (fromInteger 12).
 
 Definition ifield_opcode : Instr -> InstrField :=
-  fun instr => Bit_Manipulation.bitSlice instr (fromInteger 6) (fromInteger 0).
+  fun instr => bitSlice instr (fromInteger 6) (fromInteger 0).
 
 Definition ifield_rd : Instr -> InstrField :=
-  fun instr => Bit_Manipulation.bitSlice instr (fromInteger 11) (fromInteger 7).
+  fun instr => bitSlice instr (fromInteger 11) (fromInteger 7).
 
 Definition ifields_J_type
    : Instr -> (InstrField * InstrField * InstrField)%type :=
@@ -662,14 +662,14 @@ Definition ifields_J_type
     let opcode := ifield_opcode instr in
     let rd := ifield_rd instr in
     let imm20 :=
-      (((Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 31)
-                          (fromInteger 31)) (fromInteger 19) Data.Bits..|.(**)
-         Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 19) (fromInteger
-                                                                            12)) (fromInteger 11)) Data.Bits..|.(**)
-        Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 20) (fromInteger
-                                                                           20)) (fromInteger 10)) Data.Bits..|.(**)
-       Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 30) (fromInteger
-                                                                          21)) (fromInteger 0)) in
+      (((Data.Bits.shift (bitSlice instr (fromInteger 31) (fromInteger 31))
+         (fromInteger 19) Data.Bits..|.(**)
+         Data.Bits.shift (bitSlice instr (fromInteger 19) (fromInteger 12)) (fromInteger
+                                                                             11)) Data.Bits..|.(**)
+        Data.Bits.shift (bitSlice instr (fromInteger 20) (fromInteger 20)) (fromInteger
+                                                                            10)) Data.Bits..|.(**)
+       Data.Bits.shift (bitSlice instr (fromInteger 30) (fromInteger 21)) (fromInteger
+                                                                           0)) in
     pair (pair imm20 rd) opcode.
 
 Definition ifields_U_type
@@ -677,12 +677,11 @@ Definition ifields_U_type
   fun instr =>
     let opcode := ifield_opcode instr in
     let rd := ifield_rd instr in
-    let imm20 :=
-      Bit_Manipulation.bitSlice instr (fromInteger 31) (fromInteger 12) in
+    let imm20 := bitSlice instr (fromInteger 31) (fromInteger 12) in
     pair (pair imm20 rd) opcode.
 
 Definition ifield_rs1 : Instr -> InstrField :=
-  fun instr => Bit_Manipulation.bitSlice instr (fromInteger 19) (fromInteger 15).
+  fun instr => bitSlice instr (fromInteger 19) (fromInteger 15).
 
 Definition ifields_I_type
    : Instr ->
@@ -692,12 +691,11 @@ Definition ifields_I_type
     let rd := ifield_rd instr in
     let funct3 := ifield_funct3 instr in
     let rs1 := ifield_rs1 instr in
-    let imm12 :=
-      Bit_Manipulation.bitSlice instr (fromInteger 31) (fromInteger 20) in
+    let imm12 := bitSlice instr (fromInteger 31) (fromInteger 20) in
     pair (pair (pair (pair imm12 rs1) funct3) rd) opcode.
 
 Definition ifield_rs2 : Instr -> InstrField :=
-  fun instr => Bit_Manipulation.bitSlice instr (fromInteger 24) (fromInteger 20).
+  fun instr => bitSlice instr (fromInteger 24) (fromInteger 20).
 
 Definition ifields_B_type
    : Instr ->
@@ -708,14 +706,14 @@ Definition ifields_B_type
     let rs1 := ifield_rs1 instr in
     let rs2 := ifield_rs2 instr in
     let imm12 :=
-      (((Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 31)
-                          (fromInteger 31)) (fromInteger 11) Data.Bits..|.(**)
-         Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 7) (fromInteger
-                                                                           7)) (fromInteger 10)) Data.Bits..|.(**)
-        Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 30) (fromInteger
-                                                                           25)) (fromInteger 4)) Data.Bits..|.(**)
-       Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 11) (fromInteger
-                                                                          8)) (fromInteger 0)) in
+      (((Data.Bits.shift (bitSlice instr (fromInteger 31) (fromInteger 31))
+         (fromInteger 11) Data.Bits..|.(**)
+         Data.Bits.shift (bitSlice instr (fromInteger 7) (fromInteger 7)) (fromInteger
+                                                                           10)) Data.Bits..|.(**)
+        Data.Bits.shift (bitSlice instr (fromInteger 30) (fromInteger 25)) (fromInteger
+                                                                            4)) Data.Bits..|.(**)
+       Data.Bits.shift (bitSlice instr (fromInteger 11) (fromInteger 8)) (fromInteger
+                                                                          0)) in
     pair (pair (pair (pair imm12 rs2) rs1) funct3) opcode.
 
 Definition ifields_R_type
@@ -728,8 +726,7 @@ Definition ifields_R_type
     let funct3 := ifield_funct3 instr in
     let rs1 := ifield_rs1 instr in
     let rs2 := ifield_rs2 instr in
-    let funct7 :=
-      Bit_Manipulation.bitSlice instr (fromInteger 31) (fromInteger 25) in
+    let funct7 := bitSlice instr (fromInteger 31) (fromInteger 25) in
     pair (pair (pair (pair (pair funct7 rs2) rs1) funct3) rd) opcode.
 
 Definition ifields_S_type
@@ -741,14 +738,14 @@ Definition ifields_S_type
     let rs1 := ifield_rs1 instr in
     let rs2 := ifield_rs2 instr in
     let imm12 :=
-      (Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 31) (fromInteger
-                                                                          25)) (fromInteger 5) Data.Bits..|.(**)
-       Data.Bits.shift (Bit_Manipulation.bitSlice instr (fromInteger 11) (fromInteger
-                                                                          7)) (fromInteger 0)) in
+      (Data.Bits.shift (bitSlice instr (fromInteger 31) (fromInteger 25)) (fromInteger
+                                                                           5) Data.Bits..|.(**)
+       Data.Bits.shift (bitSlice instr (fromInteger 11) (fromInteger 7)) (fromInteger
+                                                                          0)) in
     pair (pair (pair (pair imm12 rs2) rs1) funct3) opcode.
 
 Definition ifield_rs3 : Instr -> InstrField :=
-  fun instr => Bit_Manipulation.bitSlice instr (fromInteger 31) (fromInteger 27).
+  fun instr => bitSlice instr (fromInteger 31) (fromInteger 27).
 
 Definition is_instr_C : N -> bool :=
   fun u16 => ((u16 Data.Bits..&.(**) fromInteger 3) /= fromInteger 3).
@@ -971,36 +968,31 @@ Definition mstatus_upie_bitpos :=
 Definition mstatus_stack_fields : N -> (N * N * N * N * N * N * N * N)%type :=
   fun mstatus =>
     let uie :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_uie_bitpos)
-      Data.Bits..&.(**)
+      trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_uie_bitpos) Data.Bits..&.(**)
       fromInteger 1 in
     let sie :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_sie_bitpos)
-      Data.Bits..&.(**)
+      trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_sie_bitpos) Data.Bits..&.(**)
       fromInteger 1 in
     let mie :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_mie_bitpos)
-      Data.Bits..&.(**)
+      trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_mie_bitpos) Data.Bits..&.(**)
       fromInteger 1 in
     let upie :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_upie_bitpos)
+      trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_upie_bitpos)
       Data.Bits..&.(**)
       fromInteger 1 in
     let spie :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_spie_bitpos)
+      trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_spie_bitpos)
       Data.Bits..&.(**)
       fromInteger 1 in
     let mpie :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_mpie_bitpos)
+      trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_mpie_bitpos)
       Data.Bits..&.(**)
       fromInteger 1 in
     let spp :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_spp_bitpos)
-      Data.Bits..&.(**)
+      trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_spp_bitpos) Data.Bits..&.(**)
       fromInteger 1 in
     let mpp :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_mpp_bitpos)
-      Data.Bits..&.(**)
+      trunc_u64_to_u32 (Data.Bits.shiftR mstatus mstatus_mpp_bitpos) Data.Bits..&.(**)
       fromInteger 3 in
     pair (pair (pair (pair (pair (pair (pair mpp spp) mpie) spie) upie) mie) sie)
          uie.
@@ -1016,22 +1008,21 @@ Definition mstatus_upd_stack_fields
         let mstatus' :=
           (((((((((mstatus Data.Bits..&.(**) (Data.Bits.complement mstatus_stack_mask))
                   Data.Bits..|.(**)
-                  (Data.Bits.shiftL (Bit_Manipulation.zeroExtend_u32_to_u64 mpp)
-                   mstatus_mpp_bitpos)) Data.Bits..|.(**)
-                 (Data.Bits.shiftL (Bit_Manipulation.zeroExtend_u32_to_u64 spp)
-                  mstatus_spp_bitpos)) Data.Bits..|.(**)
-                (Data.Bits.shiftL (Bit_Manipulation.zeroExtend_u32_to_u64 mpie)
-                 mstatus_mpie_bitpos)) Data.Bits..|.(**)
-               (Data.Bits.shiftL (Bit_Manipulation.zeroExtend_u32_to_u64 spie)
-                mstatus_spie_bitpos)) Data.Bits..|.(**)
-              (Data.Bits.shiftL (Bit_Manipulation.zeroExtend_u32_to_u64 upie)
-               mstatus_upie_bitpos)) Data.Bits..|.(**)
-             (Data.Bits.shiftL (Bit_Manipulation.zeroExtend_u32_to_u64 mie)
-              mstatus_mie_bitpos)) Data.Bits..|.(**)
-            (Data.Bits.shiftL (Bit_Manipulation.zeroExtend_u32_to_u64 sie)
-             mstatus_sie_bitpos)) Data.Bits..|.(**)
-           (Data.Bits.shiftL (Bit_Manipulation.zeroExtend_u32_to_u64 uie)
-            mstatus_uie_bitpos)) in
+                  (Data.Bits.shiftL (zeroExtend_u32_to_u64 mpp) mstatus_mpp_bitpos))
+                 Data.Bits..|.(**)
+                 (Data.Bits.shiftL (zeroExtend_u32_to_u64 spp) mstatus_spp_bitpos))
+                Data.Bits..|.(**)
+                (Data.Bits.shiftL (zeroExtend_u32_to_u64 mpie) mstatus_mpie_bitpos))
+               Data.Bits..|.(**)
+               (Data.Bits.shiftL (zeroExtend_u32_to_u64 spie) mstatus_spie_bitpos))
+              Data.Bits..|.(**)
+              (Data.Bits.shiftL (zeroExtend_u32_to_u64 upie) mstatus_upie_bitpos))
+             Data.Bits..|.(**)
+             (Data.Bits.shiftL (zeroExtend_u32_to_u64 mie) mstatus_mie_bitpos))
+            Data.Bits..|.(**)
+            (Data.Bits.shiftL (zeroExtend_u32_to_u64 sie) mstatus_sie_bitpos))
+           Data.Bits..|.(**)
+           (Data.Bits.shiftL (zeroExtend_u32_to_u64 uie) mstatus_uie_bitpos)) in
         mstatus'
     end.
 
@@ -1132,9 +1123,9 @@ Definition ustatus_mask_RV64 : N :=
 Definition r_funct7_fields_for_AMO
    : InstrField -> (InstrField * InstrField * InstrField)%type :=
   fun funct7 =>
-    pair (pair (Bit_Manipulation.bitSlice funct7 (fromInteger 6) (fromInteger 2))
-               (Bit_Manipulation.bitSlice funct7 (fromInteger 1) (fromInteger 1)))
-         (Bit_Manipulation.bitSlice funct7 (fromInteger 0) (fromInteger 0)).
+    pair (pair (bitSlice funct7 (fromInteger 6) (fromInteger 2)) (bitSlice funct7
+                (fromInteger 1) (fromInteger 1))) (bitSlice funct7 (fromInteger 0) (fromInteger
+                                                                                    0)).
 
 Definition s_Priv_Level :=
   fromInteger 1 : Priv_Level.
@@ -1220,11 +1211,10 @@ Definition xl_rv64 :=
   fromInteger 2 : N.
 
 (* External variables:
-     Build_Default Char Default Eq_ Int N None Some String andb bool cons false
-     fromInteger fromIntegral list negb nil op_zeze__ op_zeze____ op_zl__ op_zm__
-     op_zsze__ op_zsze____ op_zt__ option orb ord pair patternFailure true
-     Bit_Manipulation.bitSlice Bit_Manipulation.trunc_u64_to_u32
-     Bit_Manipulation.zeroExtend_u32_to_u64 Data.Bits.complement
+     Build_Default Char Default Eq_ Int N None Some String andb bitSlice bool cons
+     false fromInteger fromIntegral list negb nil op_zeze__ op_zeze____ op_zl__
+     op_zm__ op_zsze__ op_zsze____ op_zt__ option orb ord pair patternFailure true
+     trunc_u64_to_u32 zeroExtend_u32_to_u64 Data.Bits.complement
      Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__ Data.Bits.shift Data.Bits.shiftL
      Data.Bits.shiftR Data.Bits.testBit
 *)

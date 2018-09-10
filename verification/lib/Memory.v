@@ -13,7 +13,7 @@ Require Coq.Program.Wf.
 (* Converted imports: *)
 
 Require Import Arch_Defs.
-Require Bit_Manipulation.
+Require Import Bit_Manipulation.
 Require Import Coq.Numbers.BinNums.
 Require Data.Bits.
 Require Data.Map.Internal.
@@ -47,7 +47,7 @@ Definition addr_byte_list_to_addr_word_list
              | cons (pair a0 b0) rest =>
                  if (((a0 Data.Bits..&.(**) fromInteger 3) == fromInteger 0)) : bool
                  then (let a := (fromIntegral a0) : N in
-                       let w0 := Bit_Manipulation.zeroExtend_u8_to_u32 b0 in
+                       let w0 := zeroExtend_u8_to_u32 b0 in
                        cons (pair a w0) (addr_byte_list_to_addr_word_list rest)) else
                  j_1__
              | _ => j_1__
@@ -59,8 +59,8 @@ Definition addr_byte_list_to_addr_word_list
                             fromInteger 1) ==
                            a1)) : bool
                  then (let a := (fromIntegral a0) : N in
-                       let w1 := Bit_Manipulation.zeroExtend_u8_to_u32 b1 in
-                       let w0 := Bit_Manipulation.zeroExtend_u8_to_u32 b0 in
+                       let w1 := zeroExtend_u8_to_u32 b1 in
+                       let w0 := zeroExtend_u8_to_u32 b0 in
                        let w :=
                          ((Data.Bits.shiftL w1 (fromInteger 8)) Data.Bits..|.(**)
                           (Data.Bits.shiftL w0 (fromInteger 0))) in
@@ -76,9 +76,9 @@ Definition addr_byte_list_to_addr_word_list
                                                                                          a1) ((a0 + fromInteger 2) ==
                                                                                          a2))) : bool
                  then (let a := (fromIntegral a0) : N in
-                       let w2 := Bit_Manipulation.zeroExtend_u8_to_u32 b2 in
-                       let w1 := Bit_Manipulation.zeroExtend_u8_to_u32 b1 in
-                       let w0 := Bit_Manipulation.zeroExtend_u8_to_u32 b0 in
+                       let w2 := zeroExtend_u8_to_u32 b2 in
+                       let w1 := zeroExtend_u8_to_u32 b1 in
+                       let w0 := zeroExtend_u8_to_u32 b0 in
                        let w :=
                          (((Data.Bits.shiftL w2 (fromInteger 16)) Data.Bits..|.(**)
                            (Data.Bits.shiftL w1 (fromInteger 8))) Data.Bits..|.(**)
@@ -99,10 +99,10 @@ Definition addr_byte_list_to_addr_word_list
                                                                                                    fromInteger 3) ==
                                                                                                   a3)))) : bool
                then (let a := (fromIntegral a0) : N in
-                     let w3 := Bit_Manipulation.zeroExtend_u8_to_u32 b3 in
-                     let w2 := Bit_Manipulation.zeroExtend_u8_to_u32 b2 in
-                     let w1 := Bit_Manipulation.zeroExtend_u8_to_u32 b1 in
-                     let w0 := Bit_Manipulation.zeroExtend_u8_to_u32 b0 in
+                     let w3 := zeroExtend_u8_to_u32 b3 in
+                     let w2 := zeroExtend_u8_to_u32 b2 in
+                     let w1 := zeroExtend_u8_to_u32 b1 in
+                     let w0 := zeroExtend_u8_to_u32 b0 in
                      let w :=
                        ((((Data.Bits.shiftL w3 (fromInteger 24)) Data.Bits..|.(**)
                           (Data.Bits.shiftL w2 (fromInteger 16))) Data.Bits..|.(**)
@@ -181,7 +181,7 @@ Definition mem_read : Mem -> InstrField -> N -> (Mem_Result * Mem)%type :=
                                 then pair (fromInteger 0) omv_w0 else
                                 if (funct3 == funct3_LD) : bool then pair omv_w1 omv_w0 else
                                 patternFailure) in
-    let u64 := Bit_Manipulation.bitconcat_u32_u32_to_u64 ldv_w1 ldv_w0 in
+    let u64 := bitconcat_u32_u32_to_u64 ldv_w1 ldv_w0 in
     if (is_LOAD_aligned funct3 addr) : bool
     then pair (Mem_Result_Ok u64) mem
     else pair (Mem_Result_Err exc_code_load_addr_misaligned) mem.
@@ -216,36 +216,30 @@ Definition mem_amo
         end in
     let omv_w0 := fn_read_word addr_w in
     let omv_w1 := fn_read_word (addr_w + fromInteger 4) in
-    let omv_d := Bit_Manipulation.bitconcat_u32_u32_to_u64 omv_w1 omv_w0 in
+    let omv_d := bitconcat_u32_u32_to_u64 omv_w1 omv_w0 in
     let ldv :=
       if (msbs5 == msbs5_AMO_SC) : bool
       then if reserved_addr_hit : bool
            then fromInteger 0
            else fromInteger 1 else
       if (funct3 == funct3_AMO_W) : bool
-      then Bit_Manipulation.bitconcat_u32_u32_to_u64 (fromInteger 0) omv_w0 else
+      then bitconcat_u32_u32_to_u64 (fromInteger 0) omv_w0 else
       if (funct3 == funct3_AMO_D) : bool then omv_d else
       patternFailure in
-    let stv_w1 :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR stv_d (fromInteger 32)) in
-    let stv_w0 := Bit_Manipulation.trunc_u64_to_u32 stv_d in
+    let stv_w1 := trunc_u64_to_u32 (Data.Bits.shiftR stv_d (fromInteger 32)) in
+    let stv_w0 := trunc_u64_to_u32 stv_d in
     let 'pair nmv_w1 nmv_w0 := (if (msbs5 == msbs5_AMO_SC) : bool
                                 then pair stv_w1 stv_w0 else
                                 if (msbs5 == msbs5_AMO_SWAP) : bool then pair stv_w1 stv_w0 else
                                 if (msbs5 == msbs5_AMO_ADD) : bool
                                 then (if (funct3 == funct3_AMO_W) : bool
                                       then let z_w :=
-                                             Bit_Manipulation.cvt_s32_to_u32 ((Bit_Manipulation.cvt_u32_to_s32 omv_w0) +
-                                                                              (Bit_Manipulation.cvt_u32_to_s32
-                                                                               stv_w0)) in
+                                             cvt_s32_to_u32 ((cvt_u32_to_s32 omv_w0) + (cvt_u32_to_s32 stv_w0)) in
                                            pair (fromInteger 0) z_w
                                       else let z_d :=
-                                             Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 omv_d) +
-                                                                              (Bit_Manipulation.cvt_u64_to_s64
-                                                                               stv_d)) in
-                                           pair (Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR z_d (fromInteger
-                                                                                                          32)))
-                                                (Bit_Manipulation.trunc_u64_to_u32 z_d)) else
+                                             cvt_s64_to_u64 ((cvt_u64_to_s64 omv_d) + (cvt_u64_to_s64 stv_d)) in
+                                           pair (trunc_u64_to_u32 (Data.Bits.shiftR z_d (fromInteger 32)))
+                                                (trunc_u64_to_u32 z_d)) else
                                 if (msbs5 == msbs5_AMO_AND) : bool
                                 then pair (omv_w1 Data.Bits..&.(**) stv_w1) (omv_w0 Data.Bits..&.(**)
                                            stv_w0) else
@@ -257,25 +251,21 @@ Definition mem_amo
                                 if (msbs5 == msbs5_AMO_MAX) : bool
                                 then (if (funct3 == funct3_AMO_W) : bool
                                       then let z_w :=
-                                             if ((Bit_Manipulation.cvt_u32_to_s32 omv_w0) >
-                                                 (Bit_Manipulation.cvt_u32_to_s32 stv_w0)) : bool
+                                             if ((cvt_u32_to_s32 omv_w0) > (cvt_u32_to_s32 stv_w0)) : bool
                                              then omv_w0
                                              else stv_w0 in
                                            pair (fromInteger 0) z_w
-                                      else if ((Bit_Manipulation.cvt_u64_to_s64 omv_d) >
-                                               (Bit_Manipulation.cvt_u64_to_s64 stv_d)) : bool
+                                      else if ((cvt_u64_to_s64 omv_d) > (cvt_u64_to_s64 stv_d)) : bool
                                            then pair omv_w1 omv_w0
                                            else pair stv_w1 stv_w0) else
                                 if (msbs5 == msbs5_AMO_MIN) : bool
                                 then (if (funct3 == funct3_AMO_W) : bool
                                       then let z_w :=
-                                             if ((Bit_Manipulation.cvt_u32_to_s32 omv_w0) <
-                                                 (Bit_Manipulation.cvt_u32_to_s32 stv_w0)) : bool
+                                             if ((cvt_u32_to_s32 omv_w0) < (cvt_u32_to_s32 stv_w0)) : bool
                                              then omv_w0
                                              else stv_w0 in
                                            pair (fromInteger 0) z_w
-                                      else if ((Bit_Manipulation.cvt_u64_to_s64 omv_d) <
-                                               (Bit_Manipulation.cvt_u64_to_s64 stv_d)) : bool
+                                      else if ((cvt_u64_to_s64 omv_d) < (cvt_u64_to_s64 stv_d)) : bool
                                            then pair omv_w1 omv_w0
                                            else pair stv_w1 stv_w0) else
                                 if (msbs5 == msbs5_AMO_MAXU) : bool
@@ -335,9 +325,8 @@ Definition mem_write : Mem -> InstrField -> N -> N -> (Mem_Result * Mem)%type :=
         end in
     let omv_w0 := fn_read_word addr_w in
     let omv_w1 := fn_read_word (addr_w + fromInteger 4) in
-    let stv_w1 :=
-      Bit_Manipulation.trunc_u64_to_u32 (Data.Bits.shiftR stv (fromInteger 32)) in
-    let stv_w0 := Bit_Manipulation.trunc_u64_to_u32 stv in
+    let stv_w1 := trunc_u64_to_u32 (Data.Bits.shiftR stv (fromInteger 32)) in
+    let stv_w0 := trunc_u64_to_u32 stv in
     let dm' :=
       if (funct3 == funct3_SB) : bool
       then let scrut_25__ := (addr Data.Bits..&.(**) fromInteger 3) in
@@ -393,20 +382,18 @@ Definition mem_write : Mem -> InstrField -> N -> N -> (Mem_Result * Mem)%type :=
     else pair (Mem_Result_Err exc_code_store_AMO_addr_misaligned) mem.
 
 (* External variables:
-     InstrField Int Mem_Result Mem_Result_Err Mem_Result_Ok N None Some andb bool
-     cons exc_code_load_addr_misaligned exc_code_store_AMO_addr_misaligned false
-     fromInteger fromIntegral funct3_AMO_D funct3_AMO_W funct3_LB funct3_LBU
+     InstrField Int Mem_Result Mem_Result_Err Mem_Result_Ok N None Some andb
+     bitconcat_u32_u32_to_u64 bool cons cvt_s32_to_u32 cvt_s64_to_u64 cvt_u32_to_s32
+     cvt_u64_to_s64 exc_code_load_addr_misaligned exc_code_store_AMO_addr_misaligned
+     false fromInteger fromIntegral funct3_AMO_D funct3_AMO_W funct3_LB funct3_LBU
      funct3_LD funct3_LH funct3_LHU funct3_LW funct3_LWU funct3_SB funct3_SD
      funct3_SH funct3_SW is_AMO_aligned is_LOAD_aligned is_STORE_aligned list
      msbs5_AMO_ADD msbs5_AMO_AND msbs5_AMO_LR msbs5_AMO_MAX msbs5_AMO_MAXU
      msbs5_AMO_MIN msbs5_AMO_MINU msbs5_AMO_OR msbs5_AMO_SC msbs5_AMO_SWAP
      msbs5_AMO_XOR negb nil op_zeze__ op_zg__ op_zl__ op_zlze__ op_zp__ op_zt__
-     option orb pair patternFailure undefined
-     Bit_Manipulation.bitconcat_u32_u32_to_u64 Bit_Manipulation.cvt_s32_to_u32
-     Bit_Manipulation.cvt_s64_to_u64 Bit_Manipulation.cvt_u32_to_s32
-     Bit_Manipulation.cvt_u64_to_s64 Bit_Manipulation.trunc_u64_to_u32
-     Bit_Manipulation.zeroExtend_u8_to_u32 Data.Bits.complement Data.Bits.op_zizazi__
-     Data.Bits.op_zizbzi__ Data.Bits.shiftL Data.Bits.shiftR Data.Bits.xor
-     Data.Map.Internal.Map Data.Map.Internal.fromList Data.Map.Internal.insert
-     Data.Map.Internal.lookup Data.Map.Internal.size
+     option orb pair patternFailure trunc_u64_to_u32 undefined zeroExtend_u8_to_u32
+     Data.Bits.complement Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__
+     Data.Bits.shiftL Data.Bits.shiftR Data.Bits.xor Data.Map.Internal.Map
+     Data.Map.Internal.fromList Data.Map.Internal.insert Data.Map.Internal.lookup
+     Data.Map.Internal.size
 *)

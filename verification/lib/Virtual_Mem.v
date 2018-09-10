@@ -13,7 +13,7 @@ Require Coq.Program.Wf.
 (* Converted imports: *)
 
 Require Import Arch_Defs.
-Require Bit_Manipulation.
+Require Import Bit_Manipulation.
 Require Coq.Init.Peano.
 Require Import Coq.Numbers.BinNums.
 Require Data.Bits.
@@ -99,16 +99,14 @@ Definition fn_is_permitted : Priv_Level -> bool -> bool -> N -> N -> bool :=
 Definition satp_fields : RV -> N -> (N * N * N)%type :=
   fun rv satp =>
     if (rv == RV32) : bool
-    then (let ppn :=
-            Bit_Manipulation.bitSlice satp (fromInteger 21) (fromInteger 0) in
-          let asid := Bit_Manipulation.bitSlice satp (fromInteger 30) (fromInteger 22) in
-          let mode := Bit_Manipulation.bitSlice satp (fromInteger 31) (fromInteger 31) in
+    then (let ppn := bitSlice satp (fromInteger 21) (fromInteger 0) in
+          let asid := bitSlice satp (fromInteger 30) (fromInteger 22) in
+          let mode := bitSlice satp (fromInteger 31) (fromInteger 31) in
           pair (pair mode asid) ppn) else
     if (rv == RV64) : bool
-    then (let ppn :=
-            Bit_Manipulation.bitSlice satp (fromInteger 43) (fromInteger 0) in
-          let asid := Bit_Manipulation.bitSlice satp (fromInteger 59) (fromInteger 44) in
-          let mode := Bit_Manipulation.bitSlice satp (fromInteger 63) (fromInteger 60) in
+    then (let ppn := bitSlice satp (fromInteger 43) (fromInteger 0) in
+          let asid := bitSlice satp (fromInteger 59) (fromInteger 44) in
+          let mode := bitSlice satp (fromInteger 63) (fromInteger 60) in
           pair (pair mode asid) ppn) else
     patternFailure.
 
@@ -124,23 +122,23 @@ Definition sv48 :=
 Definition va_vpn_J : N -> N -> nat -> N :=
   fun sv va level =>
     if andb (sv == sv32) (level == fromInteger 0) : bool
-    then Bit_Manipulation.bitSlice va (fromInteger 21) (fromInteger 12) else
+    then bitSlice va (fromInteger 21) (fromInteger 12) else
     if andb (sv == sv32) (level == fromInteger 1) : bool
-    then Bit_Manipulation.bitSlice va (fromInteger 31) (fromInteger 22) else
+    then bitSlice va (fromInteger 31) (fromInteger 22) else
     if andb (sv == sv39) (level == fromInteger 0) : bool
-    then Bit_Manipulation.bitSlice va (fromInteger 20) (fromInteger 12) else
+    then bitSlice va (fromInteger 20) (fromInteger 12) else
     if andb (sv == sv39) (level == fromInteger 1) : bool
-    then Bit_Manipulation.bitSlice va (fromInteger 29) (fromInteger 21) else
+    then bitSlice va (fromInteger 29) (fromInteger 21) else
     if andb (sv == sv39) (level == fromInteger 2) : bool
-    then Bit_Manipulation.bitSlice va (fromInteger 38) (fromInteger 30) else
+    then bitSlice va (fromInteger 38) (fromInteger 30) else
     if andb (sv == sv48) (level == fromInteger 0) : bool
-    then Bit_Manipulation.bitSlice va (fromInteger 20) (fromInteger 12) else
+    then bitSlice va (fromInteger 20) (fromInteger 12) else
     if andb (sv == sv48) (level == fromInteger 1) : bool
-    then Bit_Manipulation.bitSlice va (fromInteger 29) (fromInteger 21) else
+    then bitSlice va (fromInteger 29) (fromInteger 21) else
     if andb (sv == sv48) (level == fromInteger 2) : bool
-    then Bit_Manipulation.bitSlice va (fromInteger 38) (fromInteger 30) else
+    then bitSlice va (fromInteger 38) (fromInteger 30) else
     if andb (sv == sv48) (level == fromInteger 3) : bool
-    then Bit_Manipulation.bitSlice va (fromInteger 47) (fromInteger 39) else
+    then bitSlice va (fromInteger 47) (fromInteger 39) else
     patternFailure.
 
 Definition pte_ppn_J : N -> N -> nat -> N :=
@@ -153,7 +151,7 @@ Definition pte_ppn_J : N -> N -> nat -> N :=
               let j_7__ :=
                 if num_6__ == fromInteger 3 : bool
                 then if (sv == sv48) : bool
-                     then Bit_Manipulation.bitSlice pte (fromInteger 53) (fromInteger 37) else
+                     then bitSlice pte (fromInteger 53) (fromInteger 37) else
                      patternFailure else
                 patternFailure in
               let j_8__ :=
@@ -172,13 +170,13 @@ Definition pte_ppn_J : N -> N -> nat -> N :=
               let j_11__ :=
                 if num_5__ == fromInteger 2 : bool
                 then if (sv == sv48) : bool
-                     then Bit_Manipulation.bitSlice pte (fromInteger 36) (fromInteger 28) else
+                     then bitSlice pte (fromInteger 36) (fromInteger 28) else
                      j_10__ else
                 j_10__ in
               let j_12__ :=
                 if num_5__ == fromInteger 2 : bool
                 then if (sv == sv39) : bool
-                     then Bit_Manipulation.bitSlice pte (fromInteger 53) (fromInteger 28) else
+                     then bitSlice pte (fromInteger 53) (fromInteger 28) else
                      j_11__ else
                 j_11__ in
               if num_5__ == fromInteger 2 : bool
@@ -192,36 +190,36 @@ Definition pte_ppn_J : N -> N -> nat -> N :=
               let j_15__ :=
                 if num_4__ == fromInteger 1 : bool
                 then if (sv == sv48) : bool
-                     then Bit_Manipulation.bitSlice pte (fromInteger 27) (fromInteger 19) else
+                     then bitSlice pte (fromInteger 27) (fromInteger 19) else
                      j_14__ else
                 j_14__ in
               let j_16__ :=
                 if num_4__ == fromInteger 1 : bool
                 then if (sv == sv39) : bool
-                     then Bit_Manipulation.bitSlice pte (fromInteger 27) (fromInteger 19) else
+                     then bitSlice pte (fromInteger 27) (fromInteger 19) else
                      j_15__ else
                 j_15__ in
               if num_4__ == fromInteger 1 : bool
               then if (sv == sv32) : bool
-                   then Bit_Manipulation.bitSlice pte (fromInteger 31) (fromInteger 20) else
+                   then bitSlice pte (fromInteger 31) (fromInteger 20) else
                    j_16__ else
               j_16__
           end in
         let j_19__ :=
           if num_3__ == fromInteger 0 : bool
           then if (sv == sv48) : bool
-               then Bit_Manipulation.bitSlice pte (fromInteger 18) (fromInteger 10) else
+               then bitSlice pte (fromInteger 18) (fromInteger 10) else
                j_18__ else
           j_18__ in
         let j_20__ :=
           if num_3__ == fromInteger 0 : bool
           then if (sv == sv39) : bool
-               then Bit_Manipulation.bitSlice pte (fromInteger 18) (fromInteger 10) else
+               then bitSlice pte (fromInteger 18) (fromInteger 10) else
                j_19__ else
           j_19__ in
         if num_3__ == fromInteger 0 : bool
         then if (sv == sv32) : bool
-             then Bit_Manipulation.bitSlice pte (fromInteger 19) (fromInteger 10) else
+             then bitSlice pte (fromInteger 19) (fromInteger 10) else
              j_20__ else
         j_20__
     end.
@@ -272,9 +270,9 @@ Definition fn_vm_is_active : Machine_State -> bool -> bool :=
     let mstatus := mstate_csr_read mstate csr_addr_mstatus in
     let mprv := Data.Bits.testBit mstatus mstatus_mprv_bitpos in
     let mpp :=
-      Bit_Manipulation.trunc_u64_to_u32 ((Data.Bits.shiftR mstatus mstatus_mpp_bitpos)
-                                         Data.Bits..&.(**)
-                                         fromInteger 3) in
+      trunc_u64_to_u32 ((Data.Bits.shiftR mstatus mstatus_mpp_bitpos)
+                        Data.Bits..&.(**)
+                        fromInteger 3) in
     let priv := mstate_priv_read mstate in
     let priv' := if (andb mprv (negb is_instr)) : bool then mpp else priv in
     let satp := mstate_csr_read mstate csr_addr_satp in
@@ -370,9 +368,9 @@ Program Definition vm_translate
             let mstatus := mstate_csr_read mstate csr_addr_mstatus in
             let mprv := Data.Bits.testBit mstatus mstatus_mprv_bitpos in
             let mpp :=
-              Bit_Manipulation.trunc_u64_to_u32 ((Data.Bits.shiftR mstatus mstatus_mpp_bitpos)
-                                                 Data.Bits..&.(**)
-                                                 fromInteger 3) in
+              trunc_u64_to_u32 ((Data.Bits.shiftR mstatus mstatus_mpp_bitpos)
+                                Data.Bits..&.(**)
+                                fromInteger 3) in
             let priv := mstate_priv_read mstate in
             let priv' :=
               if Bool.Sumbool.sumbool_of_bool (andb mprv (negb is_instr))
@@ -432,15 +430,14 @@ Solve Obligations with (solve_vm_translate).
 
 (* External variables:
      Bool.Sumbool.sumbool_of_bool Machine_State Mem_Result Mem_Result_Err
-     Mem_Result_Ok N Priv_Level RV RV32 RV64 andb bool csr_addr_mstatus csr_addr_satp
-     exc_code_Instruction_Page_Fault exc_code_Load_Page_Fault
+     Mem_Result_Ok N Priv_Level RV RV32 RV64 andb bitSlice bool csr_addr_mstatus
+     csr_addr_satp exc_code_Instruction_Page_Fault exc_code_Load_Page_Fault
      exc_code_Store_AMO_Page_Fault exc_code_instr_access_fault
      exc_code_load_access_fault exc_code_store_AMO_access_fault false fromInteger
      funct3_LD funct3_LW mstate_csr_read mstate_mem_read mstate_priv_read
      mstate_rv_read mstatus_mpp_bitpos mstatus_mprv_bitpos mstatus_mxr_bitpos
      mstatus_sum_bitpos nat negb op_zeze__ op_zgze__ op_zlze__ op_zm__ op_zp__
-     op_zsze__ op_zt__ orb pair patternFailure s_Priv_Level true u_Priv_Level
-     Bit_Manipulation.bitSlice Bit_Manipulation.trunc_u64_to_u32 Coq.Init.Peano.lt
-     Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__ Data.Bits.shiftL Data.Bits.shiftR
-     Data.Bits.testBit GHC.Wf.wfFix3
+     op_zsze__ op_zt__ orb pair patternFailure s_Priv_Level true trunc_u64_to_u32
+     u_Priv_Level Coq.Init.Peano.lt Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__
+     Data.Bits.shiftL Data.Bits.shiftR Data.Bits.testBit GHC.Wf.wfFix3
 *)

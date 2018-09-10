@@ -13,7 +13,7 @@ Require Coq.Program.Wf.
 (* Converted imports: *)
 
 Require Import Arch_Defs.
-Require Bit_Manipulation.
+Require Import Bit_Manipulation.
 Require Import CSR_File.
 Require Import Coq.Init.Datatypes.
 Require Import Coq.Numbers.BinNums.
@@ -587,7 +587,7 @@ Definition instr_fetch : Machine_State -> (Fetch_Result * Machine_State)%type :=
               let mstate2 := finish_trap mstate1 exc_code tval in
               pair (Fetch_Trap exc_code) mstate2)
          | Mem_Result_Ok u64 =>
-             (let u32 := Bit_Manipulation.trunc_u64_to_u32 u64 in pair (Fetch u32) mstate1)
+             (let u32 := trunc_u64_to_u32 u64 in pair (Fetch u32) mstate1)
          end
     else let 'pair result1 mstate1 := read_n_instr_bytes mstate (fromInteger 2)
                                         pc in
@@ -597,7 +597,7 @@ Definition instr_fetch : Machine_State -> (Fetch_Result * Machine_State)%type :=
               let mstate2 := finish_trap mstate1 exc_code tval in
               pair (Fetch_Trap exc_code) mstate2)
          | Mem_Result_Ok u64_lo =>
-             (let u16_lo := Bit_Manipulation.trunc_u64_to_u16 u64_lo in
+             (let u16_lo := trunc_u64_to_u16 u64_lo in
               if is_instr_C u16_lo : bool
               then pair (Fetch_C u16_lo) mstate1
               else (let 'pair result2 mstate2 := read_n_instr_bytes mstate (fromInteger 2) (pc
@@ -609,9 +609,8 @@ Definition instr_fetch : Machine_State -> (Fetch_Result * Machine_State)%type :=
                          let mstate3 := finish_trap mstate2 exc_code tval in
                          pair (Fetch_Trap exc_code) mstate3)
                     | Mem_Result_Ok u64_hi =>
-                        (let u16_hi := Bit_Manipulation.trunc_u64_to_u16 u64_hi in
-                         let u32 := Bit_Manipulation.bitconcat_u16_u16_to_u32 u16_lo u16_hi in
-                         pair (Fetch u32) mstate2)
+                        (let u16_hi := trunc_u64_to_u16 u64_hi in
+                         let u32 := bitconcat_u16_u16_to_u32 u16_lo u16_hi in pair (Fetch u32) mstate2)
                     end))
          end.
 
@@ -621,7 +620,7 @@ Definition exec_instr_C
     let fix tryall arg_0__
               := match arg_0__ with
                  | nil =>
-                     (let tval := Bit_Manipulation.zeroExtend_u16_to_u64 instr in
+                     (let tval := zeroExtend_u16_to_u64 instr in
                       pair (finish_trap mstate exc_code_illegal_instruction tval)
                            (GHC.Base.hs_string__ "NONE"))
                  | cons (pair spec name) specs =>
@@ -703,8 +702,7 @@ Definition spec_AMO : Machine_State -> Instr -> (bool * Machine_State)%type :=
       | Mem_Result_Err exc_code => finish_trap mstate2 exc_code eaddr2
       | Mem_Result_Ok d_u64 =>
           let rd_val :=
-            if (funct3 == funct3_AMO_W) : bool
-            then Bit_Manipulation.signExtend d_u64 (fromInteger 32) else
+            if (funct3 == funct3_AMO_W) : bool then signExtend d_u64 (fromInteger 32) else
             if (funct3 == funct3_AMO_D) : bool then d_u64 else
             patternFailure in
           finish_rd_and_pc_plus_4 mstate2 rd rd_val
@@ -720,10 +718,8 @@ Definition spec_AUIPC : Machine_State -> Instr -> (bool * Machine_State)%type :=
     let 'pair (pair imm20 rd) opcode := ifields_U_type instr in
     let is_legal := (opcode == opcode_AUIPC) in
     let x_u32 := Data.Bits.shiftL imm20 (fromInteger 12) in
-    let x_u64 := Bit_Manipulation.signExtend_u32_to_u64 x_u32 in
-    let rd_val :=
-      Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 x_u64) +
-                                       (Bit_Manipulation.cvt_u64_to_s64 pc)) in
+    let x_u64 := signExtend_u32_to_u64 x_u32 in
+    let rd_val := cvt_s64_to_u64 ((cvt_u64_to_s64 x_u64) + (cvt_u64_to_s64 pc)) in
     let mstate1 := finish_rd_and_pc_plus_4 mstate rd rd_val in
     pair is_legal mstate1.
 
@@ -751,21 +747,16 @@ Definition spec_BRANCH
     let taken :=
       if is_BEQ : bool then (rs1_val == rs2_val) else
       if is_BNE : bool then (rs1_val /= rs2_val) else
-      if is_BLT : bool
-      then (Bit_Manipulation.cvt_u64_to_s64 (rs1_val) <
-            Bit_Manipulation.cvt_u64_to_s64 (rs2_val)) else
+      if is_BLT : bool then (cvt_u64_to_s64 (rs1_val) < cvt_u64_to_s64 (rs2_val)) else
       if is_BGE : bool
-      then (Bit_Manipulation.cvt_u64_to_s64 (rs1_val) >=
-            Bit_Manipulation.cvt_u64_to_s64 (rs2_val)) else
+      then (cvt_u64_to_s64 (rs1_val) >= cvt_u64_to_s64 (rs2_val)) else
       if is_BLTU : bool then (rs1_val < rs2_val) else
       if is_BGEU : bool then (rs1_val >= rs2_val) else
       patternFailure in
-    let x_u64 := Bit_Manipulation.zeroExtend_u32_to_u64 imm12 in
+    let x_u64 := zeroExtend_u32_to_u64 imm12 in
     let y_u64 := Data.Bits.shiftL x_u64 (fromInteger 1) in
-    let z_u64 := Bit_Manipulation.signExtend y_u64 (fromInteger 13) in
-    let target :=
-      Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 pc) +
-                                       (Bit_Manipulation.cvt_u64_to_s64 z_u64)) in
+    let z_u64 := signExtend y_u64 (fromInteger 13) in
+    let target := cvt_s64_to_u64 ((cvt_u64_to_s64 pc) + (cvt_u64_to_s64 z_u64)) in
     let new_pc := if taken : bool then target else pc + fromInteger 4 in
     let aligned :=
       (orb (misa_flag misa (GHC.Char.hs_char__ "C")) ((new_pc Data.Bits..&.(**)
@@ -786,12 +777,10 @@ Definition spec_JAL : Machine_State -> Instr -> (bool * Machine_State)%type :=
     let rd_val := pc + fromInteger 4 in
     let 'pair (pair imm20 rd) opcode := ifields_J_type instr in
     let is_legal := (opcode == opcode_JAL) in
-    let x_u64 := Bit_Manipulation.zeroExtend_u32_to_u64 imm20 in
+    let x_u64 := zeroExtend_u32_to_u64 imm20 in
     let y_u64 := Data.Bits.shiftL x_u64 (fromInteger 1) in
-    let z_u64 := Bit_Manipulation.signExtend y_u64 (fromInteger 21) in
-    let new_pc :=
-      Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 z_u64) +
-                                       (Bit_Manipulation.cvt_u64_to_s64 pc)) in
+    let z_u64 := signExtend y_u64 (fromInteger 21) in
+    let new_pc := cvt_s64_to_u64 ((cvt_u64_to_s64 z_u64) + (cvt_u64_to_s64 pc)) in
     let aligned := ((new_pc Data.Bits..&.(**) fromInteger 3) == fromInteger 0) in
     let mstate1 :=
       if aligned : bool
@@ -809,13 +798,12 @@ Definition spec_JALR : Machine_State -> Instr -> (bool * Machine_State)%type :=
     let 'pair (pair (pair (pair imm12 rs1) funct3) rd) opcode := ifields_I_type
                                                                    instr in
     let is_legal := (opcode == opcode_JALR) in
-    let x_u64 := Bit_Manipulation.zeroExtend_u32_to_u64 imm12 in
-    let y_u64 := Bit_Manipulation.signExtend x_u64 (fromInteger 12) in
+    let x_u64 := zeroExtend_u32_to_u64 imm12 in
+    let y_u64 := signExtend x_u64 (fromInteger 12) in
     let rs1_val := mstate_gpr_read mstate rs1 in
     let new_pc :=
-      Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 y_u64) +
-                                       (Bit_Manipulation.cvt_u64_to_s64 rs1_val)) in
-    let new_pc' := Bit_Manipulation.clear_bit new_pc (fromInteger 0) in
+      cvt_s64_to_u64 ((cvt_u64_to_s64 y_u64) + (cvt_u64_to_s64 rs1_val)) in
+    let new_pc' := clear_bit new_pc (fromInteger 0) in
     let aligned := ((new_pc' Data.Bits..&.(**) fromInteger 3) == fromInteger 0) in
     let mstate1 :=
       if aligned : bool
@@ -848,11 +836,10 @@ Definition spec_LOAD : Machine_State -> Instr -> (bool * Machine_State)%type :=
                                                                                                                 (rv ==
                                                                                                                  RV64))))))))) in
     let rs1_val := mstate_gpr_read mstate rs1 in
-    let x_u64 := Bit_Manipulation.zeroExtend_u32_to_u64 imm12 in
-    let y_u64 := Bit_Manipulation.signExtend x_u64 (fromInteger 12) in
+    let x_u64 := zeroExtend_u32_to_u64 imm12 in
+    let y_u64 := signExtend x_u64 (fromInteger 12) in
     let eaddr1 :=
-      Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 y_u64) +
-                                       (Bit_Manipulation.cvt_u64_to_s64 rs1_val)) in
+      cvt_s64_to_u64 ((cvt_u64_to_s64 y_u64) + (cvt_u64_to_s64 rs1_val)) in
     let eaddr2 :=
       if (rv == RV64) : bool
       then eaddr1
@@ -870,9 +857,9 @@ Definition spec_LOAD : Machine_State -> Instr -> (bool * Machine_State)%type :=
       | Mem_Result_Err exc_code => finish_trap mstate2 exc_code eaddr2
       | Mem_Result_Ok d_u64 =>
           let rd_val :=
-            if is_LB : bool then Bit_Manipulation.signExtend d_u64 (fromInteger 8) else
-            if is_LH : bool then Bit_Manipulation.signExtend d_u64 (fromInteger 16) else
-            if is_LW : bool then Bit_Manipulation.signExtend d_u64 (fromInteger 32) else
+            if is_LB : bool then signExtend d_u64 (fromInteger 8) else
+            if is_LH : bool then signExtend d_u64 (fromInteger 16) else
+            if is_LW : bool then signExtend d_u64 (fromInteger 32) else
             d_u64 in
           finish_rd_and_pc_plus_4 mstate2 rd rd_val
       end in
@@ -889,7 +876,7 @@ Definition spec_LUI : Machine_State -> Instr -> (bool * Machine_State)%type :=
     let 'pair (pair imm20 rd) opcode := ifields_U_type instr in
     let is_legal := (opcode == opcode_LUI) in
     let x_u32 := Data.Bits.shiftL imm20 (fromInteger 12) in
-    let rd_val := Bit_Manipulation.signExtend_u32_to_u64 x_u32 in
+    let rd_val := signExtend_u32_to_u64 x_u32 in
     let mstate1 := finish_rd_and_pc_plus_4 mstate rd rd_val in
     pair is_legal mstate1.
 
@@ -943,21 +930,16 @@ Definition spec_OP : Machine_State -> Instr -> (bool * Machine_State)%type :=
     let rs1_val := mstate_gpr_read mstate rs1 in
     let rs2_val := mstate_gpr_read mstate rs2 in
     let shamt :=
-      Bit_Manipulation.cvt_u64_to_Int (if (rv == RV32) : bool
-                                       then (rs2_val Data.Bits..&.(**) fromInteger 31)
-                                       else (rs2_val Data.Bits..&.(**) fromInteger 63)) in
+      cvt_u64_to_Int (if (rv == RV32) : bool
+                      then (rs2_val Data.Bits..&.(**) fromInteger 31)
+                      else (rs2_val Data.Bits..&.(**) fromInteger 63)) in
     let rd_val :=
       if is_ADD : bool
-      then Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 rs1_val)
-                                            +
-                                            (Bit_Manipulation.cvt_u64_to_s64 rs2_val)) else
+      then cvt_s64_to_u64 ((cvt_u64_to_s64 rs1_val) + (cvt_u64_to_s64 rs2_val)) else
       if is_SUB : bool
-      then Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 rs1_val)
-                                            -
-                                            (Bit_Manipulation.cvt_u64_to_s64 rs2_val)) else
+      then cvt_s64_to_u64 ((cvt_u64_to_s64 rs1_val) - (cvt_u64_to_s64 rs2_val)) else
       if is_SLT : bool
-      then if ((Bit_Manipulation.cvt_u64_to_s64 rs1_val) <
-               (Bit_Manipulation.cvt_u64_to_s64 rs2_val)) : bool
+      then if ((cvt_u64_to_s64 rs1_val) < (cvt_u64_to_s64 rs2_val)) : bool
            then fromInteger 1
            else fromInteger 0 else
       if is_SLTU : bool
@@ -975,8 +957,7 @@ Definition spec_OP : Machine_State -> Instr -> (bool * Machine_State)%type :=
               else rs1_val in
             Data.Bits.shiftR v1 shamt) else
       if is_SRA : bool
-      then Bit_Manipulation.cvt_s64_to_u64 (Data.Bits.shiftR
-                                            (Bit_Manipulation.cvt_u64_to_s64 rs1_val) shamt) else
+      then cvt_s64_to_u64 (Data.Bits.shiftR (cvt_u64_to_s64 rs1_val) shamt) else
       patternFailure in
     let mstate1 := finish_rd_and_pc_plus_4 mstate rd rd_val in
     pair is_legal mstate1.
@@ -991,26 +972,26 @@ Definition spec_OP_DIV
       (andb (opcode == opcode_OP) (orb (andb (funct3 == funct3_DIV) (funct7 ==
                                               funct7_DIV)) (andb (funct3 == funct3_DIVU) (funct7 == funct7_DIVU)))) in
     let rs1_val := mstate_gpr_read mstate rs1 in
-    let rs1_val_s := Bit_Manipulation.cvt_u64_to_s64 rs1_val in
+    let rs1_val_s := cvt_u64_to_s64 rs1_val in
     let rs2_val := mstate_gpr_read mstate rs2 in
-    let rs2_val_s := Bit_Manipulation.cvt_u64_to_s64 rs2_val in
+    let rs2_val_s := cvt_u64_to_s64 rs2_val in
     let rd_val :=
       if (funct3 == funct3_DIV) : bool
-      then Bit_Manipulation.cvt_s64_to_u64 (if (rs2_val == fromInteger 0) : bool
-                                            then negate (fromInteger 1)
-                                            else if (andb (rs1_val_s == GHC.Enum.minBound) (rs2_val_s ==
-                                                           negate (fromInteger 1))) : bool
-                                                 then rs1_val_s
-                                                 else quot rs1_val_s rs2_val_s) else
+      then cvt_s64_to_u64 (if (rs2_val == fromInteger 0) : bool
+                           then negate (fromInteger 1)
+                           else if (andb (rs1_val_s == GHC.Enum.minBound) (rs2_val_s ==
+                                          negate (fromInteger 1))) : bool
+                                then rs1_val_s
+                                else quot rs1_val_s rs2_val_s) else
       if (funct3 == funct3_DIVU) : bool
       then if (rv == RV32) : bool
-           then let v2_u32 := Bit_Manipulation.trunc_u64_to_u32 rs2_val in
-                let v1_u32 := Bit_Manipulation.trunc_u64_to_u32 rs1_val in
+           then let v2_u32 := trunc_u64_to_u32 rs2_val in
+                let v1_u32 := trunc_u64_to_u32 rs1_val in
                 let z_u32 :=
                   if (v2_u32 == fromInteger 0) : bool
                   then GHC.Enum.maxBound
                   else div v1_u32 v2_u32 in
-                Bit_Manipulation.signExtend_u32_to_u64 z_u32
+                signExtend_u32_to_u64 z_u32
            else if (rs2_val == fromInteger 0) : bool
                 then GHC.Enum.maxBound
                 else div rs1_val rs2_val else
@@ -1038,13 +1019,13 @@ Definition spec_OP_MUL
       fromIntegral (if rv == RV32 : bool
                     then (rs1_val Data.Bits..&.(**) fromInteger 4294967295)
                     else rs1_val) in
-    let s1_i : Z := fromIntegral (Bit_Manipulation.cvt_u64_to_s64 rs1_val) in
+    let s1_i : Z := fromIntegral (cvt_u64_to_s64 rs1_val) in
     let rs2_val := mstate_gpr_read mstate rs2 in
     let u2_i : Z :=
       fromIntegral (if rv == RV32 : bool
                     then (rs2_val Data.Bits..&.(**) fromInteger 4294967295)
                     else rs2_val) in
-    let s2_i : Z := fromIntegral (Bit_Manipulation.cvt_u64_to_s64 rs2_val) in
+    let s2_i : Z := fromIntegral (cvt_u64_to_s64 rs2_val) in
     let prod_i :=
       if (funct3 == funct3_MUL) : bool then s1_i * s2_i else
       if (funct3 == funct3_MULH) : bool then s1_i * s2_i else
@@ -1071,17 +1052,17 @@ Definition spec_OP_REM
       (andb (opcode == opcode_OP) (orb (andb (funct3 == funct3_REM) (funct7 ==
                                               funct7_REM)) (andb (funct3 == funct3_REMU) (funct7 == funct7_REMU)))) in
     let rs1_val := mstate_gpr_read mstate rs1 in
-    let rs1_val_s := Bit_Manipulation.cvt_u64_to_s64 rs1_val in
+    let rs1_val_s := cvt_u64_to_s64 rs1_val in
     let rs2_val := mstate_gpr_read mstate rs2 in
-    let rs2_val_s := Bit_Manipulation.cvt_u64_to_s64 rs2_val in
+    let rs2_val_s := cvt_u64_to_s64 rs2_val in
     let rd_val :=
       if (funct3 == funct3_REM) : bool
-      then Bit_Manipulation.cvt_s64_to_u64 (if (rs2_val == fromInteger 0) : bool
-                                            then rs1_val_s
-                                            else if (andb (rs1_val_s == GHC.Enum.minBound) (rs2_val_s ==
-                                                           negate (fromInteger 1))) : bool
-                                                 then fromInteger 0
-                                                 else rem rs1_val_s rs2_val_s) else
+      then cvt_s64_to_u64 (if (rs2_val == fromInteger 0) : bool
+                           then rs1_val_s
+                           else if (andb (rs1_val_s == GHC.Enum.minBound) (rs2_val_s ==
+                                          negate (fromInteger 1))) : bool
+                                then fromInteger 0
+                                else rem rs1_val_s rs2_val_s) else
       if (funct3 == funct3_REMU) : bool
       then if (rs2_val == fromInteger 0) : bool
            then rs1_val
@@ -1107,25 +1088,21 @@ Definition spec_OP_32 : Machine_State -> Instr -> (bool * Machine_State)%type :=
       (andb (rv == RV64) (andb (opcode == opcode_OP_32) (orb is_ADDW (orb is_SUBW (orb
                                                                            is_SLLW (orb is_SRLW is_SRAW)))))) in
     let rs1_val := mstate_gpr_read mstate rs1 in
-    let u1_32 := Bit_Manipulation.trunc_u64_to_u32 rs1_val in
+    let u1_32 := trunc_u64_to_u32 rs1_val in
     let rs2_val := mstate_gpr_read mstate rs2 in
-    let u2_32 := Bit_Manipulation.trunc_u64_to_u32 rs2_val in
-    let shamt :=
-      Bit_Manipulation.cvt_u64_to_Int (rs2_val Data.Bits..&.(**) fromInteger 31) in
+    let u2_32 := trunc_u64_to_u32 rs2_val in
+    let shamt := cvt_u64_to_Int (rs2_val Data.Bits..&.(**) fromInteger 31) in
     let rd_val_32 :=
       if is_ADDW : bool
-      then Bit_Manipulation.cvt_s32_to_u32 ((Bit_Manipulation.cvt_u32_to_s32 u1_32) +
-                                            (Bit_Manipulation.cvt_u32_to_s32 u2_32)) else
+      then cvt_s32_to_u32 ((cvt_u32_to_s32 u1_32) + (cvt_u32_to_s32 u2_32)) else
       if is_SUBW : bool
-      then Bit_Manipulation.cvt_s32_to_u32 ((Bit_Manipulation.cvt_u32_to_s32 u1_32) -
-                                            (Bit_Manipulation.cvt_u32_to_s32 u2_32)) else
+      then cvt_s32_to_u32 ((cvt_u32_to_s32 u1_32) - (cvt_u32_to_s32 u2_32)) else
       if is_SLLW : bool then Data.Bits.shiftL u1_32 shamt else
       if is_SRLW : bool then Data.Bits.shiftR u1_32 shamt else
       if is_SRAW : bool
-      then Bit_Manipulation.cvt_s32_to_u32 (Data.Bits.shiftR
-                                            (Bit_Manipulation.cvt_u32_to_s32 u1_32) shamt) else
+      then cvt_s32_to_u32 (Data.Bits.shiftR (cvt_u32_to_s32 u1_32) shamt) else
       patternFailure in
-    let rd_val := Bit_Manipulation.signExtend_u32_to_u64 rd_val_32 in
+    let rd_val := signExtend_u32_to_u64 rd_val_32 in
     let mstate1 := finish_rd_and_pc_plus_4 mstate rd rd_val in
     pair is_legal mstate1.
 
@@ -1144,37 +1121,37 @@ Definition spec_OP_32_M
       (andb (rv == RV64) (andb (opcode == opcode_OP_32) (orb is_MULW (orb is_DIVW (orb
                                                                            is_DIVUW (orb is_REMW is_REMUW)))))) in
     let rs1_val := mstate_gpr_read mstate rs1 in
-    let u1_32 : N := Bit_Manipulation.trunc_u64_to_u32 rs1_val in
-    let s1_32 : Z := Bit_Manipulation.cvt_u32_to_s32 u1_32 in
+    let u1_32 : N := trunc_u64_to_u32 rs1_val in
+    let s1_32 : Z := cvt_u32_to_s32 u1_32 in
     let rs2_val := mstate_gpr_read mstate rs2 in
-    let u2_32 : N := Bit_Manipulation.trunc_u64_to_u32 rs2_val in
-    let s2_32 : Z := Bit_Manipulation.cvt_u32_to_s32 u2_32 in
+    let u2_32 : N := trunc_u64_to_u32 rs2_val in
+    let s2_32 : Z := cvt_u32_to_s32 u2_32 in
     let rd_val_32 :=
-      if is_MULW : bool then Bit_Manipulation.cvt_s32_to_u32 (s1_32 * s2_32) else
+      if is_MULW : bool then cvt_s32_to_u32 (s1_32 * s2_32) else
       if is_DIVW : bool
-      then Bit_Manipulation.cvt_s32_to_u32 (if (u2_32 == fromInteger 0) : bool
-                                            then negate (fromInteger 1)
-                                            else if andb (s1_32 == GHC.Enum.minBound) (s2_32 ==
-                                                          negate (fromInteger 1)) : bool
-                                                 then s1_32
-                                                 else quot s1_32 s2_32) else
+      then cvt_s32_to_u32 (if (u2_32 == fromInteger 0) : bool
+                           then negate (fromInteger 1)
+                           else if andb (s1_32 == GHC.Enum.minBound) (s2_32 ==
+                                         negate (fromInteger 1)) : bool
+                                then s1_32
+                                else quot s1_32 s2_32) else
       if is_DIVUW : bool
       then if (u2_32 == fromInteger 0) : bool
            then GHC.Enum.maxBound
            else div u1_32 u2_32 else
       if is_REMW : bool
-      then Bit_Manipulation.cvt_s32_to_u32 (if (u2_32 == fromInteger 0) : bool
-                                            then s1_32
-                                            else if andb (s1_32 == GHC.Enum.minBound) (s2_32 ==
-                                                          negate (fromInteger 1)) : bool
-                                                 then fromInteger 0
-                                                 else rem s1_32 s2_32) else
+      then cvt_s32_to_u32 (if (u2_32 == fromInteger 0) : bool
+                           then s1_32
+                           else if andb (s1_32 == GHC.Enum.minBound) (s2_32 ==
+                                         negate (fromInteger 1)) : bool
+                                then fromInteger 0
+                                else rem s1_32 s2_32) else
       if is_REMUW : bool
       then if (u2_32 == fromInteger 0) : bool
            then u1_32
            else rem u1_32 u2_32 else
       patternFailure in
-    let rd_val := Bit_Manipulation.signExtend_u32_to_u64 rd_val_32 in
+    let rd_val := signExtend_u32_to_u64 rd_val_32 in
     let mstate1 := finish_rd_and_pc_plus_4 mstate rd rd_val in
     pair is_legal mstate1.
 
@@ -1189,10 +1166,7 @@ Definition spec_OP_IMM
                                                                    instr in
     let 'pair msbs7 shamt5 := i_imm12_fields_7_5 imm12 in
     let 'pair msbs6 shamt6 := i_imm12_fields_6_6 imm12 in
-    let shamt :=
-      Bit_Manipulation.cvt_u32_to_Int (if (rv == RV32) : bool
-                                       then shamt5
-                                       else shamt6) in
+    let shamt := cvt_u32_to_Int (if (rv == RV32) : bool then shamt5 else shamt6) in
     let is_ADDI := (funct3 == funct3_ADDI) in
     let is_SLTI := (funct3 == funct3_SLTI) in
     let is_SLTIU := (funct3 == funct3_SLTIU) in
@@ -1214,17 +1188,12 @@ Definition spec_OP_IMM
                                                                                                              is_SRLI
                                                                                                              is_SRAI))))))))) in
     let rs1_val := mstate_gpr_read mstate rs1 in
-    let v2_u64 :=
-      Bit_Manipulation.signExtend (Bit_Manipulation.zeroExtend_u32_to_u64 imm12)
-      (fromInteger 12) in
+    let v2_u64 := signExtend (zeroExtend_u32_to_u64 imm12) (fromInteger 12) in
     let rd_val :=
       if is_ADDI : bool
-      then Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 rs1_val)
-                                            +
-                                            (Bit_Manipulation.cvt_u64_to_s64 v2_u64)) else
+      then cvt_s64_to_u64 ((cvt_u64_to_s64 rs1_val) + (cvt_u64_to_s64 v2_u64)) else
       if is_SLTI : bool
-      then if (Bit_Manipulation.cvt_u64_to_s64 rs1_val) <
-              (Bit_Manipulation.cvt_u64_to_s64 v2_u64) : bool
+      then if (cvt_u64_to_s64 rs1_val) < (cvt_u64_to_s64 v2_u64) : bool
            then fromInteger 1
            else fromInteger 0 else
       if is_SLTIU : bool
@@ -1242,8 +1211,7 @@ Definition spec_OP_IMM
               else rs1_val in
             Data.Bits.shiftR v1 shamt) else
       if is_SRAI : bool
-      then Bit_Manipulation.cvt_s64_to_u64 (Data.Bits.shiftR
-                                            (Bit_Manipulation.cvt_u64_to_s64 rs1_val) shamt) else
+      then cvt_s64_to_u64 (Data.Bits.shiftR (cvt_u64_to_s64 rs1_val) shamt) else
       patternFailure in
     let mstate1 := finish_rd_and_pc_plus_4 mstate rd rd_val in
     pair is_legal mstate1.
@@ -1258,7 +1226,7 @@ Definition spec_OP_IMM_32
     let 'pair (pair (pair (pair imm12 rs1) funct3) rd) opcode := ifields_I_type
                                                                    instr in
     let 'pair funct7 shamt_5 := i_imm12_fields_7_5 imm12 in
-    let shamt := Bit_Manipulation.cvt_u32_to_Int shamt_5 in
+    let shamt := cvt_u32_to_Int shamt_5 in
     let is_ADDIW := (funct3 == funct3_ADDIW) in
     let is_SLLIW := (andb (funct3 == funct3_SLLIW) (funct7 == funct7_SLLIW)) in
     let is_SRLIW := (andb (funct3 == funct3_SRLIW) (funct7 == funct7_SRLIW)) in
@@ -1267,19 +1235,17 @@ Definition spec_OP_IMM_32
       (andb (rv == RV64) (andb (opcode == opcode_OP_IMM_32) (orb is_ADDIW (orb
                                                                   is_SLLIW (orb is_SRLIW is_SRAIW))))) in
     let rs1_val := mstate_gpr_read mstate rs1 in
-    let u1_32 := Bit_Manipulation.trunc_u64_to_u32 rs1_val in
-    let u2_32 := Bit_Manipulation.signExtend_bit_in_u32 imm12 (fromInteger 12) in
+    let u1_32 := trunc_u64_to_u32 rs1_val in
+    let u2_32 := signExtend_bit_in_u32 imm12 (fromInteger 12) in
     let rd_val_32 :=
       if is_ADDIW : bool
-      then Bit_Manipulation.cvt_s32_to_u32 ((Bit_Manipulation.cvt_u32_to_s32 u1_32) +
-                                            (Bit_Manipulation.cvt_u32_to_s32 u2_32)) else
+      then cvt_s32_to_u32 ((cvt_u32_to_s32 u1_32) + (cvt_u32_to_s32 u2_32)) else
       if is_SLLIW : bool then Data.Bits.shiftL u1_32 shamt else
       if is_SRLIW : bool then Data.Bits.shiftR u1_32 shamt else
       if is_SRAIW : bool
-      then Bit_Manipulation.cvt_s32_to_u32 (Data.Bits.shiftR
-                                            (Bit_Manipulation.cvt_u32_to_s32 u1_32) shamt) else
+      then cvt_s32_to_u32 (Data.Bits.shiftR (cvt_u32_to_s32 u1_32) shamt) else
       patternFailure in
-    let rd_val := Bit_Manipulation.signExtend_u32_to_u64 rd_val_32 in
+    let rd_val := signExtend_u32_to_u64 rd_val_32 in
     let mstate1 := finish_rd_and_pc_plus_4 mstate rd rd_val in
     pair is_legal mstate1.
 
@@ -1301,11 +1267,10 @@ Definition spec_STORE : Machine_State -> Instr -> (bool * Machine_State)%type :=
       (andb (opcode == opcode_STORE) (orb is_SB (orb is_SH (orb is_SW is_SD)))) in
     let rs2_val := mstate_gpr_read mstate rs2 in
     let rs1_val := mstate_gpr_read mstate rs1 in
-    let x_u64 := Bit_Manipulation.zeroExtend_u32_to_u64 imm12 in
-    let y_u64 := Bit_Manipulation.signExtend x_u64 (fromInteger 12) in
+    let x_u64 := zeroExtend_u32_to_u64 imm12 in
+    let y_u64 := signExtend x_u64 (fromInteger 12) in
     let eaddr1 :=
-      Bit_Manipulation.cvt_s64_to_u64 ((Bit_Manipulation.cvt_u64_to_s64 rs1_val) +
-                                       (Bit_Manipulation.cvt_u64_to_s64 y_u64)) in
+      cvt_s64_to_u64 ((cvt_u64_to_s64 rs1_val) + (cvt_u64_to_s64 y_u64)) in
     let eaddr2 :=
       if (rv == RV64) : bool
       then eaddr1
@@ -1388,13 +1353,13 @@ Definition spec_SYSTEM_CSRRW
     let rs1_val := mstate_gpr_read mstate rs1 in
     let new_csr_val :=
       if is_CSRRW : bool then rs1_val else
-      if is_CSRRWI : bool then Bit_Manipulation.zeroExtend_u32_to_u64 rs1 else
+      if is_CSRRWI : bool then zeroExtend_u32_to_u64 rs1 else
       patternFailure in
     let mstate1 :=
       if legal2 : bool
       then let mstate_a := mstate_csr_write mstate csr_addr new_csr_val in
            finish_rd_and_pc_plus_4 mstate_a rd rd_val
-      else let tval := Bit_Manipulation.zeroExtend_u32_to_u64 instr in
+      else let tval := zeroExtend_u32_to_u64 instr in
            finish_trap mstate exc_code_illegal_instruction tval in
     pair is_legal mstate1.
 
@@ -1426,11 +1391,10 @@ Definition spec_SYSTEM_CSRR_S_C
       if is_CSRRC : bool
       then old_csr_val Data.Bits..&.(**) (Data.Bits.complement rs1_val) else
       if is_CSRRSI : bool
-      then old_csr_val Data.Bits..|.(**)
-           Bit_Manipulation.zeroExtend_u32_to_u64 rs1 else
+      then old_csr_val Data.Bits..|.(**) zeroExtend_u32_to_u64 rs1 else
       if is_CSRRCI : bool
       then old_csr_val Data.Bits..&.(**)
-           (Data.Bits.complement (Bit_Manipulation.zeroExtend_u32_to_u64 rs1)) else
+           (Data.Bits.complement (zeroExtend_u32_to_u64 rs1)) else
       patternFailure in
     let mstate1 :=
       if legal2 : bool
@@ -1439,7 +1403,7 @@ Definition spec_SYSTEM_CSRR_S_C
              then mstate_csr_write mstate csr_addr new_csr_val else
              mstate in
            finish_rd_and_pc_plus_4 mstate_a rd rd_val
-      else let tval := Bit_Manipulation.zeroExtend_u32_to_u64 instr in
+      else let tval := zeroExtend_u32_to_u64 instr in
            finish_trap mstate exc_code_illegal_instruction tval in
     pair is_legal mstate1.
 
@@ -1460,7 +1424,7 @@ Definition spec_SYSTEM_SFENCE_VM
     let rs2_val := mstate_gpr_read mstate rs2 in
     let mstate2 :=
       if (tvm_fault) : bool
-      then let tval := Bit_Manipulation.zeroExtend_u32_to_u64 instr in
+      then let tval := zeroExtend_u32_to_u64 instr in
            finish_trap mstate exc_code_illegal_instruction tval
       else let mstate1 := mstate_mem_sfence_vm mstate rs1_val rs2_val in
            finish_pc_plus_4 mstate1 in
@@ -1473,7 +1437,7 @@ Definition spec_SYSTEM_WFI
     let tw_bit_set := Data.Bits.testBit mstatus mstatus_tw_bitpos in
     let mstate1 :=
       if (tw_bit_set) : bool
-      then let tval := Bit_Manipulation.zeroExtend_u32_to_u64 instr in
+      then let tval := zeroExtend_u32_to_u64 instr in
            finish_trap mstate exc_code_illegal_instruction tval
       else let mstate' := mstate_run_state_write mstate Run_State_WFI in
            finish_pc_plus_4 mstate' in
@@ -1506,7 +1470,7 @@ Definition spec_SYSTEM_xRET
     let is_URET := (funct12 == funct12_URET) in
     let mstate3 :=
       if (tsr_fault) : bool
-      then let tval := Bit_Manipulation.zeroExtend_u32_to_u64 instr in
+      then let tval := zeroExtend_u32_to_u64 instr in
            finish_trap mstate exc_code_illegal_instruction tval
       else let pc1 :=
              if is_MRET : bool then mstate_csr_read mstate csr_addr_mepc else
@@ -1690,7 +1654,7 @@ Definition exec_instr
     let fix tryall arg_0__
               := match arg_0__ with
                  | nil =>
-                     (let tval := Bit_Manipulation.zeroExtend_u32_to_u64 instr in
+                     (let tval := zeroExtend_u32_to_u64 instr in
                       pair (finish_trap mstate exc_code_illegal_instruction tval)
                            (GHC.Base.hs_string__ "NONE"))
                  | cons (pair spec name) specs =>
@@ -1704,13 +1668,15 @@ Definition exec_instr
 (* External variables:
      CSR_Permission_None CSR_Permission_RO CSR_Permission_RW Exc_Code GPR_Addr Instr
      InstrField Instr_C Int Machine_State Mem_Result Mem_Result_Err Mem_Result_Ok N
-     None RV32 RV64 Run_State_Running Run_State_WFI Some String Z andb app bool cons
-     csr_addr_mcause csr_addr_medeleg csr_addr_mepc csr_addr_mideleg csr_addr_mie
-     csr_addr_minstret csr_addr_mip csr_addr_misa csr_addr_mstatus csr_addr_mtval
-     csr_addr_mtvec csr_addr_scause csr_addr_sedeleg csr_addr_sepc csr_addr_sideleg
-     csr_addr_stval csr_addr_stvec csr_addr_time csr_addr_uepc div error
-     exc_code_ECall_from_M exc_code_ECall_from_S exc_code_ECall_from_U
-     exc_code_breakpoint exc_code_illegal_instruction exc_code_instr_access_fault
+     None RV32 RV64 Run_State_Running Run_State_WFI Some String Z andb app
+     bitconcat_u16_u16_to_u32 bool clear_bit cons csr_addr_mcause csr_addr_medeleg
+     csr_addr_mepc csr_addr_mideleg csr_addr_mie csr_addr_minstret csr_addr_mip
+     csr_addr_misa csr_addr_mstatus csr_addr_mtval csr_addr_mtvec csr_addr_scause
+     csr_addr_sedeleg csr_addr_sepc csr_addr_sideleg csr_addr_stval csr_addr_stvec
+     csr_addr_time csr_addr_uepc cvt_s32_to_u32 cvt_s64_to_u64 cvt_u32_to_Int
+     cvt_u32_to_s32 cvt_u64_to_Int cvt_u64_to_s64 div error exc_code_ECall_from_M
+     exc_code_ECall_from_S exc_code_ECall_from_U exc_code_breakpoint
+     exc_code_illegal_instruction exc_code_instr_access_fault
      exc_code_instr_addr_misaligned exc_code_load_access_fault false
      fn_interrupt_pending fn_vm_is_active fromInteger fromIntegral hs_string__
      i_imm12_fields_6_6 i_imm12_fields_7_5 i_imm12_fields_for_FENCE ifields_B_type
@@ -1723,16 +1689,10 @@ Definition exec_instr
      mstate_rv_read mstate_xlen_read mstatus_stack_fields mstatus_tsr_bitpos
      mstatus_tvm_bitpos mstatus_tw_bitpos mstatus_upd_stack_fields negate negb nil
      op_zeze__ op_zgze__ op_zl__ op_zm__ op_zp__ op_zsze__ op_zt__ option orb pair
-     patternFailure quot r_funct7_fields_for_AMO rem s_Priv_Level true tvec_base
-     tvec_mode tvec_mode_VECTORED u_Priv_Level vm_translate
-     Bit_Manipulation.bitconcat_u16_u16_to_u32 Bit_Manipulation.clear_bit
-     Bit_Manipulation.cvt_s32_to_u32 Bit_Manipulation.cvt_s64_to_u64
-     Bit_Manipulation.cvt_u32_to_Int Bit_Manipulation.cvt_u32_to_s32
-     Bit_Manipulation.cvt_u64_to_Int Bit_Manipulation.cvt_u64_to_s64
-     Bit_Manipulation.signExtend Bit_Manipulation.signExtend_bit_in_u32
-     Bit_Manipulation.signExtend_u32_to_u64 Bit_Manipulation.trunc_u64_to_u16
-     Bit_Manipulation.trunc_u64_to_u32 Bit_Manipulation.zeroExtend_u16_to_u64
-     Bit_Manipulation.zeroExtend_u32_to_u64 Data.Bits.complement
+     patternFailure quot r_funct7_fields_for_AMO rem s_Priv_Level signExtend
+     signExtend_bit_in_u32 signExtend_u32_to_u64 true trunc_u64_to_u16
+     trunc_u64_to_u32 tvec_base tvec_mode tvec_mode_VECTORED u_Priv_Level
+     vm_translate zeroExtend_u16_to_u64 zeroExtend_u32_to_u64 Data.Bits.complement
      Data.Bits.op_zizazi__ Data.Bits.op_zizbzi__ Data.Bits.shiftL Data.Bits.shiftR
      Data.Bits.testBit Data.Bits.xor GHC.Enum.maxBound GHC.Enum.minBound
 *)

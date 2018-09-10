@@ -88,6 +88,7 @@ import module Coq.Init.Datatypes
 #
 import module Address_Map
 import module Arch_Defs
+import module Bit_Manipulation
 import module CSR_File
 import module Forvis_Spec
 import module GPR_File
