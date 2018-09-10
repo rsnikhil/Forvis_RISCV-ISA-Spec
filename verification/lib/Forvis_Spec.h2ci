@@ -1,0 +1,11 @@
+constructors:
+  Forvis_Spec.Fetch_Result: ! '[Qualified "Forvis_Spec" "Fetch_Trap",Qualified "Forvis_Spec"
+    "Fetch_C",Qualified "Forvis_Spec" "Fetch"]'
+constructorFields:
+  Forvis_Spec.Fetch_Trap: NonRecordFields 1
+  Forvis_Spec.Fetch_C: NonRecordFields 1
+  Forvis_Spec.Fetch: NonRecordFields 1
+constructorTypes:
+  Forvis_Spec.Fetch_Trap: Qualified "Forvis_Spec" "Fetch_Result"
+  Forvis_Spec.Fetch_C: Qualified "Forvis_Spec" "Fetch_Result"
+  Forvis_Spec.Fetch: Qualified "Forvis_Spec" "Fetch_Result"

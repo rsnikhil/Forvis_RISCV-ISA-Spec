@@ -1,0 +1,14 @@
+constructors:
+  CSR_File.CSR_Permission: ! '[Qualified "CSR_File" "CSR_Permission_None",Qualified
+    "CSR_File" "CSR_Permission_RO",Qualified "CSR_File" "CSR_Permission_RW"]'
+  CSR_File.CSR_File: ! '[Qualified "CSR_File" "Mk_CSR_File"]'
+constructorFields:
+  CSR_File.CSR_Permission_None: NonRecordFields 0
+  CSR_File.CSR_Permission_RW: NonRecordFields 0
+  CSR_File.Mk_CSR_File: NonRecordFields 1
+  CSR_File.CSR_Permission_RO: NonRecordFields 0
+constructorTypes:
+  CSR_File.CSR_Permission_None: Qualified "CSR_File" "CSR_Permission"
+  CSR_File.CSR_Permission_RW: Qualified "CSR_File" "CSR_Permission"
+  CSR_File.Mk_CSR_File: Qualified "CSR_File" "CSR_File"
+  CSR_File.CSR_Permission_RO: Qualified "CSR_File" "CSR_Permission"

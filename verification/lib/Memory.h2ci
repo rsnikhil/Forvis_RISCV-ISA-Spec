@@ -1,0 +1,9 @@
+constructors:
+  Memory.Mem: ! '[Qualified "Memory" "Mk_Mem"]'
+constructorFields:
+  Memory.Mk_Mem: RecordFields [Qualified "Memory" "f_dm",Qualified "Memory" "f_reserved_addr"]
+recordFieldTypes:
+  Memory.f_dm: Qualified "Memory" "Mem"
+  Memory.f_reserved_addr: Qualified "Memory" "Mem"
+constructorTypes:
+  Memory.Mk_Mem: Qualified "Memory" "Mem"

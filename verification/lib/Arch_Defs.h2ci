@@ -1,0 +1,14 @@
+constructors:
+  Arch_Defs.Mem_Result: ! '[Qualified "Arch_Defs" "Mem_Result_Ok",Qualified "Arch_Defs"
+    "Mem_Result_Err"]'
+  Arch_Defs.RV: ! '[Qualified "Arch_Defs" "RV32",Qualified "Arch_Defs" "RV64"]'
+constructorFields:
+  Arch_Defs.Mem_Result_Err: NonRecordFields 1
+  Arch_Defs.Mem_Result_Ok: NonRecordFields 1
+  Arch_Defs.RV32: NonRecordFields 0
+  Arch_Defs.RV64: NonRecordFields 0
+constructorTypes:
+  Arch_Defs.Mem_Result_Err: Qualified "Arch_Defs" "Mem_Result"
+  Arch_Defs.Mem_Result_Ok: Qualified "Arch_Defs" "Mem_Result"
+  Arch_Defs.RV32: Qualified "Arch_Defs" "RV"
+  Arch_Defs.RV64: Qualified "Arch_Defs" "RV"

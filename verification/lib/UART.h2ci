@@ -1,0 +1,24 @@
+constructors:
+  UART.UART_NS16550A: ! '[Qualified "UART" "Mk_UART_NS16550A"]'
+constructorFields:
+  UART.Mk_UART_NS16550A: RecordFields [Qualified "UART" "f_rbr_a",Qualified "UART"
+    "f_rbr_b",Qualified "UART" "f_thr_a",Qualified "UART" "f_thr_b",Qualified "UART"
+    "f_ier",Qualified "UART" "f_lcr",Qualified "UART" "f_mcr",Qualified "UART" "f_lsr",Qualified
+    "UART" "f_msr",Qualified "UART" "f_scr",Qualified "UART" "f_dll",Qualified "UART"
+    "f_dlm",Qualified "UART" "f_fcr"]
+recordFieldTypes:
+  UART.f_fcr: Qualified "UART" "UART_NS16550A"
+  UART.f_thr_a: Qualified "UART" "UART_NS16550A"
+  UART.f_dlm: Qualified "UART" "UART_NS16550A"
+  UART.f_lcr: Qualified "UART" "UART_NS16550A"
+  UART.f_lsr: Qualified "UART" "UART_NS16550A"
+  UART.f_thr_b: Qualified "UART" "UART_NS16550A"
+  UART.f_msr: Qualified "UART" "UART_NS16550A"
+  UART.f_dll: Qualified "UART" "UART_NS16550A"
+  UART.f_rbr_a: Qualified "UART" "UART_NS16550A"
+  UART.f_mcr: Qualified "UART" "UART_NS16550A"
+  UART.f_scr: Qualified "UART" "UART_NS16550A"
+  UART.f_rbr_b: Qualified "UART" "UART_NS16550A"
+  UART.f_ier: Qualified "UART" "UART_NS16550A"
+constructorTypes:
+  UART.Mk_UART_NS16550A: Qualified "UART" "UART_NS16550A"

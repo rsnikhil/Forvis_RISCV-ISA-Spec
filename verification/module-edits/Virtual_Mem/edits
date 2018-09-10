@@ -1,0 +1,4 @@
+rename type GHC.Num.Int = nat
+
+in Virtual_Mem.vm_translate termination ptw      { measure level }
+obligations Virtual_Mem.vm_translate solve_vm_translate

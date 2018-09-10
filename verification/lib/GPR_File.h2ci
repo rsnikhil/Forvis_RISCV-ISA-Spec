@@ -1,0 +1,6 @@
+constructors:
+  GPR_File.GPR_File: ! '[Qualified "GPR_File" "Mk_GPR_File"]'
+constructorFields:
+  GPR_File.Mk_GPR_File: NonRecordFields 1
+constructorTypes:
+  GPR_File.Mk_GPR_File: Qualified "GPR_File" "GPR_File"
