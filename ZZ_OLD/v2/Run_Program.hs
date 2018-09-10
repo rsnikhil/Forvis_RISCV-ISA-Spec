@@ -23,12 +23,13 @@ import System.IO
 import Data.Int
 import Data.Char
 import Data.List
+import Data.Word
 import Data.Bits
 import Numeric (showHex, readHex)
 
 -- Project imports
 
-import Bit_Utils
+import Bit_Manipulation
 import Arch_Defs
 import Machine_State
 import CSR_File
@@ -45,7 +46,7 @@ import Forvis_Spec
 -- Takes an architecture state and returns the new architecture state.
 -- Fetches and executes one instruction; and repeats.
 
-run_loop :: Int -> (Maybe Integer) -> Machine_State -> IO (Int, Machine_State)
+run_loop :: Int -> (Maybe Word64) -> Machine_State -> IO (Int, Machine_State)
 run_loop  maxinstrs  m_tohost_addr  mstate = do
   let instret   = mstate_csr_read        mstate  csr_addr_minstret
       run_state = mstate_run_state_read  mstate
@@ -166,7 +167,7 @@ fetch_and_execute  mstate = do
                           (do
                               putStr  ("inum:" ++ show (instret + 1))
                               putStr  ("  pc 0x" ++ (showHex pc ""))
-                              putStr  ("  instr.C 0x_" ++ show_wordXL  16  '0'  u16)
+                              putStr  ("  instr.C 0x" ++ showHex u16 "")
                               putStr  ("  priv " ++ show (priv))
                               putStrLn ("  " ++ spec_name))
                         when (verbosity > 1) (mstate_print  "  "  mstate4)
@@ -178,7 +179,7 @@ fetch_and_execute  mstate = do
                           (do
                               putStr  ("inum:" ++ show (instret + 1))
                               putStr  ("  pc 0x" ++ (showHex pc ""))
-                              putStr  ("  instr 0x_" ++ show_wordXL  32  '0'  u32)
+                              putStr  ("  instr 0x" ++ showHex u32 "")
                               putStr  ("  priv " ++ show (priv))
                               putStrLn ("  " ++ spec_name))
                         when (verbosity > 1) (mstate_print  "  "  mstate4)
@@ -188,7 +189,7 @@ fetch_and_execute  mstate = do
 -- Read the word in mem [tohost_addr], if such an addr is given,
 -- and if no read exception.
 
-mstate_mem_read_tohost :: Machine_State -> Maybe Integer -> (Integer, Machine_State)
+mstate_mem_read_tohost :: Machine_State -> Maybe Word64 -> (Word64, Machine_State)
 mstate_mem_read_tohost  mstate  Nothing            = (0, mstate)
 mstate_mem_read_tohost  mstate  (Just tohost_addr) =
   let

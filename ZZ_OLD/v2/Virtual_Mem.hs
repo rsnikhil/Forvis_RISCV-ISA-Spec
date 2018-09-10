@@ -29,13 +29,14 @@ module Virtual_Mem where
 
 import Data.Maybe
 import Data.Int
+import Data.Word
 import Data.Bits
 import qualified Data.Map as Data_Map
 import Numeric (showHex, readHex)
 
 -- Project imports
 
-import Bit_Utils
+import Bit_Manipulation
 import Arch_Defs
 import Mem_Ops
 import Machine_State
@@ -44,7 +45,7 @@ import Machine_State
 -- Check if Virtual Memory is active or not               -- \begin_latex{fn_vm_is_active}
 
 fn_vm_is_active :: Machine_State -> Bool -> Bool
-fn_vm_is_active    mstate           is_instr =
+fn_vm_is_active  mstate  is_instr =
   let                                                     -- \end_latex{fn_vm_is_active}
     rv      = mstate_rv_read  mstate
 
@@ -55,7 +56,7 @@ fn_vm_is_active    mstate           is_instr =
     priv    = mstate_priv_read  mstate
     mstatus = mstate_csr_read   mstate  csr_addr_mstatus
     mprv    = testBit  mstatus  mstatus_mprv_bitpos
-    mpp     = (shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3
+    mpp     = trunc_u64_to_u32  ((shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3)
     priv'   = if (mprv && (not  is_instr)) then mpp else priv
 
     vm_active | (rv == RV32) = ((priv' <= s_Priv_Level) && (satp_mode == sv32))
@@ -74,7 +75,7 @@ fn_vm_is_active    mstate           is_instr =
 --   - 2nd component of tuple result is new mem state,  potentially modified
 --         (page table A D bits, cache tracking, TLB tracking, ...)               -- \begin_latex{vm_translate}
 
-vm_translate :: Machine_State -> Bool  ->  Bool  -> Integer -> (Mem_Result, Machine_State)
+vm_translate :: Machine_State -> Bool  ->  Bool  -> Word64 -> (Mem_Result, Machine_State)
 vm_translate    mstate           is_instr  is_read  va =
   let                                                                             -- \end_latex{vm_translate}
     -- Get relevant architecture state components
@@ -84,7 +85,7 @@ vm_translate    mstate           is_instr  is_read  va =
 
     -- Compute effective privilege modulo MSTATUS.MPRV
     mprv    = testBit  mstatus  mstatus_mprv_bitpos
-    mpp     = (shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3
+    mpp     = trunc_u64_to_u32  ((shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3)
     priv'   = if (mprv && (not  is_instr)) then mpp else priv
 
     -- If there is an access fault, the kind of access fault
@@ -109,8 +110,8 @@ vm_translate    mstate           is_instr  is_read  va =
 
     -- This function 'ptw' is the recursive Page Table Walk
     -- 'ptn_pa' is the address of a a Page Table Node at given 'level'
-    ptw :: Machine_State -> Integer -> Int ->  (Mem_Result, Machine_State)
-    ptw    mstate           ptn_pa     level =
+    ptw :: Machine_State -> Word64 -> Int ->  (Mem_Result, Machine_State)
+    ptw    mstate           ptn_pa    level =
       let
         -- A PTE is indexed by VPN[J] in the PTN, i.e., PTN [VPN [J]]
         -- Compute byte addr of PTE (PTEs are 4 bytes in SV32, 8 bytes in SV32 and SV48)
@@ -173,17 +174,17 @@ vm_translate    mstate           is_instr  is_read  va =
 -- ================================================================
 -- Supervisor Mode Virtual Memory modes
 
-sv32 = 1 :: Integer
-sv39 = 8 :: Integer
-sv48 = 9 :: Integer
--- sv57 = 10 :: Integer    -- Future
--- sv64 = 11 :: Integer    -- Future
+sv32 = 1 :: Word64
+sv39 = 8 :: Word64
+sv48 = 9 :: Word64
+-- sv57 = 10 :: Word64    -- Future
+-- sv64 = 11 :: Word64    -- Future
 
 -- ================================================================
 -- Extract VPN [J] and OFFSET from a virtual address
 
-va_vpn_J :: Integer -> Integer -> Int -> Integer
-va_vpn_J    sv         va         level
+va_vpn_J :: Word64 -> Word64 -> Int -> Word64
+va_vpn_J    sv        va        level
   | (sv == sv32) && (level == 0) = bitSlice  va  21  12
   | (sv == sv32) && (level == 1) = bitSlice  va  31  22
 
@@ -198,13 +199,13 @@ va_vpn_J    sv         va         level
   | (sv == sv48) && (level == 3) = bitSlice  va  47  39
 
 
-va_offset :: Integer -> Integer
+va_offset :: Word64 -> Word64
 va_offset  va = (va .&. 0xFFF)
 
 -- ================================================================
 -- Extract fields of SATP values (values in CSR SATP)
 
-satp_fields :: RV -> Integer -> (Integer, Integer, Integer)
+satp_fields :: RV -> Word64 -> (Word64, Word64, Word64)
 satp_fields rv satp | (rv == RV32) = (let
                                          mode = bitSlice  satp  31  31
                                          asid = bitSlice  satp  30  22
@@ -221,16 +222,16 @@ satp_fields rv satp | (rv == RV32) = (let
 -- ================================================================
 -- Extract fields of Page Table Entries
 
-pte_D :: Integer -> Bool;    pte_D  pte = testBit   pte  7
-pte_A :: Integer -> Bool;    pte_A  pte = testBit   pte  6
-pte_G :: Integer -> Bool;    pte_G  pte = testBit   pte  5
-pte_U :: Integer -> Bool;    pte_U  pte = testBit   pte  4
-pte_X :: Integer -> Bool;    pte_X  pte = testBit   pte  3
-pte_W :: Integer -> Bool;    pte_W  pte = testBit   pte  2
-pte_R :: Integer -> Bool;    pte_R  pte = testBit   pte  1
-pte_V :: Integer -> Bool;    pte_V  pte = testBit   pte  0
+pte_D :: Word64 -> Bool;    pte_D  pte = testBit   pte  7
+pte_A :: Word64 -> Bool;    pte_A  pte = testBit   pte  6
+pte_G :: Word64 -> Bool;    pte_G  pte = testBit   pte  5
+pte_U :: Word64 -> Bool;    pte_U  pte = testBit   pte  4
+pte_X :: Word64 -> Bool;    pte_X  pte = testBit   pte  3
+pte_W :: Word64 -> Bool;    pte_W  pte = testBit   pte  2
+pte_R :: Word64 -> Bool;    pte_R  pte = testBit   pte  1
+pte_V :: Word64 -> Bool;    pte_V  pte = testBit   pte  0
 
-pte_ppn_J :: Integer -> Integer -> Int -> Integer
+pte_ppn_J :: Word64 -> Word64 -> Int -> Word64
 pte_ppn_J  sv  pte  0 | (sv == sv32) = bitSlice  pte  19  10
                       | (sv == sv39) = bitSlice  pte  18  10
                       | (sv == sv48) = bitSlice  pte  18  10
@@ -251,8 +252,8 @@ pte_ppn_J  sv  pte  3 | (sv == sv32) = 0
 -- Checks if PTE's U,X,W,R permission bits allow the access
 -- based on type of access, current privilege, and MSTATUS.SUM and MSTATUS.MXR
 
-fn_is_permitted :: Priv_Level -> Bool   -> Bool  -> Integer -> Integer -> Bool
-fn_is_permitted    priv          is_instr  is_read  mstatus    pte =
+fn_is_permitted :: Priv_Level -> Bool -> Bool -> Word64 -> Word64 -> Bool
+fn_is_permitted  priv  is_instr  is_read  mstatus  pte =
   let
     mstatus_mxr = testBit  mstatus  mstatus_mxr_bitpos
     mstatus_sum = testBit  mstatus  mstatus_sum_bitpos
@@ -279,8 +280,8 @@ fn_is_permitted    priv          is_instr  is_read  mstatus    pte =
 --    level 3 (terapage): PTE.PPN[0], PTE.PPN[1], PTE.PPN[2] must be zero
 -- else misaligned
 
-fn_is_misaligned_pte_ppn :: Integer -> Integer -> Int -> Bool
-fn_is_misaligned_pte_ppn    sv         pte        leaf_level =
+fn_is_misaligned_pte_ppn :: Word64 -> Word64 -> Int -> Bool
+fn_is_misaligned_pte_ppn  sv  pte  leaf_level =
   if      ((leaf_level >= 1) && ((pte_ppn_J  sv  pte  0) /= 0)) then True
   else if ((leaf_level >= 2) && ((pte_ppn_J  sv  pte  1) /= 0)) then True
   else if ((leaf_level >= 3) && ((pte_ppn_J  sv  pte  2) /= 0)) then True
@@ -288,8 +289,8 @@ fn_is_misaligned_pte_ppn    sv         pte        leaf_level =
 
 -- ================================================================
 
-mk_pa_in_page :: Integer -> Integer -> Integer -> Int -> Integer
-mk_pa_in_page    sv         pte        va         level =
+mk_pa_in_page :: Word64 -> Word64 -> Word64 -> Int -> Word64
+mk_pa_in_page    sv        pte       va        level =
   let
     pte_ppn_3 = pte_ppn_J  sv  pte  3    -- irrelevant for sv32, sv39
     pte_ppn_2 = pte_ppn_J  sv  pte  2    -- irrelevant for sv32
@@ -346,8 +347,8 @@ mk_pa_in_page    sv         pte        va         level =
 -- ================================================================
 -- Make phys addr of PTN pointed at by a leaf PTE
 
-mk_ptn_pa_from_pte :: Integer -> Integer -> Integer
-mk_ptn_pa_from_pte    sv         pte =
+mk_ptn_pa_from_pte :: Word64 -> Word64 -> Word64
+mk_ptn_pa_from_pte    sv        pte =
   let
     pte_ppn_3 = pte_ppn_J  sv  pte  3    -- irrelevant for sv32, sv39
     pte_ppn_2 = pte_ppn_J  sv  pte  2    -- irrelevant for sv32

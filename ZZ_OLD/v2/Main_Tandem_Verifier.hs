@@ -14,12 +14,10 @@ module Main_Tandem_Verifier where
 import System.IO
 import Numeric (showHex, readHex)
 import System.Exit
-import Data.Char
-import Data.List
 
 -- Project imports
 
--- import ALU
+import Bit_Manipulation
 import Arch_Defs
 import Machine_State
 import Run_Program
@@ -303,44 +301,3 @@ process_cmd  mstate   cmd  = do
   putStrLn ""
   putStrLn "NOT_OK"
   return mstate
-
--- ================================================================
--- read_hex parses a hex number from a string, ensuring it fits in 'width' bits
-
-read_hex :: Int -> String -> Integer
-read_hex  width  s =
-  let
-    check :: Int -> [(Integer, String)] -> Integer
-    check  width  []          = 0
-    check  width  ((x,s):xss) = x
-  in
-    check width (readHex s)
-
--- ================================================================
--- read_vhex and read_vbin reads a hex or binary number from a string
--- which may optionally being with "0x" or "0b"
--- and which may use the Verilog convention of allowing '_' spacers
--- between digits.
--- In fact it's more lenient than Verilog: any non-digit is ignored
-
-read_vhex :: String -> Integer
-read_vhex  s =
-  let
-    f n digit | isHexDigit digit = 16 * n + fromIntegral (digitToInt  digit)
-              | otherwise        = n
-    s' = if "0x" `isPrefixOf` s then drop 2 s else s
-  in
-    foldl  f  0  s'
-
-read_vbin :: String -> Integer
-read_vbin  s =
-  let
-    f n '0' = 2 * n
-    f n '1' = 2 * n + 1
-    f n  _  = n
-
-    s' = if "0b" `isPrefixOf` s then drop 2 s else s
-  in
-    foldl  f  0  s'
-
--- ================================================================

@@ -21,6 +21,7 @@ import System.Exit
 import Control.Monad
 import Data.Int
 import Data.List
+import Data.Word
 import Data.Bits
 import Numeric (showHex, readHex, readDec)
 
@@ -219,7 +220,7 @@ run_program_from_files  rv  files  num_instrs  watch_tohost  verbosity = do
 --        and memory contents (list of (addr, byte))
 -- If more than one file contains a 'tohost' addr, the first one is returned
 
-read_files :: [String] -> IO (Maybe Integer, [(Integer, Integer)])
+read_files :: [String] -> IO (Maybe Word64, [(Int, Word8)])
 read_files  []           = return (Nothing, [])
 read_files  (file:files) = do
   -- putStrLn ("Reading file " ++ file)
@@ -236,9 +237,9 @@ read_files  (file:files) = do
 -- and return possibly a 'tohost' address
 --        and memory contents (list of (addr, byte))
 
--- Berkeleley ISA tests typically have tohost_addr = (0x8000_1000)
+-- Berkeleley ISA tests typically have tohost_addr = (0x80001000 :: Word64)
 
-read_file :: String -> IO (Maybe Integer, [(Integer, Integer)])
+read_file :: String -> IO (Maybe Word64, [(Int, Word8)])
 read_file filename = do
   (m_tohost_addr, addr_byte_list) <- do
     if (".hex8"  `isSuffixOf`  filename)
@@ -271,7 +272,7 @@ read_file filename = do
 -- ================================================================
 -- For debugging
 
-dump_mem :: Machine_State -> Integer -> Integer -> IO ()
+dump_mem :: Machine_State -> Word64 -> Word64 -> IO ()
 dump_mem  mstate  start  end = do
   let f addr = do
           let (load_result, mstate') = mstate_mem_read  mstate  exc_code_load_access_fault  funct3_LB  addr

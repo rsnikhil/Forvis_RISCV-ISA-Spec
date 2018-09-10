@@ -11,12 +11,14 @@ module Arch_Defs where
 -- ================================================================
 -- Standard Haskell imports
 
+import Data.Word    -- for Word8/16/32/64 (unsigned)
+import Data.Int     -- for Int8/16/32/64 (signed)
 import Data.Bits
 import Data.Char
 
 -- Project imports
 
-import Bit_Utils
+import Bit_Manipulation
 
 -- ================================================================
 -- Major architectural parameters                  -- \begin_latex{RV}
@@ -26,63 +28,51 @@ data RV = RV32
         deriving (Eq, Show)
                                                    -- \end_latex{RV}
 -- ================================================================
--- Predicate to decide whether the arg may be a 'C' (Compressed)
+-- Predicate to decide whether a u16 may be a 'C' (Compressed)
 -- instruction or not ('C' instrs have 2 lsbs not equal to 2'b11)
 
-{-# INLINE is_instr_C #-}
-is_instr_C :: Integer -> Bool
+is_instr_C :: Word16 -> Bool
 is_instr_C  u16 = ((u16 .&. 0x3) /= 0x3)
 
 -- ================================================================
 -- Instructions and instruction fields                \begin_latex{Instr}
--- These are just synonyms of 'Integer', for readability
 
-type Instr   = Integer
-type Instr_C = Integer
+type Instr   = Word32
+type Instr_C = Word16
 
-type InstrField = Integer
+type InstrField = Word32
 
 -- General-purpose registers
 
-type GPR_Addr = Integer
-type GPR_Val  = Integer
+type GPR_Addr = InstrField
 
 -- CSRs
 
-type CSR_Addr = Integer
+type CSR_Addr = InstrField
                                                    -- \end_latex{Instr}
 -- ================================================================
 -- Functions to extract instruction fields            \begin_latex{Instr_Field_Functions}
 
-{-# INLINE ifield_opcode #-}
 ifield_opcode  :: Instr -> InstrField
 ifield_opcode  instr = bitSlice instr  6  0
 
-{-# INLINE ifield_funct3 #-}
 ifield_funct3  :: Instr -> InstrField
 ifield_funct3  instr = bitSlice instr  14  12
 
-{-# INLINE ifield_rd #-}
 ifield_rd      :: Instr -> InstrField
 ifield_rd      instr = bitSlice instr  11  7
 
-{-# INLINE ifield_rs1 #-}
 ifield_rs1     :: Instr -> InstrField
 ifield_rs1     instr = bitSlice instr  19  15
                                                    -- \end_latex{Instr_Field_Functions}
-{-# INLINE ifield_rs2 #-}
 ifield_rs2     :: Instr -> InstrField
 ifield_rs2     instr = bitSlice instr  24  20
-
-{-# INLINE ifield_rs3 #-}
 ifield_rs3     :: Instr -> InstrField
 ifield_rs3     instr = bitSlice instr  31  27    -- for FMADD, FMSUB, FNMSUB
 
-{-# INLINE ifield_funct10 #-}
 ifield_funct10 :: Instr -> InstrField
 ifield_funct10 instr = (shift (bitSlice instr  31  25) 3) .|. (bitSlice instr  14  12)
 
-{-# INLINE ifields_R_type #-}
 ifields_R_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField, InstrField)
 ifields_R_type  instr =
   let
@@ -95,7 +85,6 @@ ifields_R_type  instr =
   in
     (funct7, rs2, rs1, funct3, rd, opcode)
 
-{-# INLINE ifields_I_type #-}
 ifields_I_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField)
 ifields_I_type  instr =
   let
@@ -107,7 +96,6 @@ ifields_I_type  instr =
   in
     (imm12, rs1, funct3, rd, opcode)
 
-{-# INLINE ifields_S_type #-}
 ifields_S_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField)
 ifields_S_type  instr =
   let
@@ -121,7 +109,6 @@ ifields_S_type  instr =
     (imm12, rs2, rs1, funct3, opcode)
 
                                                 -- \begin_latex{ifields_B_type}
-{-# INLINE ifields_B_type #-}
 ifields_B_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField)
 ifields_B_type  instr =
   let imm12  = ( shift (bitSlice instr  31  31) 11  .|.
@@ -136,7 +123,6 @@ ifields_B_type  instr =
     (imm12, rs2, rs1, funct3, opcode)
                                                 -- \end_latex{ifields_B_type}
 
-{-# INLINE ifields_U_type #-}
 ifields_U_type :: Instr -> (InstrField, InstrField, InstrField)
 ifields_U_type  instr =
   let
@@ -146,7 +132,6 @@ ifields_U_type  instr =
   in
     (imm20, rd, opcode)
 
-{-# INLINE ifields_J_type #-}
 ifields_J_type :: Instr -> (InstrField, InstrField, InstrField)
 ifields_J_type  instr =
   let
@@ -161,25 +146,21 @@ ifields_J_type  instr =
 
 -- I-type imm12 fields for shift instrs
 
-{-# INLINE i_imm12_fields_7_5 #-}
 i_imm12_fields_7_5 :: InstrField -> (InstrField, InstrField)
 i_imm12_fields_7_5  imm12 = (bitSlice  imm12  11  5,
                              bitSlice  imm12   4  0)
 
-{-# INLINE i_imm12_fields_6_6 #-}
 i_imm12_fields_6_6 :: InstrField -> (InstrField, InstrField)
 i_imm12_fields_6_6  imm12 = (bitSlice  imm12  11  6,
                              bitSlice  imm12   5  0)
 
 -- I-type imm12 fields for FENCE
-{-# INLINE i_imm12_fields_for_FENCE #-}
 i_imm12_fields_for_FENCE :: InstrField -> (InstrField, InstrField, InstrField)
 i_imm12_fields_for_FENCE  imm12 = (bitSlice  imm12  11  8,
                                    bitSlice  imm12   7  4,
                                    bitSlice  imm12   3  0)
 
 -- R-type funct7 fields for AMO
-{-# INLINE r_funct7_fields_for_AMO #-}
 r_funct7_fields_for_AMO :: InstrField -> (InstrField, InstrField, InstrField)
 r_funct7_fields_for_AMO  funct7 = (bitSlice  funct7  6  2,
                                    bitSlice  funct7  1  1,
@@ -188,7 +169,7 @@ r_funct7_fields_for_AMO  funct7 = (bitSlice  funct7  6  2,
 -- ================================================================
 -- Exception Codes                                 \begin_latex{exception_codes_A}
 
-type Exc_Code = Integer
+type Exc_Code = Word64
 
 exc_code_u_software_interrupt      =  0 :: Exc_Code
 exc_code_s_software_interrupt      =  1 :: Exc_Code
@@ -253,7 +234,7 @@ show_trap_exc_code  ec  | (ec == exc_code_Store_AMO_Page_Fault)      = "exc_code
 -- Memory access results                           \begin_latex{Mem_Result}
 -- Either Ok with value, or Err with an exception code
 
-data Mem_Result = Mem_Result_Ok   Integer
+data Mem_Result = Mem_Result_Ok   Word64
                 | Mem_Result_Err  Exc_Code
                 deriving (Show)
                                                 -- \end_latex{Mem_Result}
@@ -443,16 +424,15 @@ m_csr_addrs_and_names  =
 
 -- Test whether a particular MISA 'letter' bit (A-Z) is set
 
-{-# INLINE misa_flag #-}
-misa_flag :: Integer -> Char -> Bool
+misa_flag :: Word64 -> Char -> Bool
 misa_flag  misa  letter | isAsciiUpper  letter = (((shiftR  misa  ((ord letter) - (ord 'A'))) .&. 1) == 1)
 misa_flag  misa  letter | isAsciiLower  letter = (((shiftR  misa  ((ord letter) - (ord 'a'))) .&. 1) == 1)
                         | otherwise            = False
 
 -- Codes for MXL, SXL, UXL
-xl_rv32  = 1 :: Integer
-xl_rv64  = 2 :: Integer
-xl_rv128 = 3 :: Integer
+xl_rv32  = 1 :: Word64
+xl_rv64  = 2 :: Word64
+xl_rv128 = 3 :: Word64
 
 -- Bit fields
 misa_A_bitpos = 0 :: Int
@@ -526,47 +506,45 @@ mstatus_uie_bitpos     =  0 :: Int
 
 -- Return the stack fields in mstatus
 
-{-# INLINE mstatus_stack_fields #-}
-mstatus_stack_fields :: Integer -> (Integer,Integer,Integer,Integer,Integer,Integer,Integer,Integer)
+mstatus_stack_fields :: Word64 -> (Word32,Word32,Word32,Word32,Word32,Word32,Word32,Word32)
 mstatus_stack_fields  mstatus =
   let
-    mpp  = (shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3
-    spp  = (shiftR  mstatus  mstatus_spp_bitpos)  .&. 0x1
-    mpie = (shiftR  mstatus  mstatus_mpie_bitpos) .&. 0x1
-    spie = (shiftR  mstatus  mstatus_spie_bitpos) .&. 0x1
-    upie = (shiftR  mstatus  mstatus_upie_bitpos) .&. 0x1
-    mie  = (shiftR  mstatus  mstatus_mie_bitpos)  .&. 0x1
-    sie  = (shiftR  mstatus  mstatus_sie_bitpos)  .&. 0x1
-    uie  = (shiftR  mstatus  mstatus_uie_bitpos)  .&. 0x1
+    mpp  = trunc_u64_to_u32  (shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3
+    spp  = trunc_u64_to_u32  (shiftR  mstatus  mstatus_spp_bitpos)  .&. 0x1
+    mpie = trunc_u64_to_u32  (shiftR  mstatus  mstatus_mpie_bitpos) .&. 0x1
+    spie = trunc_u64_to_u32  (shiftR  mstatus  mstatus_spie_bitpos) .&. 0x1
+    upie = trunc_u64_to_u32  (shiftR  mstatus  mstatus_upie_bitpos) .&. 0x1
+    mie  = trunc_u64_to_u32  (shiftR  mstatus  mstatus_mie_bitpos)  .&. 0x1
+    sie  = trunc_u64_to_u32  (shiftR  mstatus  mstatus_sie_bitpos)  .&. 0x1
+    uie  = trunc_u64_to_u32  (shiftR  mstatus  mstatus_uie_bitpos)  .&. 0x1
   in
     (mpp, spp, mpie, spie, upie, mie, sie, uie)
 
 -- Update the stack fields in mstatus
 
-{-# INLINE mstatus_upd_stack_fields #-}
-mstatus_upd_stack_fields :: Integer ->
-                            (Integer,Integer,Integer,Integer,Integer,Integer,Integer,Integer) ->
-                            Integer
+mstatus_upd_stack_fields :: Word64 ->
+                            (Word32,Word32,Word32,Word32,Word32,Word32,Word32,Word32) ->
+                            Word64
 mstatus_upd_stack_fields  mstatus (mpp, spp, mpie, spie, upie, mie, sie, uie) =
   let
-    mstatus_stack_mask :: Integer
+    mstatus_stack_mask :: Word64
     mstatus_stack_mask = 0x1FFF    -- all LSBs up to and including MPP
 
     mstatus' = ((mstatus .&. (complement  mstatus_stack_mask))
-                .|. (shiftL  mpp   mstatus_mpp_bitpos)
-                .|. (shiftL  spp   mstatus_spp_bitpos)
-                .|. (shiftL  mpie  mstatus_mpie_bitpos)
-                .|. (shiftL  spie  mstatus_spie_bitpos)
-                .|. (shiftL  upie  mstatus_upie_bitpos)
-                .|. (shiftL  mie   mstatus_mie_bitpos)
-                .|. (shiftL  sie   mstatus_sie_bitpos)
-                .|. (shiftL  uie   mstatus_uie_bitpos))
+                .|. (shiftL  (zeroExtend_u32_to_u64  mpp)   mstatus_mpp_bitpos)
+                .|. (shiftL  (zeroExtend_u32_to_u64  spp)   mstatus_spp_bitpos)
+                .|. (shiftL  (zeroExtend_u32_to_u64  mpie)  mstatus_mpie_bitpos)
+                .|. (shiftL  (zeroExtend_u32_to_u64  spie)  mstatus_spie_bitpos)
+                .|. (shiftL  (zeroExtend_u32_to_u64  upie)  mstatus_upie_bitpos)
+                .|. (shiftL  (zeroExtend_u32_to_u64  mie)   mstatus_mie_bitpos)
+                .|. (shiftL  (zeroExtend_u32_to_u64  sie)   mstatus_sie_bitpos)
+                .|. (shiftL  (zeroExtend_u32_to_u64  uie)   mstatus_uie_bitpos))
   in
     mstatus'
 
 -- These masks specify which fields are observed/updated in MSTATUS
 
-mstatus_mask_RV32 :: Integer
+mstatus_mask_RV32 :: Word64
 mstatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
                      .|. (shiftL  1  mstatus_tsr_bitpos)
@@ -591,7 +569,7 @@ mstatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
                      .|. (shiftL  1  mstatus_sie_bitpos)
                      .|. (shiftL  1  mstatus_uie_bitpos))
 
-mstatus_mask_RV64 :: Integer
+mstatus_mask_RV64 :: Word64
 mstatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
 
                      -- .|. (shiftL  3  mstatus_sxl_bitpos)    -- TODO: this is not-writable implementation choice
@@ -622,7 +600,7 @@ mstatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
 
 -- SSTATUS is a ``view'' of MSTATUS, masking in/out certain fields
 
-sstatus_mask_RV32 :: Integer
+sstatus_mask_RV32 :: Word64
 sstatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
                      .|. (shiftL  1  mstatus_mxr_bitpos)
@@ -639,7 +617,7 @@ sstatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
                      .|. (shiftL  1  mstatus_sie_bitpos)
                      .|. (shiftL  1  mstatus_uie_bitpos))
 
-sstatus_mask_RV64 :: Integer
+sstatus_mask_RV64 :: Word64
 sstatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
 
                      .|. (shiftL  3  mstatus_uxl_bitpos)
@@ -661,7 +639,7 @@ sstatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
 -- USTATUS is a ``view'' of MSTATUS, masking in/out certain fields
 -- TODO: find out what should be in ustatus (the v1.10 spec doc does not specify)
 
-ustatus_mask_RV32 :: Integer
+ustatus_mask_RV32 :: Word64
 ustatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
                      .|. (shiftL  1  mstatus_mxr_bitpos)
@@ -674,7 +652,7 @@ ustatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
                      .|. (shiftL  1  mstatus_uie_bitpos))
 
-ustatus_mask_RV64 :: Integer
+ustatus_mask_RV64 :: Word64
 ustatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
 
                      .|. (shiftL  3  mstatus_uxl_bitpos)
@@ -696,15 +674,13 @@ ustatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
 -- MTVEC, STVEC and UTVEC have the same format
 --     (for Machine, Supervisor, User privilege levels)
 
-{-# INLINE tvec_mode #-}
-tvec_mode :: Integer -> Integer
+tvec_mode :: Word64 -> Word64
 tvec_mode  tvec = (tvec .&. 3)
 
-tvec_mode_DIRECT   = 0 :: Integer
-tvec_mode_VECTORED = 1 :: Integer
+tvec_mode_DIRECT   = 0 :: Word64
+tvec_mode_VECTORED = 1 :: Word64
 
-{-# INLINE tvec_base #-}
-tvec_base :: Integer -> Integer
+tvec_base :: Word64 -> Word64
 tvec_base  tvec = shiftL (shiftR  tvec  2) 2
 
 -- ================================================================
@@ -726,7 +702,7 @@ mip_meip_bitpos = 11 :: Int
 -- SIP is a ``view'' of MIP for Supervisor privilege level
 -- SIE is a ``view'' of MIE for Supervisor privilege level, with the same mask
 
-sip_mask :: Integer
+sip_mask :: Word64
 sip_mask = ((    shiftL 1 mip_seip_bitpos)
             .|. (shiftL 1 mip_ueip_bitpos)
             .|. (shiftL 1 mip_stip_bitpos)
@@ -737,7 +713,7 @@ sip_mask = ((    shiftL 1 mip_seip_bitpos)
 -- UIP is a ``view'' of MIP for User privilege level
 -- UIE is a ``view'' of MIE for User privilege level, with the same mask
 
-uip_mask :: Integer
+uip_mask :: Word64
 uip_mask = ((    shiftL 1 mip_ueip_bitpos)
             .|. (shiftL 1 mip_utip_bitpos)
             .|. (shiftL 1 mip_usip_bitpos))
@@ -747,13 +723,12 @@ uip_mask = ((    shiftL 1 mip_ueip_bitpos)
 --     whether or not an interrupt is pending,
 -- and if so, the corresponding exception code
 
-{-# INLINE fn_interrupt_pending #-}
-fn_interrupt_pending :: Integer ->                    -- MISA
-                        Integer ->                    -- MSTATUS
-                        Integer ->                    -- MIP
-                        Integer ->                    -- MIE
-                        Integer ->                    -- MIDELEG
-                        Integer ->                    -- SIDELEG
+fn_interrupt_pending :: Word64 ->                    -- MISA
+                        Word64 ->                    -- MSTATUS
+                        Word64 ->                    -- MIP
+                        Word64 ->                    -- MIE
+                        Word64 ->                    -- MIDELEG
+                        Word64 ->                    -- SIDELEG
                         Priv_Level -> Maybe Exc_Code
 fn_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv =
   let
@@ -823,8 +798,7 @@ mcause_interrupt_bitpos_RV64 = 63 :: Int
 
 -- Constructor: make an MCAUSE value depending interrupt or trap, and exception code
 
-{-# INLINE mkCause #-}
-mkCause :: RV -> Bool -> Exc_Code -> Integer
+mkCause :: RV -> Bool -> Exc_Code -> Word64
 mkCause  rv  interrupt_not_trap  exc_code =
   let
     msb | interrupt_not_trap && (rv == RV32) = shiftL  1  mcause_interrupt_bitpos_RV32

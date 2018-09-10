@@ -10,12 +10,12 @@ module Forvis_Spec where
 -- Haskell lib imports
 
 import Data.Bits    -- For bit-wise 'and' (.&.) etc.
+import Data.Word    -- For Wordxx type (unsigned fixed-width ints)
 import Data.Int     -- For Intxx type (signed fixed-width ints)
 
 -- Local imports
 
-import Bit_Utils
-import ALU
+import Bit_Manipulation
 import Arch_Defs
 import Machine_State
 import CSR_File
@@ -32,11 +32,10 @@ import Virtual_Mem
 -- bytes if it is not a C instruction; this, too, may trap.
 
 data Fetch_Result = Fetch_Trap  Exc_Code
-                  | Fetch_C     Integer
-                  | Fetch       Integer
+                  | Fetch_C     Word16
+                  | Fetch       Word32
                   deriving (Show)
 
-{-# INLINE instr_fetch #-}
 instr_fetch :: Machine_State -> (Fetch_Result, Machine_State)
 instr_fetch  mstate =
   let                                                              -- \end_latex{instr_fetch}
@@ -58,7 +57,10 @@ instr_fetch  mstate =
                                           mstate2 = finish_trap  mstate1  exc_code  tval
                                        in
                                           (Fetch_Trap  exc_code,  mstate2))
-          Mem_Result_Ok  u32       -> (Fetch  u32,  mstate1)
+          Mem_Result_Ok  u64       -> (let
+                                          u32 = trunc_u64_to_u32  u64
+                                       in
+                                          (Fetch  u32,  mstate1))
 
     else
       let
@@ -73,31 +75,34 @@ instr_fetch  mstate =
                                        in
                                          (Fetch_Trap  exc_code, mstate2))
 
-          Mem_Result_Ok   u16_lo ->
-            if is_instr_C  u16_lo then
-              -- Is a 'C' instruction; done
-              (Fetch_C  u16_lo,  mstate1)
-            else
-              (let
-                  -- Not a 'C' instruction; read remaining 2 instr bytes
-                  -- with virtual-to-physical translation if necessary.
-                  -- Note: pc and pc+2 may translate to non-contiguous pages.
-                  (result2, mstate2) = read_n_instr_bytes  mstate  2  (pc + 2)
-                in
-                  case result2 of
-                    Mem_Result_Err  exc_code -> (let
-                                                    tval = pc + 2
-                                                    mstate3 = finish_trap  mstate2  exc_code  tval
-                                                 in
-                                                    (Fetch_Trap  exc_code, mstate3))
-                    Mem_Result_Ok  u16_hi    -> (let
-                                                    u32 = bitconcat_u16_u16_to_u32  u16_hi  u16_lo
-                                                 in
-                                                    (Fetch  u32,  mstate2)))
+          Mem_Result_Ok   u64_lo ->
+            (let
+                u16_lo = trunc_u64_to_u16  u64_lo
+             in
+               if is_instr_C  u16_lo then
+                 -- Is a 'C' instruction; done
+                 (Fetch_C  u16_lo,  mstate1)
+               else
+                 (let
+                     -- Not a 'C' instruction; read remaining 2 instr bytes
+                     -- with virtual-to-physical translation if necessary.
+                     -- Note: pc and pc+2 may translate to non-contiguous pages.
+                     (result2, mstate2) = read_n_instr_bytes  mstate  2  (pc + 2)
+                  in
+                    case result2 of
+                      Mem_Result_Err  exc_code -> (let
+                                                      tval = pc + 2
+                                                      mstate3 = finish_trap  mstate2  exc_code  tval
+                                                   in
+                                                     (Fetch_Trap  exc_code, mstate3))
+                      Mem_Result_Ok  u64_hi    -> (let
+                                                      u16_hi = trunc_u64_to_u16  u64_hi
+                                                      u32    = bitconcat_u16_u16_to_u32  u16_lo  u16_hi
+                                                   in
+                                                     (Fetch  u32,  mstate2))))
 
-{-# INLINE read_n_instr_bytes #-}
-read_n_instr_bytes :: Machine_State -> Int   -> Integer -> (Mem_Result, Machine_State)
-read_n_instr_bytes    mstate           n_bytes  va =
+read_n_instr_bytes :: Machine_State -> Int -> Word64 -> (Mem_Result, Machine_State)
+read_n_instr_bytes  mstate  n_bytes  va =
   let
     is_instr = True
     is_read  = True
@@ -132,9 +137,8 @@ spec_LUI    mstate       instr =
     is_legal = (opcode == opcode_LUI)
 
     -- Semantics
-    xlen   = mstate_xlen_read  mstate
-    imm32  = shiftL  imm20  12
-    rd_val = sign_extend  32  xlen  imm32
+    x_u32  = shiftL  imm20  12
+    rd_val = signExtend_u32_to_u64  x_u32
 
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
   in
@@ -155,11 +159,10 @@ spec_AUIPC    mstate       instr =
     is_legal = (opcode == opcode_AUIPC)
 
     -- Semantics
-    xlen     = mstate_xlen_read  mstate
-    pc       = mstate_pc_read  mstate
-    imm32    = shiftL  imm20  12
-    s_offset = sign_extend  32  xlen  imm32
-    rd_val   = alu_add  xlen  pc  s_offset
+    pc      = mstate_pc_read  mstate
+    x_u32   = shiftL  imm20  12
+    x_u64   = signExtend_u32_to_u64  x_u32
+    rd_val  = cvt_s64_to_u64 ((cvt_u64_to_s64  x_u64) + (cvt_u64_to_s64  pc))
 
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
   in
@@ -180,20 +183,20 @@ spec_JAL    mstate       instr =
     is_legal = (opcode == opcode_JAL)
 
     -- Semantics
-    xlen   = mstate_xlen_read  mstate
-    pc     = mstate_pc_read    mstate
+    pc     = mstate_pc_read  mstate
     rd_val = pc + 4
 
-    imm21    = shiftL  imm20  1                -- offset imm20 is in multiples of 2 bytes
-    s_offset = sign_extend  21  xlen  imm21
-    new_pc   = alu_add  xlen  pc  s_offset
-    aligned  = ((new_pc .&. 0x3) == 0)
+    x_u64   = zeroExtend_u32_to_u64  imm20
+    y_u64   = shiftL  x_u64  1                -- offset imm20 is in multiples of 2 bytes
+    z_u64   = signExtend  y_u64  21           -- sign-extend 21 lsbs
+    new_pc  = cvt_s64_to_u64 ((cvt_u64_to_s64  z_u64) + (cvt_u64_to_s64  pc))
+    aligned = ((new_pc .&. 0x3) == 0)
 
-    mstate1  = if aligned
-               then
-                 finish_rd_and_pc  mstate  rd  rd_val  new_pc
-               else
-                 finish_trap  mstate  exc_code_instr_addr_misaligned  new_pc
+    mstate1 = if aligned
+              then
+                finish_rd_and_pc  mstate  rd  rd_val  new_pc
+              else
+                finish_trap  mstate  exc_code_instr_addr_misaligned  new_pc
   in
     (is_legal, mstate1)
 
@@ -212,16 +215,16 @@ spec_JALR    mstate       instr =
     is_legal = (opcode == opcode_JALR)
 
     -- Semantics
-    xlen    = mstate_xlen_read  mstate
-    pc      = mstate_pc_read    mstate
+    pc      = mstate_pc_read  mstate
     rd_val  = pc + 4
 
-    s_offset = sign_extend  12  xlen  imm12
+    x_u64   = zeroExtend_u32_to_u64  imm12
+    y_u64   = signExtend  x_u64  12           -- sign-extend 12 lsbs
 
     rs1_val = mstate_gpr_read  mstate  rs1
 
-    new_pc  = alu_add  xlen  rs1_val  s_offset
-    new_pc' = clearBit  new_pc  0
+    new_pc  = cvt_s64_to_u64 ((cvt_u64_to_s64  y_u64) + (cvt_u64_to_s64  rs1_val))
+    new_pc' = clear_bit  new_pc  0
     aligned = ((new_pc' .&. 0x3) == 0)
 
     mstate1 = if aligned
@@ -266,23 +269,23 @@ spec_BRANCH    mstate       instr =
                     || is_BGEU))
 
     -- Semantics
-    xlen    = mstate_xlen_read  mstate
-    rs1_val = mstate_gpr_read   mstate  rs1
-    rs2_val = mstate_gpr_read   mstate  rs2
+    rs1_val = mstate_gpr_read  mstate  rs1
+    rs2_val = mstate_gpr_read  mstate  rs2
 
-    taken | is_BEQ  = alu_eq   xlen  rs1_val  rs2_val
-          | is_BNE  = alu_ne   xlen  rs1_val  rs2_val
-          | is_BLT  = alu_lt   xlen  rs1_val  rs2_val
-          | is_BGE  = alu_ge   xlen  rs1_val  rs2_val
-          | is_BLTU = alu_ltu  xlen  rs1_val  rs2_val
-          | is_BGEU = alu_geu  xlen  rs1_val  rs2_val
+    taken | is_BEQ  = (rs1_val == rs2_val)
+          | is_BNE  = (rs1_val /= rs2_val)
+          | is_BLT  = (cvt_u64_to_s64 (rs1_val) <  cvt_u64_to_s64 (rs2_val))
+          | is_BGE  = (cvt_u64_to_s64 (rs1_val) >= cvt_u64_to_s64 (rs2_val))
+          | is_BLTU = (rs1_val <  rs2_val)
+          | is_BGEU = (rs1_val >= rs2_val)
 
     pc      = mstate_pc_read  mstate
 
-    imm13    = shiftL  imm12  1                -- since offset imm12 is in multiples of 2 bytes
-    s_offset = sign_extend  13  xlen  imm13
+    x_u64   = zeroExtend_u32_to_u64  imm12
+    y_u64   = shiftL  x_u64  1                -- offset imm12 is in multiples of 2 bytes
+    z_u64   = signExtend  y_u64  13           -- sign-extend 13 lsbs
 
-    target  = alu_add  xlen  pc  s_offset
+    target  = cvt_s64_to_u64 ((cvt_u64_to_s64  pc) + (cvt_u64_to_s64  z_u64))
     new_pc  = if taken then target else pc + 4
     misa    = mstate_csr_read  mstate  csr_addr_misa
     -- new_pc[0] known to be 0, new_pc[1] must be 0 if 'C' is not supported
@@ -319,8 +322,7 @@ spec_LOAD    mstate       instr =
     (imm12, rs1, funct3, rd, opcode) = ifields_I_type   instr
 
     -- Decode check
-    rv       = mstate_rv_read    mstate
-    xlen     = mstate_xlen_read  mstate
+    rv       = mstate_rv_read  mstate
     is_LB    = (funct3 == funct3_LB)
     is_LH    = (funct3 == funct3_LH)
     is_LW    = (funct3 == funct3_LW)
@@ -339,8 +341,9 @@ spec_LOAD    mstate       instr =
     -- Semantics
     --     Compute effective address
     rs1_val = mstate_gpr_read  mstate  rs1
-    s_imm12 = sign_extend  12  xlen  imm12
-    eaddr1  = alu_add  xlen  rs1_val  s_imm12
+    x_u64   = zeroExtend_u32_to_u64  imm12
+    y_u64   = signExtend  x_u64  12           -- sign-extend 12 lsbs
+    eaddr1  = cvt_s64_to_u64 ((cvt_u64_to_s64  y_u64) + (cvt_u64_to_s64  rs1_val))
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
     --     If Virtual Mem is active, translate to a physical addr
@@ -362,11 +365,11 @@ spec_LOAD    mstate       instr =
                 Mem_Result_Err exc_code ->
                   finish_trap  mstate2  exc_code  eaddr2
 
-                Mem_Result_Ok  d    ->
-                  let rd_val | is_LB = sign_extend  8   xlen  d
-                             | is_LH = sign_extend  16  xlen  d
-                             | is_LW = sign_extend  32  xlen  d
-                             | True  = d
+                Mem_Result_Ok  d_u64    ->
+                  let rd_val | is_LB = signExtend  d_u64  8
+                             | is_LH = signExtend  d_u64  16
+                             | is_LW = signExtend  d_u64  32
+                             | True  = d_u64
                   in
                     finish_rd_and_pc_plus_4  mstate2  rd  rd_val
   in
@@ -392,8 +395,7 @@ spec_STORE    mstate       instr =
     (imm12, rs2, rs1, funct3, opcode) = ifields_S_type  instr
 
     -- Decode check
-    rv       = mstate_rv_read    mstate
-    xlen     = mstate_xlen_read  mstate
+    rv       = mstate_rv_read  mstate
     is_SB    = (funct3 == funct3_SB)
     is_SH    = (funct3 == funct3_SH)
     is_SW    = (funct3 == funct3_SW)
@@ -409,8 +411,9 @@ spec_STORE    mstate       instr =
 
     --     Compute effective address
     rs1_val = mstate_gpr_read  mstate  rs1    -- address base
-    s_imm12 = sign_extend  12  xlen  imm12
-    eaddr1  = alu_add  xlen  rs1_val  s_imm12
+    x_u64   = zeroExtend_u32_to_u64  imm12
+    y_u64   = signExtend  x_u64  12           -- sign-extend 12 lsbs
+    eaddr1  = cvt_s64_to_u64 ((cvt_u64_to_s64  rs1_val) + (cvt_u64_to_s64  y_u64))
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
     --     If Virtual Mem is active, translate to a physical addr
@@ -469,8 +472,7 @@ spec_OP_IMM    mstate       instr =
     (msbs6, shamt6) = i_imm12_fields_6_6  imm12
 
     -- Decode check
-    rv       = mstate_rv_read    mstate
-    xlen     = mstate_xlen_read  mstate
+    rv       = mstate_rv_read  mstate
     is_ADDI  = (funct3 == funct3_ADDI)
     is_SLTI  = (funct3 == funct3_SLTI)
     is_SLTIU = (funct3 == funct3_SLTIU)
@@ -499,17 +501,22 @@ spec_OP_IMM    mstate       instr =
     -- Semantics
     rs1_val = mstate_gpr_read  mstate  rs1
 
-    s_imm12 = sign_extend  12  xlen  imm12
+    v2_u64  = signExtend  (zeroExtend_u32_to_u64  imm12)  12
 
-    rd_val | is_ADDI  = alu_add   xlen  rs1_val  s_imm12
-           | is_SLTI  = alu_slt   xlen  rs1_val  s_imm12
-           | is_SLTIU = alu_sltu  xlen  rs1_val  s_imm12
-           | is_XORI  = alu_xor   xlen  rs1_val  s_imm12
-           | is_ORI   = alu_or    xlen  rs1_val  s_imm12
-           | is_ANDI  = alu_and   xlen  rs1_val  s_imm12
-           | is_SLLI  = alu_sll   xlen  rs1_val  imm12
-           | is_SRLI  = alu_srl   xlen  rs1_val  imm12
-           | is_SRAI  = alu_sra   xlen  rs1_val  imm12
+    shamt   = cvt_u32_to_Int (if (rv == RV32) then shamt5 else shamt6)
+
+    rd_val | is_ADDI  = cvt_s64_to_u64  ((cvt_u64_to_s64  rs1_val) + (cvt_u64_to_s64  v2_u64))
+           | is_SLTI  = if (cvt_u64_to_s64  rs1_val) < (cvt_u64_to_s64  v2_u64) then 1 else 0
+           | is_SLTIU = if rs1_val < v2_u64 then 1 else 0
+           | is_XORI  = xor  rs1_val  v2_u64
+           | is_ORI   = rs1_val  .|.  v2_u64
+           | is_ANDI  = rs1_val  .&.  v2_u64
+           | is_SLLI  = shiftL  rs1_val  shamt
+           | is_SRLI  = (let
+                            v1 = if (rv == RV32) then (rs1_val .&. 0xffffFFFF) else rs1_val
+                          in
+                            shiftR  v1  shamt)
+           | is_SRAI  = cvt_s64_to_u64  (shiftR  (cvt_u64_to_s64  rs1_val)  shamt)
 
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
   in
@@ -583,21 +590,27 @@ spec_OP    mstate       instr =
                    ))
                                                                     -- \begin_latex{spec_ADD_3}
     -- Semantics
-    xlen    = mstate_xlen_read  mstate                              -- \end_latex{spec_ADD_3}
-    rs1_val = mstate_gpr_read   mstate  rs1
-    rs2_val = mstate_gpr_read   mstate  rs2
+    rs1_val = mstate_gpr_read  mstate  rs1
+    rs2_val = mstate_gpr_read  mstate  rs2
+    rv      = mstate_rv_read   mstate                               -- \end_latex{spec_ADD_3}
+
+    shamt   = cvt_u64_to_Int (if (rv == RV32) then (rs2_val .&. 0x1F) else (rs2_val .&. 0x3F))
+
                                                                     -- \begin_latex{spec_ADD_4}
-    rd_val | is_ADD  = alu_add  xlen  rs1_val  rs2_val
-           | is_SUB  = alu_sub  xlen  rs1_val  rs2_val
-           | is_SLT  = alu_slt  xlen  rs1_val  rs2_val
-           | is_SLTU = alu_sltu xlen  rs1_val  rs2_val
+    rd_val | is_ADD  = cvt_s64_to_u64  ((cvt_u64_to_s64  rs1_val) + (cvt_u64_to_s64  rs2_val))
+           | is_SUB  = cvt_s64_to_u64  ((cvt_u64_to_s64  rs1_val) - (cvt_u64_to_s64  rs2_val))
+           | is_SLT  = if ((cvt_u64_to_s64  rs1_val) < (cvt_u64_to_s64  rs2_val)) then 1 else 0
+           | is_SLTU = if (rs1_val < rs2_val) then 1 else 0
                                                                     -- \end_latex{spec_ADD_4}
-           | is_XOR  = alu_xor  xlen  rs1_val  rs2_val
-           | is_OR   = alu_or   xlen  rs1_val  rs2_val
-           | is_AND  = alu_and  xlen  rs1_val  rs2_val
-           | is_SLL  = alu_sll  xlen  rs1_val  rs2_val
-           | is_SRL  = alu_srl  xlen  rs1_val  rs2_val
-           | is_SRA  = alu_sra  xlen  rs1_val  rs2_val
+           | is_XOR  = xor  rs1_val  rs2_val
+           | is_OR   = rs1_val  .|.  rs2_val
+           | is_AND  = rs1_val  .&.  rs2_val
+           | is_SLL  = shiftL  rs1_val  shamt
+           | is_SRL  = (let
+                           v1 = if (rv == RV32) then (rs1_val .&. 0xffffFFFF) else rs1_val
+                        in
+                           shiftR  v1  shamt)
+           | is_SRA  = cvt_s64_to_u64  (shiftR  (cvt_u64_to_s64  rs1_val)  shamt)
 
                                                                     -- \begin_latex{spec_ADD_5}
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
@@ -713,7 +726,7 @@ spec_SYSTEM_xRET    mstate       instr =
 
     mstate3   = if (tsr_fault)
                 then
-                  let tval = instr
+                  let tval = zeroExtend_u32_to_u64  instr    -- TODO: may need extend or truncate?
                   in
                     finish_trap  mstate  exc_code_illegal_instruction  tval
 
@@ -819,7 +832,7 @@ spec_SYSTEM_WFI    mstate       instr =
     tw_bit_set = testBit  mstatus  mstatus_tw_bitpos
     mstate1    = if (tw_bit_set)
                  then
-                   let tval = instr
+                   let tval = zeroExtend_u32_to_u64  instr    -- TODO: may need extend or truncate?
                    in
                      finish_trap  mstate  exc_code_illegal_instruction  tval
                  else
@@ -859,7 +872,7 @@ spec_SYSTEM_SFENCE_VM    mstate       instr =
 
     mstate2   = if (tvm_fault)
                 then
-                  let tval = instr
+                  let tval = zeroExtend_u32_to_u64  instr    -- TODO: may need extend or truncate?
                   in
                     finish_trap  mstate  exc_code_illegal_instruction  tval
                 else
@@ -914,7 +927,7 @@ spec_SYSTEM_CSRRW    mstate       instr =
     rs1_val     = mstate_gpr_read  mstate  rs1
 
     new_csr_val | is_CSRRW  = rs1_val
-                | is_CSRRWI = rs1
+                | is_CSRRWI = zeroExtend_u32_to_u64  rs1
 
     rd_val      = old_csr_val
 
@@ -923,7 +936,7 @@ spec_SYSTEM_CSRRW    mstate       instr =
                 in
                   finish_rd_and_pc_plus_4  mstate_a  rd  rd_val
               else
-                let tval = instr
+                let tval = zeroExtend_u32_to_u64  instr    -- TODO: may need extend or truncate?
                 in
                   finish_trap  mstate  exc_code_illegal_instruction  tval
   in
@@ -965,8 +978,8 @@ spec_SYSTEM_CSRR_S_C    mstate       instr =
 
     new_csr_val | is_CSRRS  = old_csr_val .|. rs1_val
                 | is_CSRRC  = old_csr_val .&. (complement rs1_val)
-                | is_CSRRSI = old_csr_val .|. rs1
-                | is_CSRRCI = old_csr_val .&. (complement rs1)
+                | is_CSRRSI = old_csr_val .|. zeroExtend_u32_to_u64  rs1
+                | is_CSRRCI = old_csr_val .&. (complement (zeroExtend_u32_to_u64  rs1))
     rd_val      = old_csr_val
 
     mstate1 = if legal2 then
@@ -976,7 +989,7 @@ spec_SYSTEM_CSRR_S_C    mstate       instr =
                 in
                   finish_rd_and_pc_plus_4  mstate_a  rd  rd_val
               else
-                let tval = instr
+                let tval = zeroExtend_u32_to_u64  instr    -- TODO: may need extend or truncate?
                 in
                   finish_trap  mstate  exc_code_illegal_instruction  tval
   in
@@ -1021,10 +1034,27 @@ spec_OP_MUL    mstate       instr =
     rs1_val = mstate_gpr_read  mstate  rs1
     rs2_val = mstate_gpr_read  mstate  rs2
 
-    rd_val | (funct3 == funct3_MUL)    = alu_mul     xlen  rs1_val  rs2_val
-           | (funct3 == funct3_MULH)   = alu_mulh    xlen  rs1_val  rs2_val
-           | (funct3 == funct3_MULHU)  = alu_mulhu   xlen  rs1_val  rs2_val
-           | (funct3 == funct3_MULHSU) = alu_mulhsu  xlen  rs1_val  rs2_val
+    -- Convert inputs to unbounded integers (sign- or zero-extending the msb)
+    u1_i, u2_i, s1_i, s2_i :: Integer
+    u1_i = fromIntegral  (if rv == RV32 then (rs1_val .&. 0xffffFFFF) else rs1_val)
+    s1_i = fromIntegral  (cvt_u64_to_s64  rs1_val)
+    u2_i = fromIntegral  (if rv == RV32 then (rs2_val .&. 0xffffFFFF) else rs2_val)
+    s2_i = fromIntegral  (cvt_u64_to_s64  rs2_val)
+    prod_i | (funct3 == funct3_MUL)    = s1_i * s2_i
+           | (funct3 == funct3_MULH)   = s1_i * s2_i
+           | (funct3 == funct3_MULHU)  = u1_i * u2_i
+           | (funct3 == funct3_MULHSU) = s1_i * u2_i
+
+    -- Pick out relevant XLEN bits
+    result_i | (funct3 == funct3_MUL)    = prod_i
+             | ((   funct3 == funct3_MULH)
+                || (funct3 == funct3_MULHU)
+                || (funct3 == funct3_MULHSU)) = shiftR  prod_i  xlen
+
+    -- Convert back from unbounded integer to unsigned word
+    rd_val :: Word64
+    rd_val = fromIntegral  result_i
+
 
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
   in
@@ -1053,12 +1083,33 @@ spec_OP_DIV    mstate       instr =
           ))
 
     -- Semantics
-    xlen    = mstate_xlen_read  mstate
-    rs1_val = mstate_gpr_read   mstate  rs1
-    rs2_val = mstate_gpr_read   mstate  rs2
+    rv      = mstate_rv_read  mstate
+    rs1_val = mstate_gpr_read  mstate  rs1
+    rs2_val = mstate_gpr_read  mstate  rs2
 
-    rd_val | (funct3 == funct3_DIV)  = alu_div   xlen  rs1_val  rs2_val
-           | (funct3 == funct3_DIVU) = alu_divu  xlen  rs1_val  rs2_val
+    -- Signed versions of inputs
+    rs1_val_s = cvt_u64_to_s64  rs1_val
+    rs2_val_s = cvt_u64_to_s64  rs2_val
+
+    rd_val | (funct3 == funct3_DIV)  = cvt_s64_to_u64 (if (rs2_val == 0)
+                                                       then -1
+                                                       else
+                                                         if ((rs1_val_s == minBound)
+                                                             && (rs2_val_s == -1)) then
+                                                           rs1_val_s
+                                                         else
+                                                           quot  rs1_val_s  rs2_val_s)
+           | (funct3 == funct3_DIVU) = if (rv == RV32) then
+                                         let
+                                           v1_u32 = trunc_u64_to_u32  rs1_val
+                                           v2_u32 = trunc_u64_to_u32  rs2_val
+                                           z_u32  = if (v2_u32 == 0) then maxBound
+                                                    else  div  v1_u32  v2_u32
+                                         in
+                                           signExtend_u32_to_u64  z_u32
+                                       else
+                                         if (rs2_val == 0) then maxBound
+                                         else div  rs1_val  rs2_val
 
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
   in
@@ -1087,12 +1138,24 @@ spec_OP_REM    mstate       instr =
           ))
 
     -- Semantics
-    xlen    = mstate_xlen_read  mstate
-    rs1_val = mstate_gpr_read   mstate  rs1
-    rs2_val = mstate_gpr_read   mstate  rs2
+    rv      = mstate_rv_read  mstate
+    rs1_val = mstate_gpr_read  mstate  rs1
+    rs2_val = mstate_gpr_read  mstate  rs2
 
-    rd_val | (funct3 == funct3_REM)  = alu_rem   xlen  rs1_val  rs2_val
-           | (funct3 == funct3_REMU) = alu_remu  xlen  rs1_val  rs2_val
+    -- Signed versions of inputs
+    rs1_val_s = cvt_u64_to_s64  rs1_val
+    rs2_val_s = cvt_u64_to_s64  rs2_val
+
+    rd_val | (funct3 == funct3_REM)  = cvt_s64_to_u64 (if (rs2_val == 0)
+                                                       then rs1_val_s
+                                                       else
+                                                         if ((rs1_val_s == minBound)
+                                                             && (rs2_val_s == -1)) then
+                                                           0
+                                                         else
+                                                           rem  rs1_val_s  rs2_val_s)
+           | (funct3 == funct3_REMU) = if (rs2_val == 0) then rs1_val
+                                       else rem  rs1_val  rs2_val
 
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
   in
@@ -1122,9 +1185,8 @@ spec_OP_IMM_32    mstate       instr =
     (funct7, shamt_5) = i_imm12_fields_7_5  imm12
 
     -- Decode check
-    rv       = mstate_rv_read    mstate
-    xlen     = mstate_xlen_read  mstate
-    is_ADDIW = ( funct3 == funct3_ADDIW)
+    rv       = mstate_rv_read  mstate
+    is_ADDIW = (    funct3 == funct3_ADDIW)
     is_SLLIW = ((funct3 == funct3_SLLIW) && (funct7 == funct7_SLLIW))
     is_SRLIW = ((funct3 == funct3_SRLIW) && (funct7 == funct7_SRLIW))
     is_SRAIW = ((funct3 == funct3_SRAIW) && (funct7 == funct7_SRAIW))
@@ -1139,10 +1201,17 @@ spec_OP_IMM_32    mstate       instr =
     -- Semantics
     rs1_val = mstate_gpr_read  mstate  rs1
 
-    rd_val | is_ADDIW = alu_addw  rs1_val  (sign_extend  12  xlen  imm12)
-           | is_SLLIW = alu_sllw  rs1_val  shamt_5
-           | is_SRLIW = alu_srlw  rs1_val  shamt_5
-           | is_SRAIW = alu_sraw  rs1_val  shamt_5
+    u1_32 = trunc_u64_to_u32  rs1_val
+    u2_32 = signExtend_bit_in_u32  imm12  12
+
+    shamt = cvt_u32_to_Int shamt_5
+
+    rd_val_32 | is_ADDIW = cvt_s32_to_u32  ((cvt_u32_to_s32  u1_32) + (cvt_u32_to_s32  u2_32))
+              | is_SLLIW = shiftL  u1_32  shamt
+              | is_SRLIW = shiftR  u1_32  shamt
+              | is_SRAIW = cvt_s32_to_u32  (shiftR  (cvt_u32_to_s32  u1_32)  shamt)
+
+    rd_val = signExtend_u32_to_u64  rd_val_32
 
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
   in
@@ -1193,11 +1262,18 @@ spec_OP_32    mstate       instr =
     rs1_val = mstate_gpr_read  mstate  rs1
     rs2_val = mstate_gpr_read  mstate  rs2
 
-    rd_val | is_ADDW = alu_addw  rs1_val  rs2_val
-           | is_SUBW = alu_subw  rs1_val  rs2_val
-           | is_SLLW = alu_sllw  rs1_val  rs2_val
-           | is_SRLW = alu_srlw  rs1_val  rs2_val
-           | is_SRAW = alu_sraw  rs1_val  rs2_val
+    u1_32 = trunc_u64_to_u32  rs1_val
+    u2_32 = trunc_u64_to_u32  rs2_val
+
+    shamt = cvt_u64_to_Int (rs2_val .&. 0x1F)
+
+    rd_val_32 | is_ADDW = cvt_s32_to_u32  ((cvt_u32_to_s32  u1_32) + (cvt_u32_to_s32  u2_32))
+              | is_SUBW = cvt_s32_to_u32  ((cvt_u32_to_s32  u1_32) - (cvt_u32_to_s32  u2_32))
+              | is_SLLW = shiftL  u1_32  shamt
+              | is_SRLW = shiftR  u1_32  shamt
+              | is_SRAW = cvt_s32_to_u32 (shiftR  (cvt_u32_to_s32  u1_32)  shamt)
+
+    rd_val = signExtend_u32_to_u64  rd_val_32
 
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
   in
@@ -1246,11 +1322,36 @@ spec_OP_32_M    mstate       instr =
     rs1_val = mstate_gpr_read  mstate  rs1
     rs2_val = mstate_gpr_read  mstate  rs2
 
-    rd_val | is_MULW  = alu_mulw   rs1_val  rs2_val
-           | is_DIVW  = alu_divw   rs1_val  rs2_val
-           | is_DIVUW = alu_divuw  rs1_val  rs2_val
-           | is_REMW  = alu_remw   rs1_val  rs2_val
-           | is_REMUW = alu_remuw  rs1_val  rs2_val
+    -- Convert 32 lsbs of inputs to unbounded integers (sign- or zero-extending bit 31)
+    u1_32, u2_32 :: Word32
+    u1_32 = trunc_u64_to_u32  rs1_val
+    u2_32 = trunc_u64_to_u32  rs2_val
+
+    s1_32, s2_32 :: Int32
+    s1_32 = cvt_u32_to_s32  u1_32
+    s2_32 = cvt_u32_to_s32  u2_32
+
+    rd_val_32 | is_MULW  = cvt_s32_to_u32  (s1_32 * s2_32)
+              | is_DIVW  = cvt_s32_to_u32  (if (u2_32 == 0) then
+                                              -1
+                                            else if (s1_32 == minBound) && (s2_32 == -1) then
+                                                   s1_32
+                                                 else
+                                                   quot  s1_32  s2_32)
+              | is_DIVUW = if (u2_32 == 0) then maxBound
+                           else div  u1_32  u2_32
+              | is_REMW  = cvt_s32_to_u32  (if (u2_32 == 0) then
+                                              s1_32
+                                            else if (s1_32 == minBound) && (s2_32 == -1) then
+                                                   0
+                                                 else
+                                                   rem  s1_32  s2_32)
+              | is_REMUW = if (u2_32 == 0) then
+                             u1_32
+                           else
+                             rem  u1_32  u2_32
+
+    rd_val = signExtend_u32_to_u64  rd_val_32
 
     mstate1 = finish_rd_and_pc_plus_4  mstate  rd  rd_val
   in
@@ -1327,8 +1428,11 @@ spec_AMO  mstate  instr =
                 Mem_Result_Err exc_code ->
                   finish_trap  mstate2  exc_code  eaddr2
 
-                Mem_Result_Ok  x        ->
-                  finish_rd_and_pc_plus_4  mstate2  rd  x
+                Mem_Result_Ok  d_u64    ->
+                  let rd_val | (funct3 == funct3_AMO_W) = signExtend  d_u64  32
+                             | (funct3 == funct3_AMO_D) = d_u64
+                  in
+                    finish_rd_and_pc_plus_4  mstate2  rd  rd_val
   in
     (is_legal, mstate3)
 
@@ -1350,8 +1454,7 @@ opcode_STORE_FP = 0x27 :: InstrField   -- 7'b_01_001_11
 -- These functions capture those standard finishes.
 
 -- Update RD, increment PC by 4, increment INSTRET                \begin_latex{finish_rd_and_pc_plus_4}
-{-# INLINE finish_rd_and_pc_plus_4 #-}
-finish_rd_and_pc_plus_4 :: Machine_State -> GPR_Addr -> Integer -> Machine_State
+finish_rd_and_pc_plus_4 :: Machine_State -> GPR_Addr -> Word64 -> Machine_State
 finish_rd_and_pc_plus_4  mstate  rd  rd_val =
   let mstate1 = mstate_gpr_write  mstate  rd  rd_val
       pc      = mstate_pc_read    mstate1
@@ -1361,8 +1464,7 @@ finish_rd_and_pc_plus_4  mstate  rd  rd_val =
     mstate3
                                                                -- \end_latex{finish_rd_and_pc_plus_4}
 -- Update RD, update PC to new value, increment INSTRET
-{-# INLINE finish_rd_and_pc #-}
-finish_rd_and_pc :: Machine_State -> GPR_Addr -> Integer -> Integer -> Machine_State
+finish_rd_and_pc :: Machine_State -> GPR_Addr -> Word64 -> Word64 -> Machine_State
 finish_rd_and_pc  mstate  rd  rd_val  new_pc =
   let
     mstate1 = mstate_gpr_write  mstate  rd  rd_val
@@ -1372,7 +1474,6 @@ finish_rd_and_pc  mstate  rd  rd_val  new_pc =
     mstate3
 
 -- Increment PC by 4, increment INSTRET
-{-# INLINE finish_pc_plus_4 #-}
 finish_pc_plus_4 :: Machine_State -> Machine_State
 finish_pc_plus_4  mstate =
   let
@@ -1383,8 +1484,7 @@ finish_pc_plus_4  mstate =
     mstate2
 
 -- Update PC to new value
-{-# INLINE finish_pc #-}
-finish_pc :: Machine_State -> Integer -> Machine_State
+finish_pc :: Machine_State -> Word64 -> Machine_State
 finish_pc  mstate  new_pc =
   let
     mstate1 = mstate_pc_write  mstate  new_pc
@@ -1393,8 +1493,7 @@ finish_pc  mstate  new_pc =
     mstate2
 
 -- Trap with given exception code and trap value
-{-# INLINE finish_trap #-}
-finish_trap :: Machine_State -> Exc_Code -> Integer -> Machine_State
+finish_trap :: Machine_State -> Exc_Code -> Word64 -> Machine_State
 finish_trap  mstate  exc_code  tval =
   let
     mstate1 = mstate_upd_on_trap  mstate  False  exc_code  tval
@@ -1403,7 +1502,6 @@ finish_trap  mstate  exc_code  tval =
     mstate2
 
 -- Every completed instruction increments minstret
-{-# INLINE incr_minstret #-}
 incr_minstret :: Machine_State -> Machine_State
 incr_minstret  mstate =
   let
@@ -1419,8 +1517,7 @@ incr_minstret  mstate =
 --   - Update CSRs xEPC, xCAUSE, xTVAL
 --   - Compute new PC from xTVEC and branch to it
 
-{-# INLINE mstate_upd_on_trap #-}
-mstate_upd_on_trap :: Machine_State -> Bool -> Exc_Code -> Integer -> Machine_State
+mstate_upd_on_trap :: Machine_State -> Bool -> Exc_Code -> Word64 -> Machine_State
 mstate_upd_on_trap  mstate  is_interrupt  exc_code  tval =
   let
     rv      = mstate_rv_read    mstate
@@ -1563,7 +1660,7 @@ exec_instr :: Machine_State -> Instr -> (Machine_State, String)
 exec_instr  mstate  instr =
   let
     tryall []                  = (let
-                                     tval = instr
+                                     tval = zeroExtend_u32_to_u64  instr    -- TODO: may need extend or truncate?
                                   in
                                     (finish_trap  mstate  exc_code_illegal_instruction  tval,
                                      "NONE"))
@@ -1587,7 +1684,7 @@ exec_instr_C :: Machine_State -> Instr_C -> (Machine_State, String)
 exec_instr_C  mstate  instr =
   let
     tryall []                  = (let
-                                     tval = instr
+                                     tval = zeroExtend_u16_to_u64  instr    -- TODO: may need extend or truncate?
                                   in
                                     (finish_trap  mstate  exc_code_illegal_instruction  tval, "NONE"))
 
@@ -1603,7 +1700,6 @@ exec_instr_C  mstate  instr =
 -- ================================================================
 -- Take interrupt if interrupts pending and enabled                   \begin_latex{take_interrupt}
 
-{-# INLINE take_interrupt_if_any #-}
 take_interrupt_if_any :: Machine_State -> (Maybe Exc_Code, Machine_State)
 take_interrupt_if_any  mstate =
   let                                                              -- \end_latex{take_interrupt}

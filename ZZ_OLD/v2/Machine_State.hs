@@ -14,13 +14,14 @@ module Machine_State where
 
 import Data.Maybe
 import Data.Int
+import Data.Word
 import Data.Bits
 import qualified Data.Map as Data_Map
 import Numeric (showHex, readHex)
 
 -- Project imports
 
-import ALU
+import Bit_Manipulation
 import Arch_Defs
 import GPR_File
 import CSR_File
@@ -36,7 +37,7 @@ import Address_Map
 
 data Machine_State =
   Machine_State { -- Architectural state
-                  f_pc   :: Integer,
+                  f_pc   :: Word64,
                   f_gprs :: GPR_File,
                   f_csrs :: CSR_File,
                   f_priv :: Priv_Level,
@@ -46,7 +47,7 @@ data Machine_State =
                   f_mmio :: MMIO,
 
                   -- Implementation options
-                  f_mem_addr_ranges :: [(Integer, Integer)],    -- list of (addr_start, addr_lim)
+                  f_mem_addr_ranges :: [(Word64, Word64)],    -- list of (addr_start, addr_lim)
 
                   -- For convenience and debugging only; no semantic relevance
                   f_rv        :: RV,   -- redundant copy of info in CSR MISA
@@ -67,11 +68,9 @@ mstate_print  indent  mstate = do
 
       rv        = f_rv    mstate
       run_state = f_run_state  mstate
-
-      xlen      = if (rv == RV32) then 32 else 64
   
   putStrLn (indent ++ show rv ++ " pc:" ++ showHex pc " priv:" ++ show priv)
-  print_GPR_File  indent  xlen  gprs
+  print_GPR_File  indent  gprs
   print_CSR_File  indent  rv  csrs
   -- We do not print memory or MMIO
   putStrLn (indent ++ (show run_state))
@@ -81,7 +80,7 @@ mstate_print  indent  mstate = do
 
                                                               -- \begin_latex{Machine_State_constructor}
 -- Make a Machine_State, given initial PC and memory contents
-mkMachine_State :: RV -> Integer -> [(Integer,Integer)] -> ([(Integer, Integer)]) -> Machine_State
+mkMachine_State :: RV -> Word64 -> [(Word64,Word64)] -> ([(Int, Word8)]) -> Machine_State
 mkMachine_State  rv  initial_PC  addr_ranges  addr_byte_list =
   Machine_State {f_pc   = initial_PC,
                  f_gprs = mkGPR_File,
@@ -99,62 +98,57 @@ mkMachine_State  rv  initial_PC  addr_ranges  addr_byte_list =
 -- ----------------
 -- read/write PC                                                 \begin_latex{PC_access}
 
-{-# INLINE mstate_pc_read #-}
-mstate_pc_read :: Machine_State -> Integer
+mstate_pc_read :: Machine_State -> Word64
 mstate_pc_read  mstate = f_pc mstate
 
-mstate_pc_write :: Machine_State -> Integer -> Machine_State
+mstate_pc_write :: Machine_State -> Word64 -> Machine_State
 mstate_pc_write  mstate  val = mstate { f_pc = val }
                                                               -- \end_latex{PC_access}
 -- ----------------
--- read/write RV, xlen
+-- read/write RV
 
-{-# INLINE mstate_rv_read #-}
 mstate_rv_read :: Machine_State -> RV
 mstate_rv_read  mstate = f_rv  mstate
 
 mstate_rv_write :: Machine_State -> RV -> Machine_State
 mstate_rv_write  mstate  rv = mstate { f_rv = rv }
 
-{-# INLINE mstate_xlen_read #-}
 mstate_xlen_read :: Machine_State -> Int
-mstate_xlen_read  mstate | (f_rv  mstate == RV32) = 32
-                         | (f_rv  mstate == RV64) = 64
+mstate_xlen_read  mstate | f_rv  mstate == RV32 = 32
+                         | f_rv  mstate == RV64 = 64
 
 -- ----------------
 -- read/write GPRs
 
-{-# INLINE mstate_gpr_read #-}
-mstate_gpr_read :: Machine_State -> GPR_Addr -> Integer
+mstate_gpr_read :: Machine_State -> GPR_Addr -> Word64
 mstate_gpr_read  mstate  reg = gpr_read (f_gprs mstate)  reg
                                                               -- \begin_latex{mstate_gpr_write}
-{-# INLINE mstate_gpr_write #-}
-mstate_gpr_write :: Machine_State -> GPR_Addr -> Integer -> Machine_State
+mstate_gpr_write :: Machine_State -> GPR_Addr -> Word64 -> Machine_State
 mstate_gpr_write  mstate  reg  val =
   let
     rv      = f_rv  mstate
+    val1 | rv == RV32 = signExtend  val  32
+         | rv == RV64 = val
     gprs    = f_gprs  mstate
-    gprs'   = gpr_write  gprs  reg  val
+    gprs'   = gpr_write  gprs  reg  val1
     mstate' = mstate { f_gprs = gprs' }
   in
     mstate'
                                                               -- \end_latex{mstate_gpr_write}
+
 -- ----------------
 -- read/write CSRs
 -- Assumes CSR exists and access is legal
 
 -- Checks permissions (None, RO, RW) of a csr_addr at a given privilege level
-{-# INLINE mstate_csr_read_permission #-}
 mstate_csr_read_permission :: Machine_State -> Priv_Level -> CSR_Addr -> CSR_Permission
 mstate_csr_read_permission  mstate  priv  csr_addr =
   csr_permission  (f_csrs  mstate)  priv  csr_addr
 
-{-# INLINE mstate_csr_read #-}
-mstate_csr_read :: Machine_State -> CSR_Addr -> Integer
+mstate_csr_read :: Machine_State -> CSR_Addr -> Word64
 mstate_csr_read  mstate  csr_addr = csr_read  (f_rv  mstate)  (f_csrs  mstate)  csr_addr
 
-{-# INLINE mstate_csr_write #-}
-mstate_csr_write :: Machine_State -> CSR_Addr -> Integer -> Machine_State
+mstate_csr_write :: Machine_State -> CSR_Addr -> Word64 -> Machine_State
 mstate_csr_write  mstate  csr_addr  value =
   let
     csr_file' = csr_write  (f_rv  mstate)  (f_csrs  mstate)  csr_addr  value
@@ -165,11 +159,9 @@ mstate_csr_write  mstate  csr_addr  value =
 -- ================================================================
 -- read/write current privilege level
 
-{-# INLINE mstate_priv_read #-}
 mstate_priv_read :: Machine_State -> Priv_Level
 mstate_priv_read  mstate = f_priv  mstate
 
-{-# INLINE mstate_priv_write #-}
 mstate_priv_write :: Machine_State -> Priv_Level -> Machine_State
 mstate_priv_write  mstate  priv = mstate { f_priv = priv }
 
@@ -182,8 +174,7 @@ mstate_priv_write  mstate  priv = mstate { f_priv = priv }
 
 -- Check if the address is supported
 
-{-# INLINE is_supported_addr #-}
-is_supported_addr :: Machine_State -> InstrField -> Integer -> Bool
+is_supported_addr :: Machine_State -> InstrField -> Word64 -> Bool
 is_supported_addr  mstate  funct3  addr =
   let
     size | (funct3 == funct3_LB)  = 1
@@ -205,8 +196,7 @@ is_supported_addr  mstate  funct3  addr =
 
 -- Reads
 
-{-# INLINE mstate_mem_read #-}
-mstate_mem_read :: Machine_State -> Exc_Code -> InstrField -> Integer -> (Mem_Result, Machine_State)
+mstate_mem_read :: Machine_State -> Exc_Code -> InstrField -> Word64 -> (Mem_Result, Machine_State)
 mstate_mem_read  mstate  exc_code_access_fault  funct3  addr =
   if not (is_supported_addr  mstate  funct3  addr)
   then
@@ -231,8 +221,7 @@ mstate_mem_read  mstate  exc_code_access_fault  funct3  addr =
 
 -- Writes
 
-{-# INLINE mstate_mem_write #-}
-mstate_mem_write :: Machine_State -> InstrField -> Integer -> Integer -> (Mem_Result, Machine_State)
+mstate_mem_write :: Machine_State -> InstrField -> Word64 -> Word64 -> (Mem_Result, Machine_State)
 mstate_mem_write  mstate  funct3  addr  val =
   if not (is_supported_addr  mstate  funct3  addr)
   then
@@ -258,14 +247,13 @@ mstate_mem_write  mstate  funct3  addr  val =
 
 -- Atomic Memory Ops
 
-{-# INLINE mstate_mem_amo #-}
 mstate_mem_amo :: Machine_State ->
-                     Integer       ->    -- addr
+                     Word64        ->    -- addr
                      InstrField    ->    -- funct3
                      InstrField    ->    -- msbs5
                      InstrField    ->    -- aq
                      InstrField    ->    -- rl
-                     Integer       ->    -- store-val
+                     Word64        ->    -- store-val
                      (Mem_Result, Machine_State)
 mstate_mem_amo  mstate  addr  funct3  msbs5  aq  rl  st_val =
   if not (is_supported_addr  mstate  funct3  addr)
@@ -291,21 +279,17 @@ mstate_mem_amo  mstate  addr  funct3  msbs5  aq  rl  st_val =
 -- Fences
 -- TODO: currently no-ops; fixup when we handle concurrency
 
-{-# INLINE mstate_mem_fence #-}
 mstate_mem_fence  :: Machine_State -> Machine_State
 mstate_mem_fence  mstate = mstate
 
-{-# INLINE mstate_mem_fence_i #-}
 mstate_mem_fence_i  :: Machine_State -> Machine_State
 mstate_mem_fence_i  mstate = mstate
 
-{-# INLINE mstate_mem_sfence_vm #-}
-mstate_mem_sfence_vm  :: Machine_State -> Integer -> Integer -> Machine_State
+mstate_mem_sfence_vm  :: Machine_State -> Word64 -> Word64 -> Machine_State
 mstate_mem_sfence_vm  mstate  rs1_val  rs2_val = mstate
 
 -- I/O: enq (CPU <- MMIO <- UART <- tty) console input
 
-{-# INLINE mstate_mem_enq_console_input #-}
 mstate_mem_enq_console_input :: Machine_State -> String -> Machine_State
 mstate_mem_enq_console_input  mstate  s =
   let
@@ -317,7 +301,6 @@ mstate_mem_enq_console_input  mstate  s =
 
 -- I/O: deq (CPU -> MMIO -> UART -> tty) console output
 
-{-# INLINE mstate_mem_deq_console_output #-}
 mstate_mem_deq_console_output :: Machine_State -> (String, Machine_State)
 mstate_mem_deq_console_output  mstate =
   let
@@ -350,7 +333,6 @@ mstate_mem_all_console_output  mstate =
 --     incr CSR.MCYCLE
 --     incr MMIO.MTIME
 
-{-# INLINE mstate_mem_tick #-}
 mstate_mem_tick :: Machine_State -> Machine_State
 mstate_mem_tick  mstate =
   let
@@ -398,8 +380,7 @@ mstate_mem_tick  mstate =
 -- I/O: convenience function to read mtime
 -- (instead of using mstate_mem_read, which can raise exceptions etc.)
 
-{-# INLINE mstate_mem_read_mtime #-}
-mstate_mem_read_mtime :: Machine_State -> Integer
+mstate_mem_read_mtime :: Machine_State -> Word64
 mstate_mem_read_mtime  mstate = mmio_read_mtime  (f_mmio  mstate)
 
 -- ----------------
@@ -416,14 +397,12 @@ mstate_mem_num_entries  mstate =
 -- ================================================================
 -- read/write misc debug convenience
 
-{-# INLINE mstate_verbosity_read #-}
 mstate_verbosity_read :: Machine_State -> Int
 mstate_verbosity_read  mstate = f_verbosity mstate
 
 mstate_verbosity_write :: Machine_State -> Int -> Machine_State
 mstate_verbosity_write  mstate  verbosity = mstate { f_verbosity = verbosity }
 
-{-# INLINE mstate_run_state_read #-}
 mstate_run_state_read :: Machine_State -> Run_State
 mstate_run_state_read  mstate = f_run_state  mstate
 

@@ -15,13 +15,14 @@ module Main_Test_Virtual_Mem where
 import Control.Monad
 import Data.Maybe
 import Data.Int
+import Data.Word
 import Data.Bits
 import qualified Data.Map as Data_Map
 import Numeric (showHex, readHex)
 
 -- Project imports
 
--- import ALU
+import Bit_Manipulation
 import Arch_Defs
 import Mem_Ops
 import Machine_State
@@ -52,19 +53,19 @@ main_test_sv32 = do
 
 -- ================
 
-mk_satp_rv32 :: Integer -> Integer -> Integer -> Integer
+mk_satp_rv32 :: Word64 -> Word64 -> Word64 -> Word64
 mk_satp_rv32  mode  asid  pt_base_addr = ((shiftL  (mode .&. 0x1)    31) .|.
                                           (shiftL  (asid .&. 0x1FF)  22) .|.
                                           ((shiftR  pt_base_addr  12) .&. 0x3FFFFF))
 
 -- ================
 
-mk_sv32_va  :: Integer -> Integer -> Integer -> Integer
+mk_sv32_va  :: Word64 -> Word64 -> Word64 -> Word64
 mk_sv32_va  vpn1  vpn0  offset = ((shiftL  vpn1  22) .|.  (shiftL  vpn0  12) .|.  offset)
 
 -- ================
 
-tests_sv32 :: [ (Integer, Priv_Level, Bool, Bool, Integer, String) ]
+tests_sv32 :: [ (Word64, Priv_Level, Bool, Bool, Word64, String) ]
 tests_sv32 = [ (0, m_Priv_Level,  True,  True, (mk_sv32_va  0  0  0), "Invalid lev 1 PTE"),
 
                (0, m_Priv_Level,  True,  True, (mk_sv32_va  1  0  0), "Invalid lev 0 PTE"),
@@ -106,21 +107,21 @@ main_test_sv39 = do
 
 -- ================
 
-mk_satp_rv64 :: Integer -> Integer -> Integer -> Integer
+mk_satp_rv64 :: Word64 -> Word64 -> Word64 -> Word64
 mk_satp_rv64  mode  asid  pt_base_addr = ((shiftL  (mode .&. 0xF)  60) .|.
                                           (shiftL  (asid .&. 0xFFFF)  44) .|.
                                           ((shiftR  pt_base_addr  12) .&. 0xFFFFFFFFFFF))
 
 -- ================
 
-mk_sv39_va  :: Integer -> Integer -> Integer -> Integer -> Integer
+mk_sv39_va  :: Word64 -> Word64 -> Word64 -> Word64 -> Word64
 mk_sv39_va  vpn2  vpn1  vpn0  offset = ((shiftL  vpn2  30) .|.
                                         (shiftL  vpn1  21) .|.
                                         (shiftL  vpn0  12) .|.  offset)
 
 -- ================
 
-tests_sv39 :: [ (Integer, Priv_Level, Bool, Bool, Integer, String) ]
+tests_sv39 :: [ (Word64, Priv_Level, Bool, Bool, Word64, String) ]
 tests_sv39 = [ (0, m_Priv_Level,  True,  True, (mk_sv39_va  0  0  0  0), "Invalid lev 0 PTE"),
 
                (0, m_Priv_Level,  True,  True, (mk_sv39_va  1  0  0  0), "Invalid lev 1 PTE"),
@@ -151,7 +152,7 @@ tests_sv39 = [ (0, m_Priv_Level,  True,  True, (mk_sv39_va  0  0  0  0), "Invali
 
 -- ================================================================
 
-do_tests :: Machine_State -> Integer -> [ (Integer, Priv_Level, Bool, Bool, Integer, String) ] -> IO ()
+do_tests :: Machine_State -> Word64 -> [ (Word64, Priv_Level, Bool, Bool, Word64, String) ] -> IO ()
 do_tests  mstate  sv  [] = return ()
 do_tests  mstate  sv  (test:tests) = do
   let (mstatus, priv, is_instr, is_read, va, comment) = test
@@ -181,7 +182,7 @@ do_tests  mstate  sv  (test:tests) = do
 -- ================================================================
 -- Load the machine state with a sample page table
 
-load_sample_page_table :: Machine_State -> InstrField -> [(Integer, Integer)] -> Machine_State
+load_sample_page_table :: Machine_State -> InstrField -> [(Word64, Word64)] -> Machine_State
 load_sample_page_table  mstate  funct3  []          = mstate
 load_sample_page_table  mstate  funct3  ((a,v):avs) =
   let
@@ -192,7 +193,7 @@ load_sample_page_table  mstate  funct3  ((a,v):avs) =
 -- ================
 -- A hand-crafted sample page table
 
-mk_sample_page_table :: Integer -> [ (Integer, Integer) ]
+mk_sample_page_table :: Word64 -> [ (Word64, Word64) ]
 mk_sample_page_table  sv =
   let
     pte_size_bytes | (sv == sv32) = 4

@@ -12,14 +12,13 @@ module Memory where
 -- Standard Haskell imports
 
 import Data.Maybe
-import Data.Word
 import Data.Bits
 import qualified Data.Map.Strict as Data_Map
 import Numeric (showHex, readHex)
 
 -- Project imports
 
-import Bit_Manipulation
+import Bit_Utils
 import Arch_Defs
 import Mem_Ops
 
@@ -27,20 +26,21 @@ import Mem_Ops
 -- All memory locations have this value until written
 -- This is just for debugging convenience, not part of the spec.
 
-uninitialized_word = 0x00000000 :: Word32
+uninitialized_word = 0x00000000 :: Integer
 
 -- ================================================================
--- Memory representation: Data.Map.Map from Word64 (address) to Word32 (data)
+-- Memory representation: Data.Map.Map from Integer (address) to Integer (32-bit data)
 -- This is a private internal representation that can be changed at
 -- will; only the exported API can be used by clients.
--- We choose Word32 data to cover the most common accesses in RV32 and RV64,
+-- We choose 32-bit data to cover the most common accesses in RV32 and RV64,
 -- and since AMO ops are either 32b or 64b
+-- 'f_reserved_addr' is the address range reserved by an 'LR' (Load Reserved) op.
 
-data Mem = Mem { f_dm            :: Data_Map.Map  Word64  Word32,
-                 f_reserved_addr :: Maybe (Word64, Word64)
+data Mem = Mem { f_dm            :: Data_Map.Map  Integer  Integer,
+                 f_reserved_addr :: Maybe (Integer, Integer)
                }
 
-mkMem :: [(Int, Word8)] -> Mem
+mkMem :: [(Integer, Integer)] -> Mem
 mkMem  addr_byte_list =
   let
     addr_word_list  = addr_byte_list_to_addr_word_list  addr_byte_list
@@ -52,58 +52,54 @@ mkMem  addr_byte_list =
 -- that all bytes for a 32-b word are provided consecutively
 -- and the first of those bytes is word-aligned.
 
-addr_byte_list_to_addr_word_list :: [(Int, Word8)] -> [(Word64, Word32)]
+addr_byte_list_to_addr_word_list :: [(Integer, Integer)] -> [(Integer, Integer)]
 addr_byte_list_to_addr_word_list  [] = []
 addr_byte_list_to_addr_word_list  ((a0,b0):(a1,b1):(a2,b2):(a3,b3):rest)
   | (((a0 .&. 0x3) == 0)
       && ((a0 + 1) == a1)
       && ((a0 + 2) == a2)
       && ((a0 + 3) == a3)) = (let
-                                 w0 = zeroExtend_u8_to_u32  b0
-                                 w1 = zeroExtend_u8_to_u32  b1
-                                 w2 = zeroExtend_u8_to_u32  b2
-                                 w3 = zeroExtend_u8_to_u32  b3
+                                 w0 = (b0 .&. 0xFF)
+                                 w1 = (b1 .&. 0xFF)
+                                 w2 = (b2 .&. 0xFF)
+                                 w3 = (b3 .&. 0xFF)
                                  w  = ((shiftL  w3  24) .|. (shiftL  w2  16) .|. (shiftL  w1  8) .|. (shiftL  w0  0))
-                                 a  = (fromIntegral a0) :: Word64
                               in
-                                 (a, w) : (addr_byte_list_to_addr_word_list  rest))
+                                 (a0, w) : (addr_byte_list_to_addr_word_list  rest))
 addr_byte_list_to_addr_word_list  ((a0,b0):(a1,b1):(a2,b2):rest)
   | (((a0 .&. 0x3) == 0)
       && ((a0 + 1) == a1)
       && ((a0 + 2) == a2)) = (let
-                                 w0 = zeroExtend_u8_to_u32  b0
-                                 w1 = zeroExtend_u8_to_u32  b1
-                                 w2 = zeroExtend_u8_to_u32  b2
+                                 w0 = (b0 .&. 0xFF)
+                                 w1 = (b1 .&. 0xFF)
+                                 w2 = (b2 .&. 0xFF)
                                  w  = ((shiftL  w2  16) .|. (shiftL  w1  8) .|. (shiftL  w0  0))
-                                 a  = (fromIntegral a0) :: Word64
                               in
-                                 (a, w) : (addr_byte_list_to_addr_word_list  rest))
+                                 (a0, w) : (addr_byte_list_to_addr_word_list  rest))
 addr_byte_list_to_addr_word_list  ((a0,b0):(a1,b1):rest)
   | (((a0 .&. 0x3) == 0)
       && ((a0 + 1) == a1)) = (let
-                                 w0 = zeroExtend_u8_to_u32  b0
-                                 w1 = zeroExtend_u8_to_u32  b1
+                                 w0 = (b0 .&. 0xFF)
+                                 w1 = (b1 .&. 0xFF)
                                  w  = ((shiftL  w1  8) .|. (shiftL  w0  0))
-                                 a  = (fromIntegral a0) :: Word64
                               in
-                                 (a, w) : (addr_byte_list_to_addr_word_list  rest))
+                                 (a0, w) : (addr_byte_list_to_addr_word_list  rest))
 addr_byte_list_to_addr_word_list  ((a0,b0):rest)
   | (((a0 .&. 0x3) == 0))  = (let
-                                 w0 = zeroExtend_u8_to_u32  b0
-                                 a  = (fromIntegral a0) :: Word64
+                                 w0 = (b0 .&. 0xFF)
                               in
-                                 (a, w0) : (addr_byte_list_to_addr_word_list  rest))
+                                 (a0, w0) : (addr_byte_list_to_addr_word_list  rest))
 addr_byte_list_to_addr_word_list  a_b_s =
   error ("addr_byte_list_to_addr_word_list: addr_byte_list is not well-formed" ++ show (take 5 a_b_s))
 
 -- ================================================================
 -- Read data from memory
--- TODO: Currently we only return Mem_Result_Ok and never return Mem_Result_Err
+-- TODO: Currently we return Mem_Result_Err on misaligned
+--     We could handle misaligned addrs
 --     We could return Mem_Result_Err on uninitialized locations.
---     We could return Mem_Result_Err on misaligned accesses.
 --     We could return Mem_Result_Err if there are address bounds.
 
-mem_read :: Mem -> InstrField -> Word64 -> (Mem_Result, Mem)
+mem_read :: Mem -> InstrField -> Integer -> (Mem_Result, Mem)
 mem_read  mem  funct3  addr =
   let
     dm = f_dm  mem
@@ -137,16 +133,16 @@ mem_read  mem  funct3  addr =
 
 -- ================================================================
 -- Write data into memory
--- TODO: Currently we only return Mem_Result_Ok and never return Mem_Result_Err
--- We could return Mem_Result_Err on uninitialized locations.
--- We could return Mem_Result_Err on misaligned accesses.
--- We could return Mem_Result_Err if there are address bounds.
+-- TODO: Currently we return Mem_Result_Err on misaligned
+--     We could handle misaligned addrs
+--     We could return Mem_Result_Err if there are address bounds.
 
-mem_write :: Mem -> InstrField -> Word64 -> Word64 -> (Mem_Result, Mem)
+mem_write :: Mem -> InstrField -> Integer -> Integer -> (Mem_Result, Mem)
 mem_write  mem  funct3  addr  stv =
   let
-    stv_w0 = trunc_u64_to_u32  stv
-    stv_w1 = trunc_u64_to_u32  (shiftR  stv  32)
+    mask32 = 0xFFFFFFFF
+    stv_w0 = (stv .&. mask32)
+    stv_w1 = ((shiftR  stv  32) .&. mask32)
 
     dm              = f_dm             mem
     m_reserved_addr = f_reserved_addr  mem
@@ -191,140 +187,74 @@ mem_write  mem  funct3  addr  stv =
 -- ================================================================
 -- AMO op
 
-mem_amo :: Mem -> Word64 -> InstrField -> InstrField -> InstrField -> InstrField -> Word64 ->
-           (Mem_Result, Mem)
+mem_amo :: Mem        ->        -- memory
+           Integer    ->        -- address
+           InstrField ->        -- funct3: AMO_W or AMO_D
+           InstrField ->        -- msbs5:  LR/SC/SWAP/ADD/AND/OR/XOR/MAX/MIN/MAXU/MINU
+           InstrField ->        -- acquire
+           InstrField ->        -- release
+           Integer    ->        -- store-value
+           (Mem_Result, Mem)    -- memory-result (load-value or err), new memory
 
-mem_amo  mem  addr  funct3  msbs5  aq  rl  stv_d =
-  let
-    stv_w0 = trunc_u64_to_u32  stv_d
-    stv_w1 = trunc_u64_to_u32  (shiftR  stv_d  32)
+mem_amo  mem  addr  funct3  msbs5  aq  rl  store_val =
+  if (not (is_AMO_aligned  funct3  addr)) then
+    (Mem_Result_Err exc_code_store_AMO_addr_misaligned,  mem)
+  else
+    let
+      dm              = f_dm  mem
+      m_reserved_addr = f_reserved_addr  mem
 
-    dm              = f_dm  mem
-    m_reserved_addr = f_reserved_addr  mem
+      -- Read memory for old memory value
+      addr_w           = (addr .&. (complement  0x3))    -- word-aligned address
+      fn_read_word  a  = case (Data_Map.lookup  a  dm) of
+                           Just w  -> w
+                           Nothing -> uninitialized_word
+      omv_w0           = fn_read_word  addr_w
+      omv_w1           = fn_read_word  (addr_w + 4)
+      old_mem_val | funct3 == funct3_AMO_W = omv_w0
+                  | funct3 == funct3_AMO_D = bitconcat_u32_u32_to_u64  omv_w1  omv_w0
 
-    -- Get old memory values (omvs)
-    addr_w           = (addr .&. (complement  0x3))
-    fn_read_word  a  = case (Data_Map.lookup  a  dm) of
-                         Just w  -> w
-                         Nothing -> uninitialized_word
-    omv_w0           = fn_read_word  addr_w
-    omv_w1           = fn_read_word  (addr_w + 4)
-    omv_d            = bitconcat_u32_u32_to_u64  omv_w1  omv_w0
+      -- For LR/SC check if hit/miss on reserved address
+      (a1,a2) = (addr, if (funct3 == funct3_AMO_D) then (addr + 7)
+                       else (addr + 3))
+      reserved_addr_hit = case m_reserved_addr of
+                            Nothing -> False
+                            Just (r1,r2) -> addrs_overlap  a1  a2  r1  r2
 
-    (a1,a2) = (addr, if (funct3 == funct3_AMO_D) then (addr + 7)
-                     else (addr + 3))
-    reserved_addr_hit = case m_reserved_addr of
-                          Nothing -> False
-                          Just (r1,r2) -> addrs_overlap  a1  a2  r1  r2
+      -- Load-value (to be returned to CPU)
+      load_val | (msbs5  == msbs5_AMO_SC) = if reserved_addr_hit then 0    -- SC success
+                                            else 1    -- SC failure (non-zero)
+               | (funct3 == funct3_AMO_W) = sign_extend  32  64  old_mem_val
+               | (funct3 == funct3_AMO_D) = old_mem_val
 
-    -- Load-value (to be returned to CPU)
-    ldv | (msbs5  == msbs5_AMO_SC) = if reserved_addr_hit then 0 else 1    -- SC success = 0, SC failure = non-zero
-        | (funct3 == funct3_AMO_W) = bitconcat_u32_u32_to_u64  0  omv_w0
-        | (funct3 == funct3_AMO_D) = omv_d
+      -- New memory value (to be stored back)
+      new_mem_val      = alu_amo_op  funct3  msbs5  store_val  old_mem_val
+      nmv_w1           = (shiftR  new_mem_val  32) .&. 0xffffFFFF
+      nmv_w0           = new_mem_val .&. 0xffffFFFF
 
-    -- New memory value (to be stored back)
-    (nmv_w1, nmv_w0) | (msbs5 == msbs5_AMO_SC)   = (stv_w1, stv_w0)
-                     | (msbs5 == msbs5_AMO_SWAP) = (stv_w1, stv_w0)
-                     | (msbs5 == msbs5_AMO_ADD)  = (if (funct3 == funct3_AMO_W) then
-                                                      let
-                                                        z_w = cvt_s32_to_u32 ((cvt_u32_to_s32  omv_w0) + (cvt_u32_to_s32  stv_w0))
-                                                      in
-                                                        (0, z_w)
-                                                    else
-                                                      let
-                                                        z_d = cvt_s64_to_u64 ((cvt_u64_to_s64  omv_d) + (cvt_u64_to_s64  stv_d))
-                                                      in
-                                                        (trunc_u64_to_u32 (shiftR  z_d  32),  trunc_u64_to_u32  z_d))
+      -- Update LR reservation
+      m_reserved_addr' | (msbs5 == msbs5_AMO_LR) = Just (a1, a2)    -- replace old reservation
+                       | (msbs5 == msbs5_AMO_SC) = Nothing          -- always cancel old reservation
+                       | reserved_addr_hit       = Nothing          -- cancel old reservation for other AMOs
+                       | True                    = m_reserved_addr  -- preserve reservation
 
-                     | (msbs5 == msbs5_AMO_AND)  = ((omv_w1 .&. stv_w1),
-                                                    (omv_w0 .&. stv_w0))
-
-                     | (msbs5 == msbs5_AMO_OR)   = ((omv_w1 .|. stv_w1),
-                                                    (omv_w0 .|. stv_w0))
-
-                     | (msbs5 == msbs5_AMO_XOR)  = ((xor  omv_w1  stv_w1),
-                                                    (xor  omv_w0  stv_w0))
-
-                     | (msbs5 == msbs5_AMO_MAX)  = (if (funct3 == funct3_AMO_W) then
-                                                      let
-                                                        z_w = if ((cvt_u32_to_s32  omv_w0) > (cvt_u32_to_s32  stv_w0)) then
-                                                                omv_w0
-                                                              else
-                                                                stv_w0
-                                                      in
-                                                        (0, z_w)
-                                                    else
-                                                      if ((cvt_u64_to_s64  omv_d) > (cvt_u64_to_s64  stv_d)) then
-                                                        (omv_w1, omv_w0)
-                                                      else
-                                                        (stv_w1, stv_w0))
-
-                     | (msbs5 == msbs5_AMO_MIN)  = (if (funct3 == funct3_AMO_W) then
-                                                      let
-                                                        z_w = if ((cvt_u32_to_s32  omv_w0) < (cvt_u32_to_s32  stv_w0)) then
-                                                                omv_w0
-                                                              else
-                                                                stv_w0
-                                                      in
-                                                        (0, z_w)
-                                                    else
-                                                      if ((cvt_u64_to_s64  omv_d) < (cvt_u64_to_s64  stv_d)) then
-                                                        (omv_w1, omv_w0)
-                                                      else
-                                                        (stv_w1, stv_w0))
-
-                     | (msbs5 == msbs5_AMO_MAXU) = (if (funct3 == funct3_AMO_W) then
-                                                      let
-                                                        z_w = if (omv_w0 > stv_w0) then
-                                                                omv_w0
-                                                              else
-                                                                stv_w0
-                                                      in
-                                                        (0, z_w)
-                                                    else
-                                                      if (omv_d > stv_d) then
-                                                        (omv_w1, omv_w0)
-                                                      else
-                                                        (stv_w1, stv_w0))
-                     | (msbs5 == msbs5_AMO_MINU) = (if (funct3 == funct3_AMO_W) then
-                                                      let
-                                                        z_w = if (omv_w0 < stv_w0) then
-                                                                omv_w0
-                                                              else
-                                                                stv_w0
-                                                      in
-                                                        (0, z_w)
-                                                    else
-                                                      if (omv_d < stv_d) then
-                                                        (omv_w1, omv_w0)
-                                                      else
-                                                        (stv_w1, stv_w0))
-
-    -- Update LR reservation
-    m_reserved_addr' | (msbs5 == msbs5_AMO_LR) = Just (a1, a2)    -- replace old reservation
-                     | (msbs5 == msbs5_AMO_SC) = Nothing          -- always cancel old reservation
-                     | reserved_addr_hit       = Nothing          -- cancel old reservation for other AMOs
-                     | True                    = m_reserved_addr  -- preserve reservation
-
-    dm' | (msbs5 == msbs5_AMO_LR)                              = dm
-        | ((msbs5 == msbs5_AMO_SC) && (not reserved_addr_hit)) = dm
-        | (funct3 == funct3_AMO_W)                             = Data_Map.insert  addr_w  nmv_w0  dm
-        | (funct3 == funct3_AMO_D)                             = (let
-                                                                     dm1 = Data_Map.insert  addr_w        nmv_w0  dm
-                                                                     dm2 = Data_Map.insert  (addr_w + 4)  nmv_w1  dm1
-                                                                  in
-                                                                     dm2)
-  in
-    if (is_AMO_aligned  funct3  addr) then
-      (Mem_Result_Ok  ldv, Mem  dm'  m_reserved_addr')
-    else
-      (Mem_Result_Err exc_code_store_AMO_addr_misaligned,  mem)
+      -- Write new memory value back to memory
+      dm' | (msbs5 == msbs5_AMO_LR)                              = dm
+          | ((msbs5 == msbs5_AMO_SC) && (not reserved_addr_hit)) = dm
+          | (funct3 == funct3_AMO_W)                             = Data_Map.insert  addr_w  nmv_w0  dm
+          | (funct3 == funct3_AMO_D)                             = (let
+                                                                       dm1 = Data_Map.insert  addr_w        nmv_w0  dm
+                                                                       dm2 = Data_Map.insert  (addr_w + 4)  nmv_w1  dm1
+                                                                    in
+                                                                      dm2)
+    in
+      (Mem_Result_Ok  load_val, Mem  dm'  m_reserved_addr')
 
 -- ================================================================
 -- For LR/SC, check if addr range (a1, a2) overlaps with addr range (r1, r2)
 -- Note: both ranges are either 4-bytes or 8-bytes
 
-addrs_overlap :: Word64 -> Word64 -> Word64 -> Word64 -> Bool
+addrs_overlap :: Integer -> Integer -> Integer -> Integer -> Bool
 addrs_overlap  a1  a2  r1  r2 = ((   (a1 <= r1) && (r1 <= a2))
                                  || ((a1 <= r2) && (r2 <= a2)))
 

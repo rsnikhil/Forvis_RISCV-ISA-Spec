@@ -13,19 +13,20 @@ module CSR_File where
 -- Standard Haskell imports
 
 import Data.Maybe
+import Data.Word
 import Data.Bits
 import Numeric (showHex, readHex)
 import qualified Data.Map.Strict as Data_Map
 
 -- Project imports
 
-import Bit_Utils
+import Bit_Manipulation
 import Arch_Defs
 
 -- ================================================================
 -- User-Level CSR reset values
 
-u_csr_reset_values :: RV -> [(CSR_Addr, Integer)]
+u_csr_reset_values :: RV -> [(CSR_Addr, Word64)]
 u_csr_reset_values  rv =
   [ (csr_addr_utvec,      0),
 
@@ -49,7 +50,7 @@ u_csr_reset_values  rv =
 -- ================================================================
 -- Supervisor-Level CSRs reset values
 
-s_csr_reset_values :: RV -> [(CSR_Addr, Integer)]
+s_csr_reset_values :: RV -> [(CSR_Addr, Word64)]
 s_csr_reset_values  rv =
   [ (csr_addr_sedeleg,    0),
     (csr_addr_sideleg,    0),
@@ -66,7 +67,7 @@ s_csr_reset_values  rv =
 -- ================================================================
 -- Machine-Level CSR reset values
 
-m_csr_reset_values :: RV -> [(CSR_Addr, Integer)]
+m_csr_reset_values :: RV -> [(CSR_Addr, Word64)]
 m_csr_reset_values  rv =
   [ (csr_addr_mvendorid,  0),
     (csr_addr_marchid,    0),
@@ -121,7 +122,7 @@ m_csr_reset_values  rv =
 -- This is a private internal representation that can be changed at
 -- will; only the exported API can be used by clients.
 
-newtype CSR_File = CSR_File (Data_Map.Map  CSR_Addr  Integer)
+data CSR_File = CSR_File (Data_Map.Map  CSR_Addr  Word64)
 
 -- ================================================================
 -- Constructor: make and return a new CSR file
@@ -167,7 +168,6 @@ print_CSR_File  indent  rv  csr_file = do
 data  CSR_Permission = CSR_Permission_None | CSR_Permission_RO | CSR_Permission_RW
   deriving (Eq, Show)
 
-{-# INLINE csr_permission #-}
 csr_permission :: CSR_File -> Priv_Level -> CSR_Addr -> CSR_Permission
 csr_permission  (CSR_File dm)  priv  csr_addr =
   let
@@ -205,8 +205,7 @@ csr_permission  (CSR_File dm)  priv  csr_addr =
 
 -- TODO: zeroExtend?
 
-{-# INLINE csr_read #-}
-csr_read :: RV -> CSR_File -> CSR_Addr -> Integer
+csr_read :: RV -> CSR_File -> CSR_Addr -> Word64
 csr_read  rv  (CSR_File dm)  csr_addr =
   let
     mstatus = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus  dm)
@@ -245,8 +244,7 @@ csr_read  rv  (CSR_File dm)  csr_addr =
 -- Those details are handled in module Machine_State, which uses these
 -- raw reads/writes for individual updates.
 
-{-# INLINE csr_write #-}
-csr_write :: RV -> CSR_File -> CSR_Addr -> Integer -> CSR_File
+csr_write :: RV -> CSR_File -> CSR_Addr -> Word64 -> CSR_File
 csr_write  rv  (CSR_File dm)  csr_addr  value =
   let
     mstatus = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus  dm)

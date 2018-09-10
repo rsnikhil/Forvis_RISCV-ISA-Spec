@@ -14,6 +14,7 @@ module Read_Hex_File where
 
 import System.IO
 import Data.Char
+import Data.Word
 import Data.Bits
 import Numeric (showHex, readHex)
 
@@ -25,7 +26,7 @@ import Numeric (showHex, readHex)
 -- Read a Mem-Hex file (each datum should represent one byte)
 -- and return a memory (list of (addr,byte))
 
-read_hex8_file :: FilePath -> IO [(Integer, Integer)]
+read_hex8_file :: FilePath -> IO [(Int, Word8)]
 read_hex8_file f = do
   let
     helper h  line_num  next_addr  mem = do
@@ -47,11 +48,11 @@ read_hex8_file f = do
 -- either an address line ('@hex-address')
 -- or a data line (a hex byte in memory)
 
-process_hex8_line :: String -> Integer -> (Integer, [(Integer, Integer)])
+process_hex8_line :: String -> Int -> (Int, [(Int, Word8)])
 process_hex8_line  ('@':xs)  next_addr = (fst $ head $ readHex (dropWhile  isSpace  xs), [])
 process_hex8_line  line      next_addr =
   let
-    parses = (readHex (dropWhile isSpace line) :: [(Integer, String)])
+    parses = (readHex (dropWhile isSpace line) :: [(Word8, String)])
   in
     case parses of
       []            -> (next_addr, [])
@@ -61,7 +62,7 @@ process_hex8_line  line      next_addr =
 -- Read a Mem-Hex file (each datum should represent 32 bits (4 bytes))
 -- and return a memory (list of (addr,byte))
 
-read_hex32_file :: FilePath -> IO [(Integer, Integer)]
+read_hex32_file :: FilePath -> IO [(Int, Word8)]
 read_hex32_file f = do
   let
     helper h  line_num  next_addr  mem = do
@@ -83,16 +84,16 @@ read_hex32_file f = do
 -- either an address line ('@hex-address')
 -- or a data line (a hex 32-bit value in memory)
 
-process_hex32_line :: String -> Integer -> (Integer, [(Integer, Integer)])
+process_hex32_line :: String -> Int -> (Int, [(Int, Word8)])
 process_hex32_line  ('@':xs)  next_addr = (fst $ head $ readHex (dropWhile isSpace xs), [])
 process_hex32_line  line      next_addr =
   let
-    parses = (readHex (dropWhile isSpace line) :: [(Integer, String)])
+    parses = (readHex (dropWhile isSpace line) :: [(Word32, String)])
   in
     case parses of
       []             -> (next_addr, [])
       (word32, _):_  -> (let
-                            b3, b2, b1, b0 :: Integer
+                            b3, b2, b1, b0 :: Word8
                             b3     = fromIntegral ((shiftR  word32  24) .&. 0xFF)
                             b2     = fromIntegral ((shiftR  word32  16) .&. 0xFF)
                             b1     = fromIntegral ((shiftR  word32   8) .&. 0xFF)
