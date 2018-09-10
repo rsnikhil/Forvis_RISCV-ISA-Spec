@@ -44,21 +44,21 @@ N = 100000
 .PHONY: test
 test: $(FORVIS_EXE)
 	./$(FORVIS_EXE)  --$(SAMPLE_ISA_TEST_RV)  --tohost  --n $(N) \
-		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/boot_ROM_$(SAMPLE_ISA_TEST_RV).hex32 \
 		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
 # Same, with verbosity 1
 .PHONY: test_v1
 test_v1: $(FORVIS_EXE)
 	./$(FORVIS_EXE)  --$(SAMPLE_ISA_TEST_RV)  --tohost  --n $(N)  --verbosity 1  \
-		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/boot_ROM_$(SAMPLE_ISA_TEST_RV).hex32 \
 		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
 # Same, with verbosity 2
 .PHONY: test_v2
 test_v2: $(FORVIS_EXE)
 	./$(FORVIS_EXE)  --$(SAMPLE_ISA_TEST_RV)  --tohost  --n $(N)  --verbosity 2  \
-		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(TEST_PROGRAMS)/boot_ROM_$(SAMPLE_ISA_TEST_RV).hex32 \
 		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
 # ================================================================
