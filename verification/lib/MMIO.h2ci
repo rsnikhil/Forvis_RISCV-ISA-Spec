@@ -1,0 +1,13 @@
+constructors:
+  MMIO.MMIO: ! '[Qualified "MMIO" "Mk_MMIO"]'
+constructorFields:
+  MMIO.Mk_MMIO: RecordFields [Qualified "MMIO" "f_mtime",Qualified "MMIO" "f_mtimecmp",Qualified
+    "MMIO" "f_mtip",Qualified "MMIO" "f_msip",Qualified "MMIO" "f_uart"]
+recordFieldTypes:
+  MMIO.f_mtimecmp: Qualified "MMIO" "MMIO"
+  MMIO.f_uart: Qualified "MMIO" "MMIO"
+  MMIO.f_mtip: Qualified "MMIO" "MMIO"
+  MMIO.f_msip: Qualified "MMIO" "MMIO"
+  MMIO.f_mtime: Qualified "MMIO" "MMIO"
+constructorTypes:
+  MMIO.Mk_MMIO: Qualified "MMIO" "MMIO"

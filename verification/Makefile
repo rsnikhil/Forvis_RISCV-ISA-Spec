@@ -3,6 +3,8 @@ HS_TO_COQ_DIR = /Users/sweirich/github/deepspec/hs-to-coq
 
 include $(HS_TO_COQ_DIR)/common.mk
 
+PROJ=RISCV-ISA-Spec
+
 OUT=lib
 
 # Handwritten modules (usually by modification of generated version)
@@ -61,7 +63,7 @@ $(OUT)/edits: $(OUT)/README.md
 $(OUT)/README.md:
 	mkdir -p $(OUT)
 	> $@
-	echo 'This directory contains a Coq’ified version of ....' >> $@
+	echo 'This directory contains a Coq’ified version of' $(PROJ) >> $@
 	echo 'Do not edit files here!' >> $@
 
 coq: $(OUT)/Makefile $(VFILES)

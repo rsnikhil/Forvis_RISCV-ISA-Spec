@@ -70,3 +70,32 @@ rename type GHC.IO.Handle.Types.Handle = IO.Handle
 termination Run_Program.hGetLine_polled deferred
 termination Run_Program.run_loop deferred
 termination Main_Test_Virtual_Mem.do_tests deferred
+
+# remove qualified names from some imports
+# NOTE: Coq 
+import module GHC.Base
+import module GHC.Num
+import module GHC.Err
+import module GHC.Real
+import module GHC.Char
+import module Coq.Numbers.BinNums
+import module Coq.Init.Datatypes
+
+## Cannot import this module as Data.Bits.shift conflicts with 
+## imported Coq standard library Coq.ZArith.Zpower.shift
+# import module Data.Bits
+
+#
+import module Address_Map
+import module Arch_Defs
+import module CSR_File
+import module Forvis_Spec
+import module GPR_File
+import module Machine_State
+import module Main_Test_Virtual_Mem
+import module Mem_Ops
+import module Memory
+import module MMIO
+import module Run_Program
+import module UART
+import module Virtual_Mem

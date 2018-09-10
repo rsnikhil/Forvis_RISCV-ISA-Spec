@@ -1,0 +1,27 @@
+constructors:
+  Machine_State.Machine_State: ! '[Qualified "Machine_State" "Mk_Machine_State"]'
+  Machine_State.Run_State: ! '[Qualified "Machine_State" "Run_State_Running",Qualified
+    "Machine_State" "Run_State_WFI"]'
+constructorFields:
+  Machine_State.Run_State_Running: NonRecordFields 0
+  Machine_State.Run_State_WFI: NonRecordFields 0
+  Machine_State.Mk_Machine_State: RecordFields [Qualified "Machine_State" "f_pc",Qualified
+    "Machine_State" "f_gprs",Qualified "Machine_State" "f_csrs",Qualified "Machine_State"
+    "f_priv",Qualified "Machine_State" "f_mem",Qualified "Machine_State" "f_mmio",Qualified
+    "Machine_State" "f_mem_addr_ranges",Qualified "Machine_State" "f_rv",Qualified
+    "Machine_State" "f_verbosity",Qualified "Machine_State" "f_run_state"]
+recordFieldTypes:
+  Machine_State.f_gprs: Qualified "Machine_State" "Machine_State"
+  Machine_State.f_priv: Qualified "Machine_State" "Machine_State"
+  Machine_State.f_mem_addr_ranges: Qualified "Machine_State" "Machine_State"
+  Machine_State.f_csrs: Qualified "Machine_State" "Machine_State"
+  Machine_State.f_pc: Qualified "Machine_State" "Machine_State"
+  Machine_State.f_mmio: Qualified "Machine_State" "Machine_State"
+  Machine_State.f_mem: Qualified "Machine_State" "Machine_State"
+  Machine_State.f_run_state: Qualified "Machine_State" "Machine_State"
+  Machine_State.f_rv: Qualified "Machine_State" "Machine_State"
+  Machine_State.f_verbosity: Qualified "Machine_State" "Machine_State"
+constructorTypes:
+  Machine_State.Run_State_Running: Qualified "Machine_State" "Run_State"
+  Machine_State.Run_State_WFI: Qualified "Machine_State" "Run_State"
+  Machine_State.Mk_Machine_State: Qualified "Machine_State" "Machine_State"
