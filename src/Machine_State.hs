@@ -23,6 +23,7 @@ import Numeric (showHex, readHex)
 import ALU
 import Arch_Defs
 import GPR_File
+import FPR_File
 import CSR_File
 import Mem_Ops
 import Memory
@@ -38,6 +39,7 @@ data Machine_State =
   Machine_State { -- Architectural state
                   f_pc   :: Integer,
                   f_gprs :: GPR_File,
+                  f_fprs :: FPR_File,
                   f_csrs :: CSR_File,
                   f_priv :: Priv_Level,
 
@@ -62,6 +64,7 @@ mstate_print :: String -> Machine_State -> IO ()
 mstate_print  indent  mstate = do
   let pc   = f_pc    mstate
       gprs = f_gprs  mstate
+      fprs = f_fprs  mstate
       csrs = f_csrs  mstate
       priv = f_priv  mstate
 
@@ -72,6 +75,7 @@ mstate_print  indent  mstate = do
   
   putStrLn (indent ++ show rv ++ " pc:" ++ showHex pc " priv:" ++ show priv)
   print_GPR_File  indent  xlen  gprs
+  print_FPR_File  indent  fprs
   print_CSR_File  indent  rv  csrs
   -- We do not print memory or MMIO
   putStrLn (indent ++ (show run_state))
@@ -81,11 +85,12 @@ mstate_print  indent  mstate = do
 
                                                               -- \begin_latex{Machine_State_constructor}
 -- Make a Machine_State, given initial PC and memory contents
-mkMachine_State :: RV -> Integer -> [(Integer,Integer)] -> ([(Integer, Integer)]) -> Machine_State
-mkMachine_State  rv  initial_PC  addr_ranges  addr_byte_list =
+mkMachine_State :: RV -> FP -> Integer -> [(Integer,Integer)] -> ([(Integer, Integer)]) -> Machine_State
+mkMachine_State  rv  fp  initial_PC  addr_ranges  addr_byte_list =
   Machine_State {f_pc   = initial_PC,
                  f_gprs = mkGPR_File,
-                 f_csrs = mkCSR_File  rv,
+                 f_fprs = mkFPR_File,
+                 f_csrs = mkCSR_File  rv  fp,
                  f_priv = m_Priv_Level,
 
                  f_mem             = mkMem  addr_byte_list,
@@ -139,6 +144,25 @@ mstate_gpr_write  mstate  reg  val =
   in
     mstate'
                                                               -- \end_latex{mstate_gpr_write}
+
+-- ----------------
+-- read/write FPRs
+
+{-# INLINE mstate_fpr_read #-}
+mstate_fpr_read :: Machine_State -> FPR_Addr -> Integer
+mstate_fpr_read  mstate  reg = fpr_read (f_fprs mstate)  reg
+                                                              -- \begin_latex{mstate_gpr_write}
+{-# INLINE mstate_fpr_write #-}
+mstate_fpr_write :: Machine_State -> FPR_Addr -> Integer -> Machine_State
+mstate_fpr_write  mstate  reg  val =
+  let
+    fprs    = f_fprs  mstate
+    fprs'   = fpr_write  fprs  reg  val
+    mstate' = mstate { f_fprs = fprs' }
+  in
+    mstate'
+                                                              -- \end_latex{mstate_gpr_write}
+
 -- ----------------
 -- read/write CSRs
 -- Assumes CSR exists and access is legal
@@ -159,6 +183,37 @@ mstate_csr_write  mstate  csr_addr  value =
   let
     csr_file' = csr_write  (f_rv  mstate)  (f_csrs  mstate)  csr_addr  value
     mstate'   = mstate { f_csrs = csr_file' }
+  in
+    mstate'
+
+-- ----------------
+-- read/write the FPU control and status register (FCSR)
+-- update the FCSR register of the CSR Regfile. This CSR consists of two parts
+-- FRM and FFLAGS, which can be accessed independently
+{-# INLINE mstate_fcsr_write #-}
+mstate_fcsr_write :: Machine_State -> CSR_Addr -> Integer -> Machine_State
+mstate_fcsr_write  mstate  csr_addr  new_fcsr_value =
+  let
+    frm_val       = fcsr_frm     new_fcsr_value
+    fflags_val    = fcsr_fflags  new_fcsr_value
+    csr_file_1    = csr_write  (f_rv  mstate)  (f_csrs  mstate)  csr_addr_frm  frm_val
+    csr_file_2    = csr_write  (f_rv  mstate)  csr_file_1  csr_addr_fflags  fflags_val
+    mstate'       = mstate { f_csrs = csr_file_2 }
+  in
+    mstate'
+
+-- update the FCSR.FFLAGS field in the CSR
+-- Now that the FRM and FFLAGS are separate CSRs, we do not need to read
+-- both and build the FCSR to write back. Just accrue the FFLAGS directly
+mstate_fcsr_fflags_update :: Machine_State -> Integer -> Machine_State
+mstate_fcsr_fflags_update  mstate  new_fflags =
+  let
+    old_fflags    = mstate_csr_read  mstate  csr_addr_fflags
+
+    -- accrue fflags, do not overwrite
+    fflags'       = old_fflags .|. new_fflags
+
+    mstate'       = mstate_csr_write  mstate  csr_addr_fflags  fflags'
   in
     mstate'
 

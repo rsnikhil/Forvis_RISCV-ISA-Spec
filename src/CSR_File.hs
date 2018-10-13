@@ -66,8 +66,8 @@ s_csr_reset_values  rv =
 -- ================================================================
 -- Machine-Level CSR reset values
 
-m_csr_reset_values :: RV -> [(CSR_Addr, Integer)]
-m_csr_reset_values  rv =
+m_csr_reset_values :: RV -> FP -> [(CSR_Addr, Integer)]
+m_csr_reset_values  rv  fp =
   [ (csr_addr_mvendorid,  0),
     (csr_addr_marchid,    0),
     (csr_addr_mimpid,     0),
@@ -81,10 +81,13 @@ m_csr_reset_values  rv =
                               lsbs = ((    shiftL  1  misa_A_bitpos)
                                       -- .|. (shiftL  1  misa_C_bitpos)    TODO: uncomment after adding 'C' extension
                                       .|. (shiftL  1  misa_I_bitpos)
+                                      .|. (if ((fp == SP) || (fp == DP)) then (shiftL  1  misa_F_bitpos) else 0)
+                                      .|. (if (fp == DP) then (shiftL  1  misa_D_bitpos) else 0)
                                       .|. (shiftL  1  misa_M_bitpos)
                                       .|. (shiftL  1  misa_N_bitpos)
                                       .|. (shiftL  1  misa_S_bitpos)
                                       .|. (shiftL  1  misa_U_bitpos))
+                              
                               msbs | (rv == RV32) = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
                                    | (rv == RV64) = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)
                            in
@@ -126,12 +129,12 @@ newtype CSR_File = CSR_File (Data_Map.Map  CSR_Addr  Integer)
 -- ================================================================
 -- Constructor: make and return a new CSR file
 
-mkCSR_File :: RV -> CSR_File
-mkCSR_File rv  =
+mkCSR_File :: RV -> FP -> CSR_File
+mkCSR_File rv  fp =
   let
     dm = (Data_Map.fromList  ((u_csr_reset_values  rv) ++
                               (s_csr_reset_values  rv) ++
-                              (m_csr_reset_values  rv)   ))
+                              (m_csr_reset_values  rv  fp)   ))
   in
     CSR_File  dm
 
@@ -204,6 +207,8 @@ csr_permission  (CSR_File dm)  priv  csr_addr =
 -- and csr read permissions
 
 -- TODO: zeroExtend?
+-- For FCSR upper bits beyond fflags and frm are reserved. Writes
+-- are to be ignored, reads return zero.
 
 {-# INLINE csr_read #-}
 csr_read :: RV -> CSR_File -> CSR_Addr -> Integer
@@ -212,6 +217,8 @@ csr_read  rv  (CSR_File dm)  csr_addr =
     mstatus = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus  dm)
     mip     = fromMaybe  0  (Data_Map.lookup  csr_addr_mip      dm)
     mie     = fromMaybe  0  (Data_Map.lookup  csr_addr_mie      dm)
+    frm     = fromMaybe  0  (Data_Map.lookup  csr_addr_frm      dm)
+    fflags  = fromMaybe  0  (Data_Map.lookup  csr_addr_fflags   dm)
 
     ustatus_mask = if (rv == RV32) then ustatus_mask_RV32 else ustatus_mask_RV64
     sstatus_mask = if (rv == RV32) then sstatus_mask_RV32 else sstatus_mask_RV64
@@ -223,6 +230,7 @@ csr_read  rv  (CSR_File dm)  csr_addr =
         | (csr_addr == csr_addr_cycleh)   = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_mcycle    dm))  32)
         | (csr_addr == csr_addr_instret)  = fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm)
         | (csr_addr == csr_addr_instreth) = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm))  32)
+        | (csr_addr == csr_addr_fcsr)     = fflags .|. (shiftL  frm  frm_bitpos)
 
         | (csr_addr == csr_addr_sstatus) = (mstatus .&. sstatus_mask)
         | (csr_addr == csr_addr_sip)     = (mip .&. sip_mask)
@@ -276,10 +284,10 @@ csr_write  rv  (CSR_File dm)  csr_addr  value =
                                                              .|. (value .&. uip_mask)))
 
       -- TODO: remove these if implementing all counters
-      | (csr_addr == csr_addr_mcounteren)  = (csr_addr,         (value .&. 0x7))
-      | (csr_addr == csr_addr_scounteren)  = (csr_addr,         (value .&. 0x7))
+      | (csr_addr == csr_addr_mcounteren) = (csr_addr,         (value .&. 0x7))
+      | (csr_addr == csr_addr_scounteren) = (csr_addr,         (value .&. 0x7))
 
-      | True                           = (csr_addr,         value)
+      | True                              = (csr_addr,         value)
 
     dm' = if (Data_Map.member csr_addr' dm)
           then Data_Map.insert  csr_addr'  value'  dm
