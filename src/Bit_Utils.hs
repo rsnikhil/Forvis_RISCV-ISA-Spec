@@ -10,6 +10,7 @@ module Bit_Utils where
 -- Standard Haskell imports
 
 import Data.Bits
+import Data.Word    -- For Wordxx type (unsigned fixed-width ints)
 import Numeric (showHex, readHex)
 
 -- Project imports
@@ -78,6 +79,24 @@ sign_extend  w1  w2  x =
 {-# INLINE cvt_Integer_to_Int #-}
 cvt_Integer_to_Int :: Integer -> Int
 cvt_Integer_to_Int  j = fromIntegral j
+
+-- This conversion is required as the softfloat library functions expect
+-- arguments in Word64 for DP and Word32 for SP
+{-# INLINE cvt_Integer_to_Word32 #-}
+cvt_Integer_to_Word32 :: Integer -> Word32
+cvt_Integer_to_Word32  j = fromIntegral j
+
+{-# INLINE cvt_Integer_to_Word64 #-}
+cvt_Integer_to_Word64 :: Integer -> Word64
+cvt_Integer_to_Word64  j = fromIntegral j
+
+{-# INLINE cvt_Integer_to_Word32 #-}
+cvt_Word32_to_Integer :: Word32 -> Integer
+cvt_Word32_to_Integer  j = toInteger j
+
+{-# INLINE cvt_Integer_to_Word64 #-}
+cvt_Word64_to_Integer :: Word64 -> Integer
+cvt_Word64_to_Integer  j = toInteger j
 
 -- ================================================================
 -- Bit concatenations

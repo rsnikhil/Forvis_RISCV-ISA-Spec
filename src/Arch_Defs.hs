@@ -862,11 +862,11 @@ fcsr_dz_bitpos          = 3 :: Int
 fcsr_nv_bitpos          = 4 :: Int
 
 -- The flags with only one of the bits set
-nxFlag = (shiftL  1  fcsr_nx_bitpos) :: Word64
-ufFlag = (shiftL  1  fcsr_uf_bitpos) :: Word64
-ofFlag = (shiftL  1  fcsr_of_bitpos) :: Word64
-dzFlag = (shiftL  1  fcsr_dz_bitpos) :: Word64
-nvFlag = (shiftL  1  fcsr_nv_bitpos) :: Word64
+nxFlag = (shiftL  1  fcsr_nx_bitpos) :: Integer
+ufFlag = (shiftL  1  fcsr_uf_bitpos) :: Integer
+ofFlag = (shiftL  1  fcsr_of_bitpos) :: Integer
+dzFlag = (shiftL  1  fcsr_dz_bitpos) :: Integer
+nvFlag = (shiftL  1  fcsr_nv_bitpos) :: Integer
 
 -- 7:5
 frm_bitpos              = 5 :: Int
@@ -880,7 +880,7 @@ fcsr_frm       :: Word64 -> Word64
 fcsr_frm       fcsr = bitSlice fcsr 7 5
 
 -- Check if a frm value in the FCSR.FRM is valid
-fcsr_frm_valid :: InstrField -> Bool
+fcsr_frm_valid :: Integer -> Bool
 fcsr_frm_valid   frm  = (   (frm /= 0x5)
                          && (frm /= 0x6)
                          && (frm /= 0x7))
@@ -889,6 +889,20 @@ fcsr_frm_valid   frm  = (   (frm /= 0x5)
 instr_frm_valid:: InstrField -> Bool
 instr_frm_valid   frm = (   (frm /= 0x5)
                          && (frm /= 0x6))
+
+-- Returns the right rounding mode from the FCSR or the instruction and checks
+-- legality
+rounding_mode_check :: InstrField -> Integer -> (Integer, Bool)
+rounding_mode_check    rm            frm =
+  let
+    frmVal     = if (rm == 0x7) then frm else rm
+    rmIsLegal  = if (rm == 0x7) then
+                   fcsr_frm_valid  frmVal
+                 else
+                   instr_frm_valid  frmVal
+  in
+    (frmVal, rmIsLegal)
+
 
 -- Bit positions for the mask describing the class of FP value (table 8.5 v2.2)
 fclass_negInf_bitpos       = 0 :: Int
