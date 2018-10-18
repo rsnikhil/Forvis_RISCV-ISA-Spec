@@ -306,7 +306,9 @@ nanBox  word =
 negateD :: Integer -> Integer
 negateD  word = 
   let
-    word' = xor  word  (shiftL  1  63)
+    (s, e, m) = extractFromDP  word
+    s' = (if (s == 0) then 1 else 0)
+    word' = composeDP  s'  e  m
   in
     word'
 
@@ -315,10 +317,11 @@ negateD  word =
 negateS :: Integer -> Integer
 negateS  word = 
   let
-    word' = xor  word  (shiftL  1  31)
+    (s, e, m) = extractFromSP  word
+    s' = (if (s == 0) then 1 else 0)
+    word' = composeSP  s'  e  m
   in
     word'
-
 
 -- Convert a frm bit pattern to RoundingMode used by softFloat
 frm_to_RoundingMode :: InstrField -> RoundingMode
@@ -368,7 +371,7 @@ extractFFlagsDPResult (Result res flags) =
 -- Separates out the Signed-64 result (I64Result) from the SoftFloat
 -- function call to a value for the GPR register file
 extractRdLResult  :: I64Result -> Integer
-extractRdLResult  (Result res flags) = cvt_s64_to_u64  res
+extractRdLResult  (Result res flags) = cvt_Integer_to_2s_comp  64  (cvt_Int64_to_Integer  res)
 
 extractFFlagsLResult :: I64Result -> Integer
 extractFFlagsLResult (Result res flags) = 
@@ -402,7 +405,7 @@ extractFFlagsLUResult (Result res flags) =
 -- Separates out the Signed-64 result (I64Result) from the SoftFloat
 -- function call to a value for the GPR register file
 extractRdWResult  :: I32Result -> Integer
-extractRdWResult  (Result res flags) = signExtend_s32_to_u64  res
+extractRdWResult  (Result res flags) = cvt_Integer_to_2s_comp  32  (cvt_Int32_to_Integer  res)
 
 extractFFlagsWResult :: I32Result -> Integer
 extractFFlagsWResult (Result res flags) = 
