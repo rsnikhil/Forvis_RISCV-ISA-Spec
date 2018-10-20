@@ -22,7 +22,7 @@ import Machine_State
 import CSR_File
 import Address_Map
 import Virtual_Mem
-
+import SoftFloat
 -- ================================================================ \begin_latex{instr_fetch}
 -- Instruction fetch
 -- This function attempts an insruction fetch based on the current PC.
@@ -1352,6 +1352,7 @@ spec_FD_LOAD  mstate  instr =
 
     -- Decode check
     rv         = mstate_rv_read  mstate
+    xlen       = mstate_xlen_read  mstate
     misa       = (mstate_csr_read mstate  csr_addr_misa)
     is_F       = (misa_flag misa 'F')
     is_D       = (misa_flag misa 'D')
@@ -1410,6 +1411,7 @@ spec_FD_STORE  mstate  instr =
 
     -- Decode check
     rv         = mstate_rv_read  mstate
+    xlen     = mstate_xlen_read  mstate
     misa       = (mstate_csr_read mstate  csr_addr_misa)
     is_F       = (misa_flag misa 'F')
     is_D       = (misa_flag misa 'D')
@@ -1575,8 +1577,8 @@ spec_D_FSGNJ               mstate  instr =
                 && (is_F && is_D))
 
     -- Semantics
-    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs1)
-    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs2)
+    rs1_val = mstate_fpr_read  mstate  rs1
+    rs2_val = mstate_fpr_read  mstate  rs2
 
     -- Extract the components of the source values
     (s1, e1, m1) = extractFromDP  rs1_val
@@ -1680,7 +1682,7 @@ spec_D_FCVT                mstate  instr =
 
     -- Extract the flags for the operations which update FPR
     fflags | is_FCVT_D_L   = extractFFlagsDPResult  (i64ToF64   rm_val  (cvt_Integer_to_Int64   grs1_val))
-           | is_FCVT_D_LU  = extractFFlagsDPResult  (ui64ToF64  rm_val  (cvt_Integer_to_Word64  grs1_val)
+           | is_FCVT_D_LU  = extractFFlagsDPResult  (ui64ToF64  rm_val  (cvt_Integer_to_Word64  grs1_val))
            | is_FCVT_D_W   = extractFFlagsDPResult  (i32ToF64   rm_val  (cvt_Integer_to_Int32   grs1_val))
            | is_FCVT_D_WU  = extractFFlagsDPResult  (ui32ToF64  rm_val  (cvt_Integer_to_Word32  grs1_val))
            | is_FCVT_D_S   = extractFFlagsDPResult  (f32ToF64   rm_val  (cvt_Integer_to_Word32  frs1_val_sp))
@@ -1712,7 +1714,6 @@ spec_D_MIN                 mstate  instr =
     is_D       = (misa_flag misa 'D')
 
     is_FMIN_D  = (funct7 == funct7_FMIN_D) && (rm == 0x0)
-    is_FMAX_D  = (funct7 == funct7_FMAX_D) && (rm == 0x1)
 
     is_legal = (   (opcode == opcode_FD_OP)
                 && is_FMIN_D
@@ -2048,21 +2049,18 @@ spec_F_OP                  mstate  instr =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
-
-    rs1_val_32 = trunc_u64_to_u32 rs1_val
-    rs2_val_32 = trunc_u64_to_u32 rs2_val
+    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs1))
+    rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs2))
 
     -- Convert the RISC-V rounding mode to one understood by SoftFloat
-    rm_val  = frm_to_RoundingMode frmVal
+    rm_val  = frm_to_RoundingMode  frmVal
 
     -- Extract the result of the operation and the flags
-    fpuRes | is_FADD_S  = f32Add  rm_val  rs1_val_32  rs2_val_32
-           | is_FSUB_S  = f32Sub  rm_val  rs1_val_32  rs2_val_32
-           | is_FMUL_S  = f32Mul  rm_val  rs1_val_32  rs2_val_32
-           | is_FDIV_S  = f32Div  rm_val  rs1_val_32  rs2_val_32
-           | is_FSQRT_S = f32Sqrt rm_val  rs1_val_32
+    fpuRes | is_FADD_S  = f32Add  rm_val  rs1_val  rs2_val
+           | is_FSUB_S  = f32Sub  rm_val  rs1_val  rs2_val
+           | is_FMUL_S  = f32Mul  rm_val  rs1_val  rs2_val
+           | is_FDIV_S  = f32Div  rm_val  rs1_val  rs2_val
+           | is_FSQRT_S = f32Sqrt rm_val  rs1_val
 
     rd_val = extractRdSPResult fpuRes
     fflags = extractFFlagsSPResult fpuRes
@@ -2236,35 +2234,32 @@ spec_F_MIN                 mstate  instr =
     rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
     rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
 
-    rs1_val_32 = trunc_u64_to_u32 rs1_val
-    rs2_val_32 = trunc_u64_to_u32 rs2_val
-
     -- Extract the result of the operation and the flags
-    (rs1_lt_rs2, fflags) = f32IsLE  rs1_val_32  rs2_val_32  True
+    (rs1_lt_rs2, fflags) = f32IsLE  rs1_val  rs2_val  True
 
     -- Check if either rs1 or rs2 is a s-NaN or a q-NaN
-    rs1IsSNaN = f32IsSNaN  rs1_val_32
-    rs2IsSNaN = f32IsSNaN  rs2_val_32
+    rs1IsSNaN = f32IsSNaN  rs1_val
+    rs2IsSNaN = f32IsSNaN  rs2_val
 
-    rs1IsQNaN = f32IsQNaN  rs1_val_32
-    rs2IsQNaN = f32IsQNaN  rs2_val_32
+    rs1IsQNaN = f32IsQNaN  rs1_val
+    rs2IsQNaN = f32IsQNaN  rs2_val
 
-    rs1IsPos0 = f32IsPosZero  rs1_val_32
-    rs2IsPos0 = f32IsPosZero  rs2_val_32
+    rs1IsPos0 = f32IsPosZero  rs1_val
+    rs2IsPos0 = f32IsPosZero  rs2_val
 
-    rs1IsNeg0 = f32IsNegZero  rs1_val_32
-    rs2IsNeg0 = f32IsNegZero  rs2_val_32
+    rs1IsNeg0 = f32IsNegZero  rs1_val
+    rs2IsNeg0 = f32IsNegZero  rs2_val
 
-    rd_val | (rs1IsSNaN && rs2IsSNaN)  = (zeroExtend_u32_to_u64 canonicalNaN32)
-           | rs1IsSNaN                 = (zeroExtend_u32_to_u64 rs2_val_32)
-           | rs2IsSNaN                 = (zeroExtend_u32_to_u64 rs1_val_32)
-           | (rs1IsQNaN && rs2IsQNaN)  = (zeroExtend_u32_to_u64 canonicalNaN32)
-           | rs1IsQNaN                 = (zeroExtend_u32_to_u64 rs2_val_32)
-           | rs2IsQNaN                 = (zeroExtend_u32_to_u64 rs1_val_32)
-           | (rs1IsNeg0 && rs2IsPos0)  = (zeroExtend_u32_to_u64 rs1_val_32)
-           | (rs2IsNeg0 && rs1IsPos0)  = (zeroExtend_u32_to_u64 rs2_val_32)
-           | rs1_lt_rs2                = (zeroExtend_u32_to_u64 rs1_val_32)
-           | (not rs1_lt_rs2)          = (zeroExtend_u32_to_u64 rs2_val_32)
+    rd_val | (rs1IsSNaN && rs2IsSNaN)  = canonicalNaN32
+           | rs1IsSNaN                 = rs2_val
+           | rs2IsSNaN                 = rs1_val
+           | (rs1IsQNaN && rs2IsQNaN)  = canonicalNaN32
+           | rs1IsQNaN                 = rs2_val
+           | rs2IsQNaN                 = rs1_val
+           | (rs1IsNeg0 && rs2IsPos0)  = rs1_val
+           | (rs2IsNeg0 && rs1IsPos0)  = rs2_val
+           | rs1_lt_rs2                = rs1_val
+           | (not rs1_lt_rs2)          = rs2_val
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
@@ -2301,25 +2296,22 @@ spec_F_CMP                 mstate  instr =
     rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
     rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
 
-    rs1_val_32 = trunc_u64_to_u32 rs1_val
-    rs2_val_32 = trunc_u64_to_u32 rs2_val
-
     -- Extract the result of the operation and the flags
-    (rs1_cmp_rs2, fflags) | (is_FEQ_S) = f32IsEQQ  rs1_val_32  rs2_val_32
-                          | (is_FLT_S) = f32IsLT   rs1_val_32  rs2_val_32  False
-                          | (is_FLE_S) = f32IsLE   rs1_val_32  rs2_val_32  False
+    (rs1_cmp_rs2, fflags) | (is_FEQ_S) = f32IsEQQ  rs1_val  rs2_val
+                          | (is_FLT_S) = f32IsLT   rs1_val  rs2_val  False
+                          | (is_FLE_S) = f32IsLE   rs1_val  rs2_val  False
 
     -- Check if either rs1 or rs2 is a s-NaN or a q-NaN
-    rs1IsSNaN = f32IsSNaN  rs1_val_32
-    rs2IsSNaN = f32IsSNaN  rs2_val_32
+    rs1IsSNaN = f32IsSNaN  rs1_val
+    rs2IsSNaN = f32IsSNaN  rs2_val
 
-    rs1IsQNaN = f32IsQNaN  rs1_val_32
-    rs2IsQNaN = f32IsQNaN  rs2_val_32
+    rs1IsQNaN = f32IsQNaN  rs1_val
+    rs2IsQNaN = f32IsQNaN  rs2_val
 
-    rd_val | (rs1IsSNaN || rs2IsSNaN)  = (zeroExtend_u32_to_u64 0)
-           | (rs1IsQNaN || rs2IsQNaN)  = (zeroExtend_u32_to_u64 0)
-           | rs1_cmp_rs2               = (zeroExtend_u32_to_u64 1)
-           | (not rs1_cmp_rs2)         = (zeroExtend_u32_to_u64 0)
+    rd_val | (rs1IsSNaN || rs2IsSNaN)  = 0
+           | (rs1IsQNaN || rs2IsQNaN)  = 0
+           | rs1_cmp_rs2               = 1
+           | (not rs1_cmp_rs2)         = 0
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
@@ -2354,35 +2346,32 @@ spec_F_MAX                 mstate  instr =
     rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
     rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
 
-    rs1_val_32 = trunc_u64_to_u32 rs1_val
-    rs2_val_32 = trunc_u64_to_u32 rs2_val
-
     -- Extract the result of the operation and the flags
-    (rs2_lt_rs1, fflags) = f32IsLE  rs2_val_32  rs1_val_32  True
+    (rs2_lt_rs1, fflags) = f32IsLE  rs2_val  rs1_val  True
 
     -- Check if either rs1 or rs2 is a s-NaN or a q-NaN
-    rs1IsSNaN = f32IsSNaN  rs1_val_32
-    rs2IsSNaN = f32IsSNaN  rs2_val_32
+    rs1IsSNaN = f32IsSNaN  rs1_val
+    rs2IsSNaN = f32IsSNaN  rs2_val
 
-    rs1IsQNaN = f32IsQNaN  rs1_val_32
-    rs2IsQNaN = f32IsQNaN  rs2_val_32
+    rs1IsQNaN = f32IsQNaN  rs1_val
+    rs2IsQNaN = f32IsQNaN  rs2_val
 
-    rs1IsPos0 = f32IsPosZero  rs1_val_32
-    rs2IsPos0 = f32IsPosZero  rs2_val_32
+    rs1IsPos0 = f32IsPosZero  rs1_val
+    rs2IsPos0 = f32IsPosZero  rs2_val
 
-    rs1IsNeg0 = f32IsNegZero  rs1_val_32
-    rs2IsNeg0 = f32IsNegZero  rs2_val_32
+    rs1IsNeg0 = f32IsNegZero  rs1_val
+    rs2IsNeg0 = f32IsNegZero  rs2_val
 
-    rd_val | (rs1IsSNaN && rs2IsSNaN)  = (zeroExtend_u32_to_u64 canonicalNaN32)
-           | rs1IsSNaN                 = (zeroExtend_u32_to_u64 rs2_val_32)
-           | rs2IsSNaN                 = (zeroExtend_u32_to_u64 rs1_val_32)
-           | (rs1IsQNaN && rs2IsQNaN)  = (zeroExtend_u32_to_u64 canonicalNaN32)
-           | rs1IsQNaN                 = (zeroExtend_u32_to_u64 rs2_val_32)
-           | rs2IsQNaN                 = (zeroExtend_u32_to_u64 rs1_val_32)
-           | (rs1IsNeg0 && rs2IsPos0)  = (zeroExtend_u32_to_u64 rs2_val_32)
-           | (rs2IsNeg0 && rs1IsPos0)  = (zeroExtend_u32_to_u64 rs1_val_32)
-           | rs2_lt_rs1                = (zeroExtend_u32_to_u64 rs1_val_32)
-           | (not rs2_lt_rs1)          = (zeroExtend_u32_to_u64 rs2_val_32)
+    rd_val | (rs1IsSNaN && rs2IsSNaN)  = canonicalNaN32
+           | rs1IsSNaN                 = rs2_val
+           | rs2IsSNaN                 = rs1_val
+           | (rs1IsQNaN && rs2IsQNaN)  = canonicalNaN32
+           | rs1IsQNaN                 = rs2_val
+           | rs2IsQNaN                 = rs1_val
+           | (rs1IsNeg0 && rs2IsPos0)  = rs2_val
+           | (rs2IsNeg0 && rs1IsPos0)  = rs1_val
+           | rs2_lt_rs1                = rs1_val
+           | (not rs2_lt_rs1)          = rs2_val
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
@@ -2424,18 +2413,22 @@ spec_F_FMOP                mstate  instr =
     rs2_val = unboxSP  (mstate_fpr_read  mstate  rs2)
     rs3_val = unboxSP  (mstate_fpr_read  mstate  rs3)
 
-    rs1_val_32 = trunc_u64_to_u32 rs1_val
-    rs2_val_32 = trunc_u64_to_u32 rs2_val
-    rs3_val_32 = trunc_u64_to_u32 rs3_val
+    rs1_val_32 = cvt_Integer_to_Word32  rs1_val
+    rs2_val_32 = cvt_Integer_to_Word32  rs2_val
+    rs3_val_32 = cvt_Integer_to_Word32  rs3_val
+
+    neg_rs1_val_32 = cvt_Integer_to_Word32  (negateS  rs1_val)
+    neg_rs2_val_32 = cvt_Integer_to_Word32  (negateS  rs2_val)
+    neg_rs3_val_32 = cvt_Integer_to_Word32  (negateS  rs3_val)
 
     -- Convert the RISC-V rounding mode to one understood by SoftFloat
     rm_val  = frm_to_RoundingMode frmVal
 
     -- Extract the result of the operation and the flags
-    fpuRes | is_FMADD_S    = f32MulAdd  rm_val  rs1_val_32  rs2_val_32  rs3_val_32
-           | is_FMSUB_S    = f32MulAdd  rm_val  rs1_val_32  rs2_val_32  (negateS  rs3_val_32)
-           | is_FNMSUB_S   = f32MulAdd  rm_val  (negateS  rs1_val_32)  rs2_val_32  rs3_val_32
-           | is_FNMADD_S   = f32MulAdd  rm_val  (negateS  rs1_val_32)  rs2_val_32  (negateS  rs3_val_32)
+    fpuRes | is_FMADD_S    = f32MulAdd  rm_val  rs1_val_32      rs2_val_32  rs3_val_32
+           | is_FMSUB_S    = f32MulAdd  rm_val  rs1_val_32      rs2_val_32  neg_rs3_val_32
+           | is_FNMSUB_S   = f32MulAdd  rm_val  neg_rs1_val_32  rs2_val_32  rs3_val_32
+           | is_FNMADD_S   = f32MulAdd  rm_val  neg_rs1_val_32  rs2_val_32  neg_rs3_val_32
 
     rd_val = extractRdSPResult  fpuRes
     fflags = extractFFlagsSPResult  fpuRes
@@ -2476,7 +2469,7 @@ spec_F_FMV                 mstate  instr =
 
     -- FMV_X_W
     -- GPR value is sign-extended version of lower 32-bits of FPR contents
-    frs1_val' = signExtend_u32_to_u64  (trunc_u64_to_u32  frs1_val)
+    frs1_val' = sign_extend  32  64  (bitSlice frs1_val  31  0)
 
     mstate1  = if (is_FMV_X_W) then
                  finish_rd_and_pc_plus_4  mstate  rd  frs1_val'
@@ -2507,19 +2500,18 @@ spec_F_FCLASS           mstate  instr =
 
     -- Semantics
     frs1_val = unboxSP  (mstate_fpr_read  mstate  rs1)
-    frs1_val_32 = trunc_u64_to_u32 frs1_val
     
     -- Classify the frs1_val
-    is_NegInf     = f32IsNegInf        frs1_val_32
-    is_NegNorm    = f32IsNegNorm       frs1_val_32
-    is_NegSubNorm = f32IsNegSubNorm    frs1_val_32
-    is_NegZero    = f32IsNegZero       frs1_val_32
-    is_PosZero    = f32IsPosZero       frs1_val_32
-    is_PosSubNorm = f32IsPosSubNorm    frs1_val_32
-    is_PosNorm    = f32IsPosNorm       frs1_val_32
-    is_PosInf     = f32IsPosInf        frs1_val_32
-    is_SNaN       = f32IsSNaN          frs1_val_32
-    is_QNaN       = f32IsQNaN          frs1_val_32
+    is_NegInf     = f32IsNegInf        frs1_val
+    is_NegNorm    = f32IsNegNorm       frs1_val
+    is_NegSubNorm = f32IsNegSubNorm    frs1_val
+    is_NegZero    = f32IsNegZero       frs1_val
+    is_PosZero    = f32IsPosZero       frs1_val
+    is_PosSubNorm = f32IsPosSubNorm    frs1_val
+    is_PosNorm    = f32IsPosNorm       frs1_val
+    is_PosInf     = f32IsPosInf        frs1_val
+    is_SNaN       = f32IsSNaN          frs1_val
+    is_QNaN       = f32IsQNaN          frs1_val
 
     -- Form the rd based on the above clasification
     rd_val  = 0x0 :: Integer

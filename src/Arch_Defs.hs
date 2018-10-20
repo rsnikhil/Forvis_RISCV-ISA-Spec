@@ -25,6 +25,12 @@ data RV = RV32
         | RV64
         deriving (Eq, Show)
                                                    -- \end_latex{RV}
+
+-- Architectural parameter (floating point precision)  -- \begin_latex{FP}
+data FP = SP  
+        | DP  
+        deriving (Eq, Show)
+                                                   -- \end_latex{FP}
 -- ================================================================
 -- Predicate to decide whether the arg may be a 'C' (Compressed)
 -- instruction or not ('C' instrs have 2 lsbs not equal to 2'b11)
@@ -81,6 +87,10 @@ ifield_rs2     instr = bitSlice instr  24  20
 {-# INLINE ifield_rs3 #-}
 ifield_rs3     :: Instr -> InstrField
 ifield_rs3     instr = bitSlice instr  31  27    -- for FMADD, FMSUB, FNMSUB
+
+{-# INLINE ifield_funct2 #-}
+ifield_funct2  :: Instr -> InstrField
+ifield_funct2  instr = bitSlice instr  26  25
 
 {-# INLINE ifield_funct10 #-}
 ifield_funct10 :: Instr -> InstrField
@@ -872,11 +882,11 @@ nvFlag = (shiftL  1  fcsr_nv_bitpos) :: Integer
 frm_bitpos              = 5 :: Int
 
 -- Extract the fflags field from fcsr
-fcsr_fflags    :: Word64 -> Word64 
+fcsr_fflags    :: Integer -> Integer 
 fcsr_fflags    fcsr = bitSlice fcsr 4 0
 
 -- Extract the frm field from fcsr
-fcsr_frm       :: Word64 -> Word64 
+fcsr_frm       :: Integer -> Integer 
 fcsr_frm       fcsr = bitSlice fcsr 7 5
 
 -- Check if a frm value in the FCSR.FRM is valid
@@ -917,7 +927,7 @@ fclass_SNaN_bitpos         = 8 :: Int
 fclass_QNaN_bitpos         = 9 :: Int
 
 -- Create a FFLAGS word to accrue into the CSR
-form_fflags_word  :: Bool -> Bool -> Bool -> Bool -> Bool -> Word64
+form_fflags_word  :: Bool -> Bool -> Bool -> Bool -> Bool -> Integer
 form_fflags_word  nxf  uff  off  dzf  nvf  =
   let
     fflags = (    (if (nxf) then (shiftL  1  fcsr_nx_bitpos) else 0)

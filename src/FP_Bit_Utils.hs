@@ -17,14 +17,13 @@ import Foreign.C.Types
 
 -- Project imports
 
-import Bit_Manipulation
+import Bit_Utils
 import Arch_Defs
 import SoftFloat
 
-
 -- Definitions of Q-NaNs for single and double precision
-canonicalNaN32 = 0x7fc00000 :: Word32
-canonicalNaN64 = 0x7ff8000000000000 :: Word64
+canonicalNaN32 = 0x7fc00000 :: Integer
+canonicalNaN64 = 0x7ff8000000000000 :: Integer
 
 -- IEEE format for DP values
 dp_sgn_bitpos           = 63 :: Int
@@ -181,7 +180,7 @@ f64IsNegZero (val) =
 f32IsSNaN :: Integer -> Bool
 f32IsSNaN (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     qBitIsSet = testBit  m  22
     res = (e == 0xff) && (qBitIsSet == False) && (m /= 0)
   in 
@@ -192,7 +191,7 @@ f32IsSNaN (val) =
 f32IsQNaN :: Integer -> Bool
 f32IsQNaN (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     qBitIsSet = testBit  m  22
     res = (e == 0xff) && qBitIsSet
   in 
@@ -203,7 +202,7 @@ f32IsQNaN (val) =
 f32IsPosInf :: Integer -> Bool
 f32IsPosInf (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     res = (s == 0) && (e == 0xff) && (m == 0)
   in 
     res
@@ -213,7 +212,7 @@ f32IsPosInf (val) =
 f32IsPosNorm :: Integer -> Bool
 f32IsPosNorm (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     res = (s == 0) && (e /= 0) && (e /= 0xff) 
   in 
     res
@@ -223,7 +222,7 @@ f32IsPosNorm (val) =
 f32IsPosSubNorm :: Integer -> Bool
 f32IsPosSubNorm (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     res = (s == 0) && (e == 0) && (m /= 0)
   in 
     res
@@ -233,7 +232,7 @@ f32IsPosSubNorm (val) =
 f32IsPosZero :: Integer -> Bool
 f32IsPosZero (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     res = (s == 0) && (e == 0x0) && (m == 0)
   in 
     res
@@ -243,7 +242,7 @@ f32IsPosZero (val) =
 f32IsNegInf :: Integer -> Bool
 f32IsNegInf (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     res = (s == 0x1) && (e == 0xff) && (m == 0)
   in 
     res
@@ -253,7 +252,7 @@ f32IsNegInf (val) =
 f32IsNegNorm :: Integer -> Bool
 f32IsNegNorm (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     res = (s == 0x1) && (e /= 0) && (e /= 0xff) 
   in 
     res
@@ -263,7 +262,7 @@ f32IsNegNorm (val) =
 f32IsNegSubNorm :: Integer -> Bool
 f32IsNegSubNorm (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     res = (s == 0x1) && (e == 0) && (m /= 0)
   in 
     res
@@ -273,7 +272,7 @@ f32IsNegSubNorm (val) =
 f32IsNegZero :: Integer -> Bool
 f32IsNegZero (val) =
   let
-    (s, e, m) = extractFromSP  (zeroExtend_u32_to_u64  val)
+    (s, e, m) = extractFromSP  val
     res = (s == 0x1) && (e == 0x0) && (m == 0)
   in 
     res
@@ -469,8 +468,8 @@ f64IsEQQ rs1 rs2 =
 f32IsEQQ :: Integer -> Integer -> (Bool, Integer)
 f32IsEQQ rs1 rs2 = 
   let
-    (s1, e1, m1) = extractFromSP (zeroExtend_u32_to_u64 rs1)
-    (s2, e2, m2) = extractFromSP (zeroExtend_u32_to_u64 rs2)
+    (s1, e1, m1) = extractFromSP  rs1
+    (s2, e2, m2) = extractFromSP  rs2
     rs1IsSNaN = f32IsSNaN rs1
     rs2IsSNaN = f32IsSNaN rs2
     rs1IsPos0 = f32IsPosZero  rs1
@@ -537,8 +536,8 @@ f64IsLE rs1 rs2 isQuiet =
 f32IsLE :: Integer -> Integer -> Bool -> (Bool, Integer)
 f32IsLE rs1 rs2 isQuiet = 
   let
-    (s1, e1, m1) = extractFromSP (zeroExtend_u32_to_u64 rs1)
-    (s2, e2, m2) = extractFromSP (zeroExtend_u32_to_u64 rs2)
+    (s1, e1, m1) = extractFromSP  rs1
+    (s2, e2, m2) = extractFromSP  rs2
 
     rs1IsQNaN = f32IsQNaN rs1
     rs2IsQNaN = f32IsQNaN rs2
@@ -620,8 +619,8 @@ f64IsLT rs1 rs2 isQuiet =
 f32IsLT :: Integer -> Integer -> Bool -> (Bool, Integer)
 f32IsLT rs1 rs2 isQuiet = 
   let
-    (s1, e1, m1) = extractFromSP (zeroExtend_u32_to_u64 rs1)
-    (s2, e2, m2) = extractFromSP (zeroExtend_u32_to_u64 rs2)
+    (s1, e1, m1) = extractFromSP  rs1
+    (s2, e2, m2) = extractFromSP  rs2
 
     rs1IsQNaN  = f32IsQNaN    rs1
     rs2IsQNaN  = f32IsQNaN    rs2

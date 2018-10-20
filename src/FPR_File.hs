@@ -11,8 +11,7 @@ module FPR_File where
 -- Standard Haskell imports
 
 import Data.Maybe
-import Data.Word
--- import Numeric (showHex, readHex)
+import Data.Bits
 import qualified Data.Map.Strict as Data_Map
 
 -- Project imports
@@ -48,23 +47,64 @@ fpr_write  (FPR_File dm)  reg  val = FPR_File (Data_Map.insert  reg  val  dm)
 -- print_FPR_File prints four regs per line, in hex, with given indent
 -- For debugging only
 
-print_FPR_File :: String -> FPR_File -> IO ()
-print_FPR_File    indent    fpr_file = do
-  let
-    print_n :: FPR_Addr -> FPR_Addr -> IO ()
-    print_n  r1 r2 = (do
-                         putStr (indent ++ show r1 ++ ":")
-                         mapM_
-                           (\rg -> putStr ("  " ++ showHex  (fpr_read  fpr_file  rg)  ""))
-                           [r1..r2]
-                         putStrLn "")
-  print_n  0   3
-  print_n  4   7
-  print_n  8   11
-  print_n  12  15
-  print_n  16  19
-  print_n  20  23
-  print_n  24  27
-  print_n  28  31
+print_FPR_File :: String -> Int -> FPR_File -> IO ()
+print_FPR_File    indent    xlen   fpr_file = do
+  let regval_strings = map  (\j -> show_wordXL  xlen  '.'  (fpr_read  fpr_file  j))  [0..31]
+
+  putStr (indent)
+  putStr ("f0/ft0   " ++ (regval_strings !!  0))
+  putStr (" ft1  "  ++ (regval_strings !!  1))
+  putStr (" ft2  " ++ (regval_strings !!  2))
+  putStr (" ft3  " ++ (regval_strings !!  3))
+  putStrLn ("")
+
+  putStr (indent)
+  putStr ("f4/ft4   " ++ (regval_strings !!  4))
+  putStr (" ft5  "  ++ (regval_strings !!  5))
+  putStr (" ft6  " ++ (regval_strings !!  6))
+  putStr (" ft7  " ++ (regval_strings !!  7))
+  putStrLn ("")
+
+  putStr (indent)
+  putStr ("f8/fs0   " ++ (regval_strings !!  8))
+  putStr (" fs1  "  ++ (regval_strings !!  9))
+  putStr ("f10/fa0  " ++ (regval_strings !!  10))
+  putStr (" fa1  " ++ (regval_strings !!  11))
+  putStrLn ("")
+
+  putStr (indent)
+  putStr ("f12/fa2   " ++ (regval_strings !!  12))
+  putStr (" fa3  "  ++ (regval_strings !!  13))
+  putStr (" fa4  " ++ (regval_strings !!  14))
+  putStr (" fa5  " ++ (regval_strings !!  15))
+  putStrLn ("")
+
+  putStr (indent)
+  putStr ("f16/fa6  " ++ (regval_strings !!  16))
+  putStr (" fa7  "  ++ (regval_strings !!  17))
+  putStr ("f18/fs2  " ++ (regval_strings !!  18))
+  putStr (" fs3  " ++ (regval_strings !!  19))
+  putStrLn ("")
+
+  putStr (indent)
+  putStr ("f20/fs4  " ++ (regval_strings !!  20))
+  putStr (" fs5  "  ++ (regval_strings !!  21))
+  putStr (" fs6  " ++ (regval_strings !!  22))
+  putStr (" fs7  " ++ (regval_strings !!  23))
+  putStrLn ("")
+
+  putStr (indent)
+  putStr ("f24/fs8   " ++ (regval_strings !!  24))
+  putStr (" fs9  "  ++ (regval_strings !!  25))
+  putStr (" fs10  " ++ (regval_strings !!  26))
+  putStr (" fs11  " ++ (regval_strings !!  27))
+  putStrLn ("")
+
+  putStr (indent)
+  putStr ("f28/ft8  " ++ (regval_strings !!  28))
+  putStr (" ft9  "  ++ (regval_strings !!  29))
+  putStr (" ft10  " ++ (regval_strings !!  30))
+  putStr (" ft11  " ++ (regval_strings !!  31))
+  putStrLn ("")
 
 -- ================================================================

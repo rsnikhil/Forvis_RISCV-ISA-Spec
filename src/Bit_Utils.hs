@@ -10,6 +10,7 @@ module Bit_Utils where
 -- Standard Haskell imports
 
 import Data.Bits
+import Data.Int
 import Data.Word    -- For Wordxx type (unsigned fixed-width ints)
 import Numeric (showHex, readHex)
 
@@ -108,11 +109,11 @@ cvt_Integer_to_Int64 :: Integer -> Int64
 cvt_Integer_to_Int64  j = fromIntegral j
 
 {-# INLINE cvt_Int32_to_Integer #-}
-cvt_Int32_to_Integer :: Word32 -> Integer
+cvt_Int32_to_Integer :: Int32 -> Integer
 cvt_Int32_to_Integer  j = toInteger j
 
 {-# INLINE cvt_Int64_to_Integer #-}
-cvt_Int64_to_Integer :: Word64 -> Integer
+cvt_Int64_to_Integer :: Int64 -> Integer
 cvt_Int64_to_Integer  j = toInteger j
 
 -- ================================================================

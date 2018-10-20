@@ -75,7 +75,7 @@ mstate_print  indent  mstate = do
   
   putStrLn (indent ++ show rv ++ " pc:" ++ showHex pc " priv:" ++ show priv)
   print_GPR_File  indent  xlen  gprs
-  print_FPR_File  indent  fprs
+  print_FPR_File  indent  64    fprs    -- FPR always stored as 64-bit
   print_CSR_File  indent  rv  csrs
   -- We do not print memory or MMIO
   putStrLn (indent ++ (show run_state))

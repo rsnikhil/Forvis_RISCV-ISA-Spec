@@ -22,13 +22,14 @@ default:
 # using the ghc Haskell compiler.
 # Compiler-intermediate files are placed in TMP_DIR.
 
-SRC_DIR  = ./src
-TMP_DIR  = tmp_haskell
+SRC_DIR  	=  ./src
+SOFTFLOAT_DIR 	?= ../softfloat-hs/src/
+TMP_DIR  	=  tmp_haskell
 
 .PHONY: exe
 exe:
 	mkdir -p  $(TMP_DIR)
-	ghc  -o  $(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  -rtsopts  Main
+	ghc  -o  $(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -i$(SOFTFLOAT_DIR)  -i$(SOFTFLOAT_DIR)/SoftFloat  -threaded  -outputdir  $(TMP_DIR)  -rtsopts  Main
 
 # ================================================================
 # Running a sample ISA test

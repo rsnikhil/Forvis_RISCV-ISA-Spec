@@ -67,7 +67,7 @@ s_csr_reset_values  rv =
 -- Machine-Level CSR reset values
 
 m_csr_reset_values :: RV -> FP -> [(CSR_Addr, Integer)]
-m_csr_reset_values  rv  fp =
+m_csr_reset_values    rv    fp  =
   [ (csr_addr_mvendorid,  0),
     (csr_addr_marchid,    0),
     (csr_addr_mimpid,     0),
