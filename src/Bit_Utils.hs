@@ -60,6 +60,7 @@ cvt_Integer_to_2s_comp  nbits  x =
       x .&. mask
 
 {-# INLINE sign_extend #-}
+-- sign-extends w1 lsb bits to w2 bits
 sign_extend :: Int -> Int -> Integer -> Integer
 sign_extend  w1  w2  x =
   let

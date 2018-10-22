@@ -920,7 +920,14 @@ spec_SYSTEM_CSRRW    mstate       instr =
     rd_val      = old_csr_val
 
     mstate1 = if legal2 then
-                let mstate_a = mstate_csr_write  mstate  csr_addr  new_csr_val
+                -- FCSR consists of two sub-CSRs, there is a special function
+                -- to handle writes to FCSR
+                let
+                  mstate_a = (
+                    if (csr_addr == csr_addr_fcsr) then
+                      mstate_fcsr_write  mstate  csr_addr  new_csr_val 
+                    else
+                      mstate_csr_write  mstate  csr_addr  new_csr_val)
                 in
                   finish_rd_and_pc_plus_4  mstate_a  rd  rd_val
               else

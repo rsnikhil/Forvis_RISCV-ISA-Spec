@@ -17,9 +17,7 @@ import subprocess
 # Ignores files with the following in their names
 
 ignore_list = [".",                   # Files with extensions (e.g., foo.dump)
-               "rv32uc", "rv64uc",    # C (compressed) not yet implemented
-               "rv32uf", "rv64uf",    # Single precision floating point not yet implemented
-               "rv32ud", "rv64ud"]    # Double precision floating point not yet implemented
+               "rv32uc", "rv64uc"]    # C (compressed) not yet implemented
 
 # ================================================================
 
@@ -100,6 +98,15 @@ def do_regular_file_function (level, dirname, basename, logs_path):
 
     if rv == None: return
 
+    # Set the FP configuration
+    fp = "--FPSP"
+    if basename.find ("uf") != -1:
+        fp = "--FPSP"
+    elif basename.find ("ud") != -1:
+        fp = "--FPDP"
+
+    if fp == None: return
+
     elf_file = os.path.join (dirname, basename)
 
     # For debugging only
@@ -112,7 +119,8 @@ def do_regular_file_function (level, dirname, basename, logs_path):
     else:
         boot_rom_file = "../Test_Programs/boot_ROM_RV64.hex32"
 
-    command = [forvis_exe,  rv,  "--tohost",  boot_rom_file,  elf_file]
+    # Hardcoding to single-precision FP for now
+    command = [forvis_exe,  rv, fp, "--tohost",  boot_rom_file,  elf_file]
 
     sys.stdout.write ("Test {0}\n".format (basename))
     sys.stdout.write ("    Exec:")

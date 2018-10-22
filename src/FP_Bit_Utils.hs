@@ -403,8 +403,10 @@ extractFFlagsLUResult (Result res flags) =
 
 -- Separates out the Signed-64 result (I64Result) from the SoftFloat
 -- function call to a value for the GPR register file
+-- the sign-extension is necessary as in RISC-V sub-xlen values are in
+-- sign-extended form
 extractRdWResult  :: I32Result -> Integer
-extractRdWResult  (Result res flags) = cvt_Integer_to_2s_comp  32  (cvt_Int32_to_Integer  res)
+extractRdWResult  (Result res flags) = sign_extend  32  64  (cvt_Integer_to_2s_comp  32  (cvt_Int32_to_Integer  res))
 
 extractFFlagsWResult :: I32Result -> Integer
 extractFFlagsWResult (Result res flags) = 
@@ -421,7 +423,7 @@ extractFFlagsWResult (Result res flags) =
 -- Separates out the Unsigned-64 result (I64Result) from the SoftFloat
 -- function call to a value for the GPR register file
 extractRdWUResult :: Ui32Result -> Integer
-extractRdWUResult  (Result res flags) = cvt_Word32_to_Integer  res
+extractRdWUResult  (Result res flags) = sign_extend  32  64  (cvt_Word32_to_Integer  res)
 
 extractFFlagsWUResult :: Ui32Result -> Integer
 extractFFlagsWUResult (Result res flags) = 
