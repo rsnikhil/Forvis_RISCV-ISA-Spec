@@ -1,12 +1,17 @@
 #!/usr/bin/python3
 
 # Copyright (c) 2018 Rishiyur S. Nikhil
-# See LICENCE for license details
+# See LICENSE for license details
 
-usage_line = "Usage:    {0}    <root-dir-for-ISA-tests>    <logs_dir>\n"
+usage_line = (
+    "Usage:\n"
+    "    $ CMD    <root-dir-for-ISA-tests>    <logs_dir>\n"
+)
 
-help_lines = "  Runs a Forvis executable  on each ELF file in <root-dir> and its sub-directories.\n" \
-             "  For each source file FOO, saves output log in <logs_dir>/FOO.log. \n"
+help_lines = (
+    "  Runs a Forvis executable  on each ELF file in <root-dir> and its sub-directories.\n"
+    "  For each source file FOO, saves output log in <logs_dir>/FOO.log. \n"
+)
 
 import sys
 import os
@@ -31,38 +36,44 @@ num_passed   = 0
 # ================================================================
 
 def main (argv = None):
+    print ("Use flag --help  or --h for a help message")
     if ((len (argv) <= 1) or
         (argv [1] == '-h') or (argv [1] == '--help') or
         (len (argv) != 3)):
-        sys.stdout.write (usage_line.format (argv [0]))
+
+        sys.stdout.write (usage_line.replace ("CMD", argv [0]))
         sys.stdout.write ("\n")
-        sys.stdout.write (help_lines)
+        sys.stdout.write (help_lines.replace ("CMD", argv [0]))
         sys.stdout.write ("\n")
         return 0
 
-    path      = os.path.abspath (os.path.normpath (argv [1]))
+    elfs_path = os.path.abspath (os.path.normpath (argv [1]))
     logs_path = os.path.abspath (os.path.normpath (argv [2]))
     max_level = 20
-    traverse (max_level, 0, path, logs_path)
+    traverse (max_level, 0, elfs_path, logs_path, 0)
 
     sys.stdout.write ("Executed: {0} tests\n".format (num_executed))
     sys.stdout.write ("PASS:     {0} tests\n".format (num_passed))
 
-def traverse (max_level, level, path, logs_path):
-    st = os.stat (path)
+# ================================================================
+# Recursively traverse the dir tree below elf_path and process each file
+
+def traverse (max_level, level, elfs_path, logs_path, verbosity):
+    st = os.stat (elfs_path)
     is_dir = stat.S_ISDIR (st.st_mode)
-    is_reg = stat.S_ISREG (st.st_mode)
-    do_foreachfile_function (level, is_dir, is_reg, path, logs_path)
+    is_regular = stat.S_ISREG (st.st_mode)
+    do_foreachfile_function (level, is_dir, is_regular, elfs_path, logs_path)
     if is_dir and level < max_level:
-        for entry in os.listdir (path):
-            traverse (max_level, level + 1, path + "/" + entry, logs_path)
+        for entry in os.listdir (elfs_path):
+            elfs_path1 = os.path.join (elfs_path, entry)
+            traverse (max_level, level + 1, elfs_path1, logs_path, verbosity)
     return 0
 
 # ================================================================
 # This function is applied to every path in the
 # recursive traversal
 
-def do_foreachfile_function (level, is_dir, is_reg, path, logs_path):
+def do_foreachfile_function (level, is_dir, is_regular, path, logs_path):
     prefix = ""
     for j in range (level): prefix = "  " + prefix
 
@@ -71,7 +82,7 @@ def do_foreachfile_function (level, is_dir, is_reg, path, logs_path):
         print ("%s%d dir %s" % (prefix, level, path))
 
     # regular files
-    elif is_reg:
+    elif is_regular:
         dirname  = os.path.dirname (path)
         basename = os.path.basename (path)
         # print ("%s%d %s" % (prefix, level, path))

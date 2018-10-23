@@ -161,8 +161,8 @@ print_CSR_File  indent  rv  csr_file = do
 
 -- ================================================================
 -- Access permissions for a CSR, at a given Privilege Level
--- [Note: csr_addr [11:10] indicates 'read-only' if == 2'b11
---        csr_addr [ 9: 8] indicates minimum privilege for access
+-- Note: csr_addr [11:10] indicates 'read-only' if == 2'b11, 'read-write' otherwise
+--       csr_addr [ 9: 8] indicates minimum privilege for access
 
 data  CSR_Permission = CSR_Permission_None | CSR_Permission_RO | CSR_Permission_RW
   deriving (Eq, Show)
