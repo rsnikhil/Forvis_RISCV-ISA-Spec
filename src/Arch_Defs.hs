@@ -25,6 +25,12 @@ data RV = RV32
         | RV64
         deriving (Eq, Show)
                                                    -- \end_latex{RV}
+
+-- Architectural parameter (floating point precision)  -- \begin_latex{FP}
+data FP = SP  
+        | DP  
+        deriving (Eq, Show)
+                                                   -- \end_latex{FP}
 -- ================================================================
 -- Predicate to decide whether the arg may be a 'C' (Compressed)
 -- instruction or not ('C' instrs have 2 lsbs not equal to 2'b11)
@@ -46,6 +52,10 @@ type InstrField = Integer
 
 type GPR_Addr = Integer
 type GPR_Val  = Integer
+
+-- Floating-point registers
+
+type FPR_Addr = Integer
 
 -- CSRs
 
@@ -78,6 +88,10 @@ ifield_rs2     instr = bitSlice instr  24  20
 ifield_rs3     :: Instr -> InstrField
 ifield_rs3     instr = bitSlice instr  31  27    -- for FMADD, FMSUB, FNMSUB
 
+{-# INLINE ifield_funct2 #-}
+ifield_funct2  :: Instr -> InstrField
+ifield_funct2  instr = bitSlice instr  26  25
+
 {-# INLINE ifield_funct10 #-}
 ifield_funct10 :: Instr -> InstrField
 ifield_funct10 instr = (shift (bitSlice instr  31  25) 3) .|. (bitSlice instr  14  12)
@@ -94,6 +108,20 @@ ifields_R_type  instr =
     opcode = ifield_opcode  instr
   in
     (funct7, rs2, rs1, funct3, rd, opcode)
+
+{-# INLINE ifields_R4_type #-}
+ifields_R4_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField, InstrField, InstrField)
+ifields_R4_type  instr =
+  let
+    rs3    = ifield_rs3     instr
+    funct2 = ifield_funct2  instr
+    rs2    = ifield_rs2     instr
+    rs1    = ifield_rs1     instr
+    funct3 = ifield_funct3  instr
+    rd     = ifield_rd      instr
+    opcode = ifield_opcode  instr
+  in
+    (rs3, funct2, rs2, rs1, funct3, rd, opcode)
 
 {-# INLINE ifields_I_type #-}
 ifields_I_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField)
@@ -834,3 +862,80 @@ mkCause  rv  interrupt_not_trap  exc_code =
     (msb .|. exc_code)
 
 -- ================================================================
+-- ISA-F and ISA-D related definitions
+-- FCSR bit fields
+-- Bit fields
+fcsr_nx_bitpos          = 0 :: Int
+fcsr_uf_bitpos          = 1 :: Int
+fcsr_of_bitpos          = 2 :: Int
+fcsr_dz_bitpos          = 3 :: Int
+fcsr_nv_bitpos          = 4 :: Int
+
+-- The flags with only one of the bits set
+nxFlag = (shiftL  1  fcsr_nx_bitpos) :: Integer
+ufFlag = (shiftL  1  fcsr_uf_bitpos) :: Integer
+ofFlag = (shiftL  1  fcsr_of_bitpos) :: Integer
+dzFlag = (shiftL  1  fcsr_dz_bitpos) :: Integer
+nvFlag = (shiftL  1  fcsr_nv_bitpos) :: Integer
+
+-- 7:5
+frm_bitpos              = 5 :: Int
+
+-- Extract the fflags field from fcsr
+fcsr_fflags    :: Integer -> Integer 
+fcsr_fflags    fcsr = bitSlice fcsr 4 0
+
+-- Extract the frm field from fcsr
+fcsr_frm       :: Integer -> Integer 
+fcsr_frm       fcsr = bitSlice fcsr 7 5
+
+-- Check if a frm value in the FCSR.FRM is valid
+fcsr_frm_valid :: Integer -> Bool
+fcsr_frm_valid   frm  = (   (frm /= 0x5)
+                         && (frm /= 0x6)
+                         && (frm /= 0x7))
+
+-- Check if a frm value in the instr is valid
+instr_frm_valid:: InstrField -> Bool
+instr_frm_valid   frm = (   (frm /= 0x5)
+                         && (frm /= 0x6))
+
+-- Returns the right rounding mode from the FCSR or the instruction and checks
+-- legality
+rounding_mode_check :: InstrField -> Integer -> (Integer, Bool)
+rounding_mode_check    rm            frm =
+  let
+    frmVal     = if (rm == 0x7) then frm else rm
+    rmIsLegal  = if (rm == 0x7) then
+                   fcsr_frm_valid  frmVal
+                 else
+                   instr_frm_valid  frmVal
+  in
+    (frmVal, rmIsLegal)
+
+
+-- Bit positions for the mask describing the class of FP value (table 8.5 v2.2)
+fclass_negInf_bitpos       = 0 :: Int
+fclass_negNorm_bitpos      = 1 :: Int
+fclass_negSubNorm_bitpos   = 2 :: Int
+fclass_negZero_bitpos      = 3 :: Int
+fclass_posZero_bitpos      = 4 :: Int
+fclass_posSubNorm_bitpos   = 5 :: Int
+fclass_posNorm_bitpos      = 6 :: Int
+fclass_posInf_bitpos       = 7 :: Int
+fclass_SNaN_bitpos         = 8 :: Int
+fclass_QNaN_bitpos         = 9 :: Int
+
+-- Create a FFLAGS word to accrue into the CSR
+form_fflags_word  :: Bool -> Bool -> Bool -> Bool -> Bool -> Integer
+form_fflags_word  nxf  uff  off  dzf  nvf  =
+  let
+    fflags = (    (if (nxf) then (shiftL  1  fcsr_nx_bitpos) else 0)
+              .|. (if (uff) then (shiftL  1  fcsr_uf_bitpos) else 0)
+              .|. (if (off) then (shiftL  1  fcsr_of_bitpos) else 0)
+              .|. (if (dzf) then (shiftL  1  fcsr_dz_bitpos) else 0)
+              .|. (if (nvf) then (shiftL  1  fcsr_nv_bitpos) else 0))
+  in
+    fflags
+
+

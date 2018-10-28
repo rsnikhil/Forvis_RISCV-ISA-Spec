@@ -39,7 +39,7 @@ main_tandem_verifier = do
       mem_base       = 0x80000000
       mem_size       = 0x80000000    -- 1 GiB
       addr_byte_list = []
-      mstate         = mkMachine_State  RV64  initial_PC  [(mem_base, mem_base + mem_size)]  addr_byte_list
+      mstate         = mkMachine_State  RV64  SP  initial_PC  [(mem_base, mem_base + mem_size)]  addr_byte_list
 
   putStrLn "Initial arch state"
   mstate_print  "____"  mstate

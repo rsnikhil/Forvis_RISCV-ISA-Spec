@@ -73,6 +73,8 @@ main_run_program = do
                            n:_  -> n
       rv32             =  elem  Opt_RV32    opts
       rv64             =  elem  Opt_RV64    opts
+      fpsp             =  elem  Opt_FPSP    opts
+      fpdp             =  elem  Opt_FPDP    opts
       tohost           =  elem  Opt_ToHost  opts
 
   if has_help then
@@ -97,17 +99,26 @@ main_run_program = do
     do
       putStrLn "Command-line has no filenames (expecting at least 1)"
 
+    else if fpsp && fpdp then
+    do
+      putStrLn "Command-line specifies both FPSP and FPDP (expecting one of them)"
+
+    else if (not fpsp) && (not fpdp) then
+    do
+      putStrLn "Command-line specifies neither FPSP nor FPDP (expecting one of them)"
+
     else if rv32 && rv64 then
     do
-      putStrLn "Command-line species both RV32 and RV64 (expecting one of them)"
+      putStrLn "Command-line specifies both RV32 and RV64 (expecting one of them)"
 
     else if (not rv32) && (not rv64) then
     do
-      putStrLn "Command-line species neither RV32 nor RV64 (expecting one of them)"
+      putStrLn "Command-line specifies neither RV32 nor RV64 (expecting one of them)"
     else
     do
       let rv = if rv32 then RV32 else RV64
-      retval <- run_program_from_files  rv  filenames  num_instrs  tohost  verbosity
+      let fp = if fpsp then SP else DP
+      retval <- run_program_from_files  rv  fp  filenames  num_instrs  tohost  verbosity
       exitWith (if retval == 0 then
                    ExitSuccess
                 else
@@ -122,6 +133,8 @@ main_run_program = do
 data MyOpt = Opt_Help
            | Opt_RV32
            | Opt_RV64
+           | Opt_FPSP
+           | Opt_FPDP
            | Opt_ToHost
            | Opt_Verbosity   Int
            | Opt_Num_Instrs  Int
@@ -148,6 +161,8 @@ options =
      [ Option ['h', 'H'] ["help"]       (NoArg  Opt_Help)                  "help"
      , Option []         ["RV32"]       (NoArg  Opt_RV32)                  "executables are for RV32"
      , Option []         ["RV64"]       (NoArg  Opt_RV64)                  "executables are for RV64"
+     , Option []         ["FPSP"]       (NoArg  Opt_FPSP)                  "single precision floating point"
+     , Option []         ["FPDP"]       (NoArg  Opt_FPDP)                  "double precision floating point"
      , Option []         ["tohost"]     (NoArg  Opt_ToHost)                "watch <tohost> location"
      , Option ['v']      ["verbosity"]  (ReqArg to_Opt_Verbosity  "<int>") "0 quiet, 1 instr trace, 2 more info"
      , Option ['n']      ["num_instrs"] (ReqArg to_Opt_Num_Instrs "<int>") "max instrs executed (default 1,000,000)"
@@ -166,8 +181,8 @@ to_Opt_Num_Instrs s = case (readDec s) of
 -- ================================================================
 -- Run RISC-V program specified in the ELF/Hex file arguments
 
-run_program_from_files :: RV -> [String] -> Int -> Bool -> Int -> IO Int
-run_program_from_files  rv  files  num_instrs  watch_tohost  verbosity = do
+run_program_from_files :: RV -> FP -> [String] -> Int -> Bool -> Int -> IO Int
+run_program_from_files  rv  fp  files  num_instrs  watch_tohost  verbosity = do
   -- Read the ELF and Memhex files
   (m_tohost_addr, addr_byte_list) <- read_files  files
 
@@ -178,14 +193,14 @@ run_program_from_files  rv  files  num_instrs  watch_tohost  verbosity = do
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
 
   -- Create the initial machine state with initial memory contents
-  let mstate1        = mkMachine_State  rv  pc_reset_value  addr_ranges  addr_byte_list
+  let mstate1        = mkMachine_State  rv  fp  pc_reset_value  addr_ranges  addr_byte_list
 
       -- Set verbosity: 0: quiet (only console out); 1: also instruction trace; 2: also CPU arch state
       mstate2        = mstate_verbosity_write  mstate1  verbosity
 
   -- Run the program that is in memory, and report PASS/FAIL
   putStrLn ("PC reset: 0x" ++ showHex  pc_reset_value "" ++
-            "; " ++ show (rv) ++ 
+            "; " ++ show (rv) ++ "; " ++ show (fp) ++ 
             "; instret limit: " ++ show (num_instrs))
   (exit_value, mstate3) <- run_loop  num_instrs  m_tohost_addr1  mstate2
 
