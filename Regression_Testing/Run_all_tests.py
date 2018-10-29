@@ -26,7 +26,8 @@ ignore_list = [".",                   # Files with extensions (e.g., foo.dump)
 
 # ================================================================
 
-forvis_exe = "../forvis_exe"
+# forvis_exe = "../forvis_exe"
+forvis_exe = "../forvis-stack/.stack-work/install/x86_64-linux/lts-12.9/8.4.3/bin/forvis-stack"
 
 num_executed = 0
 num_passed   = 0

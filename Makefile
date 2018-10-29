@@ -1,7 +1,8 @@
 # Copyright (c) 2018 Rishiyur S. Nikhil
 # See LICENSE for license details
 
-FORVIS_EXE = forvis_exe
+# FORVIS_EXE = forvis_exe
+FORVIS_EXE = forvis-stack/.stack-work/install/x86_64-linux/lts-12.9/8.4.3/bin/forvis-stack
 
 # Compiles the Haskell source files in SRC_DIR into the FORVIS_EXE using
 # the ghc Haskell compiler, placing compiler-intermediate files in
@@ -28,7 +29,9 @@ TMP_DIR  = tmp_haskell
 .PHONY: exe
 exe:
 	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -o  $(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  -rtsopts  Main
+	ghc  -dynamic  -o  $(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  -rtsopts  Main \
+		csrc/softfloat_wrappers.c \
+		/usr/lib/libsoftfloat.so
 
 # ================================================================
 # Running a sample ISA test
@@ -36,7 +39,8 @@ exe:
 # (See Regression_Testing/Makefile for running all the ISA tests)
 
 TEST_PROGRAMS      = Test_Programs
-ISA_TEST    ?= rv64uf-v-ldst
+ISA_TEST    ?= rv64ui-p-add
+# ISA_TEST    ?= rv64uf-v-ldst
 RV ?= RV64
 FP ?= FPSP
 N = 100000

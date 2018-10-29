@@ -17,6 +17,20 @@ feedback, comments and suggestions.
 
 ----------------------------------------------------------------
 
+## NOTE: UNDER CONSTRUCTION: Oct 29, 2018
+
+We have completed coding the remaining pieces for RV32/RV64GC:
+
+- 'F' extension (single-precision floating point)
+- 'D' extension (double-precision floating point)
+- 'C' extension (Compressed 16-bit instructions)
+
+and are in the process of merging it in and cleaning things up, so the
+'make' procedures may be temporarily broken; hopefully back up in a
+day or two.  Please bear with us.
+
+----------------------------------------------------------------
+
 ### Current status
 
 - **July 24, 2018: Now booting an RV64 Linux kernel! Try it! See below.**

@@ -7,7 +7,10 @@
 #    placing the output log for each test into Logs/
 #    (see Python code for tests ignored because features are not yet implemented)
 
+# FORVIS_EXE = ../forvis_exe
+FORVIS_EXE = ../forvis-stack/.stack-work/install/x86_64-linux/lts-12.9/8.4.3/bin/forvis-stack
+
 .PHONY: default
-default: ../forvis_exe
+default: $(FORVIS_EXE)
 	mkdir  -p  Logs
 	./Run_all_tests.py  ../Test_Programs  Logs
