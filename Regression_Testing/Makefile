@@ -7,8 +7,7 @@
 #    placing the output log for each test into Logs/
 #    (see Python code for tests ignored because features are not yet implemented)
 
-# FORVIS_EXE = ../forvis_exe
-FORVIS_EXE = ../forvis-stack/.stack-work/install/x86_64-linux/lts-12.9/8.4.3/bin/forvis-stack
+FORVIS_EXE = ../forvis_exe
 
 .PHONY: default
 default: $(FORVIS_EXE)
