@@ -175,7 +175,7 @@ spec_JAL :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_JAL    mstate       instr =
   let
     -- Instr fields: J-type
-    (imm20, rd, opcode) = ifields_J_type  instr
+    (imm21, rd, opcode) = ifields_J_type  instr
 
     -- Decode check
     is_legal = (opcode == opcode_JAL)
@@ -185,7 +185,6 @@ spec_JAL    mstate       instr =
     pc     = mstate_pc_read    mstate
     rd_val = pc + 4
 
-    imm21    = shiftL  imm20  1                -- offset imm20 is in multiples of 2 bytes
     s_offset = sign_extend  21  xlen  imm21
     new_pc   = alu_add  xlen  pc  s_offset
     aligned  = ((new_pc .&. 0x3) == 0)
@@ -249,7 +248,7 @@ spec_BRANCH :: Machine_State -> Instr -> (Bool, Machine_State)
 spec_BRANCH    mstate       instr =
   let
     -- Instr fields: B-type
-    (imm12, rs2, rs1, funct3, opcode) = ifields_B_type  instr
+    (imm13, rs2, rs1, funct3, opcode) = ifields_B_type  instr
 
     -- Decode check
     is_BEQ   = (funct3 == funct3_BEQ)
@@ -280,7 +279,6 @@ spec_BRANCH    mstate       instr =
 
     pc      = mstate_pc_read  mstate
 
-    imm13    = shiftL  imm12  1                -- since offset imm12 is in multiples of 2 bytes
     s_offset = sign_extend  13  xlen  imm13
 
     target  = alu_add  xlen  pc  s_offset
@@ -466,8 +464,8 @@ spec_OP_IMM    mstate       instr =
   let
     -- Instr fields: I-type
     (imm12, rs1, funct3, rd, opcode) = ifields_I_type   instr
-    (msbs7, shamt5) = i_imm12_fields_7_5  imm12
-    (msbs6, shamt6) = i_imm12_fields_6_6  imm12
+    (msbs7, shamt5) = ifields_I_type_imm12_32  imm12
+    (msbs6, shamt6) = ifields_I_type_imm12_64  imm12
 
     -- Decode check
     rv       = mstate_rv_read    mstate
@@ -621,7 +619,7 @@ spec_MISC_MEM    mstate       instr =
     -- Instr fields: R-type
     (imm12, rs1, funct3, rd, opcode) = ifields_I_type  instr
 
-    (msbs4, pred, succ) = i_imm12_fields_for_FENCE  imm12
+    (msbs4, pred, succ) = ifields_I_type_imm12_FENCE  imm12
 
     -- Decode check
     is_FENCE   = ((funct3 == funct3_FENCE)   && (rd == 0) && (rs1 == 0) && (msbs4 == 0))
@@ -1127,7 +1125,7 @@ spec_OP_IMM_32    mstate       instr =
   let
     -- Instr fields: R-type
     (imm12, rs1, funct3, rd, opcode) = ifields_I_type  instr
-    (funct7, shamt_5) = i_imm12_fields_7_5  imm12
+    (funct7, shamt_5) = ifields_I_type_imm12_32  imm12
 
     -- Decode check
     rv       = mstate_rv_read    mstate

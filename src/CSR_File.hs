@@ -25,8 +25,8 @@ import Arch_Defs
 -- ================================================================
 -- User-Level CSR reset values
 
-u_csr_reset_values :: RV -> [(CSR_Addr, Integer)]
-u_csr_reset_values  rv =
+u_csr_reset_values :: [(CSR_Addr, Integer)]
+u_csr_reset_values =
   [ (csr_addr_utvec,      0),
 
     (csr_addr_uscratch,   0),
@@ -49,8 +49,8 @@ u_csr_reset_values  rv =
 -- ================================================================
 -- Supervisor-Level CSRs reset values
 
-s_csr_reset_values :: RV -> [(CSR_Addr, Integer)]
-s_csr_reset_values  rv =
+s_csr_reset_values :: [(CSR_Addr, Integer)]
+s_csr_reset_values =
   [ (csr_addr_sedeleg,    0),
     (csr_addr_sideleg,    0),
     (csr_addr_stvec,      0),
@@ -66,8 +66,8 @@ s_csr_reset_values  rv =
 -- ================================================================
 -- Machine-Level CSR reset values
 
-m_csr_reset_values :: RV -> FP -> [(CSR_Addr, Integer)]
-m_csr_reset_values    rv    fp  =
+m_csr_reset_values :: RV -> Integer -> [(CSR_Addr, Integer)]
+m_csr_reset_values    rv    misa =
   [ (csr_addr_mvendorid,  0),
     (csr_addr_marchid,    0),
     (csr_addr_mimpid,     0),
@@ -77,21 +77,7 @@ m_csr_reset_values    rv    fp  =
                           then 0
                           else ((    shiftL  xl_rv64  mstatus_sxl_bitpos)
                                 .|. (shiftL  xl_rv64  mstatus_uxl_bitpos))),
-    (csr_addr_misa,       (let
-                              lsbs = ((    shiftL  1  misa_A_bitpos)
-                                      -- .|. (shiftL  1  misa_C_bitpos)    TODO: uncomment after adding 'C' extension
-                                      .|. (shiftL  1  misa_I_bitpos)
-                                      .|. (if ((fp == SP) || (fp == DP)) then (shiftL  1  misa_F_bitpos) else 0)
-                                      .|. (if (fp == DP) then (shiftL  1  misa_D_bitpos) else 0)
-                                      .|. (shiftL  1  misa_M_bitpos)
-                                      .|. (shiftL  1  misa_N_bitpos)
-                                      .|. (shiftL  1  misa_S_bitpos)
-                                      .|. (shiftL  1  misa_U_bitpos))
-                              
-                              msbs | (rv == RV32) = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
-                                   | (rv == RV64) = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)
-                           in
-                             (msbs .|. lsbs))),
+    (csr_addr_misa,       misa),
     (csr_addr_medeleg,    0),
     (csr_addr_mideleg,    0),
     (csr_addr_mie,        0),
@@ -129,12 +115,12 @@ newtype CSR_File = CSR_File (Data_Map.Map  CSR_Addr  Integer)
 -- ================================================================
 -- Constructor: make and return a new CSR file
 
-mkCSR_File :: RV -> FP -> CSR_File
-mkCSR_File rv  fp =
+mkCSR_File :: RV -> Integer -> CSR_File
+mkCSR_File    rv    misa =
   let
-    dm = (Data_Map.fromList  ((u_csr_reset_values  rv) ++
-                              (s_csr_reset_values  rv) ++
-                              (m_csr_reset_values  rv  fp)   ))
+    dm = (Data_Map.fromList  (u_csr_reset_values ++
+                              s_csr_reset_values ++
+                              (m_csr_reset_values  rv  misa)))
   in
     CSR_File  dm
 
@@ -254,8 +240,8 @@ csr_read  rv  (CSR_File dm)  csr_addr =
 -- raw reads/writes for individual updates.
 
 {-# INLINE csr_write #-}
-csr_write :: RV -> CSR_File -> CSR_Addr -> Integer -> CSR_File
-csr_write  rv  (CSR_File dm)  csr_addr  value =
+csr_write :: RV -> CSR_File    -> CSR_Addr -> Integer -> CSR_File
+csr_write    rv    (CSR_File dm)  csr_addr    value =
   let
     mstatus = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus  dm)
     mip     = fromMaybe  0  (Data_Map.lookup  csr_addr_mip      dm)
@@ -284,10 +270,10 @@ csr_write  rv  (CSR_File dm)  csr_addr  value =
                                                              .|. (value .&. uip_mask)))
 
       -- TODO: remove these if implementing all counters
-      | (csr_addr == csr_addr_mcounteren) = (csr_addr,         (value .&. 0x7))
-      | (csr_addr == csr_addr_scounteren) = (csr_addr,         (value .&. 0x7))
+      | (csr_addr == csr_addr_mcounteren) = (csr_addr,  (value .&. 0x7))
+      | (csr_addr == csr_addr_scounteren) = (csr_addr,  (value .&. 0x7))
 
-      | True                              = (csr_addr,         value)
+      | True                              = (csr_addr,  value)
 
     dm' = if (Data_Map.member csr_addr' dm)
           then Data_Map.insert  csr_addr'  value'  dm

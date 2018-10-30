@@ -22,6 +22,7 @@ import Control.Monad
 import Data.Int
 import Data.List
 import Data.Bits
+import Data.Char (toLower, ord)
 import Numeric (showHex, readHex, readDec)
 
 -- Project imports
@@ -49,10 +50,10 @@ main_run_program = do
   args     <- getArgs
   let (opts, filenames, unrecognizeds, errs) = System.Console.GetOpt.getOpt'  RequireOrder  options  args
   {- DEBUG
-      putStrLn ("Opts " ++ show opts)
-      putStrLn ("Other " ++ show extras)
-      putStrLn ("Unrecognizeds " ++ show unrecognizeds)
-      putStrLn ("Errs " ++ show errs)
+  putStrLn ("Opts " ++ show opts)
+  putStrLn ("Filenames " ++ show filenames)
+  putStrLn ("Unrecognizeds " ++ show unrecognizeds)
+  putStrLn ("Errs " ++ show errs)
   -}
 
   let usage_header     = "Usage: " ++ progName ++ "  <flags>  <executable files>\n" ++
@@ -60,7 +61,8 @@ main_run_program = do
                          "  <flags>:"
       usage_string     = System.Console.GetOpt.usageInfo  usage_header   options
       has_help         = elem  Opt_Help  opts
-      errs2            = [ err      | Opt_Err err <- opts]
+      errs2            = [ err | Opt_Err err <- opts]
+
       vs               = [ v | Opt_Verbosity v <- opts ]
       verbosity        = case vs of
                            []   -> 0
@@ -71,54 +73,43 @@ main_run_program = do
                            []   -> 1000000
                            [n]  -> n
                            n:_  -> n
-      rv32             =  elem  Opt_RV32    opts
-      rv64             =  elem  Opt_RV64    opts
-      fpsp             =  elem  Opt_FPSP    opts
-      fpdp             =  elem  Opt_FPDP    opts
+
+      archs            = [ (rv, arch) | Opt_Arch  rv  arch <- opts ]
+
       tohost           =  elem  Opt_ToHost  opts
 
   if has_help then
     putStr usage_string
 
-    else if unrecognizeds /=[] then
+    else if unrecognizeds /= [] then
     do
-      putStrLn "Command-line has Unrecognized flags:"
+      putStrLn  "Command-line has unrecognized flags:"
       mapM_ (\s -> putStrLn ("    " ++ s)) unrecognizeds
 
     else if errs /= [] then
     do
-      putStrLn "Command-line has parse errors:"
+      putStrLn  "Command-line has parse errors:"
       mapM_ (\s -> putStrLn ("    " ++ s)) errs
 
     else if errs2 /= [] then
     do
-      putStrLn "Command-line has parse errors:"
+      putStrLn  "Command-line has parse errors:"
       mapM_ (\s -> putStrLn ("    " ++ s)) errs2
 
-    else if length (filenames) == 0 then
-    do
-      putStrLn "Command-line has no filenames (expecting at least 1)"
+    else if (length  filenames) == 0 then
+      putStrLn  "Command-line has no filenames (expecting at least 1)"
 
-    else if fpsp && fpdp then
-    do
-      putStrLn "Command-line specifies both FPSP and FPDP (expecting one of them)"
+    else if (length  archs) == 0 then
+      putStrLn  "Command-line has no 'arch' argument"
 
-    else if (not fpsp) && (not fpdp) then
-    do
-      putStrLn "Command-line specifies neither FPSP nor FPDP (expecting one of them)"
+    else if (length  archs) > 1 then
+      putStrLn  "Command-line has more than one 'arch' argument (expecting just one)"
 
-    else if rv32 && rv64 then
-    do
-      putStrLn "Command-line specifies both RV32 and RV64 (expecting one of them)"
-
-    else if (not rv32) && (not rv64) then
-    do
-      putStrLn "Command-line specifies neither RV32 nor RV64 (expecting one of them)"
     else
     do
-      let rv = if rv32 then RV32 else RV64
-      let fp = if fpsp then SP else DP
-      retval <- run_program_from_files  rv  fp  filenames  num_instrs  tohost  verbosity
+      let [(rv,  misa)] = archs
+      putStrLn  ("DEBUG: rv = " ++ show rv ++ (show_misa  misa))
+      retval <- run_program_from_files  rv  misa  filenames  num_instrs  tohost  verbosity
       exitWith (if retval == 0 then
                    ExitSuccess
                 else
@@ -131,10 +122,7 @@ main_run_program = do
 -- values associated with options. Here, a = MyOptS
 
 data MyOpt = Opt_Help
-           | Opt_RV32
-           | Opt_RV64
-           | Opt_FPSP
-           | Opt_FPDP
+           | Opt_Arch        RV  Integer    -- RV32/RV64    misa
            | Opt_ToHost
            | Opt_Verbosity   Int
            | Opt_Num_Instrs  Int
@@ -159,10 +147,7 @@ data MyOpt = Opt_Help
 options :: [System.Console.GetOpt.OptDescr  MyOpt]
 options =
      [ Option ['h', 'H'] ["help"]       (NoArg  Opt_Help)                  "help"
-     , Option []         ["RV32"]       (NoArg  Opt_RV32)                  "executables are for RV32"
-     , Option []         ["RV64"]       (NoArg  Opt_RV64)                  "executables are for RV64"
-     , Option []         ["FPSP"]       (NoArg  Opt_FPSP)                  "single precision floating point"
-     , Option []         ["FPDP"]       (NoArg  Opt_FPDP)                  "double precision floating point"
+     , Option ['a']      ["arch"]       (ReqArg to_Opt_Arch  "<string>")   "architecture (ISA, e.g., RV32IMAFD)"
      , Option []         ["tohost"]     (NoArg  Opt_ToHost)                "watch <tohost> location"
      , Option ['v']      ["verbosity"]  (ReqArg to_Opt_Verbosity  "<int>") "0 quiet, 1 instr trace, 2 more info"
      , Option ['n']      ["num_instrs"] (ReqArg to_Opt_Num_Instrs "<int>") "max instrs executed (default 1,000,000)"
@@ -178,11 +163,43 @@ to_Opt_Num_Instrs s = case (readDec s) of
                         [(n,"")] -> Opt_Num_Instrs n
                         _        -> Opt_Err s
 
+to_Opt_Arch :: String -> MyOpt
+to_Opt_Arch s =
+  let
+    mk_misa  :: RV -> String -> Integer -> MyOpt
+    mk_misa     rv    s         misa =
+      case s of
+        []                                    -> (let
+                                                           misa_mxl | rv == RV32 = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
+                                                                    | rv == RV64 = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)
+                                                           misa' = (misa_mxl .|. misa)
+                                                        in
+                                                           Opt_Arch  rv  misa')
+
+        (ch:s1)  | ('a' <= ch) && (ch <= 'z') -> (let
+                                                           bit = shiftL  1  ((ord ch) - (ord 'a'))
+                                                           misa' = misa .|. bit
+                                                        in
+                                                           mk_misa  rv  s1  misa')
+
+        _                                     -> Opt_Err  "Illegal --arch command-line arg"
+
+    s1    = take 4 (map  toLower  s)
+    s2    = drop 4 (map  toLower  s)
+    misa0 = 0
+  in
+    if (s1 == "rv32") then
+      mk_misa  RV32  s2  misa0
+    else if (s1 == "rv64") then
+      mk_misa  RV64  s2  misa0
+    else
+      Opt_Err  "Illegal --arch command-line arg"
+
 -- ================================================================
 -- Run RISC-V program specified in the ELF/Hex file arguments
 
-run_program_from_files :: RV -> FP -> [String] -> Int -> Bool -> Int -> IO Int
-run_program_from_files  rv  fp  files  num_instrs  watch_tohost  verbosity = do
+run_program_from_files :: RV -> Integer -> [String] -> Int ->      Bool ->       Int -> IO Int
+run_program_from_files    rv    misa       files       num_instrs  watch_tohost  verbosity = do
   -- Read the ELF and Memhex files
   (m_tohost_addr, addr_byte_list) <- read_files  files
 
@@ -193,14 +210,14 @@ run_program_from_files  rv  fp  files  num_instrs  watch_tohost  verbosity = do
   -- mapM_ (\(addr,byte) -> putStrLn (showHex addr ":" ++ showHex byte "")) addr_byte_list
 
   -- Create the initial machine state with initial memory contents
-  let mstate1        = mkMachine_State  rv  fp  pc_reset_value  addr_ranges  addr_byte_list
+  let mstate1        = mkMachine_State  rv  misa  pc_reset_value  addr_ranges  addr_byte_list
 
       -- Set verbosity: 0: quiet (only console out); 1: also instruction trace; 2: also CPU arch state
       mstate2        = mstate_verbosity_write  mstate1  verbosity
 
   -- Run the program that is in memory, and report PASS/FAIL
   putStrLn ("PC reset: 0x" ++ showHex  pc_reset_value "" ++
-            "; " ++ show (rv) ++ "; " ++ show (fp) ++ 
+            "; " ++ show (rv) ++ (show_misa  misa) ++
             "; instret limit: " ++ show (num_instrs))
   (exit_value, mstate3) <- run_loop  num_instrs  m_tohost_addr1  mstate2
 

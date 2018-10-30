@@ -34,40 +34,41 @@ exe:
 
 # ================================================================
 # Running a sample ISA test
-# (Substitute SAMPLE_ISA_TEST and SAMPLE_ISA_TEST_RV for a different ISA test.)
+# (Substitute SAMPLE_ISA_TEST, SAMPLE_ISA_TEST_RV, SAMPLE_ISA_TEST_ARCH for a different ISA test.)
 # (See Regression_Testing/Makefile for running all the ISA tests)
 
-TEST_PROGRAMS      = Test_Programs
+TEST_PROGRAMS ?= Test_Programs
 
-ISA_TEST    ?= rv64ui-p-add
-# ISA_TEST    ?= rv64uf-v-ldst
+SAMPLE_ISA_TEST_RV   ?= RV64
+SAMPLE_ISA_TEST_ARCH ?= RV64UI
+SAMPLE_ISA_TEST      ?= rv64ui-p-add
 
-RV ?= RV64
-
-FP ?= FPSP
+# SAMPLE_ISA_TEST_RV   ?= RV32
+# SAMPLE_ISA_TEST_ARCH ?= RV32UI
+# SAMPLE_ISA_TEST      ?= rv32ui-p-add
 
 N = 100000
 
 # Run SAMPLE_ISA_TEST
 .PHONY: test
 test: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --$(RV) --$(FP) --tohost  --n $(N) \
-		$(TEST_PROGRAMS)/boot_ROM_$(RV).hex32 \
-		$(TEST_PROGRAMS)/riscv-tests/isa/$(ISA_TEST)
+	./$(FORVIS_EXE)  --arch $(SAMPLE_ISA_TEST_ARCH)  --tohost  --n $(N) \
+		$(TEST_PROGRAMS)/boot_ROM_$(SAMPLE_ISA_TEST_RV).hex32 \
+		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
 # Same, with verbosity 1
 .PHONY: test_v1
 test_v1: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --$(RV) --$(FP) --tohost  --n $(N)  --verbosity 1  \
-		$(TEST_PROGRAMS)/boot_ROM_$(RV).hex32 \
-		$(TEST_PROGRAMS)/riscv-tests/isa/$(ISA_TEST)
+	./$(FORVIS_EXE)  --arch $(SAMPLE_ISA_TEST_ARCH)  --tohost  --n $(N)  --verbosity 1  \
+		$(TEST_PROGRAMS)/boot_ROM_$(SAMPLE_ISA_TEST_RV).hex32 \
+		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
 # Same, with verbosity 2
 .PHONY: test_v2
 test_v2: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --$(RV) --$(FP) --tohost  --n $(N)  --verbosity 2  \
-		$(TEST_PROGRAMS)/boot_ROM_$(RV).hex32 \
-		$(TEST_PROGRAMS)/riscv-tests/isa/$(ISA_TEST)
+	./$(FORVIS_EXE)  --arch $(SAMPLE_ISA_TEST_ARCH)  --tohost  --n $(N)  --verbosity 2  \
+		$(TEST_PROGRAMS)/boot_ROM_$(SAMPLE_ISA_TEST_RV).hex32 \
+		$(TEST_PROGRAMS)/riscv-tests/isa/$(SAMPLE_ISA_TEST)
 
 # ================================================================
 # Running sample C programs compiled by gcc to ELF files
@@ -75,28 +76,28 @@ test_v2: $(FORVIS_EXE)
 # Standard C program that prints "Hello World!\n"
 .PHONY: test_hello
 test_hello: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --RV64  --FPSP --tohost  \
+	./$(FORVIS_EXE)  --arch RV64AIMSU  --tohost  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-hello
 
 # Same, with verbosity 1
 .PHONY: test_hello_v1
 test_hello_v1: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --RV64  --FPSP --tohost  --verbosity 1  \
+	./$(FORVIS_EXE)  --arch RV64AIMSU  --tohost  --verbosity 1  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-hello
 
 # Same, with verbosity 2
 .PHONY: test_hello_v2
 test_hello_v2: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --RV64  --FPSP --tohost  --verbosity 2  \
+	./$(FORVIS_EXE)  --arch RV64AIMSU  --tohost  --verbosity 2  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-hello
 
 # C program that does some computation and prints out a string of 0s and 1s
 .PHONY: test_thue
 test_thue: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --RV64  --FPSP --tohost  \
+	./$(FORVIS_EXE)  --arch RV64AIMSU  --tohost  \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-thuemorse
 
@@ -104,7 +105,7 @@ test_thue: $(FORVIS_EXE)
 .PHONY: test_linux_boot
 test_linux_boot: $(FORVIS_EXE)
 	nice -n19  ./$(FORVIS_EXE)  +RTS -K10M -M3G -RTS\
-		--RV64  --FPSP -n 400000000 \
+		--arch RV64AIMSU  -n 400000000 \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/Linux_kernel/rv64-vmlinux.elf
 

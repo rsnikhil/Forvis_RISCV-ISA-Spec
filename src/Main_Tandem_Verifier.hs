@@ -16,6 +16,7 @@ import Numeric (showHex, readHex)
 import System.Exit
 import Data.Char
 import Data.List
+import Data.Bits
 
 -- Project imports
 
@@ -36,10 +37,16 @@ main_tandem_verifier = do
 
   -- Create initial architectural state
   let initial_PC     = 0
+      misa           = ((    shiftL  1  misa_A_bitpos)
+                        .|. (shiftL  1  misa_I_bitpos)
+                        .|. (shiftL  1  misa_M_bitpos)
+                        .|. (shiftL  1  misa_S_bitpos)
+                        .|. (shiftL  1  misa_U_bitpos)
+                        .|. (shiftL  xl_rv64  misa_MXL_bitpos_RV64))
       mem_base       = 0x80000000
       mem_size       = 0x80000000    -- 1 GiB
       addr_byte_list = []
-      mstate         = mkMachine_State  RV64  SP  initial_PC  [(mem_base, mem_base + mem_size)]  addr_byte_list
+      mstate         = mkMachine_State  RV64  misa  initial_PC  [(mem_base, mem_base + mem_size)]  addr_byte_list
 
   putStrLn "Initial arch state"
   mstate_print  "____"  mstate

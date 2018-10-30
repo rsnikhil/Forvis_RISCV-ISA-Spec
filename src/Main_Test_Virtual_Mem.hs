@@ -39,11 +39,17 @@ main_test_virtual_mem = do
 main_test_sv32 :: IO ()
 main_test_sv32 = do
   let initial_PC     = 0
+      misa           = ((    shiftL  1  misa_A_bitpos)
+                        .|. (shiftL  1  misa_I_bitpos)
+                        .|. (shiftL  1  misa_M_bitpos)
+                        .|. (shiftL  1  misa_S_bitpos)
+                        .|. (shiftL  1  misa_U_bitpos)
+                        .|. (shiftL  xl_rv32  misa_MXL_bitpos_RV32))
       mem_base       = 0
       mem_size       = 0xFFFFFFFFFFFFFFFF
       addr_ranges    = [(mem_base, mem_base + mem_size)]
       addr_byte_list = []
-      ms1 = mkMachine_State  RV32  SP  initial_PC  addr_ranges  addr_byte_list
+      ms1 = mkMachine_State  RV32  misa  initial_PC  addr_ranges  addr_byte_list
       ms2 = mstate_csr_write  ms1  csr_addr_satp  (mk_satp_rv32  sv32  0  0x80002000)
       sample_pt = (mk_sample_page_table  sv32)
       ms3 = load_sample_page_table  ms2  funct3_SW  sample_pt
@@ -93,11 +99,17 @@ tests_sv32 = [ (0, m_Priv_Level,  True,  True, (mk_sv32_va  0  0  0), "Invalid l
 main_test_sv39 :: IO ()
 main_test_sv39 = do
   let initial_PC     = 0
+      misa           = ((    shiftL  1  misa_A_bitpos)
+                        .|. (shiftL  1  misa_I_bitpos)
+                        .|. (shiftL  1  misa_M_bitpos)
+                        .|. (shiftL  1  misa_S_bitpos)
+                        .|. (shiftL  1  misa_U_bitpos)
+                        .|. (shiftL  xl_rv64  misa_MXL_bitpos_RV64))
       mem_base       = 0
       mem_size       = 0xFFFFFFFFFFFFFFFF
       addr_ranges    = [(mem_base, mem_base + mem_size)]
       addr_byte_list = []
-      ms1 = mkMachine_State  RV64  SP  initial_PC  addr_ranges  addr_byte_list
+      ms1 = mkMachine_State  RV64  misa  initial_PC  addr_ranges  addr_byte_list
       ms2 = mstate_csr_write  ms1  csr_addr_satp  (mk_satp_rv64  sv39  0  0x80001000)
       sample_pt = (mk_sample_page_table  sv39)
       ms3 = load_sample_page_table  ms2  funct3_SD  sample_pt

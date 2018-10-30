@@ -85,21 +85,24 @@ mstate_print  indent  mstate = do
 
                                                               -- \begin_latex{Machine_State_constructor}
 -- Make a Machine_State, given initial PC and memory contents
-mkMachine_State :: RV -> FP -> Integer -> [(Integer,Integer)] -> ([(Integer, Integer)]) -> Machine_State
-mkMachine_State  rv  fp  initial_PC  addr_ranges  addr_byte_list =
-  Machine_State {f_pc   = initial_PC,
-                 f_gprs = mkGPR_File,
-                 f_fprs = mkFPR_File,
-                 f_csrs = mkCSR_File  rv  fp,
-                 f_priv = m_Priv_Level,
+mkMachine_State :: RV -> Integer -> Integer  -> [(Integer,Integer)] -> ([(Integer, Integer)]) -> Machine_State
+mkMachine_State    rv    misa       initial_PC  addr_ranges            addr_byte_list =
+  let
+    mstate = Machine_State {f_pc   = initial_PC,
+                            f_gprs = mkGPR_File,
+                            f_fprs = mkFPR_File,
+                            f_csrs = mkCSR_File  rv  misa,
+                            f_priv = m_Priv_Level,
 
-                 f_mem             = mkMem  addr_byte_list,
-                 f_mmio            = mkMMIO,
-                 f_mem_addr_ranges = addr_ranges,
+                            f_mem             = mkMem  addr_byte_list,
+                            f_mmio            = mkMMIO,
+                            f_mem_addr_ranges = addr_ranges,
 
-                 f_rv        = rv,
-                 f_verbosity = 0,
-                 f_run_state = Run_State_Running}
+                            f_rv        = rv,
+                            f_verbosity = 0,
+                            f_run_state = Run_State_Running}
+  in
+    mstate
                                                               -- \end_latex{Machine_State_constructor}
 -- ----------------
 -- read/write PC                                                 \begin_latex{PC_access}
@@ -150,11 +153,11 @@ mstate_gpr_write  mstate  reg  val =
 
 {-# INLINE mstate_fpr_read #-}
 mstate_fpr_read :: Machine_State -> FPR_Addr -> Integer
-mstate_fpr_read  mstate  reg = fpr_read (f_fprs mstate)  reg
+mstate_fpr_read    mstate           reg       = fpr_read (f_fprs mstate)  reg
                                                               -- \begin_latex{mstate_gpr_write}
 {-# INLINE mstate_fpr_write #-}
 mstate_fpr_write :: Machine_State -> FPR_Addr -> Integer -> Machine_State
-mstate_fpr_write  mstate  reg  val =
+mstate_fpr_write    mstate           reg         val =
   let
     fprs    = f_fprs  mstate
     fprs'   = fpr_write  fprs  reg  val
@@ -192,7 +195,7 @@ mstate_csr_write  mstate  csr_addr  value =
 -- FRM and FFLAGS, which can be accessed independently
 {-# INLINE mstate_fcsr_write #-}
 mstate_fcsr_write :: Machine_State -> CSR_Addr -> Integer -> Machine_State
-mstate_fcsr_write  mstate  csr_addr  new_fcsr_value =
+mstate_fcsr_write    mstate           csr_addr    new_fcsr_value =
   let
     frm_val       = fcsr_frm     new_fcsr_value
     fflags_val    = fcsr_fflags  new_fcsr_value
@@ -206,7 +209,7 @@ mstate_fcsr_write  mstate  csr_addr  new_fcsr_value =
 -- Now that the FRM and FFLAGS are separate CSRs, we do not need to read
 -- both and build the FCSR to write back. Just accrue the FFLAGS directly
 mstate_fcsr_fflags_update :: Machine_State -> Integer -> Machine_State
-mstate_fcsr_fflags_update  mstate  new_fflags =
+mstate_fcsr_fflags_update    mstate           new_fflags =
   let
     old_fflags    = mstate_csr_read  mstate  csr_addr_fflags
 

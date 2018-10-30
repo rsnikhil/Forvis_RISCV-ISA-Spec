@@ -101,43 +101,27 @@ def do_regular_file_function (level, dirname, basename, logs_path):
     for x in ignore_list:
         if basename.find (x) != -1: return
 
-    rv = None
-    if basename.find ("32") != -1:
-        rv = "--RV32"
-    elif basename.find ("64") != -1:
-        rv = "--RV64"
-
-    if rv == None: return
-
-    # Set the FP configuration
-    fp = "--FPSP"
-    if basename.find ("uf") != -1:
-        fp = "--FPSP"
-    elif basename.find ("ud") != -1:
-        fp = "--FPDP"
-
-    if fp == None: return
+    arch = mkArchString (basename)
+    if arch == None: return
 
     elf_file = os.path.join (dirname, basename)
 
     # For debugging only
-    prefix = ""
-    for j in range (level): prefix = "  " + prefix
+    # prefix = ""
+    # for j in range (level): prefix = "  " + prefix
     # sys.stdout.write ("{0}{1} ACTION:    {2}\n".format (prefix, level, elf_file))
 
-    if (rv == "--RV32"):
-        boot_rom_file = "../Test_Programs/boot_ROM_RV32.hex32"
-    else:
-        boot_rom_file = "../Test_Programs/boot_ROM_RV64.hex32"
+    boot_rom_file = "../Test_Programs/boot_ROM_{0}.hex32".format (arch [0:4])
 
-    # Hardcoding to single-precision FP for now
-    command = [forvis_exe,  rv, fp, "--tohost",  boot_rom_file,  elf_file]
+    # Compose command to be run in sub-process
+    command = [forvis_exe, "--arch", arch,  "--tohost",  boot_rom_file,  elf_file]
 
+    # Show command to be executed in sub-process, for info.
     sys.stdout.write ("Test {0}\n".format (basename))
-    sys.stdout.write ("    Exec:")
-    for x in command:
-        sys.stdout.write (" {0}".format (x))
-    sys.stdout.write ("\n")
+    sys.stdout.write ("    Exec: {0}\n".format (command [0])
+    sys.stdout.write ("        {0}  {1}  {2}\n".format (command [1], command [2], command [3]))
+    for x in command [4:]:
+        sys.stdout.write ("        {0}\n".format (x))
 
     # Run command command as a sub-process
     completed_process = run_command (command)
@@ -157,6 +141,51 @@ def do_regular_file_function (level, dirname, basename, logs_path):
     fd.close ()
 
     return
+
+# ================================================================
+# Make an architecture string (e.g., RV64AIMSU) from the test name
+# WARNING: this is somewhat fragile in that the test name sometimes does not give full info
+
+def mkArchString (basename):
+    basename = basename.lower()
+    j = basename.find ("rv32") 
+    if j != -1:
+        arch = "RV32"
+    else:
+        j = basename.find ("rv64")
+        if j != -1:
+            arch = "RV64"
+        else:
+            return None
+
+    s = basename [j+4:]
+    extns = ["I", "U"]
+
+    if   s.startswith ("mi-"):
+        # Some 'mi' tests need 'S'!
+        extns.append ("S")
+
+    elif s.startswith ("si-") and not ("S" in extns):  extns.append ("S")
+
+    elif s.startswith ("ua-"):  extns.append ("A")
+    elif s.startswith ("uc-"):  extns.append ("C")
+    elif s.startswith ("ud-"):
+        extns.append ("F")
+        extns.append ("D")
+    elif s.startswith ("uf-"):  extns.append ("F")
+    elif s.startswith ("um-"):  extns.append ("M")
+
+    s = s[2:]
+
+    if s.startswith ("-v-") and not ("S" in extns): extns.append ("S")
+
+    # Finally, sort the set of extensions in decreasing alphabetic order
+    # and add them to the arch string
+    extns.sort (reverse = True)
+    for extn in extns:
+        arch = arch + extn
+
+    return arch
 
 # ================================================================
 # This is a wrapper around 'subprocess.run' because of an annoying
