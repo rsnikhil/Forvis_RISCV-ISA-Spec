@@ -1,0 +1,13 @@
+Type -h, -H or --help for help.
+DEBUG: rv = RV32DFIU
+Input file: ../Test_Programs/boot_ROM_RV32.hex32
+    Addr range: 1000..1fff
+    tohost addr: none
+Input file: /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/riscv-tests/isa/rv32ud-p-fcmp
+    Addr range: 80000000..800021df
+    tohost addr: 80001000
+PC reset: 0x1000; RV32DFIU; instret limit: 1000000
+[Forvis: instret = 0; MTIME = 2]
+Stopping due to write to <tohost> = 1; instret = 276
+PASS
+Final value of mtime: 278
