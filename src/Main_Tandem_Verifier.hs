@@ -87,17 +87,6 @@ collect_cmd  cmds  cmd  (x:xs) | x == cmd_start = split_cmds  (cmds ++ [cmd])  (
                                | True           = collect_cmd  cmds (cmd ++ [x])  xs
 
 -- ================================================================
-
--- These are defined in module Arch_Defs
--- funct3_LB  :: InstrField;    funct3_LB  = 0x0     -- 3'b_000
--- funct3_LW  :: InstrField;    funct3_LW  = 0x2     -- 3'b_010
-
-funct3_SB :: InstrField;    funct3_SB = 0x0     -- 3'b_000
-funct3_SH :: InstrField;    funct3_SH = 0x1     -- 3'b_001
-funct3_SW :: InstrField;    funct3_SW = 0x2     -- 3'b_010
-funct3_SD :: InstrField;    funct3_SD = 0x3     -- 3'b_011
-
--- ================================================================
 -- Processing commands against the architectural state
 
 process_cmds :: Machine_State -> [[String]] -> IO Machine_State

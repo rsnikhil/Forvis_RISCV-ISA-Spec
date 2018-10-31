@@ -27,16 +27,13 @@ import ALU
 import Arch_Defs
 
 -- ================================================================
--- Definitions within opcode_LOAD
+-- NOTE: the following are defined in module Arch_Defs:
+--     opcode_LOAD, funct3_LB/LH/LW/LD/LBU/LHU/LWU
+--     opcode_STORE, funct3_SB/SH/SW/SD
+--     opcode_AMO, funct3_AMO_W/D, msbs5_AMO_LR/SC/ADD/SWAP/XOR/AND/OR/MIN/MAX/MINU/MAXU
 
--- These are defined in module ArchDefs
--- funct3_LB  = 0x0 :: InstrField     -- 3'b_000
--- funct3_LH  = 0x1 :: InstrField     -- 3'b_001
--- funct3_LW  = 0x2 :: InstrField     -- 3'b_010
--- funct3_LD  = 0x3 :: InstrField     -- 3'b_011
--- funct3_LBU = 0x4 :: InstrField     -- 3'b_100
--- funct3_LHU = 0x5 :: InstrField     -- 3'b_101
--- funct3_LWU = 0x6 :: InstrField     -- 3'b_110
+-- ================================================================
+-- Definitions within opcode_LOAD
 
 is_LOAD_aligned :: InstrField -> Integer -> Bool
 is_LOAD_aligned  funct3  addr = ((    (funct3 == funct3_LB) || (funct3 == funct3_LBU))
@@ -47,11 +44,6 @@ is_LOAD_aligned  funct3  addr = ((    (funct3 == funct3_LB) || (funct3 == funct3
 -- ================================================================
 -- Definitions within opcode_STORE
 
-funct3_SB  = 0x0 :: InstrField     -- 3'b_000
-funct3_SH  = 0x1 :: InstrField     -- 3'b_001
-funct3_SW  = 0x2 :: InstrField     -- 3'b_010
-funct3_SD  = 0x3 :: InstrField     -- 3'b_011
-
 is_STORE_aligned :: InstrField -> Integer -> Bool
 is_STORE_aligned  funct3  addr = ((    funct3 == funct3_SB)
                                   || ((funct3 == funct3_SH) && ((addr .&. 0x1) == 0))
@@ -60,21 +52,6 @@ is_STORE_aligned  funct3  addr = ((    funct3 == funct3_SB)
 
 -- ================================================================
 -- Definitions within opcode_AMO
-
-funct3_AMO_W   = 0x2 :: InstrField     -- 3'b010
-funct3_AMO_D   = 0x3 :: InstrField     -- 3'b011
-
-msbs5_AMO_LR   = 0x02 :: InstrField    -- 5'b00010
-msbs5_AMO_SC   = 0x03 :: InstrField    -- 5'b00011
-msbs5_AMO_ADD  = 0x00 :: InstrField    -- 5'b00000
-msbs5_AMO_SWAP = 0x01 :: InstrField    -- 5'b00001
-msbs5_AMO_XOR  = 0x04 :: InstrField    -- 5'b00100
-msbs5_AMO_AND  = 0x0C :: InstrField    -- 5'b01100
-msbs5_AMO_OR   = 0x08 :: InstrField    -- 5'b01000
-msbs5_AMO_MIN  = 0x10 :: InstrField    -- 5'b10000
-msbs5_AMO_MAX  = 0x14 :: InstrField    -- 5'b10100
-msbs5_AMO_MINU = 0x18 :: InstrField    -- 5'b11000
-msbs5_AMO_MAXU = 0x1C :: InstrField    -- 5'b11100
 
 is_AMO_aligned :: InstrField -> Integer -> Bool
 is_AMO_aligned  funct3  addr = ((   (funct3 == funct3_AMO_W) && ((addr .&. 0x3) == 0))

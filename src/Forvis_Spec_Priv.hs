@@ -18,16 +18,17 @@ import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 import Bit_Utils
 import Arch_Defs
 import Machine_State
-import CSR_File
 
 import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
 
+-- ================================================================
+-- Privileged Architecture instruction set
+
+-- NOTE: opcode_SYSTEM, funct12_URET/SRET/MRET/WFI, func7_SFENCE_VM
+-- are defined in module Arch_Defs
+
 -- ================================================================
 -- SYSTEM.PRIV.MRET/SRET/URET
-
-funct12_URET     = 0x002 :: InstrField    -- 12'b_0000_0000_0010
-funct12_SRET     = 0x102 :: InstrField    -- 12'b_0001_0000_0010
-funct12_MRET     = 0x302 :: InstrField    -- 12'b_0011_0000_0010
 
 spec_SYSTEM_xRET :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_SYSTEM_xRET    mstate           instr    is_C =
@@ -112,8 +113,6 @@ spec_SYSTEM_xRET    mstate           instr    is_C =
 -- ================================================================
 -- SYSTEM.PRIV.WFI
 
-funct12_WFI = 0x105 :: InstrField    -- 12'b_0001_0000_0101
-
 spec_SYSTEM_WFI :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_SYSTEM_WFI    mstate           instr    is_C =
   let
@@ -151,8 +150,6 @@ spec_SYSTEM_WFI    mstate           instr    is_C =
 
 -- ================================================================
 -- SYSTEM.PRIV.SFENCE.VM
-
-funct7_SFENCE_VM = 0x09 :: InstrField    --  7'b_000_1001
 
 spec_SYSTEM_SFENCE_VM :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_SYSTEM_SFENCE_VM    mstate           instr    is_C =

@@ -12,16 +12,10 @@ module Forvis_Spec_I where
 -- Haskell lib imports
 
 import Data.Bits    -- For bit-wise 'and' (.&.) etc.
--- import Data.Int     -- For Intxx type (signed fixed-width ints)
-
--- Other library imports
-
--- import SoftFloat    -- from https://github.com/GaloisInc/softfloat-hs.git
 
 -- Local imports
 
 import Bit_Utils
--- import FP_Bit_Utils
 import ALU
 import Arch_Defs
 import Machine_State
@@ -30,10 +24,13 @@ import Virtual_Mem
 
 import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
 
+-- ================================================================
+-- 'I' Base instruction set
+
+-- NOTE: opcode_XXX, funct3_XXX are defined in module Arch_Defs
+
 -- ================================================================
 -- LUI
-
-opcode_LUI = 0x37 :: InstrField   -- 7'b_01_101_11
 
 spec_LUI :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_LUI    mstate           instr    is_C =
@@ -55,8 +52,6 @@ spec_LUI    mstate           instr    is_C =
 
 -- ================================================================
 -- AUIPC
-
-opcode_AUIPC = 0x17 :: InstrField   -- 7'b_00_101_11
 
 spec_AUIPC :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_AUIPC    mstate           instr    is_C =
@@ -80,8 +75,6 @@ spec_AUIPC    mstate           instr    is_C =
 
 -- ================================================================
 -- JAL
-
-opcode_JAL = 0x6F :: InstrField    -- 7'b_11_011_11
 
 spec_JAL :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_JAL    mstate           instr    is_C =
@@ -116,10 +109,6 @@ spec_JAL    mstate           instr    is_C =
 
 -- ================================================================
 -- JALR
-
-opcode_JALR = 0x67 :: InstrField    -- 7'b_11_001_11
-
-funct3_JALR = 0x0  :: InstrField     -- 3'b_000
 
 spec_JALR :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_JALR    mstate           instr    is_C =
@@ -159,15 +148,6 @@ spec_JALR    mstate           instr    is_C =
 
 -- ================================================================
 -- BRANCH: BEQ, BNE, BLT, BGE, BLTU, BGEU
-
-opcode_BRANCH = 0x63 :: InstrField    -- 7'b_11_000_11
-
-funct3_BEQ  = 0x0 :: InstrField     -- 3'b_000
-funct3_BNE  = 0x1 :: InstrField     -- 3'b_001
-funct3_BLT  = 0x4 :: InstrField     -- 3'b_100
-funct3_BGE  = 0x5 :: InstrField     -- 3'b_101
-funct3_BLTU = 0x6 :: InstrField     -- 3'b_110
-funct3_BGEU = 0x7 :: InstrField     -- 3'b_111
 
 spec_BRANCH :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_BRANCH    mstate           instr    is_C =
@@ -226,17 +206,6 @@ spec_BRANCH    mstate           instr    is_C =
 -- LOAD:
 --    RV32: LB, LH, LW, LBU, LHU
 --    RV64: LWU, LD
-
--- opcode_LOAD = 0x03 :: InstrField    -- 7'b_00_000_11
-
--- Note: these are in module Arch_Defs
--- funct3_LB  = 0x0 :: InstrField     -- 3'b_000
--- funct3_LH  = 0x1 :: InstrField     -- 3'b_001
--- funct3_LW  = 0x2 :: InstrField     -- 3'b_010
--- funct3_LD  = 0x3 :: InstrField     -- 3'b_011
--- funct3_LBU = 0x4 :: InstrField     -- 3'b_100
--- funct3_LHU = 0x5 :: InstrField     -- 3'b_101
--- funct3_LWU = 0x6 :: InstrField     -- 3'b_110
 
 spec_LOAD :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_LOAD    mstate           instr    is_C =
@@ -303,14 +272,6 @@ spec_LOAD    mstate           instr    is_C =
 --    RV32: SB, SH, SW
 --    RV64: SD
 
-opcode_STORE = 0x23 :: InstrField    -- 7'b_01_000_11
-
--- Note: these are duplicates of defs in Mem_Ops.hs
-funct3_SB = 0x0 :: InstrField     -- 3'b_000
-funct3_SH = 0x1 :: InstrField     -- 3'b_001
-funct3_SW = 0x2 :: InstrField     -- 3'b_010
-funct3_SD = 0x3 :: InstrField     -- 3'b_011
-
 spec_STORE :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_STORE    mstate           instr    is_C =
   let
@@ -362,29 +323,6 @@ spec_STORE    mstate           instr    is_C =
 
 -- ================================================================
 -- OP_IMM: ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
-
-opcode_OP_IMM = 0x13 :: InstrField    -- 7'b_00_100_11
-
-funct3_ADDI  = 0x0 :: InstrField      -- 3'b_000
-funct3_SLTI  = 0x2 :: InstrField      -- 3'b_010
-funct3_SLTIU = 0x3 :: InstrField      -- 3'b_011
-funct3_XORI  = 0x4 :: InstrField      -- 3'b_100
-funct3_ORI   = 0x6 :: InstrField      -- 3'b_110
-funct3_ANDI  = 0x7 :: InstrField      -- 3'b_111
-funct3_SLLI  = 0x1 :: InstrField      -- 3'b_001
-funct3_SRLI  = 0x5 :: InstrField      -- 3'b_101
-funct3_SRAI  = 0x5 :: InstrField      -- 3'b_101
-
--- OP_IMM.SLLI/SRLI/SRAI for RV32
-msbs7_SLLI  = 0x00 :: InstrField     -- 7'b_000_0000
-msbs7_SRLI  = 0x00 :: InstrField     -- 7'b_000_0000
-msbs7_SRAI  = 0x20 :: InstrField     -- 7'b_010_0000
-
--- OP_IMM.SLLI/SRLI/SRAI for RV64
-msbs6_SLLI  = 0x00 :: InstrField     -- 6'b_00_0000
-msbs6_SRLI  = 0x00 :: InstrField     -- 6'b_00_0000
-msbs6_SRAI  = 0x10 :: InstrField     -- 6'b_01_0000
-
 
 spec_OP_IMM :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_OP_IMM    mstate           instr    is_C =
@@ -443,39 +381,6 @@ spec_OP_IMM    mstate           instr    is_C =
 
 -- ================================================================
 -- OP: ADD, SUB, SLT, SLTU, XOR, OR, AND, SLL, SRL, SRA
-
--- opcode_OP    = 0x33 :: InstrField    -- 7'b_01_100_11
-
-funct3_ADD  = 0x0 :: InstrField     -- 3'b_000
-funct7_ADD  = 0x00 :: InstrField    -- 7'b_000_0000
-
-funct3_SUB  = 0x0 :: InstrField     -- 3'b_000
-funct7_SUB  = 0x20 :: InstrField    -- 7'b_010_0000
-
-funct3_SLT  = 0x2 :: InstrField     -- 3'b_010
-funct7_SLT  = 0x00 :: InstrField    -- 7'b_000_0000
-
-funct3_SLTU = 0x3 :: InstrField     -- 3'b_011
-funct7_SLTU = 0x00 :: InstrField    -- 7'b_000_0000
-
-funct3_XOR  = 0x4 :: InstrField     -- 3'b_100
-funct7_XOR  = 0x00 :: InstrField    -- 7'b_000_0000
-
-funct3_OR   = 0x6 :: InstrField     -- 3'b_110
-funct7_OR   = 0x00 :: InstrField    -- 7'b_000_0000
-
-funct3_AND  = 0x7 :: InstrField     -- 3'b_111
-funct7_AND  = 0x00 :: InstrField    -- 7'b_000_0000
-
-funct3_SLL  = 0x1 :: InstrField     -- 3'b_001
-funct7_SLL  = 0x00 :: InstrField    -- 7'b_000_0000
-
-funct3_SRL  = 0x5 :: InstrField     -- 3'b_101
-funct7_SRL  = 0x00 :: InstrField    -- 7'b_000_0000
-
-funct3_SRA  = 0x5 :: InstrField     -- 3'b_101
-funct7_SRA  = 0x20 :: InstrField    -- 7'b_010_0000
-
                                                                     -- \begin_latex{spec_ADD_1}
 spec_OP :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_OP    mstate           instr    is_C =
@@ -535,11 +440,6 @@ spec_OP    mstate           instr    is_C =
 -- These are technically architectural 'no-ops', but they can modify
 -- hidden micro-arch state that affects future memory ops
 
-opcode_MISC_MEM  = 0x0F :: InstrField    -- 7'b_00_011_11
-
-funct3_FENCE   = 0x0 :: InstrField      -- 3'b_000
-funct3_FENCE_I = 0x1 :: InstrField      -- 3'b_001
-
 spec_MISC_MEM :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_MISC_MEM    mstate           instr    is_C =
   let
@@ -568,15 +468,8 @@ spec_MISC_MEM    mstate           instr    is_C =
 --    PRIV:  ECALL, EBREAK
 --    other: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
 
--- opcode_SYSTEM = 0x73 :: InstrField    -- 7'b_11_100_11
-
--- SYSTEM sub-opcodes
--- funct3_PRIV = 0x0 :: InstrField     -- 3'b_000
-
 -- ----------------
 -- SYSTEM.PRIV.ECALL
-
-funct12_ECALL = 0x000 :: InstrField    -- 12'b_0000_0000_0000
 
 spec_SYSTEM_ECALL :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_SYSTEM_ECALL    mstate           instr    is_C =
@@ -606,8 +499,6 @@ spec_SYSTEM_ECALL    mstate           instr    is_C =
 -- ----------------
 -- SYSTEM.PRIV.EBREAK
 
-funct12_EBREAK   = 0x001 :: InstrField    -- 12'b_0000_0000_0001
-
 spec_SYSTEM_EBREAK :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_SYSTEM_EBREAK    mstate           instr    is_C =
   let
@@ -631,9 +522,6 @@ spec_SYSTEM_EBREAK    mstate           instr    is_C =
 
 -- ----------------
 -- SYSTEM.not PRIV: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
-
-funct3_CSRRW  = 0x1 :: InstrField     -- 3'b_001
-funct3_CSRRWI = 0x5 :: InstrField     -- 3'b_101
 
 spec_SYSTEM_CSRRW :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_SYSTEM_CSRRW    mstate           instr    is_C =
@@ -695,11 +583,6 @@ spec_SYSTEM_CSRRW    mstate           instr    is_C =
   in
     (is_legal, mstate1)
 
-funct3_CSRRS  = 0x2 :: InstrField     -- 3'b_010
-funct3_CSRRC  = 0x3 :: InstrField     -- 3'b_011
-funct3_CSRRSI = 0x6 :: InstrField     -- 3'b_110
-funct3_CSRRCI = 0x7 :: InstrField     -- 3'b_111
-
 spec_SYSTEM_CSRR_S_C :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_SYSTEM_CSRR_S_C    mstate           instr    is_C =
   let
@@ -751,19 +634,6 @@ spec_SYSTEM_CSRR_S_C    mstate           instr    is_C =
 -- ================================================================
 -- OP-IMM-32: ADDIW, SLLIW, SRLIW, SRAIW
 
-opcode_OP_IMM_32 = 0x1B :: InstrField    -- 7'b_00_110_11
-
-funct3_ADDIW = 0x0 :: InstrField     -- 3'b_000
-
-funct3_SLLIW = 0x1 :: InstrField     -- 3'b_001
-funct7_SLLIW = 0x00 :: InstrField    -- 7'b_0000000
-
-funct3_SRLIW = 0x5 :: InstrField     -- 3'b_101
-funct7_SRLIW = 0x00 :: InstrField    -- 7'b_0000000
-
-funct3_SRAIW = 0x5 :: InstrField     -- 3'b_101
-funct7_SRAIW = 0x20 :: InstrField    -- 7'b_0100000
-
 spec_OP_IMM_32 :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_OP_IMM_32    mstate           instr    is_C =
   let
@@ -800,23 +670,6 @@ spec_OP_IMM_32    mstate           instr    is_C =
 
 -- ================================================================
 -- OP-32: for RV64: ADDW, SUBW, SLLW, SRLW, SRAW
-
--- opcode_OP_32 = 0x3B :: InstrField    -- 7'b_01_110_11
-
-funct3_ADDW  = 0x0  :: InstrField    --- 3'b_000
-funct7_ADDW  = 0x00 :: InstrField    --- 7'b_000_0000
-
-funct3_SUBW  = 0x0  :: InstrField    --- 3'b_000
-funct7_SUBW  = 0x20 :: InstrField    --- 7'b_010_0000
-
-funct3_SLLW  = 0x1  :: InstrField    --- 3'b_001
-funct7_SLLW  = 0x00 :: InstrField    --- 7'b_000_0000
-
-funct3_SRLW  = 0x5  :: InstrField    --- 3'b_101
-funct7_SRLW  = 0x00 :: InstrField    --- 7'b_000_0000
-
-funct3_SRAW  = 0x5  :: InstrField    --- 3'b_101
-funct7_SRAW  = 0x20 :: InstrField    --- 7'b_010_0000
 
 spec_OP_32 :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_OP_32    mstate           instr    is_C =

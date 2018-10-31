@@ -19,31 +19,17 @@ import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 import Bit_Utils
 import Arch_Defs
 import Machine_State
-import CSR_File
 import Virtual_Mem
 
 import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
 
--- ================================================================
+-- ================================================================
 -- 'A' Extension
 
-opcode_AMO     = 0x2F :: InstrField    -- 7'b_01_011_11
+-- Note: the following are defined in module Arch_Defs
+--     opcode_AMO, funct3_AMO_W/D, msbs5_AMO_LR/SC/ADD/SWAP/XOR/AND/OR/MIN/MAX/MINU/MAXU
 
--- Note: these are duplicates of defs in Mem_Ops.hs
-funct3_AMO_W   = 0x2 :: InstrField     -- 3'b010
-funct3_AMO_D   = 0x3 :: InstrField     -- 3'b011
-
-msbs5_AMO_LR   = 0x02 :: InstrField    -- 5'b00010;
-msbs5_AMO_SC   = 0x03 :: InstrField    -- 5'b00011;
-msbs5_AMO_ADD  = 0x00 :: InstrField    -- 5'b00000;
-msbs5_AMO_SWAP = 0x01 :: InstrField    -- 5'b00001;
-msbs5_AMO_XOR  = 0x04 :: InstrField    -- 5'b00100;
-msbs5_AMO_AND  = 0x0C :: InstrField    -- 5'b01100;
-msbs5_AMO_OR   = 0x08 :: InstrField    -- 5'b01000;
-msbs5_AMO_MIN  = 0x10 :: InstrField    -- 5'b10000;
-msbs5_AMO_MAX  = 0x14 :: InstrField    -- 5'b10100;
-msbs5_AMO_MINU = 0x18 :: InstrField    -- 5'b11000;
-msbs5_AMO_MAXU = 0x1C :: InstrField    -- 5'b11100;
+-- ================================================================
 
 spec_AMO :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
 spec_AMO    mstate           instr    is_C =

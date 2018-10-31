@@ -32,19 +32,11 @@ import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
 -- ================================================================
 -- 'C' Extension ("Compressed") major opcodes ('quadrants' 0, 1 and 2)
 
--- The following are defined in module Arch_Defs
--- opcode_C0 = 0x0 :: InstrField    -- 2'b00
--- opcode_C1 = 0x1 :: InstrField    -- 2'b01
--- opcode_C2 = 0x2 :: InstrField    -- 2'b10
+-- NOTE: opcode_XX, funct3_C_XXX, funct2_C_XXX, funct4_C_XXX, funct6_C_XXXX
+-- are defined in module Arch_Defs
 
 -- ================================================================
 -- 'C' Extension Stack-Pointer-Based Loads
-
-funct3_C_LWSP  = 0x2 :: InstrField    -- 3'b_010
-funct3_C_LDSP  = 0x3 :: InstrField    -- 3'b_011     RV64 and RV128
-funct3_C_LQSP  = 0x1 :: InstrField    -- 3'b_001     RV128
-funct3_C_FLWSP = 0x3 :: InstrField    -- 3'b_011     RV32FC
-funct3_C_FLDSP = 0x1 :: InstrField    -- 3'b_001     RV32DC, RV64DC
 
 spec_C_LWSP :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_LWSP    mstate           instr =
@@ -179,14 +171,6 @@ spec_C_FLDSP    mstate           instr =
 -- ================================================================
 -- 'C' Extension Stack-Pointer-Based Stores
 
-funct3_C_SWSP  = 0x6 :: InstrField    -- 3'b_110
-
-funct3_C_SQSP  = 0x5 :: InstrField    -- 3'b_101     RV128
-funct3_C_FSDSP = 0x5 :: InstrField    -- 3'b_101     RV32DC, RV64DC
-
-funct3_C_SDSP  = 0x7 :: InstrField    -- 3'b_111     RV64 and RV128
-funct3_C_FSWSP = 0x7 :: InstrField    -- 3'b_111     RV32FC
-
 spec_C_SWSP :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_SWSP    mstate           instr =
   let
@@ -313,14 +297,6 @@ spec_C_FSDSP    mstate           instr =
 
 -- ================================================================
 -- 'C' Extension Register-Based Loads
-
-funct3_C_LQ  = 0x1 :: InstrField    -- 3'b_001     RV128
-funct3_C_FLD = 0x1 :: InstrField    -- 3'b_001     RV32DC, RV64DC
-
-funct3_C_LW  = 0x2 :: InstrField    -- 3'b_010
-
-funct3_C_LD  = 0x3 :: InstrField    -- 3'b_011     RV64 and RV128
-funct3_C_FLW = 0x3 :: InstrField    -- 3'b_011     RV32FC
 
 spec_C_LW :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_LW    mstate           instr =
@@ -456,14 +432,6 @@ spec_C_FLD    mstate           instr =
 -- ================================================================
 -- 'C' Extension Register-Based Stores
 
-funct3_C_FSD = 0x5 :: InstrField    -- 3'b_101     RV32DC, RV64DC
-funct3_C_SQ  = 0x5 :: InstrField    -- 3'b_101     RV128
-
-funct3_C_SW  = 0x6 :: InstrField    -- 3'b_110
-
-funct3_C_SD  = 0x7 :: InstrField    -- 3'b_111     RV64 and RV128
-funct3_C_FSW = 0x7 :: InstrField    -- 3'b_111     RV32FC
-
 spec_C_SW :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_SW    mstate           instr =
   let
@@ -590,15 +558,6 @@ spec_C_FSD    mstate           instr =
 -- ================================================================
 -- 'C' Extension Control Transfer
 -- C.J, C.JAL, C.JR, C.JALR, C.BEQZ, C.BNEZ
-
-funct3_C_JAL  = 0x1 :: InstrField    -- 3'b_001     RV32
-funct3_C_J    = 0x5 :: InstrField    -- 3'b_101
-funct3_C_BEQZ = 0x6 :: InstrField    -- 3'b_110
-funct3_C_BNEZ = 0x7 :: InstrField    -- 3'b_111
-
-funct4_C_JR   = 0x8 :: InstrField    -- 4'b_1000
-funct4_C_JALR = 0x9 :: InstrField    -- 4'b_1001
-
 
 spec_C_J :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_J    mstate           instr =
@@ -761,9 +720,6 @@ spec_C_BNEZ    mstate           instr =
 -- ================================================================
 -- 'C' Extension Integer Constant-Generation
 
-funct3_C_LI  = 0x2 :: InstrField    -- 3'b_010
-funct3_C_LUI = 0x3 :: InstrField    -- 3'b_011     RV64 and RV128
-
 spec_C_LI :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_LI    mstate           instr =
   let
@@ -814,22 +770,6 @@ spec_C_LUI    mstate           instr =
 
 -- ================================================================
 -- 'C' Extension Integer Register-Immediate Operations
-
-funct3_C_NOP      = 0x0 :: InstrField    -- 3'b_000
-funct3_C_ADDI     = 0x0 :: InstrField    -- 3'b_000
-funct3_C_ADDIW    = 0x1 :: InstrField    -- 3'b_001
-funct3_C_ADDI16SP = 0x3 :: InstrField    -- 3'b_011
-funct3_C_ADDI4SPN = 0x0 :: InstrField    -- 3'b_000
-funct3_C_SLLI     = 0x0 :: InstrField    -- 3'b_000
-
-funct3_C_SRLI     = 0x4 :: InstrField    -- 3'b_100
-funct2_C_SRLI     = 0x0 :: InstrField    -- 2'b_00
-
-funct3_C_SRAI     = 0x4 :: InstrField    -- 3'b_100
-funct2_C_SRAI     = 0x1 :: InstrField    -- 2'b_01
-
-funct3_C_ANDI     = 0x4 :: InstrField    -- 3'b_100
-funct2_C_ANDI     = 0x2 :: InstrField    -- 2'b_10
 
 spec_C_ADDI :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_ADDI    mstate           instr =
@@ -1073,27 +1013,6 @@ spec_C_ANDI    mstate           instr =
 -- ================================================================
 -- 'C' Extension Integer Register-Register Operations
 
-funct4_C_MV       = 0x8 :: InstrField    -- 4'b_1000
-funct4_C_ADD      = 0x9 :: InstrField    -- 4'b_1001
-
-funct6_C_AND      = 0x23 :: InstrField   -- 6'b_100_0_11
-funct2_C_AND      = 0x3 :: InstrField    -- 2'b_11
-
-funct6_C_OR       = 0x23 :: InstrField   -- 6'b_100_0_11
-funct2_C_OR       = 0x2 :: InstrField    -- 2'b_10
-
-funct6_C_XOR      = 0x23 :: InstrField   -- 6'b_100_0_11
-funct2_C_XOR      = 0x1 :: InstrField    -- 2'b_01
-
-funct6_C_SUB      = 0x23 :: InstrField   -- 6'b_100_0_11
-funct2_C_SUB      = 0x0 :: InstrField    -- 2'b_01
-
-funct6_C_ADDW     = 0x27 :: InstrField   -- 6'b_100_1_11
-funct2_C_ADDW     = 0x1 :: InstrField    -- 2'b_01
-
-funct6_C_SUBW     = 0x27 :: InstrField   -- 6'b_100_1_11
-funct2_C_SUBW     = 0x0 :: InstrField    -- 2'b_00
-
 spec_C_MV :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_MV    mstate           instr =
   let
@@ -1275,8 +1194,6 @@ spec_C_SUBW    mstate           instr =
 
 -- ================================================================
 -- 'C' Extension EBREAK
-
-funct4_C_EBREAK = 0x9 :: InstrField    -- 4'b_1001
 
 spec_C_EBREAK :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_EBREAK    mstate           instr =
