@@ -147,14 +147,13 @@ mstate_gpr_write  mstate  reg  val =
   in
     mstate'
                                                               -- \end_latex{mstate_gpr_write}
-
 -- ----------------
 -- read/write FPRs
 
 {-# INLINE mstate_fpr_read #-}
 mstate_fpr_read :: Machine_State -> FPR_Addr -> Integer
 mstate_fpr_read    mstate           reg       = fpr_read (f_fprs mstate)  reg
-                                                              -- \begin_latex{mstate_gpr_write}
+                                                              -- \begin_latex{mstate_fpr_write}
 {-# INLINE mstate_fpr_write #-}
 mstate_fpr_write :: Machine_State -> FPR_Addr -> Integer -> Machine_State
 mstate_fpr_write    mstate           reg         val =
@@ -164,7 +163,7 @@ mstate_fpr_write    mstate           reg         val =
     mstate' = mstate { f_fprs = fprs' }
   in
     mstate'
-                                                              -- \end_latex{mstate_gpr_write}
+                                                              -- \end_latex{mstate_fpr_write}
 
 -- ----------------
 -- read/write CSRs

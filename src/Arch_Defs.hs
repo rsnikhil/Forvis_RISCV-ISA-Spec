@@ -26,12 +26,6 @@ data RV = RV32
         | RV64
         deriving (Eq, Show)
                                                    -- \end_latex{RV}
-
--- Architectural parameter (floating point precision)  -- \begin_latex{FP}
-data FP = SP  
-        | DP  
-        deriving (Eq, Show)
-                                                   -- \end_latex{FP}
 -- ================================================================
 -- Predicate to decide whether the arg may be a 'C' (Compressed)
 -- instruction or not ('C' instrs have 2 lsbs not equal to 2'b11)
@@ -1201,4 +1195,4 @@ form_fflags_word  nxf  uff  off  dzf  nvf  =
   in
     fflags
 
-
+-- ================================================================

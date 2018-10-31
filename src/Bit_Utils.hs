@@ -10,7 +10,7 @@ module Bit_Utils where
 -- Standard Haskell imports
 
 import Data.Bits
-import Data.Int
+import Data.Int     -- For Intxx  type (signed fixed-width ints)
 import Data.Word    -- For Wordxx type (unsigned fixed-width ints)
 import Numeric (showHex, readHex)
 
@@ -59,8 +59,10 @@ cvt_Integer_to_2s_comp  nbits  x =
       -- Positive
       x .&. mask
 
+-- sign extend from width w1 to width w2 in x
+-- i.e., propagate x[w1-1] up to x[w2-1]
+
 {-# INLINE sign_extend #-}
--- sign-extends w1 lsb bits to w2 bits
 sign_extend :: Int -> Int -> Integer -> Integer
 sign_extend  w1  w2  x =
   let
@@ -82,9 +84,11 @@ sign_extend  w1  w2  x =
 cvt_Integer_to_Int :: Integer -> Int
 cvt_Integer_to_Int  j = fromIntegral j
 
--- This conversion is required as the softfloat library functions expect
+-- ================================================================
+-- These conversions are required as the softfloat library functions expect
 -- arguments in Word64 for DP and Word32 for SP, and return them in Word64
 -- and Word32. Certain softfloat functions also expect and return Int32/64
+
 {-# INLINE cvt_Integer_to_Word32 #-}
 cvt_Integer_to_Word32 :: Integer -> Word32
 cvt_Integer_to_Word32  j = fromIntegral j

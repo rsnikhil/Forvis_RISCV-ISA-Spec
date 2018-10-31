@@ -21,8 +21,10 @@ import subprocess
 # ================================================================
 # Ignores files with the following in their names
 
-ignore_list = [".",                   # Files with extensions (e.g., foo.dump)
-               "rv32uc", "rv64uc"]    # C (compressed) not yet implemented
+ignore_list = ["."                    # Files with extensions (e.g., foo.dump)
+]
+
+#              "rv32uc", "rv64uc"     # C (compressed) not yet implemented
 
 # ================================================================
 
@@ -97,7 +99,7 @@ def do_regular_file_function (level, dirname, basename, logs_path):
     global num_executed
     global num_passed
 
-    # Ignore file if filename has an extension
+    # Ignore file if filename matches something in the ignore-list
     for x in ignore_list:
         if basename.find (x) != -1: return
 
@@ -118,7 +120,7 @@ def do_regular_file_function (level, dirname, basename, logs_path):
 
     # Show command to be executed in sub-process, for info.
     sys.stdout.write ("Test {0}\n".format (basename))
-    sys.stdout.write ("    Exec: {0}\n".format (command [0])
+    sys.stdout.write ("    Exec: {0}\n".format (command [0]))
     sys.stdout.write ("        {0}  {1}  {2}\n".format (command [1], command [2], command [3]))
     for x in command [4:]:
         sys.stdout.write ("        {0}\n".format (x))

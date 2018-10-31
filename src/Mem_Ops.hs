@@ -52,7 +52,7 @@ funct3_SW  = 0x2 :: InstrField     -- 3'b_010
 funct3_SD  = 0x3 :: InstrField     -- 3'b_011
 
 is_STORE_aligned :: InstrField -> Integer -> Bool
-is_STORE_aligned  funct3  addr = ((funct3 == funct3_SB)
+is_STORE_aligned  funct3  addr = ((    funct3 == funct3_SB)
                                   || ((funct3 == funct3_SH) && ((addr .&. 0x1) == 0))
                                   || ((funct3 == funct3_SW) && ((addr .&. 0x3) == 0))
                                   || ((funct3 == funct3_SD) && ((addr .&. 0x7) == 0)))
