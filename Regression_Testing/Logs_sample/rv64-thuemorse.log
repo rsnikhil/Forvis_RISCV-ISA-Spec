@@ -1,11 +1,12 @@
 Type -h, -H or --help for help.
+DEBUG: rv = RV64IU
 Input file: ../Test_Programs/boot_ROM_RV64.hex32
     Addr range: 1000..1fff
     tohost addr: none
 Input file: /home/nikhil/GitHub/RISCV-ISA-Spec/Test_Programs/MIT/rv64-thuemorse
     Addr range: 80000000..80002007
     tohost addr: none
-PC reset: 0x1000; RV64; instret limit: 1000000
+PC reset: 0x1000; RV64IU; instret limit: 1000000
 [Forvis: instret = 0; MTIME = 2]
 01101001100101101001011001101001100101100110100101101001100101101001011001101001011010011001011001101001100101101001011001101001
 Stopping due to self-loop at PC 80000088; instret = 25328
