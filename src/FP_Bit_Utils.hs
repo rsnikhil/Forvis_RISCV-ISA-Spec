@@ -1,3 +1,6 @@
+-- Copyright (c) 2018 Rishiyur S. Nikhil and Niraj N. Sharma
+-- See LICENSE for license details
+
 module FP_Bit_Utils where
 
 -- ================================================================
@@ -9,11 +12,8 @@ module FP_Bit_Utils where
 -- ================================================================
 -- Standard Haskell imports
 
-import Data.Word    -- for Word8/16/32/64 (unsigned)
-import Data.Int     -- for Int8/16/32/64 (signed)
 import Data.Bits
 import Data.Char
-import Foreign.C.Types
 
 -- Project imports
 

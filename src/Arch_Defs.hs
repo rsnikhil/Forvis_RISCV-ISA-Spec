@@ -57,6 +57,31 @@ type FPR_Addr = Integer
 type CSR_Addr = Integer
                                                    -- \end_latex{Instr}
 -- ================================================================
+-- Major opcodes
+
+opcode_OP     = 0x33 :: InstrField    -- 7'b_01_100_11
+opcode_OP_32  = 0x3B :: InstrField    -- 7'b_01_110_11
+
+opcode_LOAD   = 0x03 :: InstrField    -- 7'b_00_000_11
+funct3_LB     = 0x0  :: InstrField    -- 3'b_000
+funct3_LH     = 0x1  :: InstrField    -- 3'b_001
+funct3_LW     = 0x2  :: InstrField    -- 3'b_010
+funct3_LD     = 0x3  :: InstrField    -- 3'b_011
+funct3_LBU    = 0x4  :: InstrField    -- 3'b_100
+funct3_LHU    = 0x5  :: InstrField    -- 3'b_101
+funct3_LWU    = 0x6  :: InstrField    -- 3'b_110
+
+opcode_SYSTEM = 0x73 :: InstrField    -- 7'b_11_100_11
+funct3_PRIV   = 0x0  :: InstrField    -- 3'b_000
+
+-- ================================================================
+-- 'C' Extension ("Compressed") major opcodes ('quadrants' 0, 1 and 2)
+
+opcode_C0 = 0x0 :: InstrField    -- 2'b00
+opcode_C1 = 0x1 :: InstrField    -- 2'b01
+opcode_C2 = 0x2 :: InstrField    -- 2'b10
+
+-- ================================================================
 -- Functions to extract 32b instruction fields
 -- and to construct 32b instructions from fields      \begin_latex{Instr_Field_Functions}
 

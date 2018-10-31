@@ -1,4 +1,4 @@
--- Copyright (c) 2018 Rishiyur S. Nikhil
+-- Copyright (c) 2018 Rishiyur S. Nikhil and Niraj N. Sharma
 -- See LICENSE for license details
 
 module FPR_File where

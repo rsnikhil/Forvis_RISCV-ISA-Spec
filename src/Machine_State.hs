@@ -470,6 +470,22 @@ mstate_mem_num_entries  mstate =
   in
     mem_num_entries  mem
 
+-- ================================================================
+-- Check if an interrupt is pending to resume from WFI state
+
+-- Note: this is a weaker condition than the condition of actually
+-- taking an interrupt since it is unaffected by MSTATUS.MIE/SIE/UIE
+-- and MIDELEG and MEDELEG.
+
+mstate_wfi_resume :: Machine_State -> Bool
+mstate_wfi_resume    mstate =
+  let
+    mip     = mstate_csr_read  mstate  csr_addr_mip
+    mie     = mstate_csr_read  mstate  csr_addr_mie
+    resume  = ((mip .&. mie) /= 0)
+  in
+    resume
+
 -- ================================================================
 -- read/write misc debug convenience
 

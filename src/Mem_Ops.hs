@@ -29,13 +29,14 @@ import Arch_Defs
 -- ================================================================
 -- Definitions within opcode_LOAD
 
-funct3_LB  = 0x0 :: InstrField     -- 3'b_000
-funct3_LH  = 0x1 :: InstrField     -- 3'b_001
-funct3_LW  = 0x2 :: InstrField     -- 3'b_010
-funct3_LD  = 0x3 :: InstrField     -- 3'b_011
-funct3_LBU = 0x4 :: InstrField     -- 3'b_100
-funct3_LHU = 0x5 :: InstrField     -- 3'b_101
-funct3_LWU = 0x6 :: InstrField     -- 3'b_110
+-- These are defined in module ArchDefs
+-- funct3_LB  = 0x0 :: InstrField     -- 3'b_000
+-- funct3_LH  = 0x1 :: InstrField     -- 3'b_001
+-- funct3_LW  = 0x2 :: InstrField     -- 3'b_010
+-- funct3_LD  = 0x3 :: InstrField     -- 3'b_011
+-- funct3_LBU = 0x4 :: InstrField     -- 3'b_100
+-- funct3_LHU = 0x5 :: InstrField     -- 3'b_101
+-- funct3_LWU = 0x6 :: InstrField     -- 3'b_110
 
 is_LOAD_aligned :: InstrField -> Integer -> Bool
 is_LOAD_aligned  funct3  addr = ((    (funct3 == funct3_LB) || (funct3 == funct3_LBU))

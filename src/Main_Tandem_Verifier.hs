@@ -88,8 +88,9 @@ collect_cmd  cmds  cmd  (x:xs) | x == cmd_start = split_cmds  (cmds ++ [cmd])  (
 
 -- ================================================================
 
-funct3_LB  :: InstrField;    funct3_LB  = 0x0     -- 3'b_000
-funct3_LW  :: InstrField;    funct3_LW  = 0x2     -- 3'b_010
+-- These are defined in module Arch_Defs
+-- funct3_LB  :: InstrField;    funct3_LB  = 0x0     -- 3'b_000
+-- funct3_LW  :: InstrField;    funct3_LW  = 0x2     -- 3'b_010
 
 funct3_SB :: InstrField;    funct3_SB = 0x0     -- 3'b_000
 funct3_SH :: InstrField;    funct3_SH = 0x1     -- 3'b_001
