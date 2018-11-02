@@ -1,0 +1,23 @@
+### November 1, 2018:
+
+- Now booting RV32 FreeRTOS.
+- Added support for 'F' (single-precision floating point)
+- Added support for 'D' (double-precision floating point)
+- Added support for 'C' (Compressed 16-bit instructions)
+
+### July 24, 2018:
+
+- Now booting an RV64 Linux kernel! Try it! See the README.
+
+### June 2018:
+
+- Complete rewrite, encapsulating full semantics of each instruction
+    in its own function, which can be read standalone, and using even
+    more elementary Haskell.
+- Now handles RV32 and RV64 simultaneously.
+- Named it 'Forvis'
+
+
+### January 2018:
+
+- Begun, starting from scratch.

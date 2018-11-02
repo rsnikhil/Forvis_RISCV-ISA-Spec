@@ -1,0 +1,3 @@
+[submodule "submodules/softfloat-hs"]
+	path = submodules/softfloat-hs
+	url = https://github.com/GaloisInc/softfloat-hs.git

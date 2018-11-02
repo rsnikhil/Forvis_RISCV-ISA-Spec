@@ -9,13 +9,24 @@ FORVIS_EXE = forvis_exe
 
 .PHONY: default
 default:
-	@echo "    make exe           Compile Haskell source files from '$(SRC_DIR)' into Forvis executable."
-	@echo "    make test          Run $(FORVIS_EXE) as a RISC-V simulator on sample ISA test $(SAMPLE_ISA_TEST)."
-	@echo "    make test_v1       -- ditto, with verbosity 1 (+ print instruction trace)."
-	@echo "    make test_v2       -- ditto, with verbosity 2 (+ print arch state after each instr)."
-	@echo "    make test_hello    Run $(FORVIS_EXE) as a RISC-V simulator on classic 'Hello World!' C program"
-	@echo "                           compiled with gcc into a RISC-V ELF binary."
-	@echo "    make test_thue     Run $(FORVIS_EXE) as a RISC-V simulator on compiled Thuemorse C program."
+	@echo "Usage:"
+	@echo "    make build_softfloat    Do this once, before making anything else."
+	@echo "                            Downloads and builds the softloat lib for IEEE floating point emulation,"
+	@echo "                            which is used for the RISC-V 'F' and 'D' extensions."
+	@echo ""
+	@echo "    make exe                Compile Haskell source files from '$(SRC_DIR)' into Forvis executable."
+	@echo ""
+	@echo "    make test               Run $(FORVIS_EXE) as a RISC-V simulator on sample ISA test $(SAMPLE_ISA_TEST)."
+	@echo "    make test_v1            -- ditto, with verbosity 1 (+ print instruction trace)."
+	@echo "    make test_v2            -- ditto, with verbosity 2 (+ print arch state after each instr)."
+	@echo ""
+	@echo "    make test_hello         Run $(FORVIS_EXE) as a RISC-V simulator on classic 'Hello World!' C program"
+	@echo "                                compiled with gcc into a RISC-V ELF binary."
+	@echo "    make test_hello_v1      -- ditto, with verbosity 1 (+ print instruction trace)."
+	@echo "    make test_hello_v2      -- ditto, with verbosity 2 (+ print arch state after each instr)."
+	@echo ""
+	@echo "    make test_thue          Run $(FORVIS_EXE) as a RISC-V simulator on compiled Thuemorse C program."
+	@echo "    make test_linux_boot    Run $(FORVIS_EXE) as a RISC-V simulator on a pre-built Linux kernel"
 
 # ================================================================
 # Compile Haskell source files from SRC_DIR into Forvis executable
@@ -25,12 +36,45 @@ default:
 SRC_DIR  = ./src
 TMP_DIR  = tmp_haskell
 
+UNAME := $(shell uname)
+
+ifeq ($(UNAME), Linux)
+SOFTFLOAT_LIBPATH=/usr/lib/libsoftfloat.so
+endif
+
+ifeq ($(UNAME), Darwin)
+SOFTFLOAT_LIBPATH=/usr/local/lib/libsoftfloat.dylib
+endif
+
 .PHONY: exe
 exe:
 	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  $(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  -rtsopts  Main \
-		csrc/softfloat_wrappers.c \
-		/usr/lib/libsoftfloat.so
+	ghc  -dynamic  -threaded  -o  $(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  -rtsopts \
+		Main \
+		-isubmodules/softfloat-hs/src \
+		-Isubmodules/softfloat-hs/include \
+		submodules/softfloat-hs/csrc/softfloat_wrappers.c \
+		$(SOFTFLOAT_LIBPATH)
+
+# ================================================================
+# This section downloads, into 'submodules/', a git submodule: 'softfloat-hs'
+# That, in turn, contains a git submodule: 'berkeley-softfloat-3/'
+# Then, it compiles and installs the berkeley-softfloat-3 library
+
+.PHONY: build_softfloat
+build_softfloat:  build_softfloat_step_1  build_softfloat_step_2
+
+.PHONY: build_softfloat_step_1
+build_softfloat_step_1:
+	@echo "build_softfloat_step_1: Downloading berkeley-softfloat-3 submodule"
+	cd submodules/softfloat-hs; git submodule update --init --recursive
+
+.PHONY: build_softfloat_step_2
+build_softfloat_step_2:
+	@echo "build_softfloat_step_2: Using softfloat-hs's Makefile to compiling and install berkeley-softfloat-3 submodule"
+	@echo "WARNING: uses 'sudo' to install files into system areas like /usr/include, /usr/lib/, etc."
+	make  COMPILE_TYPE=RISCV  -C submodules/softfloat-hs  softfloat
+	make  COMPILE_TYPE=RISCV  -C submodules/softfloat-hs  install
 
 # ================================================================
 # Running a sample ISA test

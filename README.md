@@ -4,36 +4,35 @@ Forvis: A Formal RISC-V ISA Specification
 -----------------------------------------
 
 Copyright (c) Rishiyur S. Nikhil, Bluespec, Inc.
+Portions Copyright (c) Niraj Nayan Sharma, Bluespec, Inc.
 
 See LICENSE for license details.
 
 This is a formal (and executable) specification for the RISC-V ISA
-(Instruction Set Architecture), written in "extremely elementary" Haskell.
+(Instruction Set Architecture), written in "extremely elementary"
+Haskell.  We deliberately choose an "extremely elementary" subset of
+Haskell to make it readable and usable by people who do not know
+Haskell and who do not plan to learn Haskell.
 
 This is a work-in-progress, one of several similar concurrent efforts
 within the "ISA Formal Specification" Technical Group constituted by
 The RISC-V Foundation (<https://riscv.org>).  We welcome your
 feedback, comments and suggestions.
 
-----------------------------------------------------------------
+Please see [NEWS](./NEWS.txt) for a timeline of significant events in
+the development of Forvis.
 
-## NOTE: UNDER CONSTRUCTION: Oct 29, 2018
+Uses Galois'
+[softfloat-hs](https://github.com/GaloisInc/softfloat-hs.git) Haskell
+wrappers for Berkeley softfloat.
 
-We have completed coding the remaining pieces for RV32/RV64GC:
-
-- 'F' extension (single-precision floating point)
-- 'D' extension (double-precision floating point)
-- 'C' extension (Compressed 16-bit instructions)
-
-and are in the process of merging it in and cleaning things up, so the
-'make' procedures may be temporarily broken; hopefully back up in a
-day or two.  Please bear with us.
+Uses the Berkeley
+[softfloat](https://github.com/ucb-bar/berkeley-softfloat-3.git) C
+library for IEEE Floating Point emulation.
 
 ----------------------------------------------------------------
 
 ### Current status
-
-- **July 24, 2018: Now booting an RV64 Linux kernel! Try it! See below.**
 
 - Forvis supports the following features
     - Base instruction sets: RV32I and RV64I
@@ -44,6 +43,9 @@ day or two.  Please bear with us.
           appropriately.
     - Standard extension M (integer multiply/divide)
     - Standard extension A (atomic memory ops)
+    - Standard extension C (Compressed 16-bit instructions)
+    - Standard extension F (Single-precision floating point)
+    - Standard extension D (Double-precision floating point)
     - Privilege Level M (Machine)
     - Privilege Level S (Supervisor)
         - Virtual Memory schemes SV32, SV39 and SV48
@@ -54,27 +56,37 @@ day or two.  Please bear with us.
     interpretation: one-instruction-at-a-time, sequential memory
     model (a concurrent interpreter will follow, later).
 
-- Passes all RISC-V ISA tests in the following sets (currently 310 tests):
+- Passes all RISC-V ISA tests in the following sets (currently 402 tests):
 
     - `rv32ui-p-*`, `rv64ui-p-*`    (Base instruction set)
     - `rv32um-p-*`, `rv64um-p-*`    (M extension)
     - `rv32ua-p-*`, `rv64ua-p-*`    (A extension)
+    - `rv32uc-p-*`, `rv64uc-p-*`    (C extension)
+    - `rv32ud-p-*`, `rv64ud-p-*`    (D extension)
+    - `rv32uf-p-*`, `rv64uf-p-*`    (F extension)
     - `rv32mi-p-*`, `rv64mi-p-*`    (Machine privilege)
+    - `rv32si-p-*`, `rv64si-p-*`    (Supervisor privilege)
+
     - `rv32ui-v-*`, `rv64ui-v-*`    (Base instruction set in virtual memory)
     - `rv32um-v-*`, `rv64um-v-*`    (M extension in virtual memory)
     - `rv32ua-v-*`, `rv64ua-v-*`    (A extension in virtual memory)
-    - `rv32si-p-*`, `rv64si-p-*`    (Supervisor privilege)
+    - `rv32uc-v-*`, `rv64uc-v-*`    (C extention in virtual memory)
+    - `rv32ud-v-*`, `rv64ud-v-*`    (D extension in virtual memory)
+    - `rv32uf-v-*`, `rv64uf-v-*`    (F extension in virtual memory)
+
 
    In this repo we provide pre-compiled binaries (ELF files) for all
    these tests, a script to run them as a regression, and sample
    output logs.
 
-### What's coming soon (target: July/August 2018)
+### What's coming soon (target: November 2018)
 
-- RISC-V extensions C (compressed), F (single precision floating
-    point) and D (double precision floating point)
+- 'Feature List' argument that configures Forvis to make particular
+    allowed implementation choices (such as: trap or handle misaligned
+    mem access) so that its instruction trace exactly matches a
+    particular implementation.
 
-### What's coming next (target: December 2018)
+### What's coming next (target: Spring 2019)
 
 - Interpreter supporting concurrency (modeling out-of-order execution,
     pipelining, speculation, multi-hart and more), and integration
@@ -100,13 +112,18 @@ can be found in:
 A PDF reading guide is provided in `Doc/forvis_reading_guide.pdf`.  It
 is intended to be used as a reference while perusing the actual
 Haskell code, and is not a standalone document.  It displays code
-fragments automatically extracted from the actual code.  We suggest
-reading the code in this order:
+fragments automatically extracted from the actual code. [CAVEAT: needs
+updating; last revised June 2018]
+
+We suggest reading the code in this order:
 
 >         Arch_Defs.hs
 >         Machine_State.hs
 >
 >         Forvis_Spec.hs
+>         Forvis_Spec_I.hs
+>         ALU.hs
+>         Forvis_Spec_Finish_Instr.hs
 >         Virtual_Mem.hs
 >
 >         GPR_File.hs
@@ -119,6 +136,15 @@ reading the code in this order:
 >         Main_Run_Program.hs
 >         Main.hs
 
+The following are about specific architecture extensions and can be
+read in any order:
+
+>         Forvis_Spec_A.hs
+>         Forvis_Spec_C.hs
+>         Forvis_Spec_FD.hs
+>         FPR_File.hs
+>         Forvis_Spec_M.hs
+>
 You can ignore the following, which are used for testing virtual
 memory translation and Tandem Verification, respectively (you're
 welcome to read them, if you're curious):
@@ -134,6 +160,8 @@ Forvis can be executed as a sequential RISC-V simulator (sequential,
 one-instruction-at-a-time semantics), by building and executing it as
 a standard Haskell program.
 
+#### Install the Haskell 'ghc' compiler
+
 You will need the standard Haskell compiler `ghc` which is available
 for Linux, MacOS and Windows, along with its standard `elf` library
 for parsing ELF files.  These are available as standard packages in
@@ -144,15 +172,38 @@ you can say:
         $ apt-get  install  cabal
         $ cabal install elf
 
-The version of ghc should not matter, since Forvis is written in
-"extremely elementary" Haskell that has been stable for more than a
-decade.  You can do the analogous package-install on other Linux
-distributions using their native package mechanisms, and use Macports
-on Apple OS X.  Full details can be found at `haskell.org`.
+For Forvis per se, the version of ghc should not matter, since Forvis
+is written in "extremely elementary" Haskell that has been stable for
+more than a decade.  You can do the analogous package-install on other
+Linux distributions using their native package mechanisms, and use
+Macports on Apple OS X.  Full details can be found at `haskell.org`.
+
+However, the simulator uses some external Haskell libraries (elf,
+softfloat-hs) that require `ghc` version 8.2.1 or later.
+
+        $ ghc --version
+
+will tell you what version of ghc you have.
+
+#### One-time build of the `softfloat` C library
+
+Next, you need to the following one-time action to get, build and
+install the Berkeley 'softfloat' IEEE floating point emulation
+library.
+
+        $ make  build_softfloat
+
+This is the only step where there may be trouble, since its components
+are external git repos.  Please see the Makefile for the detailed
+steps, if necessary.
+
+#### Make the Forvis executable
 
 Then, you can build the Forvis executable (`forvis_exe`) with:
 
         $ make  exe
+
+#### Run the Forvis executable
 
 Run the following to see command-line options on the executable:
 

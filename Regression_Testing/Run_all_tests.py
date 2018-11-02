@@ -24,8 +24,6 @@ import subprocess
 ignore_list = ["."                    # Files with extensions (e.g., foo.dump)
 ]
 
-#              "rv32uc", "rv64uc"     # C (compressed) not yet implemented
-
 # ================================================================
 
 forvis_exe = "../forvis_exe"

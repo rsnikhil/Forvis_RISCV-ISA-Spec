@@ -32,7 +32,7 @@ Note: the regression is run by the Python program 'Run_all_tests.py'
         Test_Programs directory, such as tests for features that Forvis
         does not yet implement
 
-    - It has some other ad hoc and fragile ways to ignore .dump files
+    - It has some ad hoc and fragile ways to ignore .dump files
         (ignores all files with any extension including .dump), and
         looks for the string "32" or "64" in the ELF filename to
         decide whether it should be run in RV32 or RV64 mode.
