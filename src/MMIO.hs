@@ -87,24 +87,52 @@ mmio_has_interrupts  mmio =
 
 mmio_read :: MMIO -> InstrField -> Integer -> (Mem_Result, MMIO)
 mmio_read  mmio  funct3  addr =
-  if (addr == addr_mtime) then
+  -- MTIME
+  if ((addr == addr_mtime) && (funct3 == funct3_LD)) then
     let
       mtime = f_mtime  mmio
     in
       (Mem_Result_Ok  mtime,  mmio)
 
-  else if (addr == addr_mtimecmp) then
+  else if ((addr == addr_mtime) && (funct3 == funct3_LW)) then
+    let
+      mtime = (f_mtime  mmio) .&. 0xFFFFffff
+    in
+      (Mem_Result_Ok  mtime,  mmio)
+
+  else if ((addr == (addr_mtime + 4)) && (funct3 == funct3_LW)) then
+    let
+      mtime = (shiftR  (f_mtime  mmio)  32)
+    in
+      (Mem_Result_Ok  mtime,  mmio)
+
+  -- MTIMECMP
+  else if ((addr == addr_mtimecmp) && (funct3 == funct3_LD)) then
     let
       mtimecmp = f_mtimecmp  mmio
     in
       (Mem_Result_Ok  mtimecmp,  mmio)
 
+  else if ((addr == addr_mtimecmp) && (funct3 == funct3_LW)) then
+    let
+      mtimecmp = (f_mtimecmp  mmio) .&. 0xFFFFffff
+    in
+      (Mem_Result_Ok  mtimecmp,  mmio)
+
+  else if ((addr == (addr_mtimecmp + 4)) && (funct3 == funct3_LW)) then
+    let
+      mtimecmp = (shiftR  (f_mtimecmp  mmio)  32)
+    in
+      (Mem_Result_Ok  mtimecmp,  mmio)
+
+  -- MSIP
   else if (addr == addr_msip) then
     let
       msip = f_msip  mmio
     in
       (Mem_Result_Ok  msip,  mmio)
 
+  -- UART
   else if ((addr_base_UART <= addr) && (addr < (addr_base_UART + addr_size_UART))) then
     let
       uart       = f_uart  mmio
@@ -113,6 +141,7 @@ mmio_read  mmio  funct3  addr =
     in
       (Mem_Result_Ok  v,  mmio')
 
+  -- UNKNOWN IO ADDR
   else
     (Mem_Result_Err  exc_code_load_access_fault,  mmio)
 
@@ -121,22 +150,46 @@ mmio_read  mmio  funct3  addr =
 
 mmio_write :: MMIO -> InstrField -> Integer -> Integer -> (Mem_Result, MMIO)
 mmio_write  mmio  funct3  addr  val =
-  if (addr == addr_mtimecmp) then
+  -- MTIMECMP
+  if ((addr == addr_mtimecmp) && (funct3 == funct3_SD)) then
     let
       mmio' = mmio { f_mtimecmp = val,
                      f_mtip     = False }
     in
       (Mem_Result_Ok  0,  mmio')
 
+  else if ((addr == addr_mtimecmp) && (funct3 == funct3_SW)) then
+    let
+      mtimecmp  = f_mtimecmp  mmio
+      lower32   = (val      .&. 0xFFFFffff)
+      upper32   = (mtimecmp .&. 0xFFFFffff00000000)
+      mmio' = mmio { f_mtimecmp = (upper32 .|. lower32),
+                     f_mtip     = False }
+    in
+      (Mem_Result_Ok  0,  mmio')
+
+  else if ((addr == addr_mtimecmp + 4) && (funct3 == funct3_SW)) then
+    let
+      mtimecmp  = f_mtimecmp  mmio
+      lower32   = (mtimecmp .&. 0xFFFFffff)
+      upper32   = (shiftL  (val .&. 0xFFFFffff)  32)
+      mmio' = mmio { f_mtimecmp = (upper32 .|. lower32),
+                     f_mtip     = False }
+    in
+      (Mem_Result_Ok  0,  mmio')
+
+  -- MSIP
   else if (addr == addr_msip) then
     let
       mmio' = mmio { f_msip = val }
     in
       (Mem_Result_Ok  0,  mmio')
 
+  -- HTIF CONSOLE OUT
   else if (addr == addr_htif_console_out) then
     mmio_write  mmio  funct3  (addr_base_UART + addr_UART_thr)  val
 
+  -- UART
   else if ((addr_base_UART <= addr) && (addr < (addr_base_UART + addr_size_UART))) then
     let
       uart  = f_uart  mmio
@@ -145,6 +198,7 @@ mmio_write  mmio  funct3  addr  val =
     in
       (Mem_Result_Ok  0, mmio')
 
+  -- UNKNOWN IO ADDR
   else
     (Mem_Result_Err  exc_code_store_AMO_access_fault, mmio)
 

@@ -109,11 +109,15 @@ run_loop  maxinstrs  m_tohost_addr  mstate = do
 
              -- Continue the run-loop
              -- (except, as simulation heuristic aid, stop if PC did not change around fetch_and_execute)
-             let pc3        = mstate_pc_read         mstate3
-                 run_state3 = mstate_run_state_read  mstate3
-                 pc5        = mstate_pc_read         mstate5
-                 run_state5 = mstate_run_state_read  mstate5
-             if ((pc3 == pc5) && (run_state3 == Run_State_Running) && (run_state5 == Run_State_Running))
+             let self_loop_halt = True        -- True/False: enable/disable the heuristic
+                 pc3            = mstate_pc_read         mstate3
+                 run_state3     = mstate_run_state_read  mstate3
+                 pc5            = mstate_pc_read         mstate5
+                 run_state5     = mstate_run_state_read  mstate5
+             if (self_loop_halt
+                 && (pc3 == pc5)
+                 && (run_state3 == Run_State_Running)
+                 && (run_state5 == Run_State_Running))
                then (do
                         putStrLn ("Stopping due to self-loop at PC " ++ (showHex pc5 "") ++
                                   "; instret = " ++ show instret)

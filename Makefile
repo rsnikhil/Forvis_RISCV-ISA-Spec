@@ -109,6 +109,14 @@ test_linux_boot: $(FORVIS_EXE)
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/Linux_kernel/rv64-vmlinux.elf
 
+# FreeRTOS kernel boot
+.PHONY: test_freeRTOS_boot
+test_freeRTOS_boot: $(FORVIS_EXE)
+	nice -n19  ./$(FORVIS_EXE)  +RTS -K10M -M3G -RTS\
+		--arch RV32AIMSU  -n 400000000 \
+		$(TEST_PROGRAMS)/boot_ROM_RV32.hex32 \
+		$(TEST_PROGRAMS)/FreeRTOS_kernel/riscv-spike.elf
+
 # ================================================================
 # Cleanup
 
