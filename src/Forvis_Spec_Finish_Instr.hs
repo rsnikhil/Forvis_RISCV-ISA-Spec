@@ -22,7 +22,7 @@ import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 -- Local imports
 
 import Bit_Utils
-import FP_Bit_Utils
+import FPU
 import Arch_Defs
 import Machine_State
 import CSR_File

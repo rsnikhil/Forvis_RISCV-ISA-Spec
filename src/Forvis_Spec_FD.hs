@@ -14,14 +14,9 @@ module Forvis_Spec_FD where
 
 import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 
--- Other library imports
-
-import SoftFloat    -- from https://github.com/GaloisInc/softfloat-hs.git
-
 -- Local imports
 
 import Bit_Utils
-import FP_Bit_Utils
 import ALU
 import FPU
 import Arch_Defs
@@ -275,12 +270,12 @@ spec_D_FSGNJ    mstate           instr    is_C =
     rs2_val = mstate_fpr_read  mstate  rs2
 
     -- Extract the components of the source values
-    (s1, e1, m1) = extractFromDP  rs1_val
-    (s2, e2, m2) = extractFromDP  rs2_val
+    (s1, e1, m1) = disassembleDP  rs1_val
+    (s2, e2, m2) = disassembleDP  rs2_val
 
-    rd_val | is_FSGNJ_D    = composeDP   s2             e1  m1
-           | is_FSGNJN_D   = composeDP  (xor  s2  0x1)  e1  m1
-           | is_FSGNJX_D   = composeDP  (xor  s2  s1)   e1  m1
+    rd_val | is_FSGNJ_D    = assembleDP   s2             e1  m1
+           | is_FSGNJN_D   = assembleDP  (xor  s2  0x1)  e1  m1
+           | is_FSGNJX_D   = assembleDP  (xor  s2  s1)   e1  m1
 
 
     -- No exceptions are signalled by these operations
@@ -359,39 +354,25 @@ spec_D_FCVT    mstate           instr    is_C =
     frs1_val_sp = unboxSP  (mstate_fpr_read  mstate  rs1)
     grs1_val    = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
 
-    -- Convert the RISC-V rounding mode to one understood by SoftFloat
-    rm_val  = frm_to_RoundingMode frmVal
 
-    -- Do the operations using the softfloat functions where a FPR is the dest
-    frdVal | is_FCVT_D_L   = extractRdDPResult  (i64ToF64   rm_val  (cvt_Integer_to_Int64   grs1_val))
-           | is_FCVT_D_LU  = extractRdDPResult  (ui64ToF64  rm_val  (cvt_Integer_to_Word64  grs1_val))
-           | is_FCVT_D_W   = extractRdDPResult  (i32ToF64   rm_val  (cvt_Integer_to_Int32   grs1_val))
-           | is_FCVT_D_WU  = extractRdDPResult  (ui32ToF64  rm_val  (cvt_Integer_to_Word32  grs1_val))
-           | is_FCVT_D_S   = extractRdDPResult  (f32ToF64   rm_val  (cvt_Integer_to_Word32  frs1_val_sp))
-           | is_FCVT_S_D   = extractRdSPResult  (f64ToF32   rm_val  (cvt_Integer_to_Word64  frs1_val))
+    -- Do the operations using the FPU functions
+    (fflags, rdVal)  | is_FCVT_D_L   = fpu_i64ToF64   frmVal   grs1_val
+                     | is_FCVT_D_LU  = fpu_ui64ToF64  frmVal   grs1_val
+                     | is_FCVT_D_W   = fpu_i32ToF64   frmVal   grs1_val
+                     | is_FCVT_D_WU  = fpu_ui32ToF64  frmVal   grs1_val
+                     | is_FCVT_D_S   = fpu_f32ToF64   frmVal   frs1_val_sp
+                     | is_FCVT_S_D   = fpu_f64ToF32   frmVal   frs1_val
+                     | is_FCVT_L_D   = fpu_f64ToI64   frmVal   frs1_val
+                     | is_FCVT_LU_D  = fpu_f64ToUi64  frmVal   frs1_val
+                     | is_FCVT_W_D   = fpu_f64ToI32   frmVal   frs1_val
+                     | is_FCVT_WU_D  = fpu_f64ToUi32  frmVal   frs1_val
 
-    -- Do the operations using the softfloat functions where a GPR is the dest
-    grdVal | is_FCVT_L_D   = extractRdLResult   (f64ToI64   rm_val  (cvt_Integer_to_Word64  frs1_val))
-           | is_FCVT_LU_D  = extractRdLUResult  (f64ToUi64  rm_val  (cvt_Integer_to_Word64  frs1_val))
-           | is_FCVT_W_D   = extractRdWResult   (f64ToI32   rm_val  (cvt_Integer_to_Word64  frs1_val))
-           | is_FCVT_WU_D  = extractRdWUResult  (f64ToUi32  rm_val  (cvt_Integer_to_Word64  frs1_val))
 
-    -- Extract the flags for the operations which update FPR
-    fflags | is_FCVT_D_L   = extractFFlagsDPResult  (i64ToF64   rm_val  (cvt_Integer_to_Int64   grs1_val))
-           | is_FCVT_D_LU  = extractFFlagsDPResult  (ui64ToF64  rm_val  (cvt_Integer_to_Word64  grs1_val))
-           | is_FCVT_D_W   = extractFFlagsDPResult  (i32ToF64   rm_val  (cvt_Integer_to_Int32   grs1_val))
-           | is_FCVT_D_WU  = extractFFlagsDPResult  (ui32ToF64  rm_val  (cvt_Integer_to_Word32  grs1_val))
-           | is_FCVT_D_S   = extractFFlagsDPResult  (f32ToF64   rm_val  (cvt_Integer_to_Word32  frs1_val_sp))
-           | is_FCVT_S_D   = extractFFlagsSPResult  (f64ToF32   rm_val  (cvt_Integer_to_Word64  frs1_val))
-           | is_FCVT_L_D   = extractFFlagsLResult   (f64ToI64   rm_val  (cvt_Integer_to_Word64  frs1_val))
-           | is_FCVT_LU_D  = extractFFlagsLUResult  (f64ToUi64  rm_val  (cvt_Integer_to_Word64  frs1_val))
-           | is_FCVT_W_D   = extractFFlagsWResult   (f64ToI32   rm_val  (cvt_Integer_to_Word64  frs1_val))
-           | is_FCVT_WU_D  = extractFFlagsWUResult  (f64ToUi32  rm_val  (cvt_Integer_to_Word64  frs1_val))
-
+    is_n_lt_FLEN = is_FCVT_S_D
     mstate1 = if (destInGPR) then
-                finish_grd_fflags_and_pc_plus_4  mstate  rd  grdVal  fflags
+                finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
               else
-                finish_frd_fflags_and_pc_plus_4  mstate  rd  frdVal  fflags  is_FCVT_S_D
+                finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
   in
     (is_legal, mstate1)
 
@@ -420,7 +401,7 @@ spec_D_MIN    mstate           instr    is_C =
     rs2_val = mstate_fpr_read  mstate  rs2
 
     -- Extract the result of the operation and the flags
-    (rs1_lt_rs2, fflags) = fpu_f64IsLE  rs1_val  rs2_val  True
+    (rs1_lt_rs2, fflags) = fpu_f64LE  rs1_val  rs2_val  True
 
     -- Check if either rs1 or rs2 is a s-NaN or a q-NaN
     rs1IsSNaN = fpu_f64IsSNaN     rs1_val
@@ -529,7 +510,7 @@ spec_D_MAX    mstate           instr    is_C =
     rs2_val = mstate_fpr_read  mstate  rs2
 
     -- Extract the result of the operation and the flags
-    (rs2_lt_rs1, fflags) = fpu_f64IsLE rs2_val  rs1_val  True
+    (rs2_lt_rs1, fflags) = fpu_f64LE rs2_val  rs1_val  True
 
     -- Check if either rs1 or rs2 is a s-NaN or a q-NaN
     rs1IsSNaN = fpu_f64IsSNaN     rs1_val
@@ -597,28 +578,18 @@ spec_D_FMOP    mstate           instr    is_C =
                 && rmIsLegal)
 
     -- Semantics
-    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs1)
-    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs2)
-    rs3_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs3)
-
-    neg_rs1_val = cvt_Integer_to_Word64  (negateD  (mstate_fpr_read  mstate  rs1))
-    neg_rs2_val = cvt_Integer_to_Word64  (negateD  (mstate_fpr_read  mstate  rs2))
-    neg_rs3_val = cvt_Integer_to_Word64  (negateD  (mstate_fpr_read  mstate  rs3))
-
-    -- Convert the RISC-V rounding mode to one understood by SoftFloat
-    rm_val  = frm_to_RoundingMode frmVal
+    rs1_val = mstate_fpr_read  mstate  rs1
+    rs2_val = mstate_fpr_read  mstate  rs2
+    rs3_val = mstate_fpr_read  mstate  rs3
 
     -- Extract the result of the operation and the flags
-    fpuRes | is_FMADD_D    = f64MulAdd  rm_val  rs1_val      rs2_val  rs3_val
-           | is_FMSUB_D    = f64MulAdd  rm_val  rs1_val      rs2_val  neg_rs3_val
-           | is_FNMSUB_D   = f64MulAdd  rm_val  neg_rs1_val  rs2_val  rs3_val
-           | is_FNMADD_D   = f64MulAdd  rm_val  neg_rs1_val  rs2_val  neg_rs3_val
-
-    rd_val = extractRdDPResult  fpuRes
-    fflags = extractFFlagsDPResult  fpuRes
+    (fflags, rdVal) | is_FMADD_D    = fpu_f64MulAdd  frmVal  rs1_val             rs2_val  rs3_val
+                    | is_FMSUB_D    = fpu_f64MulAdd  frmVal  rs1_val             rs2_val  (negateD  rs3_val)
+                    | is_FNMSUB_D   = fpu_f64MulAdd  frmVal  (negateD  rs1_val)  rs2_val  rs3_val
+                    | is_FNMADD_D   = fpu_f64MulAdd  frmVal  (negateD  rs1_val)  rs2_val  (negateD  rs3_val)
 
     is_n_lt_FLEN = False
-    mstate1      = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1      = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal   fflags  is_n_lt_FLEN
   in
     (is_legal, mstate1)
 
@@ -754,7 +725,7 @@ spec_F_OP    mstate           instr    is_C =
     rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs1))
     rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs2))
 
-    -- Do the operations using the fpu functions
+    -- Do the operations using the FPU functions
     (fflags, rd_val) | is_FADD_S  = fpu_f32Add  frmVal  rs1_val  rs2_val
                      | is_FSUB_S  = fpu_f32Sub  frmVal  rs1_val  rs2_val
                      | is_FMUL_S  = fpu_f32Mul  frmVal  rs1_val  rs2_val
@@ -798,12 +769,12 @@ spec_F_FSGNJ    mstate           instr    is_C  =
     rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
 
     -- Extract the components of the source values
-    (s1, e1, m1) = extractFromSP  rs1_val
-    (s2, e2, m2) = extractFromSP  rs2_val
+    (s1, e1, m1) = disassembleSP  rs1_val
+    (s2, e2, m2) = disassembleSP  rs2_val
 
-    rd_val | is_FSGNJ_S    = composeSP   s2             e1  m1
-           | is_FSGNJN_S   = composeSP  (xor  s2  0x1)  e1  m1
-           | is_FSGNJX_S   = composeSP  (xor  s2  s1)   e1  m1
+    rd_val | is_FSGNJ_S    = assembleSP   s2             e1  m1
+           | is_FSGNJN_S   = assembleSP  (xor  s2  0x1)  e1  m1
+           | is_FSGNJX_S   = assembleSP  (xor  s2  s1)   e1  m1
 
 
     -- No exceptions are signalled by these operations
@@ -873,35 +844,23 @@ spec_F_FCVT    mstate           instr    is_C =
     frs1_val    = unboxSP  (mstate_fpr_read  mstate  rs1)
     grs1_val    = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
 
-    -- Convert the RISC-V rounding mode to one understood by SoftFloat
-    rm_val  = frm_to_RoundingMode frmVal
 
-    -- Do the operations using the softfloat functions where a FPR is the dest
-    frdVal | is_FCVT_S_L   = extractRdSPResult  (i64ToF32   rm_val  (cvt_Integer_to_Int64   grs1_val))
-           | is_FCVT_S_LU  = extractRdSPResult  (ui64ToF32  rm_val  (cvt_Integer_to_Word64  grs1_val))
-           | is_FCVT_S_W   = extractRdSPResult  (i32ToF32   rm_val  (cvt_Integer_to_Int32   grs1_val))
-           | is_FCVT_S_WU  = extractRdSPResult  (ui32ToF32  rm_val  (cvt_Integer_to_Word32  grs1_val))
+    -- Do the operations using the FPU functions
+    (fflags, rdVal)  | is_FCVT_S_L   = fpu_i64ToF32   frmVal   grs1_val
+                     | is_FCVT_S_LU  = fpu_ui64ToF32  frmVal   grs1_val
+                     | is_FCVT_S_W   = fpu_i32ToF32   frmVal   grs1_val
+                     | is_FCVT_S_WU  = fpu_ui32ToF32  frmVal   grs1_val
+                     | is_FCVT_L_S   = fpu_f32ToI64   frmVal   frs1_val
+                     | is_FCVT_LU_S  = fpu_f32ToUi64  frmVal   frs1_val
+                     | is_FCVT_W_S   = fpu_f32ToI32   frmVal   frs1_val
+                     | is_FCVT_WU_S  = fpu_f32ToUi32  frmVal   frs1_val
 
-    -- Do the operations using the softfloat functions where a GPR is the dest
-    grdVal | is_FCVT_L_S   = extractRdLResult   (f32ToI64   rm_val  (cvt_Integer_to_Word32  frs1_val))
-           | is_FCVT_LU_S  = extractRdLUResult  (f32ToUi64  rm_val  (cvt_Integer_to_Word32  frs1_val))
-           | is_FCVT_W_S   = extractRdWResult   (f32ToI32   rm_val  (cvt_Integer_to_Word32  frs1_val))
-           | is_FCVT_WU_S  = extractRdWUResult  (f32ToUi32  rm_val  (cvt_Integer_to_Word32  frs1_val))
 
-    -- Extract the flags for the operations which update FPR
-    fflags | is_FCVT_S_L   = extractFFlagsSPResult  (i64ToF32   rm_val  (cvt_Integer_to_Int64   grs1_val))
-           | is_FCVT_S_LU  = extractFFlagsSPResult  (ui64ToF32  rm_val  (cvt_Integer_to_Word64  grs1_val))
-           | is_FCVT_S_W   = extractFFlagsSPResult  (i32ToF32   rm_val  (cvt_Integer_to_Int32   grs1_val))
-           | is_FCVT_S_WU  = extractFFlagsSPResult  (ui32ToF32  rm_val  (cvt_Integer_to_Word32  grs1_val))
-           | is_FCVT_L_S   = extractFFlagsLResult   (f32ToI64   rm_val  (cvt_Integer_to_Word32  frs1_val))
-           | is_FCVT_LU_S  = extractFFlagsLUResult  (f32ToUi64  rm_val  (cvt_Integer_to_Word32  frs1_val))
-           | is_FCVT_W_S   = extractFFlagsWResult   (f32ToI32   rm_val  (cvt_Integer_to_Word32  frs1_val))
-           | is_FCVT_WU_S  = extractFFlagsWUResult  (f32ToUi32  rm_val  (cvt_Integer_to_Word32  frs1_val))
-
+    is_n_lt_FLEN = True
     mstate1 = if (destInGPR) then
-                finish_grd_fflags_and_pc_plus_4  mstate  rd  grdVal  fflags
+                finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
               else
-                finish_frd_fflags_and_pc_plus_4  mstate rd frdVal fflags True
+                finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
   in
     (is_legal, mstate1)
 
@@ -933,7 +892,7 @@ spec_F_MIN    mstate           instr    is_C =
     rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
 
     -- Extract the result of the operation and the flags
-    (rs1_lt_rs2, fflags) = fpu_f32IsLE  rs1_val  rs2_val  True
+    (rs1_lt_rs2, fflags) = fpu_f32LE  rs1_val  rs2_val  True
 
     -- Check if either rs1 or rs2 is a s-NaN or a q-NaN
     rs1IsSNaN = fpu_f32IsSNaN  rs1_val
@@ -1047,7 +1006,7 @@ spec_F_MAX    mstate           instr    is_C  =
     rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
 
     -- Extract the result of the operation and the flags
-    (rs2_lt_rs1, fflags) = fpu_f32IsLE  rs2_val  rs1_val  True
+    (rs2_lt_rs1, fflags) = fpu_f32LE  rs2_val  rs1_val  True
 
     -- Check if either rs1 or rs2 is a s-NaN or a q-NaN
     rs1IsSNaN = fpu_f32IsSNaN  rs1_val
@@ -1115,28 +1074,15 @@ spec_F_FMOP    mstate           instr    is_C =
     rs2_val = unboxSP  (mstate_fpr_read  mstate  rs2)
     rs3_val = unboxSP  (mstate_fpr_read  mstate  rs3)
 
-    rs1_val_32 = cvt_Integer_to_Word32  rs1_val
-    rs2_val_32 = cvt_Integer_to_Word32  rs2_val
-    rs3_val_32 = cvt_Integer_to_Word32  rs3_val
-
-    neg_rs1_val_32 = cvt_Integer_to_Word32  (negateS  rs1_val)
-    neg_rs2_val_32 = cvt_Integer_to_Word32  (negateS  rs2_val)
-    neg_rs3_val_32 = cvt_Integer_to_Word32  (negateS  rs3_val)
-
-    -- Convert the RISC-V rounding mode to one understood by SoftFloat
-    rm_val  = frm_to_RoundingMode frmVal
 
     -- Extract the result of the operation and the flags
-    fpuRes | is_FMADD_S    = f32MulAdd  rm_val  rs1_val_32      rs2_val_32  rs3_val_32
-           | is_FMSUB_S    = f32MulAdd  rm_val  rs1_val_32      rs2_val_32  neg_rs3_val_32
-           | is_FNMSUB_S   = f32MulAdd  rm_val  neg_rs1_val_32  rs2_val_32  rs3_val_32
-           | is_FNMADD_S   = f32MulAdd  rm_val  neg_rs1_val_32  rs2_val_32  neg_rs3_val_32
-
-    rd_val = extractRdSPResult  fpuRes
-    fflags = extractFFlagsSPResult  fpuRes
+    (fflags, rdVal)  | is_FMADD_S   = fpu_f32MulAdd  frmVal  rs1_val             rs2_val  rs3_val
+                     | is_FMSUB_S   = fpu_f32MulAdd  frmVal  rs1_val             rs2_val  (negateS rs3_val)
+                     | is_FNMSUB_S  = fpu_f32MulAdd  frmVal  (negateS rs1_val)   rs2_val  rs3_val
+                     | is_FNMADD_S  = fpu_f32MulAdd  frmVal  (negateS rs1_val)   rs2_val  (negateS rs3_val)
 
     is_n_lt_FLEN = True
-    mstate1      = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1      = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal   fflags  is_n_lt_FLEN
   in
     (is_legal, mstate1)
 
