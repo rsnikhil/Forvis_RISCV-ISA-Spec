@@ -216,7 +216,8 @@ csr_read  rv  (CSR_File dm)  csr_addr =
         | (csr_addr == csr_addr_cycleh)   = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_mcycle    dm))  32)
         | (csr_addr == csr_addr_instret)  = fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm)
         | (csr_addr == csr_addr_instreth) = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm))  32)
-        | (csr_addr == csr_addr_fcsr)     = fflags .|. (shiftL  frm  frm_bitpos)
+        | (csr_addr == csr_addr_frm)      = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm)) frm_bitpos)
+        | (csr_addr == csr_addr_fflags)   = fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm) .&. fflags_mask
 
         | (csr_addr == csr_addr_sstatus) = (mstatus .&. sstatus_mask)
         | (csr_addr == csr_addr_sip)     = (mip .&. sip_mask)
@@ -238,7 +239,7 @@ csr_read  rv  (CSR_File dm)  csr_addr =
 -- have wide-ranging side-effects, e.g., changing MISA.C, MSTATUS.MXL
 -- Those details are handled in module Machine_State, which uses these
 -- raw reads/writes for individual updates.
-
+--
 {-# INLINE csr_write #-}
 csr_write :: RV -> CSR_File    -> CSR_Addr -> Integer -> CSR_File
 csr_write    rv    (CSR_File dm)  csr_addr    value =
@@ -246,6 +247,7 @@ csr_write    rv    (CSR_File dm)  csr_addr    value =
     mstatus = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus  dm)
     mip     = fromMaybe  0  (Data_Map.lookup  csr_addr_mip      dm)
     mie     = fromMaybe  0  (Data_Map.lookup  csr_addr_mie      dm)
+    fcsr    = fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm)
 
     mstatus_mask = if (rv == RV32) then mstatus_mask_RV32 else mstatus_mask_RV64
     sstatus_mask = if (rv == RV32) then sstatus_mask_RV32 else sstatus_mask_RV64
@@ -268,6 +270,10 @@ csr_write    rv    (CSR_File dm)  csr_addr    value =
                                                              .|. (value .&. sip_mask)))
       | (csr_addr == csr_addr_uie)     = (csr_addr_mie,     ((mie .&. (complement  uip_mask))
                                                              .|. (value .&. uip_mask)))
+      | (csr_addr == csr_addr_frm)     = (csr_addr_fcsr,    ((fcsr_fflags  fcsr)
+                                                             .|. (shiftL value frm_bitpos)))
+      | (csr_addr == csr_addr_fflags)  = (csr_addr_fcsr,    ((fcsr .&. (complement  fflags_mask))
+                                                             .|. (value .&. fflags_mask)))
 
       -- TODO: remove these if implementing all counters
       | (csr_addr == csr_addr_mcounteren) = (csr_addr,  (value .&. 0x7))

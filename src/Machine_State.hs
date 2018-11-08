@@ -189,33 +189,18 @@ mstate_csr_write  mstate  csr_addr  value =
     mstate'
 
 -- ----------------
--- read/write the FPU control and status register (FCSR)
--- update the FCSR register of the CSR Regfile. This CSR consists of two parts
--- FRM and FFLAGS, which can be accessed independently
-{-# INLINE mstate_fcsr_write #-}
-mstate_fcsr_write :: Machine_State -> CSR_Addr -> Integer -> Machine_State
-mstate_fcsr_write    mstate           csr_addr    new_fcsr_value =
+-- Update the CSR by accruing the new value. Do not owerwrite
+-- This behaviour of accruing results is unique to the FCSR.
+{-# INLINE mstate_csr_update #-}
+mstate_csr_update   :: Machine_State    -> CSR_Addr -> Integer  -> Machine_State
+mstate_csr_update      mstate              csr_addr    new_val  =
   let
-    frm_val       = fcsr_frm     new_fcsr_value
-    fflags_val    = fcsr_fflags  new_fcsr_value
-    csr_file_1    = csr_write  (f_rv  mstate)  (f_csrs  mstate)  csr_addr_frm  frm_val
-    csr_file_2    = csr_write  (f_rv  mstate)  csr_file_1  csr_addr_fflags  fflags_val
-    mstate'       = mstate { f_csrs = csr_file_2 }
-  in
-    mstate'
+    old_val     = mstate_csr_read  mstate  csr_addr
 
--- update the FCSR.FFLAGS field in the CSR
--- Now that the FRM and FFLAGS are separate CSRs, we do not need to read
--- both and build the FCSR to write back. Just accrue the FFLAGS directly
-mstate_fcsr_fflags_update :: Machine_State -> Integer -> Machine_State
-mstate_fcsr_fflags_update    mstate           new_fflags =
-  let
-    old_fflags    = mstate_csr_read  mstate  csr_addr_fflags
+    -- accrue new value, do not overwrite
+    val'        = old_val .|. new_val
 
-    -- accrue fflags, do not overwrite
-    fflags'       = old_fflags .|. new_fflags
-
-    mstate'       = mstate_csr_write  mstate  csr_addr_fflags  fflags'
+    mstate'     = mstate_csr_write  mstate  csr_addr  val'
   in
     mstate'
 
