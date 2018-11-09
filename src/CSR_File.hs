@@ -203,8 +203,6 @@ csr_read  rv  (CSR_File dm)  csr_addr =
     mstatus = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus  dm)
     mip     = fromMaybe  0  (Data_Map.lookup  csr_addr_mip      dm)
     mie     = fromMaybe  0  (Data_Map.lookup  csr_addr_mie      dm)
-    frm     = fromMaybe  0  (Data_Map.lookup  csr_addr_frm      dm)
-    fflags  = fromMaybe  0  (Data_Map.lookup  csr_addr_fflags   dm)
 
     ustatus_mask = if (rv == RV32) then ustatus_mask_RV32 else ustatus_mask_RV64
     sstatus_mask = if (rv == RV32) then sstatus_mask_RV32 else sstatus_mask_RV64
@@ -216,8 +214,9 @@ csr_read  rv  (CSR_File dm)  csr_addr =
         | (csr_addr == csr_addr_cycleh)   = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_mcycle    dm))  32)
         | (csr_addr == csr_addr_instret)  = fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm)
         | (csr_addr == csr_addr_instreth) = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm))  32)
-        | (csr_addr == csr_addr_frm)      = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm)) frm_bitpos)
+        | (csr_addr == csr_addr_frm)      = (shiftR  ((fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm)) .&. frm_mask) frm_bitpos)
         | (csr_addr == csr_addr_fflags)   = fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm) .&. fflags_mask
+        | (csr_addr == csr_addr_fcsr)     = fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm) .&. (fflags_mask .|. frm_mask)
 
         | (csr_addr == csr_addr_sstatus) = (mstatus .&. sstatus_mask)
         | (csr_addr == csr_addr_sip)     = (mip .&. sip_mask)
@@ -270,8 +269,8 @@ csr_write    rv    (CSR_File dm)  csr_addr    value =
                                                              .|. (value .&. sip_mask)))
       | (csr_addr == csr_addr_uie)     = (csr_addr_mie,     ((mie .&. (complement  uip_mask))
                                                              .|. (value .&. uip_mask)))
-      | (csr_addr == csr_addr_frm)     = (csr_addr_fcsr,    ((fcsr_fflags  fcsr)
-                                                             .|. (shiftL value frm_bitpos)))
+      | (csr_addr == csr_addr_frm)     = (csr_addr_fcsr,    ((fcsr .&. (complement  frm_mask))
+                                                             .|. ((shiftL value frm_bitpos) .&. frm_mask)))
       | (csr_addr == csr_addr_fflags)  = (csr_addr_fcsr,    ((fcsr .&. (complement  fflags_mask))
                                                              .|. (value .&. fflags_mask)))
 
