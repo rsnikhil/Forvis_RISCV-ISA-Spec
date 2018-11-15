@@ -47,6 +47,7 @@ gpr_write    (GPR_File dm)  reg         val =
     val1 = if (reg == 0) then 0
            else val
   in
+    -- We use 'seq' to force evaluation of val1
     seq  val1  (GPR_File (Data_Map.insert  reg  val1  dm))
 
 -- This version of gpr_write checks that 'val' is non-negative and fits in 'xlen' bits
@@ -60,6 +61,7 @@ gpr_write_check    xlen   gpr_file    reg         val =
          | (shiftR  val  xlen /= 0) = error  err_msg
          | True                     = val
   in
+    -- We use 'seq' to force evaluation of val1
     seq val1 (gpr_write  gpr_file  reg  val1)
 
 -- ================================================================

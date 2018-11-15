@@ -698,6 +698,18 @@ ifields_CS_type  instr =
   in
     (funct3, imm_at_12_10, rs1', imm_at_6_5, rs2', op)
 
+{-# INLINE ifields_CA_type #-}
+ifields_CA_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField,InstrField)
+ifields_CA_type  instr =
+  let
+    funct6       = bitSlice instr  15  10
+    rd_rs1'      = (bitSlice instr  9   7)  .|.  0x8
+    funct2       = bitSlice instr   6   5
+    rs2'         = (bitSlice instr  4   2)  .|.  0x8
+    op           = bitSlice instr   1   0
+  in
+    (funct6, rd_rs1', funct2, rs2', op)
+
 {-# INLINE ifields_CB_type #-}
 ifields_CB_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField,InstrField)
 ifields_CB_type  instr =

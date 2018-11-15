@@ -133,7 +133,7 @@ spec_C_FLWSP    mstate           instr =
 
     -- Semantics: same as FLW
     rs1          = 2    -- GPR sp
-    instr32      = mkInstr_I_type  offset  rs1  funct3_FLW  rd  opcode_STORE_FP
+    instr32      = mkInstr_I_type  offset  rs1  funct3_FLW  rd  opcode_LOAD_FP
     is_C         = True
     (b, mstate1) = spec_STORE_FP  mstate  instr32  is_C
     mstate2      = if b then mstate1
@@ -159,7 +159,7 @@ spec_C_FLDSP    mstate           instr =
 
     -- Semantics: same as FLD
     rs1          = 2    -- GPR sp
-    instr32      = mkInstr_I_type  offset  rs1  funct3_FLD  rd  opcode_STORE_FP
+    instr32      = mkInstr_I_type  offset  rs1  funct3_FLD  rd  opcode_LOAD_FP
     is_C         = True
     (b, mstate1) = spec_STORE_FP  mstate  instr32  is_C
     mstate2      = if b then mstate1
@@ -312,7 +312,6 @@ spec_C_LW    mstate           instr =
                 && (funct3 == funct3_C_LW))
 
     -- Semantics: same as LW
-    rs1          = 2         -- GPR sp
     imm12        = offset    -- zero extended
     instr32      = mkInstr_I_type  imm12  rs1'  funct3_LW  rd'  opcode_LOAD
     is_C         = True
@@ -337,7 +336,6 @@ spec_C_LD    mstate           instr =
                 && (rv == RV64))
 
     -- Semantics: same as LD
-    rs1          = 2         -- GPR sp
     imm12        = offset    -- zero extended
     instr32      = mkInstr_I_type  offset  rs1'  funct3_LD  rd'  opcode_LOAD
     is_C         = True
@@ -353,10 +351,10 @@ spec_C_LQ    mstate           instr =
   let
     -- Instr fields: CL-type
     (funct3, imm_at_12_10, rs1', imm_at_6_5, rd', op) = ifields_CL_type  instr
-    offset = ((    shift  imm_at_12_10  3)
-              .|. (shift  (bitSlice  imm_at_6_5  2  2)  5)
-              .|. (shift  (bitSlice  imm_at_6_5  1  1)  4)
-              .|. (shift  (bitSlice  imm_at_6_5  0  0)  8))
+    offset = (   (shift  (bitSlice imm_at_12_10  2  2)  5)
+             .|. (shift  (bitSlice imm_at_12_10  1  1)  4)
+             .|. (shift  (bitSlice imm_at_12_10  0  0)  8)
+             .|. (shift            imm_at_6_5           6))
 
     -- Decode check
     rv       = mstate_rv_read    mstate
@@ -726,7 +724,6 @@ spec_C_LI    mstate           instr =
     -- Instr fields: CI-type
     (funct3, imm_at_12, rd, imm_at_6_2, op) = ifields_CI_type  instr
     imm6  = ((shiftL  imm_at_12  5) .|. imm_at_6_2)
-    imm12 = sign_extend  6  12  imm6
 
     -- Decode check
     is_legal = ((op == opcode_C1)
@@ -734,6 +731,7 @@ spec_C_LI    mstate           instr =
                 && (rd /= 0))
 
     -- Semantics: same as ADDI
+    imm12        = sign_extend  6  12  imm6
     rs1          = 0    -- GPR zero
     instr32      = mkInstr_I_type  imm12  rs1  funct3_ADDI  rd  opcode_OP_IMM
     is_C         = True
@@ -748,18 +746,17 @@ spec_C_LUI    mstate           instr =
   let
     -- Instr fields: CI-type
     (funct3, imm_at_12, rd, imm_at_6_2, op) = ifields_CI_type  instr
-    nzimm18 = ((    shiftL  imm_at_12   5)
-               .|.          imm_at_6_2)
-    imm20   = sign_extend  6  20  nzimm18
+    nzimm6 = ((shiftL  imm_at_12  5) .|.  imm_at_6_2)
 
     -- Decode check
     is_legal = ((op == opcode_C1)
                 && (funct3 == funct3_C_LUI)
                 && (rd /= 0)
                 && (rd /= 2)
-                && (nzimm18 /= 0))
+                && (nzimm6 /= 0))
 
     -- Semantics: same as LUI
+    imm20        = sign_extend  6  20  nzimm6
     instr32      = mkInstr_U_type  imm20  rd  opcode_LUI
     is_C         = True
     (b, mstate1) = spec_LUI  mstate  instr32  is_C
@@ -1059,10 +1056,8 @@ spec_C_ADD    mstate           instr =
 spec_C_AND :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_AND    mstate           instr =
   let
-    -- Instr fields: CS-type
-    (funct3, imm_at_12_10, rd_rs1', imm_at_6_5, rs2', op) = ifields_CS_type  instr
-    funct6 = ((shiftL  funct3  3) .|.  imm_at_12_10)
-    funct2 = imm_at_6_5
+    -- Instr fields: CA-type
+    (funct6, rd_rs1', funct2, rs2', op) = ifields_CA_type  instr
 
     -- Decode check
     is_legal = ((op == opcode_C1)
@@ -1081,10 +1076,8 @@ spec_C_AND    mstate           instr =
 spec_C_OR :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_OR    mstate           instr =
   let
-    -- Instr fields: CS-type
-    (funct3, imm_at_12_10, rd_rs1', imm_at_6_5, rs2', op) = ifields_CS_type  instr
-    funct6 = ((shiftL  funct3  3) .|.  imm_at_12_10)
-    funct2 = imm_at_6_5
+    -- Instr fields: CA-type
+    (funct6, rd_rs1', funct2, rs2', op) = ifields_CA_type  instr
 
     -- Decode check
     is_legal = ((op == opcode_C1)
@@ -1103,10 +1096,8 @@ spec_C_OR    mstate           instr =
 spec_C_XOR :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_XOR    mstate           instr =
   let
-    -- Instr fields: CS-type
-    (funct3, imm_at_12_10, rd_rs1', imm_at_6_5, rs2', op) = ifields_CS_type  instr
-    funct6 = ((shiftL  funct3  3) .|.  imm_at_12_10)
-    funct2 = imm_at_6_5
+    -- Instr fields: CA-type
+    (funct6, rd_rs1', funct2, rs2', op) = ifields_CA_type  instr
 
     -- Decode check
     is_legal = ((op == opcode_C1)
@@ -1125,10 +1116,8 @@ spec_C_XOR    mstate           instr =
 spec_C_SUB :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_SUB    mstate           instr =
   let
-    -- Instr fields: CS-type
-    (funct3, imm_at_12_10, rd_rs1', imm_at_6_5, rs2', op) = ifields_CS_type  instr
-    funct6 = ((shiftL  funct3  3) .|.  imm_at_12_10)
-    funct2 = imm_at_6_5
+    -- Instr fields: CA-type
+    (funct6, rd_rs1', funct2, rs2', op) = ifields_CA_type  instr
 
     -- Decode check
     is_legal = ((op == opcode_C1)
@@ -1147,10 +1136,8 @@ spec_C_SUB    mstate           instr =
 spec_C_ADDW :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_ADDW    mstate           instr =
   let
-    -- Instr fields: CS-type
-    (funct3, imm_at_12_10, rd_rs1', imm_at_6_5, rs2', op) = ifields_CS_type  instr
-    funct6 = ((shiftL  funct3  3) .|.  imm_at_12_10)
-    funct2 = imm_at_6_5
+    -- Instr fields: CA-type
+    (funct6, rd_rs1', funct2, rs2', op) = ifields_CA_type  instr
 
     -- Decode check
     rv       = mstate_rv_read    mstate
@@ -1171,10 +1158,8 @@ spec_C_ADDW    mstate           instr =
 spec_C_SUBW :: Machine_State -> Instr_C -> (Bool, Machine_State)
 spec_C_SUBW    mstate           instr =
   let
-    -- Instr fields: CS-type
-    (funct3, imm_at_12_10, rd_rs1', imm_at_6_5, rs2', op) = ifields_CS_type  instr
-    funct6 = ((shiftL  funct3  3) .|.  imm_at_12_10)
-    funct2 = imm_at_6_5
+    -- Instr fields: CA-type
+    (funct6, rd_rs1', funct2, rs2', op) = ifields_CA_type  instr
 
     -- Decode check
     rv       = mstate_rv_read    mstate

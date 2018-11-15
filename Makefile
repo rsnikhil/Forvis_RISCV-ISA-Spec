@@ -91,7 +91,7 @@ SAMPLE_ISA_TEST      ?= rv64ui-p-add
 # SAMPLE_ISA_TEST_ARCH ?= RV32UI
 # SAMPLE_ISA_TEST      ?= rv32ui-p-add
 
-N = 100000
+N ?= 100000
 
 # Run SAMPLE_ISA_TEST
 .PHONY: test
