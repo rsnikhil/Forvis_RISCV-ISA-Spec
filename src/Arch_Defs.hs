@@ -1402,7 +1402,11 @@ dzFlag = (shiftL  1  fcsr_dz_bitpos) :: Integer
 nvFlag = (shiftL  1  fcsr_nv_bitpos) :: Integer
 
 -- 7:5
-frm_bitpos              = 5 :: Int
+frm_bitpos      = 5 :: Int
+fcsr_reserved   = 8 :: Int
+fflags_mask     = ((shiftL 1 frm_bitpos) - 1) :: Integer
+frm_mask        = (((shiftL 1 fcsr_reserved) - 1)
+                .&. (complement fflags_mask)) :: Integer
 
 -- Extract the fflags field from fcsr
 fcsr_fflags    :: Integer -> Integer 

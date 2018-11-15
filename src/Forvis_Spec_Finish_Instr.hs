@@ -22,7 +22,7 @@ import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 -- Local imports
 
 import Bit_Utils
-import FP_Bit_Utils
+import FPU
 import Arch_Defs
 import Machine_State
 import CSR_File
@@ -55,7 +55,7 @@ finish_rd_and_pc_incr    mstate           rd          rd_val     is_C =
 finish_grd_fflags_and_pc_plus_4 :: Machine_State -> GPR_Addr -> Integer -> Integer -> Machine_State
 finish_grd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflags  =
   let
-    mstate1 = mstate_fcsr_fflags_update  mstate  fflags
+    mstate1 = mstate_csr_update  mstate  csr_addr_fflags  fflags
     is_C    = False
     mstate2 = finish_rd_and_pc_incr  mstate1  rd  rd_val  is_C
   in
@@ -100,7 +100,7 @@ finish_pc    mstate           new_pc =
 finish_frd_fflags_and_pc_plus_4 :: Machine_State -> FPR_Addr -> Integer -> Integer -> Bool -> Machine_State
 finish_frd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflags     is_n_lt_FLEN =
   let
-    mstate1 = mstate_fcsr_fflags_update  mstate  fflags
+    mstate1 = mstate_csr_update  mstate  csr_addr_fflags  fflags
     mstate2 = finish_frd_and_pc_plus_4  mstate1  rd  rd_val  is_n_lt_FLEN
   in
     mstate2
