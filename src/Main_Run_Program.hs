@@ -38,6 +38,8 @@ import Memory
 import MMIO
 import Address_Map
 
+import PIPE
+
 -- ================================================================
 
 usage_help :: String
@@ -219,7 +221,7 @@ run_program_from_files    rv    misa       files       num_instrs  watch_tohost 
   putStrLn ("PC reset: 0x" ++ showHex  pc_reset_value "" ++
             "; " ++ show (rv) ++ (show_misa  misa) ++
             "; instret limit: " ++ show (num_instrs))
-  (exit_value, mstate3) <- run_loop  num_instrs  m_tohost_addr1  mstate2
+  (exit_value, pipe_state1, mstate3) <- run_loop num_instrs m_tohost_addr1 init_pipe_state mstate2
 
   if (exit_value == 0)
     then putStrLn  ("PASS")
