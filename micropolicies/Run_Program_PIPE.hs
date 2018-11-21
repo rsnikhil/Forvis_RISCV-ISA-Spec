@@ -1,7 +1,7 @@
 -- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
-module Run_Program where
+module Run_Program_PIPE where
 
 -- ================================================================
 -- This module has a 'run loop' for a purely sequential execution of a
@@ -35,6 +35,8 @@ import CSR_File
 
 import Forvis_Spec
 
+import PIPE
+
 -- ================================================================
 -- The 'run loop's main function is to repeatedly fetch and execute an
 -- instruction, with the following simulation-friendly nuances:
@@ -45,8 +47,8 @@ import Forvis_Spec
 -- Takes an architecture state and returns the new architecture state.
 -- Fetches and executes one instruction; and repeats.
 
-run_loop :: Int -> (Maybe Integer) -> Machine_State -> IO (Int, Machine_State)
-run_loop  maxinstrs  m_tohost_addr  mstate = do
+run_loop :: Int -> (Maybe Integer) -> PIPE_State -> Machine_State -> IO (Int, PIPE_State, Machine_State)  
+run_loop  maxinstrs m_tohost_addr pipe_state mstate = do
   let instret   = mstate_csr_read        mstate  csr_addr_minstret
       run_state = mstate_run_state_read  mstate
 
@@ -63,19 +65,19 @@ run_loop  maxinstrs  m_tohost_addr  mstate = do
              putStrLn ("Stopping due to write to <tohost> = " ++ (show  tohost_u64) ++
                        "; instret = " ++ show  instret)
              let exit_value = (fromIntegral  (shiftR  tohost_u64  1)) :: Int
-             return (exit_value, mstate2))
+             return (exit_value, pipe_state, mstate2))  -- WRONG
 
     -- Simulation aid: Stop due to instruction limit
     else if instret >= fromIntegral maxinstrs
     then (do
              putStrLn ("Stopping due to instret limit (" ++ show maxinstrs ++ ")")
-             return (0, mstate2))
+             return (0, pipe_state, mstate2))  --WRONG
 
     -- Simulation aid: Stop due to any other reason
     else if ((run_state /= Run_State_Running) && (run_state /= Run_State_WFI))
     then (do
              putStrLn ("Stopping due to runstate " ++ show run_state ++ "; instret = " ++ show instret)
-             return (0, mstate2))
+             return (0, pipe_state, mstate2))  -- WRONG
 
     -- Fetch-and-execute instruction or WFI-resume, and continue run-loop
     else (do
@@ -91,8 +93,9 @@ run_loop  maxinstrs  m_tohost_addr  mstate = do
              mstate3 <- get_tty_input  mstate2
 
              -- If running, fetch-and-execute; if in WFI pause, check resumption
-             mstate4 <- if (run_state == Run_State_Running) then
-                          fetch_and_execute  mstate3
+             (pipe_state1, mstate4) <-
+                        if (run_state == Run_State_Running) then
+                          fetch_and_execute pipe_state mstate3
 
                         else
                           -- run_state == Run_State_WFI
@@ -102,7 +105,7 @@ run_loop  maxinstrs  m_tohost_addr  mstate = do
                                               mstate_run_state_write  mstate3  Run_State_Running
                                             else
                                               mstate3
-                            return mstate3_a
+                            return (pipe_state, mstate3_a)   -- WRONG!
  
              -- If the UART has buffered output, consume and print out to the tty console
              mstate5 <- put_tty_output  mstate4
@@ -121,10 +124,10 @@ run_loop  maxinstrs  m_tohost_addr  mstate = do
                then (do
                         putStrLn ("Stopping due to self-loop at PC " ++ (showHex pc5 "") ++
                                   "; instret = " ++ show instret)
-                        return (0, mstate5))
+                        return (0, pipe_state1, mstate5))
                else (do
                         -- Continue run-loop (tail recursive)
-                        run_loop  maxinstrs  m_tohost_addr  mstate5))
+                        run_loop  maxinstrs  m_tohost_addr  pipe_state1 mstate5))
 
 -- ================================================================
 -- Fetch and execute an instruction (RV32 32b instr or RV32C 16b compressed instr)
@@ -132,8 +135,8 @@ run_loop  maxinstrs  m_tohost_addr  mstate = do
 --     state to the trap vector (so, the fetched instr will be the
 --     first instruction in the trap vector).
 
-fetch_and_execute :: Machine_State -> IO  Machine_State
-fetch_and_execute  mstate = do
+fetch_and_execute :: PIPE_State -> Machine_State -> IO (PIPE_State, Machine_State)
+fetch_and_execute pipe_state mstate = do
   let verbosity               = mstate_verbosity_read  mstate
       (intr_pending, mstate2) = take_interrupt_if_any  mstate
 
@@ -162,7 +165,7 @@ fetch_and_execute  mstate = do
   case fetch_result of
     Fetch_Trap  ec -> (do
                           when (verbosity >= 1) (putStrLn ("Fetch Trap:" ++ show_trap_exc_code  ec))
-                          return mstate3)
+                          return (pipe_state, mstate3))  -- WRONG
     Fetch_C  u16 -> (do
                         -- Exec 'C' instruction
                         let (mstate4, spec_name) = (exec_instr_C  mstate3  u16)
@@ -174,10 +177,12 @@ fetch_and_execute  mstate = do
                               putStr  ("  priv " ++ show (priv))
                               putStrLn ("  " ++ spec_name))
                         when (verbosity > 1) (mstate_print  "  "  mstate4)
-                        return  mstate4)
+                        return  (pipe_state, mstate4))  --WRONG
     Fetch    u32 -> (do
                         -- Exec 32b instruction
                         let (mstate4, spec_name) = (exec_instr  mstate3  u32)
+                        (pipe_state1,trap) <- exec_pipe pipe_state mstate3 mstate4 u32 -- monad for debugging
+                        when trap $ error "PIPE trap!"
                         when (verbosity >= 1)
                           (do
                               putStr  ("inum:" ++ show (instret + 1))
@@ -186,7 +191,7 @@ fetch_and_execute  mstate = do
                               putStr  ("  priv " ++ show (priv))
                               putStrLn ("  " ++ spec_name))
                         when (verbosity > 1) (mstate_print  "  "  mstate4)
-                        return  mstate4)
+                        return  (pipe_state1, mstate4))
 
 -- ================================================================
 -- Read the word in mem [tohost_addr], if such an addr is given,

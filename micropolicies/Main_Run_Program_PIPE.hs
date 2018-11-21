@@ -1,7 +1,7 @@
 -- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
-module Main_Run_Program where
+module Main_Run_Program_PIPE where
 
 -- ================================================================
 -- This is the 'main' function for the use-case where we simply
@@ -32,11 +32,13 @@ import Read_Hex_File
 
 import Arch_Defs
 import Machine_State
-import Run_Program
 import Mem_Ops
 import Memory
 import MMIO
 import Address_Map
+
+import Run_Program_PIPE
+import PIPE
 
 -- ================================================================
 
@@ -219,7 +221,7 @@ run_program_from_files    rv    misa       files       num_instrs  watch_tohost 
   putStrLn ("PC reset: 0x" ++ showHex  pc_reset_value "" ++
             "; " ++ show (rv) ++ (show_misa  misa) ++
             "; instret limit: " ++ show (num_instrs))
-  (exit_value, mstate3) <- run_loop  num_instrs  m_tohost_addr1  mstate2
+  (exit_value, pipe_state1, mstate3) <- run_loop num_instrs m_tohost_addr1 init_pipe_state mstate2
 
   if (exit_value == 0)
     then putStrLn  ("PASS")

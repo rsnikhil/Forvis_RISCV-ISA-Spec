@@ -25,8 +25,6 @@ import Arch_Defs
 import Machine_State
 import Run_Program
 
-import PIPE
-
 -- ================================================================
 
 main_tandem_verifier :: IO ()
@@ -271,7 +269,7 @@ process_cmd  mstate  ["exec", n_s, tv_s] = do
   putStrLn ("    Doing exec " ++ n_s ++ " " ++ tv_s)
   let n             = read  n_s
       m_tohost_addr = Nothing
-  (exit_value, _, mstate1) <- run_loop  (fromIntegral n)  m_tohost_addr init_pipe_state mstate 
+  (exit_value, mstate1) <- run_loop  (fromIntegral n)  m_tohost_addr  mstate
   let run_state = mstate_run_state_read  mstate1
   putStrLn ("OK " ++ (show run_state))
   return mstate1
