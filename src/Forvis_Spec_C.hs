@@ -25,15 +25,67 @@ import Arch_Defs
 import Machine_State
 import CSR_File
 
-import Forvis_Spec_I                -- Base instr set ('C' is defined in terms of Base)
+import Forvis_Spec_I         -- Base instr set ('C' is defined in terms of Base)
 
-import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
+import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
 -- 'C' Extension ("Compressed") major opcodes ('quadrants' 0, 1 and 2)
 
 -- NOTE: opcode_XX, funct3_C_XXX, funct2_C_XXX, funct4_C_XXX, funct6_C_XXXX
 -- are defined in module Arch_Defs
+
+-- ================================================================
+-- The following is a list of all the specification functions defined below.
+
+instr_specs_C :: [(Instr_C_Spec, String)]
+instr_specs_C = [(spec_C_LWSP,      "C_LWSP"),
+                 (spec_C_LDSP,      "C_LDSP"),
+                 -- (spec_C_LQSP,      "C_LQSP"),      Uncomment when we do RV128
+                 -- (spec_C_FLWSP,     "C_FLWSP"),     Uncomment when we do floating point
+                 -- (spec_C_FLDSP,     "C_FLDSP"),     Uncomment when we do floating point
+                 (spec_C_SWSP,      "C_SWSP"),
+                 (spec_C_SDSP,      "C_SDSP"),
+                 -- (spec_C_SQSP,      "C_SQSP"),      Uncomment when we do RV128
+                 -- (spec_C_FSWSP,     "C_FSWSP"),     Uncomment when we do floating point
+                 -- (spec_C_FSDSP,     "C_FSDSP"),     Uncomment when we do floating point
+                 (spec_C_LW,        "C_LW"),
+                 (spec_C_LD,        "C_LD"),
+                 -- (spec_C_LQ,        "C_LQ"),        Uncomment when we do RV128
+                 -- (spec_C_FLW,       "C_FLW"),       Uncomment when we do floating point
+                 -- (spec_C_FLD,       "C_FLD"),       Uncomment when we do floating point
+                 (spec_C_SW,        "C_SW"),
+                 (spec_C_SD,        "C_SD"),
+                 -- (spec_C_SQ,        "C_SQ"),        Uncomment when we do RV128
+                 -- (spec_C_FSW,       "C_FSW"),       Uncomment when we do floating point
+                 -- (spec_C_FSD,       "C_FSD"),       Uncomment when we do floating point
+                 (spec_C_J,         "C_J"),
+                 (spec_C_JAL,       "C_JAL"),
+                 (spec_C_JR,        "C_JR"),
+                 (spec_C_JALR,      "C_JALR"),
+                 (spec_C_BEQZ,      "C_BEQZ"),
+                 (spec_C_BNEZ,      "C_BNEZ"),
+                 (spec_C_LI,        "C_LI"),
+                 (spec_C_LUI,       "C_LUI"),
+                 (spec_C_ADDI,      "C_ADDI"),
+                 (spec_C_NOP,       "C_NOP"),
+                 (spec_C_ADDIW,     "C_ADDIW"),
+                 (spec_C_ADDI16SP,  "C_ADDI16SP"),
+                 (spec_C_ADDI4SPN,  "C_ADDI4SPN"),
+                 (spec_C_SLLI,      "C_SLLI"),
+                 (spec_C_SRLI,      "C_SRLI"),
+                 (spec_C_SRAI,      "C_SRAI"),
+                 (spec_C_ANDI,      "C_ANDI"),
+                 (spec_C_MV,        "C_MV"),
+                 (spec_C_ADD,       "C_ADD"),
+                 (spec_C_AND,       "C_AND"),
+                 (spec_C_OR,        "C_OR"),
+                 (spec_C_XOR,       "C_XOR"),
+                 (spec_C_SUB,       "C_SUB"),
+                 (spec_C_ADDW,      "C_ADDW"),
+                 (spec_C_SUBW,      "C_SUBW"),
+                 (spec_C_EBREAK,    "C_EBREAK")
+                ]
 
 -- ================================================================
 -- 'C' Extension Stack-Pointer-Based Loads

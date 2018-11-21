@@ -4,7 +4,7 @@
 module Forvis_Spec where
 
 -- ================================================================
--- Specification of all RISC-V instructions.
+-- Instruction fetch; execute one instruction; take interrupt
 
 -- ================================================================
 -- Haskell lib imports
@@ -18,14 +18,14 @@ import Bit_Utils
 import Arch_Defs
 import Machine_State
 import Virtual_Mem
-import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
+import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- User-level instructions
-import Forvis_Spec_I                -- 'I' (Base) instruction set
-import Forvis_Spec_M                -- Extension 'M' (Integer Multiply/Divide)
-import Forvis_Spec_A                -- Extension 'A' (Atomic Memory Ops (AMO))
-import Forvis_Spec_FD               -- Extensions 'F' and 'D' (single- and double-precision floating point)
-import Forvis_Spec_C                -- Extension 'C' (Compressed 16-bit instrs)
+import Forvis_Spec_I         -- 'I' (Base) instruction set
+import Forvis_Spec_M         -- Extension 'M' (Integer Multiply/Divide)
+import Forvis_Spec_A         -- Extension 'A' (Atomic Memory Ops (AMO))
+import Forvis_Spec_FD        -- Extensions 'F' and 'D' (single- and double-precision floating point)
+import Forvis_Spec_C         -- Extension 'C' (Compressed 16-bit instrs)
 
 -- Privileged Architecture instructions
 import Forvis_Spec_Priv
@@ -34,10 +34,16 @@ import Forvis_Spec_Priv
 -- Instruction fetch
 -- This function attempts an insruction fetch based on the current PC.
 
--- It first attempts to read 2 bytes only, in case the next
--- instruction is a 'C' (compressed) instruction. This may trap; if
--- not, we can decide if it's a C instruction, and read the next 2
--- bytes if it is not a C instruction; this, too, may trap.
+-- We do not blindly fetch 4 bytes, since the fetch of the latter 2
+-- bytes may trap, which may not be relevant if the first 2 bytes are
+-- a 'C' (compressed) instruction (which may trap or jump elsewhere).
+
+-- So:
+--   - We first attempt to read 2 bytes only
+--   - This fetch-attempt may trap
+--   - Else we check if it's a 'C' instruction; if so, we're done
+--   - Else we attempt to read the next 2 bytes (remaining 2 bytes of a 32b instr)
+--   -      This fetch-attempt may also trap
 
 data Fetch_Result = Fetch_Trap  Exc_Code
                   | Fetch_C     Integer
@@ -54,7 +60,9 @@ instr_fetch  mstate =
     misa              = mstate_csr_read  mstate  csr_addr_misa
   in
     if (not  (misa_flag  misa  'C')) then
-      -- 32b instructions only
+      -- 32b instructions only.
+      -- This is a simulation-speed optimization where we don't do the
+      -- default 16-bit fetches if MISA.C is false.
       let
         -- Read 4 instr bytes
         -- with virtual-to-physical translation if necessary.
@@ -126,120 +134,17 @@ read_n_instr_bytes    mstate           n_bytes  va =
     (result2, mstate2)
 
 -- ================================================================
--- Executing one instruction
+-- Execute one 32b instruction
 
--- The spec is organized as a collection of functions.
--- Some functions specify just one kind of instruction (e.g., LUI).
--- Some functions specify a small family of related instructions (e.g., BRANCH)
--- Each function has the following type:
-
-type Instr_Spec   = Machine_State -> Instr   -> Bool -> (Bool, Machine_State)
-type Instr_C_Spec = Machine_State -> Instr_C -> (Bool, Machine_State)
-
--- The first argument is a machine state (which contains the architectural state).
--- The second argument is an instruction, a 32-bit word.
--- It returns a 2-tuple (x,y) where:
---   x is True if this instruction is handled by this function
--- and
---   y is the transformed architecture state due executing this instruction, if x is True,
---     and irrelevant otherwise.
-
--- The following is a list of all the specification functions defined below.
+-- The following is a list of all 32b instruction specification functions
 
 instr_specs :: [(Instr_Spec, String)]
-instr_specs = [(spec_LUI,               "LUI"),
-               (spec_AUIPC,             "AUIPC"),
-               (spec_JAL,               "JAL"),
-               (spec_JALR,              "JALR"),
-               (spec_BRANCH,            "BRANCH"),
-               (spec_LOAD,              "LOAD"),
-               (spec_STORE,             "STORE"),
-               (spec_OP_IMM,            "OP_IMM"),
-               (spec_OP,                "OP"),
-               (spec_MISC_MEM,          "MISC_MEM"),
-               (spec_SYSTEM_ECALL,      "SYSTEM_ECALL"),
-               (spec_SYSTEM_xRET,       "SYSTEM_xRET"),
-               (spec_SYSTEM_EBREAK,     "SYSTEM_EBREAK"),
-               (spec_SYSTEM_WFI,        "SYSTEM_WFI"),
-               (spec_SYSTEM_SFENCE_VM,  "SYSTEM_SFENCE_VM"),
-               (spec_SYSTEM_CSRRW,      "SYSTEM_CSRRW"),
-               (spec_SYSTEM_CSRR_S_C,   "SYSTEM_CSRR_S_C"),
-               (spec_OP_MUL,            "OP_MUL"),
-               (spec_OP_DIV,            "OP_DIV"),
-               (spec_OP_REM,            "OP_REM"),
-               (spec_OP_IMM_32,         "OP_IMM_32"),
-               (spec_OP_32,             "OP_32"),
-               (spec_OP_32_M,           "OP_32_M"),
-               (spec_AMO,               "AMO"),
-               (spec_FD_LOAD,           "FD_LOAD"),
-               (spec_FD_STORE,          "FD_STORE"),
-               (spec_D_OP,              "FPU_D_OP"),
-               (spec_D_FCVT,            "FPU_D_CONVERT"),
-               (spec_D_FCLASS,          "FPU_D_CLASS"),
-               (spec_D_FSGNJ,           "FPU_D_SIGN_CHANGE"),
-               (spec_D_CMP,             "FPU_D_COMPARE"),
-               (spec_D_MAX,             "FPU_D_MAX"),
-               (spec_D_MIN,             "FPU_D_MIN"),
-               (spec_D_FMOP,            "FPU_D_MULTIPLY_ACCUMULATE"),
-               (spec_D_FMV,             "FPU_D_REG_MOVE"),
-               (spec_F_OP,              "FPU_F_OP"),
-               (spec_F_FCVT,            "FPU_F_CONVERT"),
-               (spec_F_FCLASS,          "FPU_F_CLASS"),
-               (spec_F_FSGNJ,           "FPU_F_SIGN_CHANGE"),
-               (spec_F_CMP,             "FPU_F_COMPARE"),
-               (spec_F_MIN,             "FPU_F_MIN"),
-               (spec_F_MAX,             "FPU_F_MAX"),
-               (spec_F_FMOP,            "FPU_F_MULTIPLY_ACCUMULATE"),
-               (spec_F_FMV,             "FPU_F_REG_MOVE")]
-
-instr_C_specs :: [(Instr_C_Spec, String)]
-instr_C_specs = [(spec_C_LWSP,      "C_LWSP"),
-                 (spec_C_LDSP,      "C_LDSP"),
-                 -- (spec_C_LQSP,      "C_LQSP"),      Uncomment when we do RV128
-                 -- (spec_C_FLWSP,     "C_FLWSP"),     Uncomment when we do floating point
-                 -- (spec_C_FLDSP,     "C_FLDSP"),     Uncomment when we do floating point
-                 (spec_C_SWSP,      "C_SWSP"),
-                 (spec_C_SDSP,      "C_SDSP"),
-                 -- (spec_C_SQSP,      "C_SQSP"),      Uncomment when we do RV128
-                 -- (spec_C_FSWSP,     "C_FSWSP"),     Uncomment when we do floating point
-                 -- (spec_C_FSDSP,     "C_FSDSP"),     Uncomment when we do floating point
-                 (spec_C_LW,        "C_LW"),
-                 (spec_C_LD,        "C_LD"),
-                 -- (spec_C_LQ,        "C_LQ"),        Uncomment when we do RV128
-                 -- (spec_C_FLW,       "C_FLW"),       Uncomment when we do floating point
-                 -- (spec_C_FLD,       "C_FLD"),       Uncomment when we do floating point
-                 (spec_C_SW,        "C_SW"),
-                 (spec_C_SD,        "C_SD"),
-                 -- (spec_C_SQ,        "C_SQ"),        Uncomment when we do RV128
-                 -- (spec_C_FSW,       "C_FSW"),       Uncomment when we do floating point
-                 -- (spec_C_FSD,       "C_FSD"),       Uncomment when we do floating point
-                 (spec_C_J,         "C_J"),
-                 (spec_C_JAL,       "C_JAL"),
-                 (spec_C_JR,        "C_JR"),
-                 (spec_C_JALR,      "C_JALR"),
-                 (spec_C_BEQZ,      "C_BEQZ"),
-                 (spec_C_BNEZ,      "C_BNEZ"),
-                 (spec_C_LI,        "C_LI"),
-                 (spec_C_LUI,       "C_LUI"),
-                 (spec_C_ADDI,      "C_ADDI"),
-                 (spec_C_NOP,       "C_NOP"),
-                 (spec_C_ADDIW,     "C_ADDIW"),
-                 (spec_C_ADDI16SP,  "C_ADDI16SP"),
-                 (spec_C_ADDI4SPN,  "C_ADDI4SPN"),
-                 (spec_C_SLLI,      "C_SLLI"),
-                 (spec_C_SRLI,      "C_SRLI"),
-                 (spec_C_SRAI,      "C_SRAI"),
-                 (spec_C_ANDI,      "C_ANDI"),
-                 (spec_C_MV,        "C_MV"),
-                 (spec_C_ADD,       "C_ADD"),
-                 (spec_C_AND,       "C_AND"),
-                 (spec_C_OR,        "C_OR"),
-                 (spec_C_XOR,       "C_XOR"),
-                 (spec_C_SUB,       "C_SUB"),
-                 (spec_C_ADDW,      "C_ADDW"),
-                 (spec_C_SUBW,      "C_SUBW"),
-                 (spec_C_EBREAK,    "C_EBREAK")
-                ]
+instr_specs = (instr_specs_I                -- Base instructions
+               ++ instr_specs_Priv          -- Privileged Arch instructions
+               ++ instr_specs_M             -- Integer Multiply/Divide instructions
+               ++ instr_specs_A             -- Atomic Memory Ops instructions
+               ++ instr_specs_FD            -- Single- and Double-precision floating point instructions
+              )
 
 -- 'exec_instr' takes a machine state and a 32-bit instruction and
 -- returns a new machine state after executing that instruction.  It
@@ -266,6 +171,11 @@ exec_instr    mstate           instr =
   in
     tryall  instr_specs
 
+-- ================================================================
+-- Execute one 16b instruction
+
+-- See 'instr_specs_C' in Forvis_Spec_C.hs for all the 'Compressed' instructions
+
 -- 'exec_instr_C' takes a machine state and a 16-bit compressed instruction and
 -- returns a new machine state after executing that instruction.  It
 -- attempts all the specs in 'instr_C_specs' and, if none of them apply,
@@ -286,7 +196,7 @@ exec_instr_C    mstate           instr =
                                      else
                                        tryall  specs)
   in
-    tryall  instr_C_specs
+    tryall  instr_specs_C
 
 -- ================================================================
 -- Take interrupt if interrupts pending and enabled                   \begin_latex{take_interrupt}

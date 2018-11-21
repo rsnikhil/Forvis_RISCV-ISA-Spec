@@ -45,8 +45,8 @@ import Forvis_Spec
 -- Takes an architecture state and returns the new architecture state.
 -- Fetches and executes one instruction; and repeats.
 
-run_loop :: Int -> (Maybe Integer) -> Machine_State -> IO (Int, Machine_State)
-run_loop  maxinstrs  m_tohost_addr  mstate = do
+run_loop :: Int     -> (Maybe Integer) -> Machine_State -> IO (Int, Machine_State)
+run_loop    maxinstrs  m_tohost_addr      mstate = do
   let instret   = mstate_csr_read        mstate  csr_addr_minstret
       run_state = mstate_run_state_read  mstate
 
@@ -133,7 +133,7 @@ run_loop  maxinstrs  m_tohost_addr  mstate = do
 --     first instruction in the trap vector).
 
 fetch_and_execute :: Machine_State -> IO  Machine_State
-fetch_and_execute  mstate = do
+fetch_and_execute    mstate = do
   let verbosity               = mstate_verbosity_read  mstate
       (intr_pending, mstate2) = take_interrupt_if_any  mstate
 

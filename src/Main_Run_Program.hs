@@ -5,7 +5,7 @@ module Main_Run_Program where
 
 -- ================================================================
 -- This is the 'main' function for the use-case where we simply
--- want to load and ELF file and run it sequentially to completion:
+-- want to load an ELF file and run it sequentially to completion:
 --   - Reads a list of filenames on the command-line
 --         (RISC-V ELF executable files, or hex-mem images if ending with ".hex")
 --   - Executes each RISC-V program using run_loop()
@@ -39,9 +39,6 @@ import MMIO
 import Address_Map
 
 -- ================================================================
-
-usage_help :: String
-usage_help = "This program expects one or more RISC-V ELF or .hex files as command-line arguments"
 
 main_run_program :: IO ()
 main_run_program = do
@@ -170,17 +167,17 @@ to_Opt_Arch s =
     mk_misa     rv    s         misa =
       case s of
         []                                    -> (let
-                                                           misa_mxl | rv == RV32 = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
-                                                                    | rv == RV64 = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)
-                                                           misa' = (misa_mxl .|. misa)
-                                                        in
-                                                           Opt_Arch  rv  misa')
+                                                     misa_mxl | rv == RV32 = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
+                                                              | rv == RV64 = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)
+                                                     misa' = (misa_mxl .|. misa)
+                                                   in
+                                                     Opt_Arch  rv  misa')
 
         (ch:s1)  | ('a' <= ch) && (ch <= 'z') -> (let
-                                                           bit = shiftL  1  ((ord ch) - (ord 'a'))
-                                                           misa' = misa .|. bit
-                                                        in
-                                                           mk_misa  rv  s1  misa')
+                                                     bit = shiftL  1  ((ord ch) - (ord 'a'))
+                                                     misa' = misa .|. bit
+                                                  in
+                                                     mk_misa  rv  s1  misa')
 
         _                                     -> Opt_Err  "Illegal --arch command-line arg"
 

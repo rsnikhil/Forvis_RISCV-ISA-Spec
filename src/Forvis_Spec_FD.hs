@@ -24,10 +24,36 @@ import Machine_State
 import CSR_File
 import Virtual_Mem
 
-import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
+import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
 -- 'F' and 'D' extensions (floating point)
+
+-- ================================================================
+-- The following is a list of all the specification functions defined below.
+
+instr_specs_FD :: [(Instr_Spec, String)]
+instr_specs_FD = [(spec_FD_LOAD,           "FD_LOAD"),
+                  (spec_FD_STORE,          "FD_STORE"),
+                  (spec_D_OP,              "FPU_D_OP"),
+                  (spec_D_FCVT,            "FPU_D_CONVERT"),
+                  (spec_D_FCLASS,          "FPU_D_CLASS"),
+                  (spec_D_FSGNJ,           "FPU_D_SIGN_CHANGE"),
+                  (spec_D_CMP,             "FPU_D_COMPARE"),
+                  (spec_D_MAX,             "FPU_D_MAX"),
+                  (spec_D_MIN,             "FPU_D_MIN"),
+                  (spec_D_FMOP,            "FPU_D_MULTIPLY_ACCUMULATE"),
+                  (spec_D_FMV,             "FPU_D_REG_MOVE"),
+                  (spec_F_OP,              "FPU_F_OP"),
+                  (spec_F_FCVT,            "FPU_F_CONVERT"),
+                  (spec_F_FCLASS,          "FPU_F_CLASS"),
+                  (spec_F_FSGNJ,           "FPU_F_SIGN_CHANGE"),
+                  (spec_F_CMP,             "FPU_F_COMPARE"),
+                  (spec_F_MIN,             "FPU_F_MIN"),
+                  (spec_F_MAX,             "FPU_F_MAX"),
+                  (spec_F_FMOP,            "FPU_F_MULTIPLY_ACCUMULATE"),
+                  (spec_F_FMV,             "FPU_F_REG_MOVE")
+                 ]
 
 -- ================================================================
 -- FD_LOAD

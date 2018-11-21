@@ -19,13 +19,21 @@ import Bit_Utils
 import Arch_Defs
 import Machine_State
 
-import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
+import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
 -- Privileged Architecture instruction set
 
 -- NOTE: opcode_SYSTEM, funct12_URET/SRET/MRET/WFI, func7_SFENCE_VM
 -- are defined in module Arch_Defs
+
+-- ================================================================
+-- The following is a list of all the specification functions defined below.
+
+instr_specs_Priv :: [(Instr_Spec, String)]
+instr_specs_Priv = [(spec_SYSTEM_xRET,       "SYSTEM_xRET"),
+                    (spec_SYSTEM_WFI,        "SYSTEM_WFI"),
+                    (spec_SYSTEM_SFENCE_VM,  "SYSTEM_SFENCE_VM")]
 
 -- ================================================================
 -- SYSTEM.PRIV.MRET/SRET/URET

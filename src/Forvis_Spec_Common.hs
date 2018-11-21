@@ -1,18 +1,21 @@
 -- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
-module Forvis_Spec_Finish_Instr where
+module Forvis_Spec_Common where
 
 -- ================================================================
 -- Part of: specification of all RISC-V instructions.
 
--- These functions describe canonical ways to 'finish' an instruction:
+-- These are common definitions used by the spec functions of all instructions
+--
+--   - The common type of each spec function
+--
+--   - Functions describing canonical ways to 'finish' an instruction:
 --     - possibly writing to a GPR and/or FPR and/or CSR,
 --     - possibly incrementing the PC or writing a new value to the PC
 --     - possibly updating many CSRs due to a trap
-
--- In the per-instruction semantics, each function ends by calling one
--- or more of the following functions.
+--     In the per-instruction semantics, each function ends by calling
+--     one or more of the following functions.
 
 -- ================================================================
 -- Haskell lib imports
@@ -26,6 +29,23 @@ import FPU
 import Arch_Defs
 import Machine_State
 import CSR_File
+
+-- ================================================================
+-- The spec is organized as a collection of functions.
+-- Some functions specify just one kind of instruction (e.g., LUI).
+-- Some functions specify a small family of related instructions (e.g., BRANCH)
+-- Each function has the following type:
+
+type Instr_Spec   = Machine_State -> Instr   -> Bool -> (Bool, Machine_State)
+type Instr_C_Spec = Machine_State -> Instr_C -> (Bool, Machine_State)
+
+-- The first argument is a machine state (which contains the architectural state).
+-- The second argument is an instruction, a 32-bit word.
+-- It returns a 2-tuple (x,y) where:
+--   x is True if this instruction is handled by this function
+-- and
+--   y is the transformed architecture state due executing this instruction, if x is True,
+--     and irrelevant otherwise.
 
 -- ================================================================
 -- Common ways to finish an instruction.

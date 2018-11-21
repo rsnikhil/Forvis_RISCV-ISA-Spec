@@ -22,12 +22,34 @@ import Machine_State
 import CSR_File
 import Virtual_Mem
 
-import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
+import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
 -- 'I' Base instruction set
 
 -- NOTE: opcode_XXX, funct3_XXX are defined in module Arch_Defs
+
+-- ================================================================
+-- The following is a list of all the specification functions defined below.
+
+instr_specs_I :: [(Instr_Spec, String)]
+instr_specs_I = [(spec_LUI,               "LUI"),
+                 (spec_AUIPC,             "AUIPC"),
+                 (spec_JAL,               "JAL"),
+                 (spec_JALR,              "JALR"),
+                 (spec_BRANCH,            "BRANCH"),
+                 (spec_LOAD,              "LOAD"),
+                 (spec_STORE,             "STORE"),
+                 (spec_OP_IMM,            "OP_IMM"),
+                 (spec_OP,                "OP"),
+                 (spec_MISC_MEM,          "MISC_MEM"),
+                 (spec_SYSTEM_ECALL,      "SYSTEM_ECALL"),
+                 (spec_SYSTEM_EBREAK,     "SYSTEM_EBREAK"),
+                 (spec_SYSTEM_CSRRW,      "SYSTEM_CSRRW"),
+                 (spec_SYSTEM_CSRR_S_C,   "SYSTEM_CSRR_S_C"),
+                 (spec_OP_IMM_32,         "OP_IMM_32"),
+                 (spec_OP_32,             "OP_32")
+                ]
 
 -- ================================================================
 -- LUI

@@ -21,13 +21,20 @@ import Arch_Defs
 import Machine_State
 import Virtual_Mem
 
-import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
+import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
 -- 'A' Extension
 
 -- Note: the following are defined in module Arch_Defs
 --     opcode_AMO, funct3_AMO_W/D, msbs5_AMO_LR/SC/ADD/SWAP/XOR/AND/OR/MIN/MAX/MINU/MAXU
+
+-- ================================================================
+-- The following is a list of all the specification functions defined below.
+
+instr_specs_A :: [(Instr_Spec, String)]
+instr_specs_A = [ (spec_AMO, "AMO")
+                ]
 
 -- ================================================================
 

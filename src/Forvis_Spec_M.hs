@@ -21,13 +21,23 @@ import ALU
 import Arch_Defs
 import Machine_State
 
-import Forvis_Spec_Finish_Instr     -- Canonical ways for finish an instruction
+import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
 -- 'M' Extension (Integer Multiply/Divide)
 
 -- NOTE: opcode_OP, opcode_OP_32, funct3_XXX, funct7_XXX
 -- are defined in module Arch_Defs
+
+-- ================================================================
+-- The following is a list of all the specification functions defined below.
+
+instr_specs_M :: [(Instr_Spec, String)]
+instr_specs_M = [(spec_OP_MUL,            "OP_MUL"),
+                 (spec_OP_DIV,            "OP_DIV"),
+                 (spec_OP_REM,            "OP_REM"),
+                 (spec_OP_32_M,           "OP_32_M")
+                ]
 
 -- ================================================================
 -- OP: 'M' Extension: MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU
