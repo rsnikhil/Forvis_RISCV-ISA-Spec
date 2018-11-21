@@ -47,7 +47,7 @@ import PIPE
 -- Takes an architecture state and returns the new architecture state.
 -- Fetches and executes one instruction; and repeats.
 
-run_loop :: Int -> (Maybe Integer) -> PIPE_State -> Machine_State -> IO (Int, PIPE_State, Machine_State) 
+run_loop :: Int -> (Maybe Integer) -> PIPE_State -> Machine_State -> IO (Int, PIPE_State, Machine_State)  
 run_loop  maxinstrs m_tohost_addr pipe_state mstate = do
   let instret   = mstate_csr_read        mstate  csr_addr_minstret
       run_state = mstate_run_state_read  mstate
