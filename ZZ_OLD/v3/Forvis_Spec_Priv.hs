@@ -28,69 +28,37 @@ import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 -- are defined in module Arch_Defs
 
 -- ================================================================
--- Data structure for instructions in Privileged Arch
+-- The following is a list of all the specification functions defined below.
 
-data Instr_Priv = URET
-                | SRET
-                | MRET
-                | WFI
-                | SFENCE_VM  GPR_Addr  GPR_Addr    -- rs1  rs2
-  deriving (Eq, Show)
+instr_specs_Priv :: [(Instr_Spec, String)]
+instr_specs_Priv = [(spec_SYSTEM_xRET,       "SYSTEM_xRET"),
+                    (spec_SYSTEM_WFI,        "SYSTEM_WFI"),
+                    (spec_SYSTEM_SFENCE_VM,  "SYSTEM_SFENCE_VM")]
 
 -- ================================================================
--- Decode from 32b representation to Instr_I data structure
+-- SYSTEM.PRIV.MRET/SRET/URET
 
-decode_Priv :: RV -> Instr_32b -> Maybe Instr_Priv
-decode_Priv    rv    instr_32b =
+spec_SYSTEM_xRET :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_SYSTEM_xRET    mstate           instr    is_C =
   let
-    -- Symbolic names for notable bitfields in the 32b instruction 'instr_32b'
-    opcode  = bitSlice  instr_32b   6   0
-    rd      = bitSlice  instr_32b  11   7
-    funct3  = bitSlice  instr_32b  14  12
-    rs1     = bitSlice  instr_32b  19  15
-    rs2     = bitSlice  instr_32b  24  20
-    funct7  = bitSlice  instr_32b  31  25
-    imm12_I = bitSlice  instr_32b  31  20
+    -- Instr fields: I-type
+    (funct12, rs1, funct3, rd, opcode) = ifields_I_type   instr
 
-    instr_Priv
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, imm12_I==funct12_URET = Just URET
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, imm12_I==funct12_SRET = Just SRET
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, imm12_I==funct12_MRET = Just MRET
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, imm12_I==funct12_WFI  = Just WFI
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, funct7==funct7_SFENCE_VM      = Just (SFENCE_VM  rs1  rs2)
-      | True = Nothing
-  in
-    instr_Priv
+    priv   = mstate_priv_read  mstate
 
--- ================================================================
--- Execution of Instr_Priv
+    -- Decode check
+    is_MRET = (funct12 == funct12_MRET)
+    is_SRET = (funct12 == funct12_SRET)
+    is_URET = (funct12 == funct12_URET)
+    is_legal = ((opcode == opcode_SYSTEM)
+                && (funct3 == funct3_PRIV)
+                && ((is_MRET && (priv == m_Priv_Level))
+                     || (is_SRET && (priv >= s_Priv_Level))
+                     || (is_URET && (priv >= u_Priv_Level)))
+                && (rs1 == 0)
+                && (rd == 0))
 
-type Spec_Instr_Priv = Bool -> Instr_Priv -> Machine_State -> Machine_State
---                     is_C    instr_Priv    mstate           mstate'
-
-exec_instr_Priv :: Instr_32b -> Spec_Instr_Priv
-exec_instr_Priv  instr_32b  is_C  instr_Priv  mstate =
-  case instr_Priv of
-    MRET                -> exec_xRET       instr_32b  is_C  instr_Priv  mstate
-    SRET                -> exec_xRET       instr_32b  is_C  instr_Priv  mstate
-    URET                -> exec_xRET       instr_32b  is_C  instr_Priv  mstate
-    WFI                 -> exec_WFI        instr_32b  is_C  instr_Priv  mstate
-    SFENCE_VM  rs1  rs2 -> exec_SFENCE_VM  instr_32b  is_C  instr_Priv  mstate
-
--- ================================================================
--- MRET/SRET/URET
-
-exec_xRET :: Instr_32b -> Spec_Instr_Priv
-exec_xRET  instr_32b  is_C  instr_Priv  mstate =
-  let
-    is_MRET  = (instr_Priv == MRET)
-    is_SRET  = (instr_Priv == SRET)
-    is_URET  = (instr_Priv == URET)
-    priv     = mstate_priv_read  mstate
-    is_legal = ((    is_MRET && (priv == m_Priv_Level))
-                 || (is_SRET && (priv >= s_Priv_Level))
-                 || (is_URET && (priv >= u_Priv_Level)))
-
+    -- Semantics
     mstatus   = mstate_csr_read  mstate  csr_addr_mstatus
     tsr_fault = (is_SRET && (priv == s_Priv_Level) && (testBit  mstatus  mstatus_tsr_bitpos))
     (mpp,spp,mpie,spie,upie,mie,sie,uie) = mstatus_stack_fields  mstatus
@@ -99,7 +67,7 @@ exec_xRET  instr_32b  is_C  instr_Priv  mstate =
 
     mstate3   = if (tsr_fault)
                 then
-                  let tval = instr_32b
+                  let tval = instr
                   in
                     finish_trap  mstate  exc_code_illegal_instruction  tval
 
@@ -148,16 +116,27 @@ exec_xRET  instr_32b  is_C  instr_Priv  mstate =
                   in
                     finish_pc  mstate2  pc2
   in
-    mstate3
+    (is_legal, mstate3)
 
 -- ================================================================
--- WFI
+-- SYSTEM.PRIV.WFI
 
-exec_WFI :: Instr_32b -> Spec_Instr_Priv
-exec_WFI  instr_32b  is_C  instr_Priv  mstate =
+spec_SYSTEM_WFI :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_SYSTEM_WFI    mstate           instr    is_C =
   let
+    -- Instr fields: I-type
+    (funct12, rs1, funct3, rd, opcode) = ifields_I_type   instr
+
     priv   = mstate_priv_read  mstate
 
+    -- Decode check    TODO: if priv is u_Priv_Level, misa.N must be set (supporting user-mode interrupts)
+    is_legal = ((opcode == opcode_SYSTEM)
+                && (funct3 == funct3_PRIV)
+                && (funct12 == funct12_WFI)
+                && (rs1 == 0)
+                && (rd == 0))
+
+    -- Semantics
     -- If mstatus.tw is set, illegal instruction trap after bounded timeout
     --     (here, the timeout is 0)
     -- Otherwise it's functionally a no-op
@@ -166,7 +145,7 @@ exec_WFI  instr_32b  is_C  instr_Priv  mstate =
     tw_bit_set = testBit  mstatus  mstatus_tw_bitpos
     mstate1    = if (tw_bit_set)
                  then
-                   let tval = instr_32b
+                   let tval = instr
                    in
                      finish_trap  mstate  exc_code_illegal_instruction  tval
                  else
@@ -175,18 +154,27 @@ exec_WFI  instr_32b  is_C  instr_Priv  mstate =
                    in
                      finish_pc_incr  mstate'  is_C
   in
-    mstate1
+    (is_legal, mstate1)
 
 -- ================================================================
--- SFENCE.VM
+-- SYSTEM.PRIV.SFENCE.VM
 
-exec_SFENCE_VM :: Instr_32b -> Spec_Instr_Priv
-exec_SFENCE_VM  instr_32b  is_C  (SFENCE_VM  rs1  rs2)  mstate =
+spec_SYSTEM_SFENCE_VM :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_SYSTEM_SFENCE_VM    mstate           instr    is_C =
   let
+    -- Instr fields: R-type
+    (funct7, rs2, rs1, funct3, rd, opcode) = ifields_R_type   instr
+
     priv   = mstate_priv_read  mstate
 
-    is_legal = (priv >= s_Priv_Level)    -- TODO: allowed in m_Priv_Level?
+    -- Decode check
+    is_legal = ((opcode == opcode_SYSTEM)
+                && (funct3 == funct3_PRIV)
+                && (funct7 == funct7_SFENCE_VM)
+                && (rd == 0)
+                && (priv >= s_Priv_Level))    -- TODO: allowed in m_Priv_Level?
 
+    -- Semantics
     -- Functionally a no-op, but can change micro-arch state to affect future mem ops
     rs1_val   = mstate_gpr_read  mstate  rs1
     rs2_val   = mstate_gpr_read  mstate  rs2
@@ -195,7 +183,7 @@ exec_SFENCE_VM  instr_32b  is_C  (SFENCE_VM  rs1  rs2)  mstate =
 
     mstate2   = if (tvm_fault)
                 then
-                  let tval = instr_32b
+                  let tval = instr
                   in
                     finish_trap  mstate  exc_code_illegal_instruction  tval
                 else
@@ -204,6 +192,6 @@ exec_SFENCE_VM  instr_32b  is_C  (SFENCE_VM  rs1  rs2)  mstate =
                   in
                     finish_pc_incr  mstate1  is_C
   in
-    mstate2
+    (is_legal, mstate2)
 
 -- ================================================================

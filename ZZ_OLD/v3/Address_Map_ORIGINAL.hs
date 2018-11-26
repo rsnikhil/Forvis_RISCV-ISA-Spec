@@ -1,6 +1,3 @@
--- Copyright (c) 2018 Rishiyur S. Nikhil
--- See LICENSE for license details
-
 module Address_Map where
 
 -- ================================================================

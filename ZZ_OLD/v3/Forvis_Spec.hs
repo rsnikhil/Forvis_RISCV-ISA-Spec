@@ -11,7 +11,6 @@ module Forvis_Spec where
 
 import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 import Data.Int     -- For Intxx type (signed fixed-width ints)
-import Numeric (showHex)
 
 -- Local imports
 
@@ -22,16 +21,11 @@ import Virtual_Mem
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- User-level instructions
-import Forvis_Spec_I           -- 'I'     (Base) instruction set (RV32 and RV64)
-import Forvis_Spec_I64         -- 'I64'   (Base) instruction set (RV64 only)
-import Forvis_Spec_Zicsr       -- 'Zicsr' instruction set
-import Forvis_Spec_Zifencei    -- 'Zicsr' instruction set
-import Forvis_Spec_M           -- Extension 'M' (Integer Multiply/Divide)
-
-import Forvis_Spec_A           -- Extension 'A' (Atomic Memory Ops (AMO))
-import Forvis_Spec_C           -- Extension 'C' (Compressed 16-bit instrs)
-
--- import Forvis_Spec_FD        -- Extensions 'F' and 'D' (single- and double-precision floating point)
+import Forvis_Spec_I         -- 'I' (Base) instruction set
+import Forvis_Spec_M         -- Extension 'M' (Integer Multiply/Divide)
+import Forvis_Spec_A         -- Extension 'A' (Atomic Memory Ops (AMO))
+import Forvis_Spec_FD        -- Extensions 'F' and 'D' (single- and double-precision floating point)
+import Forvis_Spec_C         -- Extension 'C' (Compressed 16-bit instrs)
 
 -- Privileged Architecture instructions
 import Forvis_Spec_Priv
@@ -141,57 +135,41 @@ read_n_instr_bytes    mstate           n_bytes  va =
 
 -- ================================================================
 -- Execute one 32b instruction
--- Tries I, Zifencei, Zicsr, I64, ... in that order
 
-exec_instr_32b :: Instr_32b -> Machine_State -> (Machine_State, String)
-exec_instr_32b    instr_32b    mstate =
+-- The following is a list of all 32b instruction specification functions
+
+instr_specs :: [(Instr_Spec, String)]
+instr_specs = (instr_specs_I                -- Base instructions
+               ++ instr_specs_Priv          -- Privileged Arch instructions
+               ++ instr_specs_M             -- Integer Multiply/Divide instructions
+               ++ instr_specs_A             -- Atomic Memory Ops instructions
+               ++ instr_specs_FD            -- Single- and Double-precision floating point instructions
+              )
+
+-- 'exec_instr' takes a machine state and a 32-bit instruction and
+-- returns a new machine state after executing that instruction.  It
+-- attempts all the specs in 'instr_specs' and, if none of them apply,
+-- performs an illegal-instruction trap.
+
+exec_instr :: Machine_State -> Instr -> (Machine_State, String)
+exec_instr    mstate           instr =
   let
-    rv   = mstate_rv_read  mstate
-    misa = mstate_csr_read  mstate  csr_addr_misa
-    is_C = False
+    tryall []                  = (let
+                                     tval = instr
+                                  in
+                                    (finish_trap  mstate  exc_code_illegal_instruction  tval,
+                                     "NONE"))
 
-    dec_I         = decode_I         rv        instr_32b
-    dec_Zifencei  = decode_Zifencei  rv        instr_32b
-    dec_Zicsr     = decode_Zicsr     rv        instr_32b
-    dec_I64       = decode_I64       rv        instr_32b
-    dec_M         = decode_M         rv        instr_32b
-    dec_A         = decode_A         rv        instr_32b
-    dec_Priv      = decode_Priv      rv        instr_32b
+    tryall ((spec,name):specs) = (let
+                                     is_C = False
+                                     (success, mstate1) = spec  mstate  instr  is_C
+                                  in
+                                     (if success then
+                                        (mstate1, name)
+                                      else
+                                        tryall  specs))
   in
-    case dec_I of
-      Just  instr_I -> (exec_instr_I  is_C  instr_I  mstate,
-                        show  instr_I)
-      Nothing ->
-        case dec_Zifencei of
-          Just instr_Zifencei -> (exec_instr_Zifencei  is_C  instr_Zifencei  mstate,
-                                  show  instr_Zifencei)
-          Nothing ->
-            case dec_Zicsr of
-              Just instr_Zicsr -> (exec_instr_Zicsr  instr_32b  is_C  instr_Zicsr  mstate,
-                                   show  instr_Zicsr)
-              Nothing ->
-                case dec_I64 of
-                  Just instr_I64 -> (exec_instr_I64  is_C  instr_I64  mstate,
-                                     show  instr_I64)
-                  Nothing ->
-                    case dec_M of
-                      Just instr_M -> (exec_instr_M  is_C  instr_M  mstate,
-                                       show  instr_M)
-                      Nothing ->
-                        case dec_A of
-                          Just instr_A -> (exec_instr_A  is_C  instr_A  mstate,
-                                           show  instr_A)
-                          Nothing ->
-                            case dec_Priv of
-                              Just instr_Priv -> (exec_instr_Priv  instr_32b  is_C  instr_Priv  mstate,
-                                                  show  instr_Priv)
-                              Nothing ->
-                                -- Illegal instruction trap, since does not decode to any 32b instr
-                                let
-                                  tval    = instr_32b
-                                  mstate1 = finish_trap  mstate  exc_code_illegal_instruction  tval
-                                in
-                                  (mstate1, "Illegal instr 0x" ++ showHex instr_32b "")
+    tryall  instr_specs
 
 -- ================================================================
 -- Execute one 16b instruction
@@ -203,24 +181,22 @@ exec_instr_32b    instr_32b    mstate =
 -- attempts all the specs in 'instr_C_specs' and, if none of them apply,
 -- performs an illegal-instruction trap.
 
-exec_instr_16b :: Instr_16b -> Machine_State -> (Machine_State, String)
-exec_instr_16b    instr_16b    mstate =
+exec_instr_C :: Machine_State -> Instr_C -> (Machine_State, String)
+exec_instr_C    mstate           instr =
   let
-    rv   = mstate_rv_read  mstate
-    misa = mstate_csr_read  mstate  csr_addr_misa
+    tryall []                  = (let
+                                     tval = instr
+                                  in
+                                    (finish_trap  mstate  exc_code_illegal_instruction  tval, "NONE"))
 
-    dec_C = decode_C  rv  misa  instr_16b
+    tryall ((spec,name):specs) = (let
+                                     (success, mstate1) = spec  mstate  instr
+                                  in
+                                     if success then (mstate1, name)
+                                     else
+                                       tryall  specs)
   in
-    case dec_C of
-      Just  instr_C -> (exec_instr_C  instr_C  mstate,
-                        show  instr_C)
-      Nothing ->
-        -- Illegal instruction trap, since does not decode to any 16b instr
-        let
-          tval    = instr_16b
-          mstate1 = finish_trap  mstate  exc_code_illegal_instruction  tval
-        in
-          (mstate1, "Illegal instr " ++ showHex instr_16b "")
+    tryall  instr_specs_C
 
 -- ================================================================
 -- Take interrupt if interrupts pending and enabled                   \begin_latex{take_interrupt}

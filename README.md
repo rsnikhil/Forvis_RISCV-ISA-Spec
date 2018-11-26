@@ -51,6 +51,11 @@ library for IEEE Floating Point emulation.
         - Virtual Memory schemes SV32, SV39 and SV48
     - Privilege Level U (User)
 
+    [TEMPORARY UNDER-CONSTRUCTION NOTE: Around 2018-11-24 we started a
+     major change to introduce an explicit 'decode' step. This is
+     ready for all except 'F' and 'D', which are temporarily disabled.
+     We expect them to be re-enabled in mid- to late- December 2018]
+
 - Forvis can be executed today as a Haskell program, which in turn
     executes RISC-V ELF binaries.  This is a sequential
     interpretation: one-instruction-at-a-time, sequential memory
@@ -79,7 +84,7 @@ library for IEEE Floating Point emulation.
    these tests, a script to run them as a regression, and sample
    output logs.
 
-### What's coming soon (target: November 2018)
+### What's coming soon (target: December 2018)
 
 - 'Feature List' argument that configures Forvis to make particular
     allowed implementation choices (such as: trap or handle misaligned
@@ -113,7 +118,8 @@ A PDF reading guide is provided in `Doc/forvis_reading_guide.pdf`.  It
 is intended to be used as a reference while perusing the actual
 Haskell code, and is not a standalone document.  It displays code
 fragments automatically extracted from the actual code. [CAVEAT: needs
-updating; last revised June 2018]
+serious updating; was last revised July 2018; has not caught up with
+addition of extensions A, C, F, D, decode step, etc.]
 
 We suggest reading the code in this order:
 
@@ -123,7 +129,8 @@ We suggest reading the code in this order:
 >         Forvis_Spec.hs
 >         Forvis_Spec_I.hs
 >         ALU.hs
->         Forvis_Spec_Finish_Instr.hs
+>         Forvis_Spec_Common.hs
+>         Forvis_Spec_Zicsr.hs
 >         Virtual_Mem.hs
 >
 >         GPR_File.hs
@@ -137,14 +144,16 @@ We suggest reading the code in this order:
 >         Main.hs
 
 The following are about specific architecture extensions and can be
-read in any order:
+read in any order.  They all follow the same pattern as
+Forvis_Spec_I.hs
 
+>         Forvis_Spec_Zifencei.hs
+>         Forvis_Spec_I64.hs
 >         Forvis_Spec_A.hs
 >         Forvis_Spec_C.hs
->         Forvis_Spec_FD.hs
->         FPR_File.hs
+>         Forvis_Spec_FD.hs    FPR_File.hs
 >         Forvis_Spec_M.hs
->
+
 You can ignore the following, which are used for testing virtual
 memory translation and Tandem Verification, respectively (you're
 welcome to read them, if you're curious):
@@ -293,6 +302,7 @@ press Control-C to exit.  Examples:
 
         / # ^C
 
-Caveat: the shell response is sluggish; please wait for a bit for each response.
+Caveat: because of simulation overheads, the shell response is
+sluggish; please wait for a bit for each response.
 
 ----------------------------------------------------------------

@@ -105,7 +105,7 @@ main_run_program = do
     else
     do
       let [(rv,  misa)] = archs
-      putStrLn  ("Architecture = " ++ show rv ++ (show_misa  misa))
+      putStrLn  ("DEBUG: rv = " ++ show rv ++ (show_misa  misa))
       retval <- run_program_from_files  rv  misa  filenames  num_instrs  tohost  verbosity
       exitWith (if retval == 0 then
                    ExitSuccess

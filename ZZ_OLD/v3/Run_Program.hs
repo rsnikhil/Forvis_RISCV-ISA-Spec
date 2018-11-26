@@ -165,7 +165,7 @@ fetch_and_execute    mstate = do
                           return mstate3)
     Fetch_C  u16 -> (do
                         -- Exec 'C' instruction
-                        let (mstate4, spec_name) = (exec_instr_16b  u16  mstate3)
+                        let (mstate4, spec_name) = (exec_instr_C  mstate3  u16)
                         when (verbosity >= 1)
                           (do
                               putStr  ("inum:" ++ show (instret + 1))
@@ -177,7 +177,7 @@ fetch_and_execute    mstate = do
                         return  mstate4)
     Fetch    u32 -> (do
                         -- Exec 32b instruction
-                        let (mstate4, spec_name) = (exec_instr_32b  u32  mstate3)
+                        let (mstate4, spec_name) = (exec_instr  mstate3  u32)
                         when (verbosity >= 1)
                           (do
                               putStr  ("inum:" ++ show (instret + 1))

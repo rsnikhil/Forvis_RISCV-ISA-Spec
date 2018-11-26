@@ -30,89 +30,260 @@ import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 -- NOTE: opcode_XXX, funct3_XXX are defined in module Arch_Defs
 
 -- ================================================================
--- The following is a list of all the specification functions defined below.
+-- Data structure for instructions in 'I' (base instruction set)
 
-instr_specs_I :: [(Instr_Spec, String)]
-instr_specs_I = [(spec_LUI,               "LUI"),
-                 (spec_AUIPC,             "AUIPC"),
-                 (spec_JAL,               "JAL"),
-                 (spec_JALR,              "JALR"),
-                 (spec_BRANCH,            "BRANCH"),
-                 (spec_LOAD,              "LOAD"),
-                 (spec_STORE,             "STORE"),
-                 (spec_OP_IMM,            "OP_IMM"),
-                 (spec_OP,                "OP"),
-                 (spec_MISC_MEM,          "MISC_MEM"),
-                 (spec_SYSTEM_ECALL,      "SYSTEM_ECALL"),
-                 (spec_SYSTEM_EBREAK,     "SYSTEM_EBREAK"),
-                 (spec_SYSTEM_CSRRW,      "SYSTEM_CSRRW"),
-                 (spec_SYSTEM_CSRR_S_C,   "SYSTEM_CSRR_S_C"),
-                 (spec_OP_IMM_32,         "OP_IMM_32"),
-                 (spec_OP_32,             "OP_32")
-                ]
+data Instr_I = LUI    GPR_Addr  InstrField              -- rd,  imm20
+             | AUIPC  GPR_Addr  InstrField              -- rd,  imm20
+
+             | JAL    GPR_Addr  InstrField              -- rd,  imm21
+             | JALR   GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+
+             | BEQ    GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
+             | BNE    GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
+             | BLT    GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
+             | BGE    GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
+             | BLTU   GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
+             | BGEU   GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
+
+             | LB     GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+             | LH     GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+             | LW     GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+             | LBU    GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+             | LHU    GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+
+             | SB     GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm12
+             | SH     GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm12
+             | SW     GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm12
+
+             | ADDI   GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+             | SLTI   GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+             | SLTIU  GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+             | XORI   GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+             | ORI    GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+             | ANDI   GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
+
+             | SLLI   GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, shamt
+             | SRLI   GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, shamt
+             | SRAI   GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, shamt
+
+             | ADD    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+             | SUB    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+             | SLL    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+             | SLT    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+             | SLTU   GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+             | XOR    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+             | SRL    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+             | SRA    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+             | OR     GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+             | AND    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+
+             | FENCE  InstrField  InstrField  InstrField    -- fm, pred, succ
+             | ECALL
+             | EBREAK
+  deriving (Eq, Show)
+
+-- ================================================================
+-- Decode from 32b representation to Instr_I data structure
+
+decode_I :: RV -> Instr_32b -> Maybe Instr_I
+decode_I    rv    instr_32b =
+  let
+    -- Symbolic names for notable bitfields in the 32b instruction 'instr_32b'
+    opcode  = bitSlice  instr_32b   6   0
+    rd      = bitSlice  instr_32b  11   7
+    funct3  = bitSlice  instr_32b  14  12
+    rs1     = bitSlice  instr_32b  19  15
+    rs2     = bitSlice  instr_32b  24  20
+    funct7  = bitSlice  instr_32b  31  25
+
+    imm12_I = bitSlice  instr_32b  31  20
+
+    imm12_S = (shiftL  (bitSlice  instr_32b  31  25) 5) .|. (bitSlice  instr_32b  11 7)
+
+    imm13_B = ((    shiftL  (bitSlice  instr_32b  31  31)  12)
+               .|. (shiftL  (bitSlice  instr_32b  30  25)   5)
+               .|. (shiftL  (bitSlice  instr_32b  11   8)   1)
+               .|. (shiftL  (bitSlice  instr_32b   7   7)  11))
+
+    imm21_J = ((    shiftL  (bitSlice  instr_32b  31  31)  20)
+               .|. (shiftL  (bitSlice  instr_32b  30  21)   1)
+               .|. (shiftL  (bitSlice  instr_32b  20  20)  11)
+               .|. (shiftL  (bitSlice  instr_32b  19  12)  12))
+
+    imm20_U = bitSlice  instr_32b  31  12
+
+    -- for SLLI/SRLI/SRAI
+    msbs7 = bitSlice instr_32b 31 25
+    msbs6 = bitSlice instr_32b 31 26
+    shamt_ok = if (rv == RV32) then
+                 ((   msbs7 == msbs7_SLLI)
+                  || (msbs7 == msbs7_SRLI)
+                  || (msbs7 == msbs7_SRAI))
+               else
+                 ((   msbs6 == msbs6_SLLI)
+                  || (msbs6 == msbs6_SRLI)
+                  || (msbs6 == msbs6_SRAI))
+
+    shamt = if (rv == RV32) then
+              bitSlice instr_32b 24 20
+            else
+              bitSlice instr_32b 25 20
+
+    -- For FENCE
+    fm      = bitSlice  instr_32b  31  28
+    pred    = bitSlice  instr_32b  27  24
+    succ    = bitSlice  instr_32b  23  20
+
+    instr_I
+      | opcode==opcode_LUI   = Just  (LUI    rd  imm20_U)
+      | opcode==opcode_AUIPC = Just  (AUIPC  rd  imm20_U)
+
+      | opcode==opcode_JAL  = Just  (JAL   rd  imm21_J)
+      | opcode==opcode_JALR = Just  (JALR  rd  rs1  imm12_I)
+
+      | opcode==opcode_BRANCH, funct3==funct3_BEQ  = Just  (BEQ  rs1 rs2 imm13_B)
+      | opcode==opcode_BRANCH, funct3==funct3_BNE  = Just  (BNE  rs1 rs2 imm13_B)
+      | opcode==opcode_BRANCH, funct3==funct3_BLT  = Just  (BLT  rs1 rs2 imm13_B)
+      | opcode==opcode_BRANCH, funct3==funct3_BGE  = Just  (BGE  rs1 rs2 imm13_B)
+      | opcode==opcode_BRANCH, funct3==funct3_BLTU = Just  (BLTU rs1 rs2 imm13_B)
+      | opcode==opcode_BRANCH, funct3==funct3_BGEU = Just  (BGEU rs1 rs2 imm13_B)
+
+      | opcode==opcode_LOAD, funct3==funct3_LB  = Just  (LB  rd rs1 imm12_I)
+      | opcode==opcode_LOAD, funct3==funct3_LH  = Just  (LH  rd rs1 imm12_I)
+      | opcode==opcode_LOAD, funct3==funct3_LW  = Just  (LW  rd rs1 imm12_I)
+      | opcode==opcode_LOAD, funct3==funct3_LBU = Just  (LBU rd rs1 imm12_I)
+      | opcode==opcode_LOAD, funct3==funct3_LHU = Just  (LHU rd rs1 imm12_I)
+
+      | opcode==opcode_STORE, funct3==funct3_SB = Just  (SB rs1 rs2 imm12_S)
+      | opcode==opcode_STORE, funct3==funct3_SH = Just  (SH rs1 rs2 imm12_S)
+      | opcode==opcode_STORE, funct3==funct3_SW = Just  (SW rs1 rs2 imm12_S)
+
+      | opcode==opcode_OP_IMM, funct3==funct3_ADDI  = Just  (ADDI  rd rs1 imm12_I)
+      | opcode==opcode_OP_IMM, funct3==funct3_SLTI  = Just  (SLTI  rd rs1 imm12_I)
+      | opcode==opcode_OP_IMM, funct3==funct3_SLTIU = Just  (SLTIU rd rs1 imm12_I)
+      | opcode==opcode_OP_IMM, funct3==funct3_XORI  = Just  (XORI  rd rs1 imm12_I)
+      | opcode==opcode_OP_IMM, funct3==funct3_ORI   = Just  (ORI   rd rs1 imm12_I)
+      | opcode==opcode_OP_IMM, funct3==funct3_ANDI  = Just  (ANDI  rd rs1 imm12_I)
+
+      | opcode==opcode_OP_IMM, funct3==funct3_SLLI, msbs6==msbs6_SLLI, shamt_ok = Just  (SLLI rd rs1 shamt)
+      | opcode==opcode_OP_IMM, funct3==funct3_SRLI, msbs6==msbs6_SRLI, shamt_ok = Just  (SRLI rd rs1 shamt)
+      | opcode==opcode_OP_IMM, funct3==funct3_SRAI, msbs6==msbs6_SRAI, shamt_ok = Just  (SRAI rd rs1 shamt)
+
+      | opcode==opcode_OP, funct3==funct3_ADD,  funct7==funct7_ADD  = Just  (ADD  rd rs1 rs2)
+      | opcode==opcode_OP, funct3==funct3_SUB,  funct7==funct7_SUB  = Just  (SUB  rd rs1 rs2)
+      | opcode==opcode_OP, funct3==funct3_SLL,  funct7==funct7_SLL  = Just  (SLL  rd rs1 rs2)
+      | opcode==opcode_OP, funct3==funct3_SLT,  funct7==funct7_SLT  = Just  (SLT  rd rs1 rs2)
+      | opcode==opcode_OP, funct3==funct3_SLTU, funct7==funct7_SLTU = Just  (SLTU rd rs1 rs2)
+      | opcode==opcode_OP, funct3==funct3_XOR,  funct7==funct7_XOR  = Just  (XOR  rd rs1 rs2)
+      | opcode==opcode_OP, funct3==funct3_SRL,  funct7==funct7_SRL  = Just  (SRL  rd rs1 rs2)
+      | opcode==opcode_OP, funct3==funct3_SRA,  funct7==funct7_SRA  = Just  (SRA  rd rs1 rs2)
+      | opcode==opcode_OP, funct3==funct3_OR,   funct7==funct7_OR   = Just  (OR   rd rs1 rs2)
+      | opcode==opcode_OP, funct3==funct3_AND,  funct7==funct7_AND  = Just  (AND  rd rs1 rs2)
+
+      | opcode==opcode_MISC_MEM, rd==0, funct3==funct3_FENCE,   rs1==0 = Just  (FENCE fm pred succ)
+
+      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, imm12_I==funct12_ECALL  = Just  (ECALL)
+      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, imm12_I==funct12_EBREAK = Just  (EBREAK)
+
+      | True = Nothing
+  in
+    instr_I
+
+-- ================================================================
+-- Execution of Instr_I
+
+type Spec_Instr_I = Bool -> Instr_I -> Machine_State -> Machine_State
+--                  is_C    instr_I    mstate           mstate'
+
+exec_instr_I :: Spec_Instr_I
+exec_instr_I  is_C  instr_I  mstate =
+  case instr_I of
+    LUI    rd   imm20      -> exec_LUI    is_C  instr_I  mstate
+    AUIPC  rd   imm20      -> exec_AUIPC  is_C  instr_I  mstate
+
+    JAL    rd   imm21      -> exec_JAL    is_C  instr_I  mstate
+    JALR   rd   rs1  imm12 -> exec_JALR   is_C  instr_I  mstate
+
+    BEQ    rs1  rs2  imm13 -> exec_BEQ    is_C  instr_I  mstate
+    BNE    rs1  rs2  imm13 -> exec_BNE    is_C  instr_I  mstate
+    BLT    rs1  rs2  imm13 -> exec_BLT    is_C  instr_I  mstate
+    BGE    rs1  rs2  imm13 -> exec_BGE    is_C  instr_I  mstate
+    BLTU   rs1  rs2  imm13 -> exec_BLTU   is_C  instr_I  mstate
+    BGEU   rs1  rs2  imm13 -> exec_BGEU   is_C  instr_I  mstate
+
+    LB     rd   rs1  imm12 -> exec_LB     is_C  instr_I  mstate
+    LH     rd   rs1  imm12 -> exec_LH     is_C  instr_I  mstate
+    LW     rd   rs1  imm12 -> exec_LW     is_C  instr_I  mstate
+    LBU    rd   rs1  imm12 -> exec_LBU    is_C  instr_I  mstate
+    LHU    rd   rs1  imm12 -> exec_LHU    is_C  instr_I  mstate
+
+    SB     rs1  rs2  imm12 -> exec_SB     is_C  instr_I  mstate
+    SH     rs1  rs2  imm12 -> exec_SH     is_C  instr_I  mstate
+    SW     rs1  rs2  imm12 -> exec_SW     is_C  instr_I  mstate
+
+    ADDI   rd   rs1  imm12 -> exec_ADDI   is_C  instr_I  mstate
+    SLTI   rd   rs1  imm12 -> exec_SLTI   is_C  instr_I  mstate
+    SLTIU  rd   rs1  imm12 -> exec_SLTIU  is_C  instr_I  mstate
+    XORI   rd   rs1  imm12 -> exec_XORI   is_C  instr_I  mstate
+    ORI    rd   rs1  imm12 -> exec_ORI    is_C  instr_I  mstate
+    ANDI   rd   rs1  imm12 -> exec_ANDI   is_C  instr_I  mstate
+
+    SLLI   rd   rs1  imm12 -> exec_SLLI   is_C  instr_I  mstate
+    SRLI   rd   rs1  imm12 -> exec_SRLI   is_C  instr_I  mstate
+    SRAI   rd   rs1  imm12 -> exec_SRAI   is_C  instr_I  mstate
+
+    ADD    rd   rs1  rs2   -> exec_ADD    is_C  instr_I  mstate
+    SUB    rd   rs1  rs2   -> exec_SUB    is_C  instr_I  mstate
+    SLL    rd   rs1  rs2   -> exec_SLL    is_C  instr_I  mstate
+    SLT    rd   rs1  rs2   -> exec_SLT    is_C  instr_I  mstate
+    SLTU   rd   rs1  rs2   -> exec_SLTU   is_C  instr_I  mstate
+    XOR    rd   rs1  rs2   -> exec_XOR    is_C  instr_I  mstate
+    SRL    rd   rs1  rs2   -> exec_SRL    is_C  instr_I  mstate
+    SRA    rd   rs1  rs2   -> exec_SRA    is_C  instr_I  mstate
+    OR     rd   rs1  rs2   -> exec_OR     is_C  instr_I  mstate
+    AND    rd   rs1  rs2   -> exec_AND    is_C  instr_I  mstate
+
+    FENCE  fm   pred  succ -> exec_FENCE  is_C  instr_I  mstate
+    ECALL                  -> exec_ECALL  is_C  instr_I  mstate
+    EBREAK                 -> exec_EBREAK is_C  instr_I  mstate
 
 -- ================================================================
 -- LUI
 
-spec_LUI :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_LUI    mstate           instr    is_C =
+exec_LUI :: Spec_Instr_I
+exec_LUI  is_C  (LUI  rd  imm20)  mstate =
   let
-    -- Instr fields: U-type
-    (imm20, rd, opcode) = ifields_U_type  instr
-
-    -- Decode check
-    is_legal = (opcode == opcode_LUI)
-
-    -- Semantics
-    xlen   = mstate_xlen_read  mstate
-    imm32  = shiftL  imm20  12
-    rd_val = sign_extend  32  xlen  imm32
-
+    xlen    = mstate_xlen_read  mstate
+    rd_val  = sign_extend  32  xlen  (shiftL  imm20  12)
     mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
   in
-    (is_legal, mstate1)
+    mstate1
 
 -- ================================================================
 -- AUIPC
 
-spec_AUIPC :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_AUIPC    mstate           instr    is_C =
+exec_AUIPC :: Spec_Instr_I
+exec_AUIPC  is_C  (AUIPC  rd  imm20)  mstate =
   let
-    -- Instr fields: U-type
-    (imm20, rd, opcode) = ifields_U_type  instr
-
-    -- Decode check
-    is_legal = (opcode == opcode_AUIPC)
-
-    -- Semantics
     xlen     = mstate_xlen_read  mstate
     pc       = mstate_pc_read  mstate
-    imm32    = shiftL  imm20  12
-    s_offset = sign_extend  32  xlen  imm32
+    s_offset = sign_extend  32  xlen  (shiftL  imm20  12)
     rd_val   = alu_add  xlen  pc  s_offset
 
     mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
   in
-    (is_legal, mstate1)
+    mstate1
 
 -- ================================================================
 -- JAL
 
-spec_JAL :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_JAL    mstate           instr    is_C =
+exec_JAL :: Spec_Instr_I
+exec_JAL  is_C  (JAL  rd  imm21)  mstate =
   let
-    -- Instr fields: J-type
-    (imm21, rd, opcode) = ifields_J_type  instr
-
-    -- Decode check
-    is_legal = (opcode == opcode_JAL)
-
-    -- Semantics
-    rv     = mstate_rv_read    mstate
-    misa   = mstate_csr_read   mstate  csr_addr_misa
-    xlen   = mstate_xlen_read  mstate
-    pc     = mstate_pc_read    mstate
-    rd_val = if is_C then pc + 2 else pc + 4
+    misa     = mstate_csr_read   mstate  csr_addr_misa
+    xlen     = mstate_xlen_read  mstate
+    pc       = mstate_pc_read    mstate
+    rd_val   = if is_C then pc + 2 else pc + 4
 
     s_offset = sign_extend  21  xlen  imm21
     new_pc   = alu_add  xlen  pc  s_offset
@@ -127,23 +298,14 @@ spec_JAL    mstate           instr    is_C =
                else
                  finish_trap  mstate  exc_code_instr_addr_misaligned  new_pc
   in
-    (is_legal, mstate1)
+    mstate1
 
 -- ================================================================
 -- JALR
 
-spec_JALR :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_JALR    mstate           instr    is_C =
+exec_JALR :: Spec_Instr_I
+exec_JALR  is_C  (JALR  rd  rs1  imm12)  mstate =
   let
-    -- Instr fields: I-type
-    (imm12, rs1, funct3, rd, opcode) = ifields_I_type   instr
-
-    -- Decode check
-    is_legal = ((   opcode == opcode_JALR)
-                && (funct3 == funct3_JALR))
-
-    -- Semantics
-    rv     = mstate_rv_read    mstate
     misa   = mstate_csr_read   mstate  csr_addr_misa
     xlen   = mstate_xlen_read  mstate
     pc     = mstate_pc_read    mstate
@@ -160,61 +322,64 @@ spec_JALR    mstate           instr    is_C =
                else
                  ((new_pc' .&. 0x3) == 0)
 
-    mstate1 = if aligned
-              then
+    mstate1 = if aligned then
                 finish_rd_and_pc  mstate  rd  rd_val  new_pc'
               else
                 finish_trap  mstate  exc_code_instr_addr_misaligned  new_pc'
   in
-    (is_legal, mstate1)
+    mstate1
 
 -- ================================================================
--- BRANCH: BEQ, BNE, BLT, BGE, BLTU, BGEU
+-- BRANCH (BEQ, BNE, BLT, BGE, BLTU, BGEU)
 
-spec_BRANCH :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_BRANCH    mstate           instr    is_C =
+exec_BEQ :: Spec_Instr_I
+exec_BEQ   is_C  (BEQ   rs1  rs2  imm13)  mstate =
+  exec_BRANCH  alu_eq   is_C  rs1  rs2  imm13  mstate
+
+exec_BNE :: Spec_Instr_I
+exec_BNE   is_C  (BNE   rs1  rs2  imm13)  mstate =
+  exec_BRANCH  alu_ne   is_C  rs1  rs2  imm13  mstate
+
+exec_BLT :: Spec_Instr_I
+exec_BLT   is_C  (BLT   rs1  rs2  imm13)  mstate =
+  exec_BRANCH  alu_lt   is_C  rs1  rs2  imm13  mstate
+
+exec_BGE :: Spec_Instr_I
+exec_BGE   is_C  (BGE   rs1  rs2  imm13)  mstate =
+  exec_BRANCH  alu_ge   is_C  rs1  rs2  imm13  mstate
+
+exec_BLTU :: Spec_Instr_I
+exec_BLTU  is_C  (BLTU  rs1  rs2  imm13)  mstate =
+  exec_BRANCH  alu_ltu  is_C  rs1  rs2  imm13  mstate
+
+exec_BGEU :: Spec_Instr_I
+exec_BGEU  is_C  (BGEU  rs1  rs2  imm13)  mstate =
+  exec_BRANCH  alu_geu  is_C  rs1  rs2  imm13  mstate
+
+exec_BRANCH :: (Int -> Integer-> Integer-> Bool) ->
+               Bool ->
+               GPR_Addr ->
+               GPR_Addr ->
+               InstrField ->
+               Machine_State -> Machine_State
+exec_BRANCH  branch_alu_op  is_C  rs1  rs2  imm13  mstate =
   let
-    -- Instr fields: B-type
-    (imm13, rs2, rs1, funct3, opcode) = ifields_B_type  instr
+    xlen     = mstate_xlen_read  mstate
+    rs1_val  = mstate_gpr_read   mstate  rs1
+    rs2_val  = mstate_gpr_read   mstate  rs2
+    taken    = branch_alu_op   xlen  rs1_val  rs2_val
 
-    -- Decode check
-    is_BEQ   = (funct3 == funct3_BEQ)
-    is_BNE   = (funct3 == funct3_BNE)
-    is_BLT   = (funct3 == funct3_BLT)
-    is_BGE   = (funct3 == funct3_BGE)
-    is_BLTU  = (funct3 == funct3_BLTU)
-    is_BGEU  = (funct3 == funct3_BGEU)
-    is_legal = ((opcode == opcode_BRANCH)
-                && (is_BEQ
-                    || is_BNE
-                    || is_BLT
-                    || is_BGE
-                    || is_BLTU
-                    || is_BGEU))
-
-    -- Semantics
-    xlen    = mstate_xlen_read  mstate
-    rs1_val = mstate_gpr_read   mstate  rs1
-    rs2_val = mstate_gpr_read   mstate  rs2
-
-    taken | is_BEQ  = alu_eq   xlen  rs1_val  rs2_val
-          | is_BNE  = alu_ne   xlen  rs1_val  rs2_val
-          | is_BLT  = alu_lt   xlen  rs1_val  rs2_val
-          | is_BGE  = alu_ge   xlen  rs1_val  rs2_val
-          | is_BLTU = alu_ltu  xlen  rs1_val  rs2_val
-          | is_BGEU = alu_geu  xlen  rs1_val  rs2_val
-
-    pc      = mstate_pc_read  mstate
-
+    pc       = mstate_pc_read  mstate
     s_offset = sign_extend  13  xlen  imm13
+    target   = alu_add  xlen  pc  s_offset
 
-    target  = alu_add  xlen  pc  s_offset
-    new_pc  = if taken then     target
-              else if is_C then pc + 2
-                   else         pc + 4
-    misa    = mstate_csr_read  mstate  csr_addr_misa
+    new_pc   = if taken then     target
+               else if is_C then pc + 2
+                    else         pc + 4
+
     -- new_pc[0] known to be 0, new_pc[1] must be 0 if 'C' is not supported
-    aligned = (misa_flag  misa  'C' ||  (new_pc .&. 0x2 == 0))
+    misa     = mstate_csr_read  mstate  csr_addr_misa
+    aligned  = (misa_flag  misa  'C' ||  (new_pc .&. 0x2 == 0))
           
     mstate1 = if aligned
               then
@@ -222,38 +387,32 @@ spec_BRANCH    mstate           instr    is_C =
               else
                 finish_trap  mstate  exc_code_instr_addr_misaligned  new_pc
   in
-    (is_legal, mstate1)
+    mstate1
 
 -- ================================================================
--- LOAD:
---    RV32: LB, LH, LW, LBU, LHU
---    RV64: LWU, LD
+-- LOAD: LB, LH, LW, LBU, LHU
 
-spec_LOAD :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_LOAD    mstate           instr    is_C =
+exec_LB  :: Spec_Instr_I
+exec_LB   is_C  (LB   rd  rs1  imm12)  mstate = exec_LOAD  is_C  rd  rs1  imm12  funct3_LB  mstate
+
+exec_LH  :: Spec_Instr_I
+exec_LH   is_C  (LH   rd  rs1  imm12)  mstate = exec_LOAD  is_C  rd  rs1  imm12  funct3_LH  mstate
+
+exec_LW  :: Spec_Instr_I
+exec_LW   is_C  (LW   rd  rs1  imm12)  mstate = exec_LOAD  is_C  rd  rs1  imm12  funct3_LW  mstate
+
+exec_LBU :: Spec_Instr_I
+exec_LBU  is_C  (LBU  rd  rs1  imm12)  mstate = exec_LOAD  is_C  rd  rs1  imm12  funct3_LBU  mstate
+
+exec_LHU :: Spec_Instr_I
+exec_LHU  is_C  (LHU  rd  rs1  imm12)  mstate = exec_LOAD  is_C  rd  rs1  imm12  funct3_LHU  mstate
+
+exec_LOAD :: Bool -> GPR_Addr -> GPR_Addr -> InstrField -> InstrField -> Machine_State -> Machine_State
+exec_LOAD    is_C    rd          rs1         imm12         funct3        mstate =
   let
-    -- Instr fields: I-type
-    (imm12, rs1, funct3, rd, opcode) = ifields_I_type   instr
+    rv      = mstate_rv_read    mstate
+    xlen    = mstate_xlen_read  mstate
 
-    -- Decode check
-    rv       = mstate_rv_read    mstate
-    xlen     = mstate_xlen_read  mstate
-    is_LB    = (funct3 == funct3_LB)
-    is_LH    = (funct3 == funct3_LH)
-    is_LW    = (funct3 == funct3_LW)
-    is_LD    = (funct3 == funct3_LD)
-    is_LBU   = (funct3 == funct3_LBU)
-    is_LHU   = (funct3 == funct3_LHU)
-    is_LWU   = (funct3 == funct3_LWU)
-    is_legal = ((opcode == opcode_LOAD)
-                && (is_LB
-                    || is_LH
-                    || is_LW
-                    || (is_LD && (rv == RV64))
-                    || is_LBU
-                    || is_LHU
-                    || (is_LWU && (rv == RV64))))
-    -- Semantics
     --     Compute effective address
     rs1_val = mstate_gpr_read  mstate  rs1
     s_imm12 = sign_extend  12  xlen  imm12
@@ -280,47 +439,40 @@ spec_LOAD    mstate           instr    is_C =
                   finish_trap  mstate2  exc_code  eaddr2
 
                 Mem_Result_Ok  d    ->
-                  let rd_val | is_LB = sign_extend  8   xlen  d
-                             | is_LH = sign_extend  16  xlen  d
-                             | is_LW = sign_extend  32  xlen  d
+                  let rd_val | (funct3 == funct3_LB) = sign_extend  8   xlen  d
+                             | (funct3 == funct3_LH) = sign_extend  16  xlen  d
+                             | (funct3 == funct3_LW) = sign_extend  32  xlen  d
                              | True  = d
                   in
                     finish_rd_and_pc_incr  mstate2  rd  rd_val  is_C
   in
-    (is_legal, mstate3)
+    mstate3
 
 -- ================================================================
--- STORE:
---    RV32: SB, SH, SW
---    RV64: SD
+-- STORE: SB, SH, SW
 
-spec_STORE :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_STORE    mstate           instr    is_C =
+exec_SB :: Spec_Instr_I
+exec_SB  is_C  (SB  rs1  rs2  imm12)  mstate = exec_STORE  is_C  rs1  rs2  imm12  funct3_SB  mstate
+
+exec_SH :: Spec_Instr_I
+exec_SH  is_C  (SH  rs1  rs2  imm12)  mstate = exec_STORE  is_C  rs1  rs2  imm12  funct3_SH  mstate
+
+exec_SW :: Spec_Instr_I
+exec_SW  is_C  (SW  rs1  rs2  imm12)  mstate = exec_STORE  is_C  rs1  rs2  imm12  funct3_SW  mstate
+
+exec_STORE :: Bool -> GPR_Addr -> GPR_Addr -> InstrField -> InstrField -> Machine_State -> Machine_State
+exec_STORE    is_C    rs1         rs2         imm12         funct3        mstate =
   let
-    -- Instr fields: S-type
-    (imm12, rs2, rs1, funct3, opcode) = ifields_S_type  instr
-
-    -- Decode check
     rv       = mstate_rv_read    mstate
     xlen     = mstate_xlen_read  mstate
-    is_SB    = (funct3 == funct3_SB)
-    is_SH    = (funct3 == funct3_SH)
-    is_SW    = (funct3 == funct3_SW)
-    is_SD    = ((funct3 == funct3_SD) && (rv == RV64))
-    is_legal = ((opcode == opcode_STORE)
-                && (is_SB
-                    || is_SH
-                    || is_SW
-                    || is_SD))
 
-    -- Semantics
-    rs2_val = mstate_gpr_read  mstate  rs2    -- store value
+    rs2_val  = mstate_gpr_read  mstate  rs2    -- store value
 
     --     Compute effective address
-    rs1_val = mstate_gpr_read  mstate  rs1    -- address base
-    s_imm12 = sign_extend  12  xlen  imm12
-    eaddr1  = alu_add  xlen  rs1_val  s_imm12
-    eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
+    rs1_val  = mstate_gpr_read  mstate  rs1    -- address base
+    s_imm12  = sign_extend  12  xlen  imm12
+    eaddr1   = alu_add  xlen  rs1_val  s_imm12
+    eaddr2   = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
     --     If Virtual Mem is active, translate to a physical addr
     is_instr = False
@@ -341,172 +493,121 @@ spec_STORE    mstate           instr    is_C =
                 Mem_Result_Err exc_code -> finish_trap  mstate2  exc_code  eaddr2
                 Mem_Result_Ok  _        -> finish_pc_incr  mstate2  is_C
   in
-    (is_legal, mstate3)
+    mstate3
 
 -- ================================================================
 -- OP_IMM: ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
 
-spec_OP_IMM :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_OP_IMM    mstate           instr    is_C =
+exec_ADDI  :: Spec_Instr_I
+exec_ADDI   is_C  (ADDI   rd  rs1  imm12)  mstate = exec_OP_IMM  alu_add   is_C  rd  rs1  imm12  mstate
+
+exec_SLTI  :: Spec_Instr_I
+exec_SLTI   is_C  (SLTI   rd  rs1  imm12)  mstate = exec_OP_IMM  alu_slt   is_C  rd  rs1  imm12  mstate
+
+exec_SLTIU :: Spec_Instr_I
+exec_SLTIU  is_C  (SLTIU  rd  rs1  imm12)  mstate = exec_OP_IMM  alu_sltu  is_C  rd  rs1  imm12  mstate
+
+exec_XORI  :: Spec_Instr_I
+exec_XORI   is_C  (XORI   rd  rs1  imm12)  mstate = exec_OP_IMM  alu_xor   is_C  rd  rs1  imm12  mstate
+
+exec_ORI   :: Spec_Instr_I
+exec_ORI    is_C  (ORI    rd  rs1  imm12)  mstate = exec_OP_IMM  alu_or    is_C  rd  rs1  imm12  mstate
+
+exec_ANDI  :: Spec_Instr_I
+exec_ANDI   is_C  (ANDI   rd  rs1  imm12)  mstate = exec_OP_IMM  alu_and   is_C  rd  rs1  imm12  mstate
+
+exec_SLLI  :: Spec_Instr_I
+exec_SLLI   is_C  (SLLI   rd  rs1  imm12)  mstate = exec_OP_IMM  alu_sll   is_C  rd  rs1  imm12  mstate
+
+exec_SRLI  :: Spec_Instr_I
+exec_SRLI   is_C  (SRLI   rd  rs1  imm12)  mstate = exec_OP_IMM  alu_srl   is_C  rd  rs1  imm12  mstate
+
+exec_SRAI  :: Spec_Instr_I
+exec_SRAI   is_C  (SRAI   rd  rs1  imm12)  mstate = exec_OP_IMM  alu_sra   is_C  rd  rs1  imm12  mstate
+
+exec_OP_IMM :: (Int -> Integer -> Integer -> Integer) -> Bool -> GPR_Addr -> GPR_Addr -> InstrField -> Machine_State -> Machine_State
+exec_OP_IMM    alu_op                                    is_C    rd          rs1         imm12         mstate =
   let
-    -- Instr fields: I-type
-    (imm12, rs1, funct3, rd, opcode) = ifields_I_type   instr
-    (msbs7, shamt5) = ifields_I_type_imm12_32  imm12
-    (msbs6, shamt6) = ifields_I_type_imm12_64  imm12
-
-    -- Decode check
-    rv       = mstate_rv_read    mstate
-    xlen     = mstate_xlen_read  mstate
-    is_ADDI  = (funct3 == funct3_ADDI)
-    is_SLTI  = (funct3 == funct3_SLTI)
-    is_SLTIU = (funct3 == funct3_SLTIU)
-    is_XORI  = (funct3 == funct3_XORI)
-    is_ORI   = (funct3 == funct3_ORI)
-    is_ANDI  = (funct3 == funct3_ANDI)
-    is_SLLI  = ((funct3 == funct3_SLLI) && ((   (rv == RV32) && (msbs7 == msbs7_SLLI))
-                                            || ((rv == RV64) && (msbs6 == msbs6_SLLI))))
-    is_SRLI  = ((funct3 == funct3_SRLI) && ((   (rv == RV32) && (msbs7 == msbs7_SRLI))
-                                            || ((rv == RV64) && (msbs6 == msbs6_SRLI))))
-    is_SRAI  = ((funct3 == funct3_SRAI) && ((   (rv == RV32) && (msbs7 == msbs7_SRAI))
-                                            || ((rv == RV64) && (msbs6 == msbs6_SRAI))))
-
-    is_legal = ((opcode == opcode_OP_IMM)
-                && (is_ADDI
-                    || is_SLTI
-                    || is_SLTIU
-                    || is_XORI
-                    || is_ORI
-                    || is_ANDI
-                    || is_SLLI
-                    || is_SRLI
-                    || is_SRAI
-                   ))
-
-    -- Semantics
+    xlen    = mstate_xlen_read  mstate
     rs1_val = mstate_gpr_read  mstate  rs1
 
-    s_imm12 = sign_extend  12  xlen  imm12
+    s_imm   = sign_extend  12  xlen  imm12
 
-    rd_val | is_ADDI  = alu_add   xlen  rs1_val  s_imm12
-           | is_SLTI  = alu_slt   xlen  rs1_val  s_imm12
-           | is_SLTIU = alu_sltu  xlen  rs1_val  s_imm12
-           | is_XORI  = alu_xor   xlen  rs1_val  s_imm12
-           | is_ORI   = alu_or    xlen  rs1_val  s_imm12
-           | is_ANDI  = alu_and   xlen  rs1_val  s_imm12
-           | is_SLLI  = alu_sll   xlen  rs1_val  imm12
-           | is_SRLI  = alu_srl   xlen  rs1_val  imm12
-           | is_SRAI  = alu_sra   xlen  rs1_val  imm12
-
+    rd_val  = alu_op  xlen  rs1_val  s_imm
     mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
   in
-    (is_legal, mstate1)
+    mstate1
 
 -- ================================================================
 -- OP: ADD, SUB, SLT, SLTU, XOR, OR, AND, SLL, SRL, SRA
-                                                                    -- \begin_latex{spec_ADD_1}
-spec_OP :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_OP    mstate           instr    is_C =
-  let
-    -- Instr fields: R-type
-    (funct7, rs2, rs1, funct3, rd, opcode) = ifields_R_type  instr
+                                                                    -- \begin_latex{exec_ADD_1}
+exec_ADD  :: Spec_Instr_I
+exec_ADD   is_C  (ADD    rd  rs1  rs2)  mstate = exec_OP  alu_add   is_C  rd  rs1  rs2  mstate
+                                                                    -- \end_latex{exec_ADD_1}
 
-    -- Decode check
-    is_ADD   = ((funct3 == funct3_ADD)  && (funct7 == funct7_ADD))
-    is_SUB   = ((funct3 == funct3_SUB)  && (funct7 == funct7_SUB))
-                                                                    -- \end_latex{spec_ADD_1}
-    is_SLT   = ((funct3 == funct3_SLT)  && (funct7 == funct7_SLT))
-    is_SLTU  = ((funct3 == funct3_SLTU) && (funct7 == funct7_SLTU))
-    is_XOR   = ((funct3 == funct3_XOR)  && (funct7 == funct7_XOR))
-    is_OR    = ((funct3 == funct3_OR)   && (funct7 == funct7_OR))
-    is_AND   = ((funct3 == funct3_AND)  && (funct7 == funct7_AND))
-    is_SLL   = ((funct3 == funct3_SLL)  && (funct7 == funct7_SLL))
-    is_SRL   = ((funct3 == funct3_SRL)  && (funct7 == funct7_SRL))
-    is_SRA   = ((funct3 == funct3_SRA)  && (funct7 == funct7_SRA))  -- \begin_latex{spec_ADD_2}
-    is_legal = ((opcode == opcode_OP)
-                && (is_ADD
-                    || is_SUB
-                    || is_SLT                                       -- \end_latex{spec_ADD_2}
-                    || is_SLTU
-                    || is_XOR
-                    || is_OR
-                    || is_AND
-                    || is_SLL
-                    || is_SRL
-                    || is_SRA
-                   ))
-                                                                    -- \begin_latex{spec_ADD_3}
-    -- Semantics
-    xlen    = mstate_xlen_read  mstate                              -- \end_latex{spec_ADD_3}
+exec_SUB  :: Spec_Instr_I
+exec_SUB   is_C  (SUB    rd  rs1  rs2)  mstate = exec_OP  alu_sub   is_C  rd  rs1  rs2  mstate
+
+exec_SLT  :: Spec_Instr_I
+exec_SLT   is_C  (SLT    rd  rs1  rs2)  mstate = exec_OP  alu_slt   is_C  rd  rs1  rs2  mstate
+
+exec_SLTU :: Spec_Instr_I
+exec_SLTU  is_C  (SLTU   rd  rs1  rs2)  mstate = exec_OP  alu_sltu  is_C  rd  rs1  rs2  mstate
+
+exec_XOR  :: Spec_Instr_I
+exec_XOR   is_C  (XOR    rd  rs1  rs2)  mstate = exec_OP  alu_xor   is_C  rd  rs1  rs2  mstate
+
+exec_OR   :: Spec_Instr_I
+exec_OR    is_C  (OR     rd  rs1  rs2)  mstate = exec_OP  alu_or    is_C  rd  rs1  rs2  mstate
+
+exec_AND  :: Spec_Instr_I
+exec_AND   is_C  (AND    rd  rs1  rs2)  mstate = exec_OP  alu_and   is_C  rd  rs1  rs2  mstate
+
+exec_SLL  :: Spec_Instr_I
+exec_SLL   is_C  (SLL    rd  rs1  rs2)  mstate = exec_OP  alu_sll   is_C  rd  rs1  rs2  mstate
+
+exec_SRL  :: Spec_Instr_I
+exec_SRL   is_C  (SRL    rd  rs1  rs2)  mstate = exec_OP  alu_srl   is_C  rd  rs1  rs2  mstate
+
+exec_SRA  :: Spec_Instr_I
+exec_SRA   is_C  (SRA    rd  rs1  rs2)  mstate = exec_OP  alu_sra   is_C  rd  rs1  rs2  mstate
+
+                                                                    -- \begin_latex{spec_ADD_2}
+exec_OP :: (Int -> Integer -> Integer -> Integer) ->
+           Bool ->
+           GPR_Addr ->
+           GPR_Addr ->
+           GPR_Addr ->
+           Machine_State -> Machine_State
+exec_OP    alu_op  is_C  rd  rs1  rs2  mstate =
+  let
+    xlen    = mstate_xlen_read  mstate
     rs1_val = mstate_gpr_read   mstate  rs1
     rs2_val = mstate_gpr_read   mstate  rs2
-                                                                    -- \begin_latex{spec_ADD_4}
-    rd_val | is_ADD  = alu_add  xlen  rs1_val  rs2_val
-           | is_SUB  = alu_sub  xlen  rs1_val  rs2_val
-           | is_SLT  = alu_slt  xlen  rs1_val  rs2_val
-           | is_SLTU = alu_sltu xlen  rs1_val  rs2_val
-                                                                    -- \end_latex{spec_ADD_4}
-           | is_XOR  = alu_xor  xlen  rs1_val  rs2_val
-           | is_OR   = alu_or   xlen  rs1_val  rs2_val
-           | is_AND  = alu_and  xlen  rs1_val  rs2_val
-           | is_SLL  = alu_sll  xlen  rs1_val  rs2_val
-           | is_SRL  = alu_srl  xlen  rs1_val  rs2_val
-           | is_SRA  = alu_sra  xlen  rs1_val  rs2_val
-
-                                                                    -- \begin_latex{spec_ADD_5}
+    rd_val  = alu_op  xlen  rs1_val  rs2_val
     mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
   in
-    (is_legal, mstate1)
-                                                                    -- \end_latex{spec_ADD_5}
+    mstate1                                                         -- \end_latex{exec_ADD_2}
+
 -- ================================================================
--- MISC_MEM: FENCE, FENCE.I
--- These are technically architectural 'no-ops', but they can modify
+-- MISC_MEM: FENCE
+-- This is technically an architectural 'no-op', but it can modify
 -- hidden micro-arch state that affects future memory ops
 
-spec_MISC_MEM :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_MISC_MEM    mstate           instr    is_C =
+exec_FENCE  :: Spec_Instr_I
+exec_FENCE   is_C  (FENCE  fm  pred  succ)  mstate =
   let
-    -- Instr fields: R-type
-    (imm12, rs1, funct3, rd, opcode) = ifields_I_type  instr
-
-    (msbs4, pred, succ) = ifields_I_type_imm12_FENCE  imm12
-
-    -- Decode check
-    is_FENCE   = ((funct3 == funct3_FENCE)   && (rd == 0) && (rs1 == 0) && (msbs4 == 0))
-    is_FENCE_I = ((funct3 == funct3_FENCE_I) && (rd == 0) && (rs1 == 0) && (imm12 == 0))
-    is_legal   = ((opcode == opcode_MISC_MEM)
-                  && (is_FENCE
-                      || is_FENCE_I))
-
-    -- Semantics
-    mstate1 | is_FENCE   = mstate_mem_fence    mstate
-            | is_FENCE_I = mstate_mem_fence_i  mstate
-
+    mstate1 = mstate_mem_fence  mstate
     mstate2 = finish_pc_incr  mstate1  is_C
   in
-    (is_legal, mstate2)
+    mstate2
 
 -- ================================================================
--- SYSTEM instructions in Base Instruction Set:
---    PRIV:  ECALL, EBREAK
---    other: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
+-- ECALL
 
--- ----------------
--- SYSTEM.PRIV.ECALL
-
-spec_SYSTEM_ECALL :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_SYSTEM_ECALL    mstate           instr    is_C =
+exec_ECALL :: Spec_Instr_I
+exec_ECALL    is_C  (ECALL)  mstate =
   let
-    -- Instr fields: I-type
-    (funct12, rs1, funct3, rd, opcode) = ifields_I_type   instr
-
-    -- Decode check
-    is_legal = ((opcode == opcode_SYSTEM)
-                && (funct3 == funct3_PRIV)
-                && (funct12 == funct12_ECALL)
-                && (rs1 == 0)
-                && (rd == 0))
-
-    -- Semantics
     priv = mstate_priv_read  mstate
     exc_code | priv == m_Priv_Level = exc_code_ECall_from_M
              | priv == s_Priv_Level = exc_code_ECall_from_S
@@ -516,212 +617,18 @@ spec_SYSTEM_ECALL    mstate           instr    is_C =
 
     mstate1 = finish_trap  mstate  exc_code  tval
   in
-    (is_legal, mstate1)
+    mstate1
 
--- ----------------
--- SYSTEM.PRIV.EBREAK
+-- ================================================================
+-- EBREAK
 
-spec_SYSTEM_EBREAK :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_SYSTEM_EBREAK    mstate           instr    is_C =
+exec_EBREAK :: Spec_Instr_I
+exec_EBREAK    is_C  (EBREAK)  mstate =
   let
-    -- Instr fields: I-type
-    (funct12, rs1, funct3, rd, opcode) = ifields_I_type   instr
-
-    -- Decode check
-    is_legal = ((opcode == opcode_SYSTEM)
-                && (funct3 == funct3_PRIV)
-                && (funct12 == funct12_EBREAK)
-                && (rs1 == 0)
-                && (rd == 0))
-
-    -- Semantics
     exc_code = exc_code_breakpoint
     tval     = mstate_pc_read  mstate
-
-    mstate1 = finish_trap  mstate  exc_code  tval
+    mstate1  = finish_trap  mstate  exc_code  tval
   in
-    (is_legal, mstate1)
-
--- ----------------
--- SYSTEM.not PRIV: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
-
-spec_SYSTEM_CSRRW :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_SYSTEM_CSRRW    mstate           instr    is_C =
-  let
-    -- Instr fields: I-Type
-    (csr_addr, rs1, funct3, rd, opcode) = ifields_I_type   instr
-    zimm = rs1
-
-    -- Decode check
-    is_CSRRW  = (funct3 == funct3_CSRRW)
-    is_CSRRWI = (funct3 == funct3_CSRRWI)
-    is_legal  = ((opcode == opcode_SYSTEM)
-                 && (is_CSRRW
-                     || is_CSRRWI))
-
-    -- Semantics
-    priv       = mstate_priv_read  mstate
-    permission = mstate_csr_read_permission  mstate  priv  csr_addr
-
-    legal2 = (permission == CSR_Permission_RW)
-
-    -- Read CSR only if rd is not 0
-    old_csr_val = if (rd /= 0) then
-                    if (csr_addr == csr_addr_time) then
-                      let
-                        -- CSR TIME is a read-only shadow of MTIME,
-                        -- which is actually a memory-mapped location,
-                        -- not a CSR
-                        mtime = mstate_mem_read_mtime  mstate
-                      in
-                        mtime
-                    else
-                      mstate_csr_read  mstate  csr_addr
-                  else
-                    0    -- arbitrary; will be discarded (rd==0)
-
-    rs1_val     = mstate_gpr_read  mstate  rs1
-
-    new_csr_val | is_CSRRW  = rs1_val
-                | is_CSRRWI = rs1
-
-    rd_val      = old_csr_val
-
-    mstate1 = if legal2 then
-                -- FCSR consists of two sub-CSRs, there is a special function
-                -- to handle writes to FCSR
-                let
-                  mstate_a = mstate_csr_write  mstate  csr_addr  new_csr_val
-                in
-                  finish_rd_and_pc_incr  mstate_a  rd  rd_val  is_C
-              else
-                let tval = instr
-                in
-                  finish_trap  mstate  exc_code_illegal_instruction  tval
-  in
-    (is_legal, mstate1)
-
-spec_SYSTEM_CSRR_S_C :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_SYSTEM_CSRR_S_C    mstate           instr    is_C =
-  let
-    -- Instr fields: I-Type
-    (csr_addr, rs1, funct3, rd, opcode) = ifields_I_type   instr
-    zimm = rs1
-
-    -- Decode check
-    is_CSRRS  = (funct3 == funct3_CSRRS)
-    is_CSRRC  = (funct3 == funct3_CSRRC)
-    is_CSRRSI = (funct3 == funct3_CSRRSI)
-    is_CSRRCI = (funct3 == funct3_CSRRCI)
-    is_legal  = ((opcode == opcode_SYSTEM)
-                 && (is_CSRRS
-                     || is_CSRRC
-                     || is_CSRRSI
-                     || is_CSRRCI))
-
-    -- Semantics
-    priv       = mstate_priv_read  mstate
-    permission = mstate_csr_read_permission  mstate  priv  csr_addr
-
-    legal2 | (permission == CSR_Permission_None) = False
-           | (permission == CSR_Permission_RO)   = (rs1 == 0)
-           | (permission == CSR_Permission_RW)   = True
-
-    old_csr_val = mstate_csr_read  mstate  csr_addr
-    rs1_val     = mstate_gpr_read  mstate  rs1
-
-    new_csr_val | is_CSRRS  = old_csr_val .|. rs1_val
-                | is_CSRRC  = old_csr_val .&. (complement rs1_val)
-                | is_CSRRSI = old_csr_val .|. rs1
-                | is_CSRRCI = old_csr_val .&. (complement rs1)
-    rd_val      = old_csr_val
-
-    mstate1 = if legal2 then
-                -- Write CSR only if rs1/zimm is not 0
-                let mstate_a | (rs1 /= 0) = mstate_csr_write  mstate  csr_addr  new_csr_val
-                             | True       = mstate
-                in
-                  finish_rd_and_pc_incr  mstate_a  rd  rd_val  is_C
-              else
-                let tval = instr
-                in
-                  finish_trap  mstate  exc_code_illegal_instruction  tval
-  in
-    (is_legal, mstate1)
-
--- ================================================================
--- OP-IMM-32: ADDIW, SLLIW, SRLIW, SRAIW
-
-spec_OP_IMM_32 :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_OP_IMM_32    mstate           instr    is_C =
-  let
-    -- Instr fields: R-type
-    (imm12, rs1, funct3, rd, opcode) = ifields_I_type  instr
-    (funct7, shamt_5) = ifields_I_type_imm12_32  imm12
-
-    -- Decode check
-    rv       = mstate_rv_read    mstate
-    xlen     = mstate_xlen_read  mstate
-    is_ADDIW = ( funct3 == funct3_ADDIW)
-    is_SLLIW = ((funct3 == funct3_SLLIW) && (funct7 == funct7_SLLIW))
-    is_SRLIW = ((funct3 == funct3_SRLIW) && (funct7 == funct7_SRLIW))
-    is_SRAIW = ((funct3 == funct3_SRAIW) && (funct7 == funct7_SRAIW))
-    is_legal = ((rv == RV64)
-                && (opcode == opcode_OP_IMM_32)
-                && (is_ADDIW
-                    || is_SLLIW
-                    || is_SRLIW
-                    || is_SRAIW
-                   ))
-
-    -- Semantics
-    rs1_val = mstate_gpr_read  mstate  rs1
-
-    rd_val | is_ADDIW = alu_addw  rs1_val  (sign_extend  12  xlen  imm12)
-           | is_SLLIW = alu_sllw  rs1_val  shamt_5
-           | is_SRLIW = alu_srlw  rs1_val  shamt_5
-           | is_SRAIW = alu_sraw  rs1_val  shamt_5
-
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
-  in
-    (is_legal, mstate1)
-
--- ================================================================
--- OP-32: for RV64: ADDW, SUBW, SLLW, SRLW, SRAW
-
-spec_OP_32 :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
-spec_OP_32    mstate           instr    is_C =
-  let
-    -- Instr fields: R-type
-    (funct7, rs2, rs1, funct3, rd, opcode) = ifields_R_type  instr
-
-    -- Decode check
-    rv      = mstate_rv_read  mstate
-    is_ADDW = ((funct3 == funct3_ADDW) && (funct7 == funct7_ADDW))
-    is_SUBW = ((funct3 == funct3_SUBW) && (funct7 == funct7_SUBW))
-    is_SLLW = ((funct3 == funct3_SLLW) && (funct7 == funct7_SLLW))
-    is_SRLW = ((funct3 == funct3_SRLW) && (funct7 == funct7_SRLW))
-    is_SRAW = ((funct3 == funct3_SRAW) && (funct7 == funct7_SRAW))
-    is_legal = ((rv == RV64)
-                && (opcode == opcode_OP_32)
-                && (is_ADDW
-                    || is_SUBW
-                    || is_SLLW
-                    || is_SRLW
-                    || is_SRAW))
-
-    -- Semantics
-    rs1_val = mstate_gpr_read  mstate  rs1
-    rs2_val = mstate_gpr_read  mstate  rs2
-
-    rd_val | is_ADDW = alu_addw  rs1_val  rs2_val
-           | is_SUBW = alu_subw  rs1_val  rs2_val
-           | is_SLLW = alu_sllw  rs1_val  rs2_val
-           | is_SRLW = alu_srlw  rs1_val  rs2_val
-           | is_SRAW = alu_sraw  rs1_val  rs2_val
-
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
-  in
-    (is_legal, mstate1)
+    mstate1
 
 -- ================================================================

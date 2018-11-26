@@ -1,3 +1,32 @@
+### (In reverse chronological order)
+
+----------------------------------------------------------------
+### November 26, 2018:
+
+- Added a 'decode' step, with an intermediate algebraic data type for
+    decoded instructions, with the expectation that this will aid in
+    formal manipulation, use of QuickCheck, etc.
+
+- Split 'Forvis_Spec_I.hs' into: 
+    Forvis_Spec_I.hs           for common RV32/RV64 instructions
+    Forvis_Spec_I64.hs         for additional RV64-only insructions
+    Forvis_Spec_Zifencei.hs    for FENCE.I instructions (see note below)
+    Forvis_Spec_Zicsr.hs       for CSR instructions (see note below)
+
+    Note: The following version of the manual split out Zicsr and
+    Zifencei as separate 'standard extensions'):
+
+        The RISC-V Instruction Set Manual
+        Volume I: Unprivileged ISA
+        Document Version 20181106-Base-Ratification
+
+- The previous version (without separate 'decode') is saved in:
+    ZZ_OLD/v3
+
+- Post-commit: 
+- Pre-commit:  74f90e31d8d6d29417c11b11ee524247d12a40e2
+
+----------------------------------------------------------------
 ### November 1, 2018:
 
 - Now booting RV32 FreeRTOS.
@@ -5,10 +34,12 @@
 - Added support for 'D' (double-precision floating point)
 - Added support for 'C' (Compressed 16-bit instructions)
 
+----------------------------------------------------------------
 ### July 24, 2018:
 
 - Now booting an RV64 Linux kernel! Try it! See the README.
 
+----------------------------------------------------------------
 ### June 2018:
 
 - Complete rewrite, encapsulating full semantics of each instruction
@@ -17,7 +48,12 @@
 - Now handles RV32 and RV64 simultaneously.
 - Named it 'Forvis'
 
-
+----------------------------------------------------------------
 ### January 2018:
 
 - Begun, starting from scratch.
+
+----------------------------------------------------------------
+### ???
+
+Dinosaurs became extinct.

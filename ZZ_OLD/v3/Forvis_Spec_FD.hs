@@ -64,8 +64,8 @@ opcode_FD_LOAD = 0x07   :: InstrField  -- 7'b_00_001_11
 funct3_FD_LW   = 0x2    :: InstrField  -- 3'b_010
 funct3_FD_LD   = 0x3    :: InstrField  -- 3'b_011
 
-spec_FD_LOAD :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_FD_LOAD    mstate           instr        is_C =
+spec_FD_LOAD :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_FD_LOAD    mstate           instr    is_C =
   let
     -- Instr fields: I-type
     (imm12, rs1, funct3, rd, opcode) = ifields_I_type   instr
@@ -123,8 +123,8 @@ opcode_FD_STORE   = 0x27   :: InstrField  -- 7'b_01_001_11
 funct3_FD_SW      = 0x2    :: InstrField  -- 3'b_010
 funct3_FD_SD      = 0x3    :: InstrField  -- 3'b_011
 
-spec_FD_STORE :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_FD_STORE    mstate           instr        is_C =
+spec_FD_STORE :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_FD_STORE    mstate           instr    is_C =
   let
     -- Instr fields: S-type
     (imm12, rs2, rs1, funct3, opcode) = ifields_S_type  instr
@@ -221,8 +221,8 @@ funct7_FCVT_D_LU  = 0x69   :: InstrField  -- 7'b_11_010_00
 
 
 -- 'D' extensions OPs: FADD, FSUB, FMUL, FDIV, FMIN, FMAX, FSQRT
-spec_D_OP :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_D_OP    mstate           instr        is_C =
+spec_D_OP :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_D_OP    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -269,8 +269,8 @@ spec_D_OP    mstate           instr        is_C =
 
 
 -- 'D' extensions OPs:  FSGNJ, FSGNJN, FSGNJX
-spec_D_FSGNJ :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_D_FSGNJ    mstate           instr        is_C =
+spec_D_FSGNJ :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_D_FSGNJ    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -313,8 +313,8 @@ spec_D_FSGNJ    mstate           instr        is_C =
 
 
 -- 'D' extensions OPs:  FCVT
-spec_D_FCVT :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_D_FCVT    mstate           instr        is_C =
+spec_D_FCVT :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_D_FCVT    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -404,8 +404,8 @@ spec_D_FCVT    mstate           instr        is_C =
 
 
 -- 'D' extensions OPs:  FMIN, FMAX
-spec_D_MIN :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_D_MIN    mstate           instr        is_C =
+spec_D_MIN :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_D_MIN    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -462,8 +462,8 @@ spec_D_MIN    mstate           instr        is_C =
 
 
 -- 'D' extensions OPs:  FEQ, FLT, FLE
-spec_D_CMP :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_D_CMP    mstate           instr        is_C =
+spec_D_CMP :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_D_CMP    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -512,8 +512,8 @@ spec_D_CMP    mstate           instr        is_C =
 
 -- 'D' extensions OPs:  FMAX
 
-spec_D_MAX :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_D_MAX    mstate           instr        is_C =
+spec_D_MAX :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_D_MAX    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -577,8 +577,8 @@ opcode_FMSUB_OP   = 0x47   :: InstrField  -- 7'b_10_001_11
 opcode_FNMSUB_OP  = 0x4B   :: InstrField  -- 7'b_10_010_11
 opcode_FNMADD_OP  = 0x4F   :: InstrField  -- 7'b_10_011_11
 
-spec_D_FMOP :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_D_FMOP    mstate           instr        is_C =
+spec_D_FMOP :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_D_FMOP    mstate           instr    is_C =
   let
     -- Instr fields: R4-type
     (rs3, funct2, rs2, rs1, rm, rd, opcode) = ifields_R4_type   instr
@@ -624,8 +624,8 @@ spec_D_FMOP    mstate           instr        is_C =
 funct7_FMV_X_D    = 0x71   :: InstrField  -- 7'b_11_100_01
 funct7_FMV_D_X    = 0x79   :: InstrField  -- 7'b_11_110_01
 
-spec_D_FMV :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_D_FMV    mstate           instr        is_C =
+spec_D_FMV :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_D_FMV    mstate           instr    is_C = 
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -661,8 +661,8 @@ spec_D_FMV    mstate           instr        is_C =
 
 -- 'D' extension Ops: FCLASS
 funct7_FCLASS_D  = 0x71 :: InstrField  -- 7'b_11_100_01
-spec_D_FCLASS :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_D_FCLASS    mstate           instr        is_C =
+spec_D_FCLASS :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_D_FCLASS    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -714,8 +714,8 @@ spec_D_FCLASS    mstate           instr        is_C =
 
 
 -- 'F' extensions OPs: FADD, FSUB, FMUL, FDIV, FSQRT
-spec_F_OP :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_F_OP    mstate           instr        is_C =
+spec_F_OP :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_F_OP    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -765,8 +765,8 @@ spec_F_OP    mstate           instr        is_C =
 
 
 -- 'F' extensions OPs:  FSGNJ, FSGNJN, FSGNJX
-spec_F_FSGNJ :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_F_FSGNJ    mstate           instr        is_C  =
+spec_F_FSGNJ :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_F_FSGNJ    mstate           instr    is_C  =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -811,8 +811,8 @@ spec_F_FSGNJ    mstate           instr        is_C  =
 
 
 -- 'F' extensions OPs:  FCVT
-spec_F_FCVT :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_F_FCVT    mstate           instr        is_C =
+spec_F_FCVT :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_F_FCVT    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -892,8 +892,8 @@ spec_F_FCVT    mstate           instr        is_C =
 
 
 -- 'F' extensions OPs:  FMIN
-spec_F_MIN :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_F_MIN    mstate           instr        is_C =
+spec_F_MIN :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_F_MIN    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -953,8 +953,8 @@ spec_F_MIN    mstate           instr        is_C =
 
 
 -- 'F' extensions OPs:  FEQ, FLT, FLE
-spec_F_CMP :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_F_CMP    mstate           instr        is_C =
+spec_F_CMP :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_F_CMP    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -1006,8 +1006,8 @@ spec_F_CMP    mstate           instr        is_C =
 
 -- 'F' extensions OPs:  FMAX
 
-spec_F_MAX :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_F_MAX    mstate           instr        is_C  =
+spec_F_MAX :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_F_MAX    mstate           instr    is_C  =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -1069,8 +1069,8 @@ spec_F_MAX    mstate           instr        is_C  =
 -- ================================================================
 -- 'F' extensions OPs: FMADD, FMSUB, FNMADD, FNMSUB, 
 
-spec_F_FMOP :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_F_FMOP    mstate           instr        is_C =
+spec_F_FMOP :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_F_FMOP    mstate           instr    is_C =
   let
     -- Instr fields: R4-type
     (rs3, funct2, rs2, rs1, rm, rd, opcode) = ifields_R4_type   instr
@@ -1117,8 +1117,8 @@ spec_F_FMOP    mstate           instr        is_C =
 funct7_FMV_X_W    = 0x70   :: InstrField  -- 7'b_11_100_00
 funct7_FMV_W_X    = 0x78   :: InstrField  -- 7'b_11_110_00
 
-spec_F_FMV :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_F_FMV    mstate           instr        is_C = 
+spec_F_FMV :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_F_FMV    mstate           instr    is_C = 
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr
@@ -1157,8 +1157,8 @@ spec_F_FMV    mstate           instr        is_C =
 
 -- 'F' extension Ops: FCLASS
 funct7_FCLASS_F = 0x70  :: InstrField  -- 7'b_11_100_01
-spec_F_FCLASS :: Machine_State -> Instr_32b -> Bool -> (Bool, Machine_State)
-spec_F_FCLASS    mstate           instr        is_C =
+spec_F_FCLASS :: Machine_State -> Instr -> Bool -> (Bool, Machine_State)
+spec_F_FCLASS    mstate           instr    is_C =
   let
     -- Instr fields: R-type
     (funct7, rs2, rs1, rm, rd, opcode) = ifields_R_type   instr

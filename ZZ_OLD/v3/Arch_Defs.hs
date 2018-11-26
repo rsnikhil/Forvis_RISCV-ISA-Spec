@@ -38,8 +38,8 @@ is_instr_C  u16 = ((u16 .&. 0x3) /= 0x3)
 -- Instructions and instruction fields                \begin_latex{Instr}
 -- These are just synonyms of 'Integer', for readability
 
-type Instr_32b = Integer
-type Instr_16b = Integer
+type Instr   = Integer
+type Instr_C = Integer
 
 type InstrField = Integer
 
@@ -321,6 +321,416 @@ funct6_C_SUBW     = 0x27 :: InstrField   -- 6'b_100_1_11
 funct2_C_SUBW     = 0x0 :: InstrField    -- 2'b_00
 
 funct4_C_EBREAK   = 0x9 :: InstrField    -- 4'b_1001
+
+-- ================================================================
+-- Functions to extract 32b instruction fields
+-- and to construct 32b instructions from fields      \begin_latex{Instr_Field_Functions}
+
+{-# INLINE ifield_opcode #-}
+ifield_opcode  :: Instr -> InstrField
+ifield_opcode  instr = bitSlice instr  6  0
+
+{-# INLINE ifield_funct7 #-}
+ifield_funct7  :: Instr -> InstrField
+ifield_funct7  instr = bitSlice instr  31  25
+
+{-# INLINE ifield_funct3 #-}
+ifield_funct3  :: Instr -> InstrField
+ifield_funct3  instr = bitSlice instr  14  12
+
+{-# INLINE ifield_funct2 #-}
+ifield_funct2  :: Instr -> InstrField
+ifield_funct2  instr = bitSlice instr  26  25
+
+{-# INLINE ifield_rd #-}
+ifield_rd      :: Instr -> InstrField
+ifield_rd      instr = bitSlice instr  11  7
+
+{-# INLINE ifield_rs1 #-}
+ifield_rs1     :: Instr -> InstrField
+ifield_rs1     instr = bitSlice instr  19  15
+                                                   -- \end_latex{Instr_Field_Functions}
+{-# INLINE ifield_rs2 #-}
+ifield_rs2     :: Instr -> InstrField
+ifield_rs2     instr = bitSlice instr  24  20
+
+{-# INLINE ifield_rs3 #-}
+ifield_rs3     :: Instr -> InstrField
+ifield_rs3     instr = bitSlice instr  31  27    -- for FMADD, FMSUB, FNMSUB
+
+-- ================
+-- R-type
+
+{-# INLINE mkInstr_R_type #-}
+mkInstr_R_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr
+mkInstr_R_type    funct7        rs2           rs1           funct3        rd            opcode =
+  let
+    legal  = (((   shiftR  funct7  7) == 0)
+              && ((shiftR  rs2     5) == 0)
+              && ((shiftR  rs1     5) == 0)
+              && ((shiftR  funct3  3) == 0)
+              && ((shiftR  rd      5) == 0)
+              && ((shiftR  opcode  7) == 0))
+
+    instr = ((   shiftL  funct7  25)
+            .|. (shiftL  rs2     20)
+            .|. (shiftL  rs1     15)
+            .|. (shiftL  funct3  12)
+            .|. (shiftL  rd       7)
+            .|. opcode)
+  in
+    assert  legal  instr
+
+{-# INLINE ifields_R_type #-}
+ifields_R_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField, InstrField)
+ifields_R_type  instr =
+  let
+    funct7 = ifield_funct7  instr
+    rs2    = ifield_rs2     instr
+    rs1    = ifield_rs1     instr
+    funct3 = ifield_funct3  instr
+    rd     = ifield_rd      instr
+    opcode = ifield_opcode  instr
+  in
+    (funct7, rs2, rs1, funct3, rd, opcode)
+
+-- R-type funct7 fields for AMO
+{-# INLINE r_funct7_fields_for_AMO #-}
+r_funct7_fields_for_AMO :: InstrField -> (InstrField, InstrField, InstrField)
+r_funct7_fields_for_AMO  funct7 =
+  let
+    funct5 = bitSlice  funct7  6  2
+    aq     = bitSlice  funct7  1  1
+    rl     = bitSlice  funct7  0  0
+  in
+    (funct5, aq, rl)
+
+-- ================
+-- I-type
+
+{-# INLINE mkInstr_I_type #-}
+mkInstr_I_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr
+mkInstr_I_type    imm12         rs1           funct3        rd            opcode =
+  let
+    legal  = (((   shiftR  imm12  12) == 0)
+              && ((shiftR  rs1     5) == 0)
+              && ((shiftR  funct3  3) == 0)
+              && ((shiftR  rd      5) == 0)
+              && ((shiftR  opcode  7) == 0))
+
+    instr  = ((    shiftL  imm12   20)
+              .|. (shiftL  rs1     15)
+              .|. (shiftL  funct3  12)
+              .|. (shiftL  rd       7)
+              .|. opcode)
+  in
+    assert  legal  instr
+
+{-# INLINE ifields_I_type #-}
+ifields_I_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField)
+ifields_I_type  instr =
+  let
+    imm12  = bitSlice instr  31  20
+    rs1    = ifield_rs1     instr
+    funct3 = ifield_funct3  instr
+    rd     = ifield_rd      instr
+    opcode = ifield_opcode  instr
+  in
+    (imm12, rs1, funct3, rd, opcode)
+
+-- I-type imm12 fields for shift instrs
+
+{-# INLINE ifields_I_type_imm12_32 #-}
+ifields_I_type_imm12_32 :: InstrField -> (InstrField, InstrField)
+ifields_I_type_imm12_32  imm12 =
+  let
+    funct7 = bitSlice  imm12  11  5
+    shamt5 = bitSlice  imm12   4  0
+  in
+    (funct7, shamt5)
+
+{-# INLINE ifields_I_type_imm12_64 #-}
+ifields_I_type_imm12_64 :: InstrField -> (InstrField, InstrField)
+ifields_I_type_imm12_64  imm12 =
+  let
+    funct6 = bitSlice  imm12  11  6
+    shamt6 = bitSlice  imm12   5  0
+  in
+    (funct6, shamt6)
+
+-- I-type imm12 fields for FENCE
+{-# INLINE ifields_I_type_imm12_FENCE #-}
+ifields_I_type_imm12_FENCE :: InstrField -> (InstrField, InstrField, InstrField)
+ifields_I_type_imm12_FENCE  imm12 =
+  let
+    fm   = bitSlice  imm12  11  8
+    pred = bitSlice  imm12   7  4
+    succ = bitSlice  imm12   3  0
+  in
+    (fm, pred, succ)
+
+-- ================
+-- S-type
+
+{-# INLINE mkInstr_S_type #-}
+mkInstr_S_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr
+mkInstr_S_type    imm12         rs2           rs1           funct3        opcode =
+  let
+    legal  = (((   shiftR  imm12  12) == 0)
+              && ((shiftR  rs1     5) == 0)
+              && ((shiftR  rs2     5) == 0)
+              && ((shiftR  funct3  3) == 0)
+              && ((shiftR  opcode  7) == 0))
+
+    instr  = ((    shiftL  (bitSlice  imm12  11 5)  25)
+              .|. (shiftL  rs2                      20)
+              .|. (shiftL  rs1                      15)
+              .|. (shiftL  funct3                   12)
+              .|. (shiftL  (bitSlice  imm12   4 0)   7)
+              .|. opcode)
+  in
+    assert  legal  instr
+
+{-# INLINE ifields_S_type #-}
+ifields_S_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField)
+ifields_S_type  instr =
+  let
+    imm12  = ((shiftL (bitSlice instr  31  25)  5)
+              .|.     (bitSlice instr  11   7))
+    rs2    = ifield_rs2     instr
+    rs1    = ifield_rs1     instr
+    funct3 = ifield_funct3  instr
+    opcode = ifield_opcode  instr
+  in
+    (imm12, rs2, rs1, funct3, opcode)
+
+-- ================
+-- B-type
+
+{-# INLINE mkInstr_B_type #-}
+mkInstr_B_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr
+mkInstr_B_type    imm13         rs2           rs1           funct3        opcode =
+  let
+    legal = (((   shiftR  imm13  13) == 0)
+             && ((shiftR  rs2     5) == 0)
+             && ((shiftR  rs1     5) == 0)
+             && ((shiftR  funct3  3) == 0)
+             && ((shiftR  opcode  7) == 0))
+
+    bits_31_25 = ((    shiftL  (bitSlice  imm13  12  12)  31)
+                  .|. (shiftL  (bitSlice  imm13  10   5)  25))
+    bits_11_7  = ((    shiftL  (bitSlice  imm13   4   1)  8)
+                  .|. (shiftL  (bitSlice  imm13  11  11)  7))
+    instr = (    bits_31_25
+             .|. (shiftL rs2     20)
+             .|. (shiftL rs1     15)
+             .|. (shiftL funct3  12)
+             .|. bits_11_7
+             .|. opcode)
+  in
+    assert  legal  instr
+
+                                                -- \begin_latex{ifields_B_type}
+{-# INLINE ifields_B_type #-}
+ifields_B_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField)
+ifields_B_type  instr =
+  let imm13  = ( shiftL (bitSlice instr  31  31) 12  .|.
+                 shiftL (bitSlice instr   7   7) 11  .|.
+                 shiftL (bitSlice instr  30  25)  5  .|.
+                 shiftL (bitSlice instr  11   8)  1  )
+      rs2    = ifield_rs2     instr
+      rs1    = ifield_rs1     instr
+      funct3 = ifield_funct3  instr
+      opcode = ifield_opcode  instr
+  in
+    (imm13, rs2, rs1, funct3, opcode)
+                                                -- \end_latex{ifields_B_type}
+-- ================
+-- U-type
+
+{-# INLINE mkInstr_U_type #-}
+mkInstr_U_type  :: InstrField -> InstrField -> InstrField -> Instr
+mkInstr_U_type     imm20         rd            opcode =
+  let
+    legal = (((   shiftR  imm20  20) == 0)
+             && ((shiftR  rd      5) == 0)
+             && ((shiftR  opcode  7) == 0))
+
+    instr = ((    shiftL  imm20  12)
+             .|. (shiftL  rd      7)
+             .|.  opcode)
+  in
+    assert  legal  instr
+
+{-# INLINE ifields_U_type #-}
+ifields_U_type :: Instr -> (InstrField, InstrField, InstrField)
+ifields_U_type  instr =
+  let
+    imm20  = bitSlice       instr  31  12
+    rd     = ifield_rd      instr
+    opcode = ifield_opcode  instr
+  in
+    (imm20, rd, opcode)
+
+-- ================
+-- J-type
+
+mkInstr_J_type :: InstrField -> InstrField -> InstrField -> Instr
+mkInstr_J_type    imm21         rd            opcode =
+  let
+    legal  = (((   shiftR  imm21  21) == 0)
+              && ((shiftR  rd      5) == 0)
+              && ((shiftR  opcode  7) == 0))
+
+    bits_31_12 = ((    shiftL  (bitSlice  imm21  20  20)  31)
+                  .|. (shiftL  (bitSlice  imm21  10   1)  21)
+                  .|. (shiftL  (bitSlice  imm21  11  11)  20)
+                  .|. (shiftL  (bitSlice  imm21  19  12)  12))
+
+    instr  = (bits_31_12  .|.  (shiftL  rd  7)  .|.  opcode)
+  in
+    assert  legal  instr
+
+
+{-# INLINE ifields_J_type #-}
+ifields_J_type :: Instr -> (InstrField, InstrField, InstrField)
+ifields_J_type  instr =
+  let
+    imm21  = ((    shiftL (bitSlice instr  31  31)  20)
+              .|. (shiftL (bitSlice instr  19  12)  12)
+              .|. (shiftL (bitSlice instr  20  20)  11)
+              .|. (shiftL (bitSlice instr  30  21)   1))
+    rd     = ifield_rd      instr
+    opcode = ifield_opcode  instr
+  in
+    (imm21, rd, opcode)
+
+-- ================
+-- R4-type
+
+{-# INLINE ifields_R4_type #-}
+ifields_R4_type :: Instr -> (InstrField, InstrField, InstrField, InstrField, InstrField, InstrField, InstrField)
+ifields_R4_type  instr =
+  let
+    rs3    = ifield_rs3     instr
+    funct2 = ifield_funct2  instr
+    rs2    = ifield_rs2     instr
+    rs1    = ifield_rs1     instr
+    funct3 = ifield_funct3  instr
+    rd     = ifield_rd      instr
+    opcode = ifield_opcode  instr
+  in
+    (rs3, funct2, rs2, rs1, funct3, rd, opcode)
+
+-- ================================================================
+-- Functions to extract 16b instruction fields ('C' (Compressed) ISA extension)
+
+                                                -- \begin_latex{ifields_CR_type}
+{-# INLINE ifields_CR_type #-}
+ifields_CR_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField)
+ifields_CR_type  instr =
+  let
+    funct4 = bitSlice instr  15  12
+    rd_rs1 = bitSlice instr  11   7
+    rs2    = bitSlice instr   6   2
+    op     = bitSlice instr   1   0
+  in
+    (funct4, rd_rs1, rs2, op)
+                                                -- \end_latex{ifields_CR_type}
+
+{-# INLINE ifields_CI_type #-}
+ifields_CI_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField, InstrField)
+ifields_CI_type  instr =
+  let
+    funct3     = bitSlice instr  15  13
+    imm_at_12  = bitSlice instr  12  12
+    rd_rs1     = bitSlice instr  11   7
+    imm_at_6_2 = bitSlice instr   6   2
+    op         = bitSlice instr   1   0
+  in
+    (funct3, imm_at_12, rd_rs1, imm_at_6_2, op)
+
+{-# INLINE ifields_CSS_type #-}
+ifields_CSS_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField)
+ifields_CSS_type  instr =
+  let
+    funct3      = bitSlice instr  15  13
+    imm_at_12_7 = bitSlice instr  12   7
+    rs2         = bitSlice instr   6   2
+    op          = bitSlice instr   1   0
+  in
+    (funct3, imm_at_12_7, rs2, op)
+
+{-# INLINE ifields_CIW_type #-}
+ifields_CIW_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField)
+ifields_CIW_type  instr =
+  let
+    funct3      = bitSlice instr  15  13
+    imm_at_12_5 = bitSlice instr  12   5
+    rd'         = (bitSlice instr   4   2)  .|.  0x8
+    op          = bitSlice instr   1   0
+  in
+    (funct3, imm_at_12_5, rd', op)
+
+{-# INLINE ifields_CL_type #-}
+ifields_CL_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField,InstrField, InstrField)
+ifields_CL_type  instr =
+  let
+    funct3       = bitSlice instr  15  13
+    imm_at_12_10 = bitSlice instr  12  10
+    rs1'         = (bitSlice instr   9   7)  .|.  0x8
+    imm_at_6_5   = bitSlice instr   6   5
+    rd'          = (bitSlice instr   4   2)  .|.  0x8
+    op           = bitSlice instr   1   0
+  in
+    (funct3, imm_at_12_10, rs1', imm_at_6_5, rd', op)
+
+{-# INLINE ifields_CS_type #-}
+ifields_CS_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField,InstrField, InstrField)
+ifields_CS_type  instr =
+  let
+    funct3       = bitSlice instr  15  13
+    imm_at_12_10 = bitSlice instr  12  10
+    rs1'         = (bitSlice instr   9   7)  .|.  0x8
+    imm_at_6_5   = bitSlice instr   6   5
+    rs2'         = (bitSlice instr   4   2)  .|.  0x8
+    op           = bitSlice instr   1   0
+  in
+    (funct3, imm_at_12_10, rs1', imm_at_6_5, rs2', op)
+
+{-# INLINE ifields_CA_type #-}
+ifields_CA_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField,InstrField)
+ifields_CA_type  instr =
+  let
+    funct6       = bitSlice instr  15  10
+    rd_rs1'      = (bitSlice instr  9   7)  .|.  0x8
+    funct2       = bitSlice instr   6   5
+    rs2'         = (bitSlice instr  4   2)  .|.  0x8
+    op           = bitSlice instr   1   0
+  in
+    (funct6, rd_rs1', funct2, rs2', op)
+
+{-# INLINE ifields_CB_type #-}
+ifields_CB_type :: Instr_C -> (InstrField, InstrField, InstrField, InstrField,InstrField)
+ifields_CB_type  instr =
+  let
+    funct3       = bitSlice instr  15  13
+    imm_at_12_10 = bitSlice instr  12  10
+    rs1'         = (bitSlice instr   9   7)  .|.  0x8
+    imm_at_6_2   = bitSlice instr   6   2
+    op           = bitSlice instr   1   0
+  in
+    (funct3, imm_at_12_10, rs1', imm_at_6_2, op)
+
+{-# INLINE ifields_CJ_type #-}
+ifields_CJ_type :: Instr_C -> (InstrField, InstrField, InstrField)
+ifields_CJ_type  instr =
+  let
+    funct3       = bitSlice instr  15  13
+    imm_at_12_2  = bitSlice instr  12   2
+    op           = bitSlice instr   1   0
+  in
+    (funct3, imm_at_12_2, op)
 
 -- ================================================================
 -- Exception Codes                                 \begin_latex{exception_codes_A}
