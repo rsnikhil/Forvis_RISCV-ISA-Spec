@@ -12,6 +12,24 @@ import Forvis_Spec_I
 import GPR_File
 import Memory
 
+--------------------------------------------------------
+-- This belongs in /src!
+
+import Data.Bits
+
+opcodeE x   = shiftL x 0
+rdE x       = shiftL x 7
+funct3E x   = shiftL x 12
+rs1E x      = shiftL x 15
+rs2E x      = shiftL x 20
+funct7E x   = shiftL x 25
+imm12E x    = shiftL x 20
+
+encode_I :: RV -> Instr_I -> Instr_32b
+encode_I rv (ADDI rd rs1 imm12) = opcodeE opcode_OP_IMM .|. rdE rd .|. rs1E rs1 .|. imm12E imm12
+
+--------------------------------------------------------
+
 -- Design decision: Do we want to write policies in Haskell, or in
 -- RISCV machine instructions (compiled from C or something).  In this
 -- experiment I'm assuming the former.  If we go for the latter, it's
