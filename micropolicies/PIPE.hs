@@ -63,5 +63,5 @@ exec_pipe p m m' u32 =
   let rv  = mstate_rv_read  m
       res = decode_I rv u32
   in case res of
-       Just (ADDI _ _ _) -> return (p,False)
-       _ -> return (p,True)
+       Just (ADDI _ _ _) -> return (p,True)
+       _ -> return (p,False)
