@@ -5,11 +5,10 @@ import Data.Maybe
 
 import Bit_Utils
 import Arch_Defs
-import Utility
-import Decode
 
 -- Maybe?
 import Machine_State
+import Forvis_Spec_I
 import GPR_File
 import Memory
 
@@ -60,4 +59,9 @@ init_pipe_state = PIPE_State {
 ---------------------------------
 
 exec_pipe :: PIPE_State -> Machine_State -> Machine_State -> Integer -> IO (PIPE_State, Bool)
-exec_pipe p m m' u32 = return (p,True)
+exec_pipe p m m' u32 =
+  let rv  = mstate_rv_read  m
+      res = decode_I rv u32
+  in case res of
+       Just (ADDI _ _ _) -> return (p,False)
+       _ -> return (p,True)

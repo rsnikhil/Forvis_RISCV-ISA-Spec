@@ -10,7 +10,6 @@ ifeq ($(UNAME), Darwin)
 SOFTFLOAT_LIBPATH=/usr/local/lib/libsoftfloat.dylib
 endif
 
-
 all:
 	mkdir -p  $(TMP_DIR)
 	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  -rtsopts \
@@ -19,3 +18,6 @@ all:
 		-I../submodules/softfloat-hs/include \
 		../submodules/softfloat-hs/csrc/softfloat_wrappers.c \
 		$(SOFTFLOAT_LIBPATH)
+
+pipe_hello: all
+	$(MAKE) -C .. test_hello

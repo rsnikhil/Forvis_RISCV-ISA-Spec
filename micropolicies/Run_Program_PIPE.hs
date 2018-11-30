@@ -168,7 +168,7 @@ fetch_and_execute pipe_state mstate = do
                           return (pipe_state, mstate3))  -- WRONG
     Fetch_C  u16 -> (do
                         -- Exec 'C' instruction
-                        let (mstate4, spec_name) = (exec_instr_C  mstate3  u16)
+                        let (mstate4, spec_name) = (exec_instr_16b u16 mstate3)
                         when (verbosity >= 1)
                           (do
                               putStr  ("inum:" ++ show (instret + 1))
@@ -180,7 +180,7 @@ fetch_and_execute pipe_state mstate = do
                         return  (pipe_state, mstate4))  --WRONG
     Fetch    u32 -> (do
                         -- Exec 32b instruction
-                        let (mstate4, spec_name) = (exec_instr  mstate3  u32)
+                        let (mstate4, spec_name) = (exec_instr_32b  u32   mstate3)
                         (pipe_state1,trap) <- exec_pipe pipe_state mstate3 mstate4 u32 -- monad for debugging
                         when trap $ error "PIPE trap!"
                         when (verbosity >= 1)
