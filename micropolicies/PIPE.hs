@@ -39,11 +39,13 @@ encode_I rv (ADDI rd rs1 imm12) = opcodeE opcode_OP_IMM .|. rdE rd .|. rs1E rs1 
 -- probably what we really want, though.
 
 newtype Tag = Tag ()
+  deriving (Eq, Show)
 foo = Tag ()
 
 ---------------------------------
 
 newtype GPR_FileT = GPR_FileT  (Data_Map.Map  InstrField  Tag)
+  deriving (Eq, Show)
 
 mkGPR_FileT :: GPR_FileT
 mkGPR_FileT = GPR_FileT (Data_Map.fromList (zip [0..31] (repeat foo)))
@@ -57,6 +59,7 @@ gpr_writeT    (GPR_FileT dm)  reg         val =
 
 
 newtype MemT = MemT (Data_Map.Map Integer Tag)
+  deriving (Eq, Show)
 
 mkMemT = MemT (Data_Map.fromList [])
 
@@ -67,6 +70,7 @@ data PIPE_State = PIPE_State {
   p_gprs :: GPR_FileT,
   p_mem  :: MemT
   }
+  deriving (Eq, Show)
 
 init_pipe_state = PIPE_State {
   p_pc = foo,
@@ -81,5 +85,5 @@ exec_pipe p m m' u32 =
   let rv  = mstate_rv_read  m
       res = decode_I rv u32
   in case res of
-       Just (ADDI _ _ _) -> return (p,True)
+       Just (ADDI _ _ _) -> return (p,False)
        _ -> return (p,False)
