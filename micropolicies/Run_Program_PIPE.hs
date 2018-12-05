@@ -71,7 +71,7 @@ run_loop  maxinstrs m_tohost_addr pipe_state mstate = do
     else if instret >= fromIntegral maxinstrs
     then (do
              putStrLn ("Stopping due to instret limit (" ++ show maxinstrs ++ ")")
-             return (0, pipe_state, mstate2))  --WRONG
+             return (0, pipe_state, mstate2)) 
 
     -- Simulation aid: Stop due to any other reason
     else if ((run_state /= Run_State_Running) && (run_state /= Run_State_WFI))
