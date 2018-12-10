@@ -2,9 +2,6 @@ SRC_DIR  = ../src
 FORVIS_EXE = forvis_exe
 TMP_DIR  = ../tmp_haskell
 
-# Why don't we use stack (or even cabal) again?
-QC_LIB = ~/.cabal/lib/x86_64-linux-ghc-8.4.4/QuickCheck-2.11.3-4Q6LQ7mN6Tj8otrLuHN0se
-
 UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)
 SOFTFLOAT_LIBPATH=/usr/lib/libsoftfloat.so
