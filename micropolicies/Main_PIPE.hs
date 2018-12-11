@@ -62,8 +62,7 @@ main :: IO ()
 main = do
   ms <- head <$> sample' genMachine
   (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms
-  print_pipe ps
-  print_mstate "gen" ms
+  print_coupled ms ps
   
   let (ms_acc, ms_rej) = exampleMachines
 
