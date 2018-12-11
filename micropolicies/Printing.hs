@@ -15,6 +15,33 @@ import GPR_File
 import FPR_File
 import CSR_File
 
+import Text.PrettyPrint (Doc, (<+>), ($$))
+import qualified Text.PrettyPrint as P
+
+class PP a where
+  pp :: a -> Doc
+
+instance PP Tag where
+  pp (Tag ()) = P.text "_"
+
+
+instance PP GPR_FileT where
+  pp (GPR_FileT m) =
+    P.vcat $ map (\(i,r) -> P.integer i <+> P.char ':' <+> pp r)
+           $ Data_Map.assocs m
+
+
+instance PP PIPE_State where
+  pp ps = 
+    P.vcat [ P.text "PC Tag:" <+> pp (p_pc ps)
+           , P.text "Register Tags:" $$ P.nest 2 (pp $ p_gprs ps)
+           -- p_mem
+           ]
+
+print_pipe :: PIPE_State -> IO ()
+print_pipe ps =
+  putStrLn $ P.render $ pp ps
+  
 print_mstate :: String -> Machine_State -> IO ()
 print_mstate  indent  mstate = do
   let pc   = f_pc    mstate

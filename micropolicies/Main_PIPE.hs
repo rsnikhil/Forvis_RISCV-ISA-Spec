@@ -62,18 +62,18 @@ main :: IO ()
 main = do
   ms <- head <$> sample' genMachine
   (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms
-  putStrLn $ show (n, ps)
+  print_pipe ps
   print_mstate "gen" ms
   
   let (ms_acc, ms_rej) = exampleMachines
 
   -- Here: pass the tags to pipe
   (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms_acc
-  putStrLn $ show (n, ps)
+  print_pipe ps
   print_mstate "acc" ms
 
   (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms_rej
-  putStrLn $ show (n, ps)
+  print_pipe ps
   print_mstate "rej" ms
 
 
