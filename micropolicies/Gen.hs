@@ -60,6 +60,60 @@ exampleMachines =
 -- Tags in call/ret f1-2-3-4-5
 -- Memory colors in movs
 -- add heap_base
+
+-- Invariants: r0 is always zero
+
+-- Generate a random register for source
+-- TODO: add types?
+genSourceReg :: Machine_State -> Gen GPR_Addr
+genSourceReg ms =
+  -- GPR's are hard coded to be [0..31].
+  choose (0, 31)
+
+-- Generate a target register GPR
+-- For now, just avoid R0
+genTargetReg :: Machine_State -> Gen GPR_Addr
+genTargetReg ms =
+  choose (1, 31)
+
+-- Generate an immediate up to n bits
+genImm :: Int -> Gen InstrField
+genImm n = choose (0, shiftL 1 n)
+  
+-- Generate an instruction that is valid in the current context
+-- TODO: For now, random
+-- For load and store to make sense, we need to go through the register file
+-- and pick "valid" current addresses.
+genInstr :: Machine_State -> Gen Instr_I
+genInstr ms =          
+  frequency [ (1, do -- ADDI
+                  rs <- genSourceReg ms
+                  rd <- genTargetReg ms
+                  imm <- genImm 12
+                  return (ADDI rd rs imm))
+            , (1, do -- LOAD
+                  rs <- genSourceReg ms
+                  rd <- genTargetReg ms
+                  imm <- genImm 12
+                  return (LW rd rs imm))
+            , (1, do -- STORE
+                  rs <- genSourceReg ms
+                  rd <- genTargetReg ms
+                  imm <- genImm 12
+                  return (SW rd rs imm))
+            , (1, do -- ADD
+                  rs1 <- genSourceReg ms
+                  rs2 <- genSourceReg ms
+                  rd <- genTargetReg ms
+                  return (ADD rd rs1 rs2))
+            ]
+
+setInstructions :: Machine_State -> [Instr_I] -> Machine_State
+setInstructions ms instrs =
+  ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList (zip [0..] (map (encode_I RV32) instrs)) }}
+
 genMachine :: Gen Machine_State
 genMachine = do
-  return $ fst exampleMachines
+  -- TODO: this is random, not generation by execution
+  is <- vectorOf 20 (genInstr initMachine)
+  return $ setInstructions initMachine is

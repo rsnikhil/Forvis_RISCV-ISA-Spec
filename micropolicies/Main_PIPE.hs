@@ -31,6 +31,7 @@ import Run_Program_PIPE
 
 import Gen
 import Printing
+import Test.QuickCheck
 
 -- ================================================================
 
@@ -58,17 +59,22 @@ main :: IO ()
 
 --
 
-main =
-  let (ms_acc, ms_rej) = exampleMachines in
-  do
-    -- Here: pass the tags to pipe
-    (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms_acc
-    putStrLn $ show (n, ps)
-    print_mstate "acc" ms
+main = do
+  ms <- head <$> sample' genMachine
+  (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms
+  putStrLn $ show (n, ps)
+  print_mstate "gen" ms
+  
+  let (ms_acc, ms_rej) = exampleMachines
 
-    (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms_rej
-    putStrLn $ show (n, ps)
-    print_mstate "rej" ms
+  -- Here: pass the tags to pipe
+  (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms_acc
+  putStrLn $ show (n, ps)
+  print_mstate "acc" ms
+
+  (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms_rej
+  putStrLn $ show (n, ps)
+  print_mstate "rej" ms
 
 
 -----------
