@@ -23,7 +23,9 @@ import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 -- Local imports
 
 import Bit_Utils
+#ifdef FLOAT
 import FPU
+#endif
 import Arch_Defs
 import Machine_State
 import CSR_File
@@ -96,6 +98,7 @@ finish_pc    mstate           new_pc =
   in
     mstate2
 
+#ifdef FLOAT
 -- Update FPU.RD, CSR.FFlags, increment PC by 4, increment INSTRET       \begin_latex{finish_frd_fflags_and_pc_plus_4}
 {-# INLINE finish_frd_fflags_and_pc_plus_4 #-}
 finish_frd_fflags_and_pc_plus_4 :: Machine_State -> FPR_Addr -> Integer -> Integer -> Bool -> Machine_State
@@ -120,6 +123,7 @@ finish_frd_and_pc_plus_4    mstate           rd          rd_val     is_n_lt_FLEN
       mstate3 = incr_minstret     mstate2
   in
     mstate3
+#endif
                                                                -- \end_latex{finish_frd_and_pc_plus_4}
 -- Trap with given exception code and trap value
 {-# INLINE finish_trap #-}

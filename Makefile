@@ -46,15 +46,24 @@ ifeq ($(UNAME), Darwin)
 SOFTFLOAT_LIBPATH=/usr/local/lib/libsoftfloat.dylib
 endif
 
-.PHONY: exe
-exe:
-	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  $(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  -rtsopts \
-		Main \
-		-isubmodules/softfloat-hs/src \
+# FLOAT := yes
+
+ifneq ($(FLOAT),)
+FLOAT_EXTRAS := -isubmodules/softfloat-hs/src \
 		-Isubmodules/softfloat-hs/include \
 		submodules/softfloat-hs/csrc/softfloat_wrappers.c \
 		$(SOFTFLOAT_LIBPATH)
+FLOATARG := -DFLOAT
+endif
+
+.PHONY: exe
+exe:
+	mkdir -p  $(TMP_DIR)
+	ghc  -dynamic  -threaded  -o  $(FORVIS_EXE)  -O2  -i$(SRC_DIR) \
+	        -outputdir  $(TMP_DIR)  -rtsopts \
+	        -cpp $(FLOATARG) \
+		Main \
+		$(FLOAT_EXTRAS)
 
 # ================================================================
 # This section downloads, into 'submodules/', a git submodule: 'softfloat-hs'
