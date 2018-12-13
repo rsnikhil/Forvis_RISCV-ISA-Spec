@@ -217,4 +217,4 @@ exec_pipe p m m' u32 =
               (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM t2c t1c)
               _ -> notok p $ "Mangled tags on Store: " ++ show rs1c ++ " and " ++ show rs2c
           _ -> ok p 
-      Nothing -> ok p  -- Wrong??
+      Nothing -> ok p
