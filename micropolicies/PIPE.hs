@@ -139,7 +139,7 @@ gpr_writeT :: GPR_FileT ->    GPR_Addr -> Tag -> GPR_FileT
 gpr_writeT    (GPR_FileT dm)  reg         val =
     seq  val  (GPR_FileT (Data_Map.insert  reg  val  dm))
 
-newtype MemT = MemT (Data_Map.Map Integer Tag)
+newtype MemT = MemT {unMemT :: Data_Map.Map Integer Tag}
   deriving (Eq, Show)
 
 mkMemT = MemT (Data_Map.fromList [])
@@ -152,15 +152,20 @@ data PIPE_Result = PIPE_Trap String
 data PIPE_State = PIPE_State {
   p_pc   :: Tag,
   p_gprs :: GPR_FileT,
-  p_mem  :: MemT
+  p_mem  :: MemT,
+  p_nextcolor :: Int
   }
   deriving (Eq, Show)
 
 init_pipe_state = PIPE_State {
   p_pc = initPC,
   p_gprs = mkGPR_FileT,
-  p_mem = mkMemT
+  p_mem = mkMemT,
+  p_nextcolor = 1
   }
+
+fresh_color :: PIPE_State -> (Color, PIPE_State)
+fresh_color p = (C $ p_nextcolor p, p {p_nextcolor = p_nextcolor p + 1})
 
 -- Should be done with lenses...
 get_rtag :: PIPE_State -> GPR_Addr -> Tag
@@ -170,10 +175,10 @@ set_rtag :: PIPE_State -> GPR_Addr -> Tag -> PIPE_State
 set_rtag p a t = p {p_gprs = gpr_writeT (p_gprs p) a t}
 
 get_mtag :: PIPE_State -> Integer -> Tag
-get_mtag = undefined
+get_mtag p a = maybe (MTagM dfltcolor dfltcolor) id $ Data_Map.lookup a (unMemT $ p_mem p) 
 
 set_mtag :: PIPE_State -> Integer -> Tag -> PIPE_State
-set_mtag = undefined
+set_mtag p a t = p { p_mem = MemT (Data_Map.insert a t (unMemT $ p_mem p)) }
 
 ---------------------------------
 
@@ -185,10 +190,15 @@ exec_pipe :: PIPE_State -> Machine_State -> Machine_State -> Integer -> (PIPE_St
 exec_pipe p m m' u32 =
   let rv  = mstate_rv_read  m
       res = decode_I rv u32
+      ic = get_mtag p (f_pc m)
   in case res of
       Just i -> 
         case i of
-          ADDI rd rs imm -> ok $ set_rtag p rd $ get_rtag p rs
+          ADDI rd rs imm 
+            | ic == MTagI NoAlloc -> ok $ set_rtag p rd $ get_rtag p rs
+            | otherwise -> 
+                let (c, p') = fresh_color p in
+                ok $ set_rtag p rd (MTagR c)
           ADD rd rs1 rs2 -> ok $ set_rtag p rd $ get_rtag p rs1
           LW rd rs imm   -> 
             let rsc = get_rtag p rs
