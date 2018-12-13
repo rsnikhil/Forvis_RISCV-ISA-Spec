@@ -20,22 +20,19 @@ module Run_Program_PIPE where
 
 import Control.Monad
 import System.IO
-import Data.Int
-import Data.Char
-import Data.List
 import Data.Bits
-import Numeric (showHex, readHex)
 
 -- Project imports
 
-import Bit_Utils
 import Arch_Defs
 import Machine_State
-import CSR_File
+--import CSR_File
 
 import Forvis_Spec
 
 import PIPE
+
+import Debug.Trace
 
 -- ================================================================
 -- Simplified compared to the one in /src
@@ -46,7 +43,7 @@ data Reason = Halted String
             deriving (Show)
 
 run_loop :: Int -> PIPE_State -> Machine_State -> (Reason, PIPE_State, Machine_State) 
-run_loop  maxinstrs pipe_state mstate = 
+run_loop  maxinstrs pipe_state mstate =
   let instret   = mstate_csr_read        mstate  csr_addr_minstret
       run_state = mstate_run_state_read  mstate
 
@@ -60,8 +57,7 @@ run_loop  maxinstrs pipe_state mstate =
 
     -- Simulation aid: Stop due to any other reason
     else if ((run_state /= Run_State_Running) && (run_state /= Run_State_WFI))
-    then (Halted $
-          "Stopping due to runstate " ++ show run_state ++ "; instret = " ++ show instret,
+    then (Halted $ "Stopping due to runstate " ++ show run_state ++ "; instret = " ++ show instret,
           pipe_state, mstate1)
 
     -- Fetch-and-execute instruction or WFI-resume, and continue run-loop
@@ -95,21 +91,21 @@ run_loop  maxinstrs pipe_state mstate =
 
 fetch_and_execute :: PIPE_State -> Machine_State -> Either String (PIPE_State, Machine_State)
 fetch_and_execute pipe_state mstate = 
-  let verbosity               = mstate_verbosity_read  mstate
+  let _verbosity               = mstate_verbosity_read  mstate
       (intr_pending, mstate2) = take_interrupt_if_any  mstate
 
   -- Fetch an instruction
-      pc                      = mstate_pc_read  mstate2
-      instret                 = mstate_csr_read  mstate2  csr_addr_minstret
+      _pc                      = mstate_pc_read  mstate2
+      _instret                 = mstate_csr_read  mstate2  csr_addr_minstret
       (fetch_result, mstate3) = instr_fetch  mstate2
-      priv                    = mstate_priv_read  mstate3
+      _priv                    = mstate_priv_read  mstate3
 
   -- Handle fetch-exception of execute
   in case fetch_result of
-    Fetch_Trap  ec -> Right (pipe_state, mstate3)  -- WRONG?
-    Fetch_C  u16 -> let (mstate4, spec_name) = (exec_instr_16b u16 mstate3)
+    Fetch_Trap  _ec -> Right (pipe_state, mstate3)  -- WRONG?
+    Fetch_C  u16 -> let (mstate4, _spec_name) = (exec_instr_16b u16 mstate3)
                     in Right (pipe_state, mstate4)  --WRONG?
-    Fetch    u32 -> let (mstate4, spec_name) = (exec_instr_32b  u32   mstate3)
+    Fetch    u32 -> let (mstate4, _spec_name) = (exec_instr_32b  u32   mstate3)
                         (pipe_state1, trap) = exec_pipe pipe_state mstate3 mstate4 u32 
                     in case trap of 
                           PIPE_Trap s -> Left s

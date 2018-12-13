@@ -5,7 +5,7 @@ TMP_DIR  = ../tmp_haskell
 all:
 	mkdir -p  $(TMP_DIR)
 	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  \
-	   -outputdir  $(TMP_DIR)  -rtsopts -cpp \
+	   -outputdir  $(TMP_DIR)  -rtsopts -cpp -Wall \
 	   Main_PIPE 
 
 pipe_hello: all
