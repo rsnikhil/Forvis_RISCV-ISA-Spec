@@ -1,4 +1,4 @@
-do something about FP
+haskell-mode for emacs!
 
 implement memory safety policy
 

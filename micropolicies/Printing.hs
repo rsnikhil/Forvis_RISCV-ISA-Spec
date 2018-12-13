@@ -26,8 +26,19 @@ import Data.List.Split(chunksOf)
 class PP a where
   pp :: a -> Doc
 
+instance PP Color where
+  pp (C n) = P.text $ (["","A","B","C","D","E","X","Y","Z","W"] ++ (repeat "BIGCOLOR")) !! n
+
+instance PP AllocOrNot where
+  pp NoAlloc = P.text ""
+  pp Alloc = P.text "Alloc"
+
 instance PP Tag where
-  pp (Tag ()) = P.text "_"
+  pp MTagP = P.text ""
+  pp (MTagI a) = pp a
+  pp (MTagR c) = pp c
+  pp (MTagM (C 0) (C 0)) = P.text ""
+  pp (MTagM cv cl) = pp cv P.<> P.text "/" P.<> pp cl
 
 instance PP Integer where
   pp n = P.sizedText 2 $ show n
