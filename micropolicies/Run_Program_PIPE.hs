@@ -38,17 +38,15 @@ import Forvis_Spec
 import PIPE
 
 -- ================================================================
--- The 'run loop's main function is to repeatedly fetch and execute an
--- instruction, with the following simulation-friendly nuances:
---   - stop at a given maximum # of instructions executed
---   - stop if something interesting is written into the 'tohost_addr' mem location
---   - stop due to any other reason (e.g., breakpoint into debugger)
+-- Simplified compared to the one in /src
 
--- Takes an architecture state and returns the new architecture state.
--- Fetches and executes one instruction; and repeats.
+data Reason = Halted String
+            | OutOfGas 
+            | PIPEError String
+            deriving (Show)
 
-run_loop :: Int -> (Maybe Integer) -> PIPE_State -> Machine_State -> IO (Int, PIPE_State, Machine_State)  
-run_loop  maxinstrs m_tohost_addr pipe_state mstate = do
+run_loop :: Int -> PIPE_State -> Machine_State -> (Reason, PIPE_State, Machine_State) 
+run_loop  maxinstrs pipe_state mstate = 
   let instret   = mstate_csr_read        mstate  csr_addr_minstret
       run_state = mstate_run_state_read  mstate
 
@@ -56,47 +54,26 @@ run_loop  maxinstrs m_tohost_addr pipe_state mstate = do
       -- timer, propagate interrupts, etc.)
       mstate1 = mstate_mem_tick  mstate
 
-      -- Simulation/testing: read <tohost> location, if any
-      (tohost_u64, mstate2) = mstate_mem_read_tohost  mstate1  m_tohost_addr
-
-  if (tohost_u64 /= 0)
-    -- Simulation/Testing aid: Stop due to value written to <tohost>
-    then (do
-             putStrLn ("Stopping due to write to <tohost> = " ++ (show  tohost_u64) ++
-                       "; instret = " ++ show  instret)
-             let exit_value = (fromIntegral  (shiftR  tohost_u64  1)) :: Int
-             return (exit_value, pipe_state, mstate2))  -- WRONG
-
     -- Simulation aid: Stop due to instruction limit
-    else if instret >= fromIntegral maxinstrs
-    then (do
-             putStrLn ("Stopping due to instret limit (" ++ show maxinstrs ++ ")")
-             return (0, pipe_state, mstate2)) 
+    in if instret >= fromIntegral maxinstrs
+    then (OutOfGas, pipe_state, mstate1)
 
     -- Simulation aid: Stop due to any other reason
     else if ((run_state /= Run_State_Running) && (run_state /= Run_State_WFI))
-    then (do
-             putStrLn ("Stopping due to runstate " ++ show run_state ++ "; instret = " ++ show instret)
-             return (0, pipe_state, mstate2))  -- WRONG
+    then (Halted $
+          "Stopping due to runstate " ++ show run_state ++ "; instret = " ++ show instret,
+          pipe_state, mstate1)
 
     -- Fetch-and-execute instruction or WFI-resume, and continue run-loop
-    else (do
-             -- Debugging: print progress-report every 10M instrs
-             when ((instret `mod` 10000000) == 0) (do
-                                                      let mtime = mstate_mem_read_mtime  mstate2
-                                                      putStrLn  ("[Forvis: instret = " ++ show instret ++
-                                                                 "; MTIME = " ++ show mtime ++
-                                                                 "]")
-                                                      hFlush  stdout)
-
-             -- Check for tty console input and, if any, buffer it into the UART
-             mstate3 <- get_tty_input  mstate2
-
-             -- If running, fetch-and-execute; if in WFI pause, check resumption
-             (pipe_state1, mstate4) <-
-                        if (run_state == Run_State_Running) then
-                          fetch_and_execute pipe_state mstate3
-
+    else -- (Someday, we may want to check for user input and buffer it into the uart; 
+         --  ditto uart output stuff)
+         -- If running, fetch-and-execute; if in WFI pause, check resumption
+         if (run_state == Run_State_Running) then
+            case fetch_and_execute pipe_state mstate1 of
+              Right (ps, ms) -> run_loop maxinstrs ps ms
+              Left s -> (PIPEError s, pipe_state, mstate1)
+         else error "Unimplemented WFI stuff"
+{-
                         else
                           -- run_state == Run_State_WFI
                           do
@@ -107,27 +84,8 @@ run_loop  maxinstrs m_tohost_addr pipe_state mstate = do
                                               mstate3
                             return (pipe_state, mstate3_a)   -- WRONG!
  
-             -- If the UART has buffered output, consume and print out to the tty console
-             mstate5 <- put_tty_output  mstate4
-
-             -- Continue the run-loop
-             -- (except, as simulation heuristic aid, stop if PC did not change around fetch_and_execute)
-             let self_loop_halt = True        -- True/False: enable/disable the heuristic
-                 pc3            = mstate_pc_read         mstate3
-                 run_state3     = mstate_run_state_read  mstate3
-                 pc5            = mstate_pc_read         mstate5
-                 run_state5     = mstate_run_state_read  mstate5
-             if (self_loop_halt
-                 && (pc3 == pc5)
-                 && (run_state3 == Run_State_Running)
-                 && (run_state5 == Run_State_Running))
-               then (do
-                        putStrLn ("Stopping due to self-loop at PC " ++ (showHex pc5 "") ++
-                                  "; instret = " ++ show instret)
-                        return (0, pipe_state1, mstate5))
-               else (do
-                        -- Continue run-loop (tail recursive)
                         run_loop  maxinstrs  m_tohost_addr  pipe_state1 mstate5))
+-}
 
 -- ================================================================
 -- Fetch and execute an instruction (RV32 32b instr or RV32C 16b compressed instr)
@@ -135,63 +93,27 @@ run_loop  maxinstrs m_tohost_addr pipe_state mstate = do
 --     state to the trap vector (so, the fetched instr will be the
 --     first instruction in the trap vector).
 
-fetch_and_execute :: PIPE_State -> Machine_State -> IO (PIPE_State, Machine_State)
-fetch_and_execute pipe_state mstate = do
+fetch_and_execute :: PIPE_State -> Machine_State -> Either String (PIPE_State, Machine_State)
+fetch_and_execute pipe_state mstate = 
   let verbosity               = mstate_verbosity_read  mstate
       (intr_pending, mstate2) = take_interrupt_if_any  mstate
 
-  -- Debug-print when we take an interrupt
-  case intr_pending of
-    Nothing       -> return ()
-    Just exc_code -> do
-      let instret = mstate_csr_read  mstate2  csr_addr_minstret
-      when (verbosity >= 1) (putStrLn  ("Taking interrupt; instret = " ++ show instret ++
-                                        "; exc_code = " ++ (showHex  exc_code  "") ++
-                                        "\n"))
-      when (verbosity >= 2) (do
-                                putStrLn "---------------- State before interrupt trap setup"
-                                (mstate_print  "  "  mstate)
-                                putStrLn "---------------- State after interrupt trap setup"
-                                (mstate_print  "  "  mstate2))
-  -- End debug-print
-
   -- Fetch an instruction
-  let pc                      = mstate_pc_read  mstate2
+      pc                      = mstate_pc_read  mstate2
       instret                 = mstate_csr_read  mstate2  csr_addr_minstret
       (fetch_result, mstate3) = instr_fetch  mstate2
       priv                    = mstate_priv_read  mstate3
 
   -- Handle fetch-exception of execute
-  case fetch_result of
-    Fetch_Trap  ec -> (do
-                          when (verbosity >= 1) (putStrLn ("Fetch Trap:" ++ show_trap_exc_code  ec))
-                          return (pipe_state, mstate3))  -- WRONG
-    Fetch_C  u16 -> (do
-                        -- Exec 'C' instruction
-                        let (mstate4, spec_name) = (exec_instr_16b u16 mstate3)
-                        when (verbosity >= 1)
-                          (do
-                              putStr  ("inum:" ++ show (instret + 1))
-                              putStr  ("  pc 0x" ++ (showHex pc ""))
-                              putStr  ("  instr.C 0x_" ++ show_wordXL  16  '0'  u16)
-                              putStr  ("  priv " ++ show (priv))
-                              putStrLn ("  " ++ spec_name))
-                        when (verbosity > 1) (mstate_print  "  "  mstate4)
-                        return  (pipe_state, mstate4))  --WRONG
-    Fetch    u32 -> (do
-                        -- Exec 32b instruction
-                        let (mstate4, spec_name) = (exec_instr_32b  u32   mstate3)
-                        (pipe_state1,trap) <- exec_pipe pipe_state mstate3 mstate4 u32 -- monad for debugging
-                        when trap $ error "PIPE trap!"
-                        when (verbosity >= 1)
-                          (do
-                              putStr  ("inum:" ++ show (instret + 1))
-                              putStr  ("  pc 0x" ++ (showHex pc ""))
-                              putStr  ("  instr 0x_" ++ show_wordXL  32  '0'  u32)
-                              putStr  ("  priv " ++ show (priv))
-                              putStrLn ("  " ++ spec_name))
-                        when (verbosity > 1) (mstate_print  "  "  mstate4)
-                        return  (pipe_state1, mstate4))
+  in case fetch_result of
+    Fetch_Trap  ec -> Right (pipe_state, mstate3)  -- WRONG?
+    Fetch_C  u16 -> let (mstate4, spec_name) = (exec_instr_16b u16 mstate3)
+                    in Right (pipe_state, mstate4)  --WRONG?
+    Fetch    u32 -> let (mstate4, spec_name) = (exec_instr_32b  u32   mstate3)
+                        (pipe_state1, trap) = exec_pipe pipe_state mstate3 mstate4 u32 
+                    in case trap of 
+                          PIPE_Trap s -> Left s
+                          PIPE_Success -> Right (pipe_state1, mstate4)
 
 -- ================================================================
 -- Read the word in mem [tohost_addr], if such an addr is given,

@@ -15,8 +15,6 @@ module Main where
 
 -- Project imports
 
-import Main_Run_Program_PIPE
-
 --
 import Arch_Defs
 import Forvis_Spec_I
@@ -33,50 +31,24 @@ import Gen
 import Printing
 import Test.QuickCheck
 
--- ================================================================
-
-main :: IO ()
-
--- Uncomment just one of the following 'main = ' use-cases
-
--- ================================================================
--- Use this for a standalone RISC-V simulator that loads and runs an
--- ELF file
-
--- main = main_run_program
-
--- ================================================================
--- Use this section for a Tandem Verifier server
-
--- main = main_tandem_verifier
-
--- ================================================================
--- Use this section to test Virtual Memory translation
-
--- main = main_test_virtual_mem
-
--- ================================================================
-
---
-
 main = do
   ms <- head <$> sample' genMachine
-  (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms
+  let (res, ps, ms) = run_loop 100 init_pipe_state ms
+  putStrLn (show res)
   print_coupled ms ps
   
-  let (ms_acc, ms_rej) = exampleMachines
+  -- let (ms_acc, ms_rej) = exampleMachines
 
+{-
   -- Here: pass the tags to pipe
-  (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms_acc
+  (n, ps, ms) <- run_loop 100 init_pipe_state ms_acc
   print_pipe ps
   print_mstate "acc" ms
 
-  (n, ps, ms) <- run_loop 100 Nothing init_pipe_state ms_rej
+  (n, ps, ms) <- run_loop 100 init_pipe_state ms_rej
   print_pipe ps
   print_mstate "rej" ms
-
-
------------
+-}
 
 --  putStrLn $ show $ decode_I RV32 (encode_I RV32 (ADDI 2 3 42))
 

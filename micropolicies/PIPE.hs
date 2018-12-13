@@ -108,6 +108,9 @@ mkMemT = MemT (Data_Map.fromList [])
 
 ---------------------------------
 
+data PIPE_Result = PIPE_Trap String
+                 | PIPE_Success
+
 data PIPE_State = PIPE_State {
   p_pc   :: Tag,
   p_gprs :: GPR_FileT,
@@ -123,18 +126,10 @@ init_pipe_state = PIPE_State {
 
 ---------------------------------
 
-exec_pipe_simple :: PIPE_State -> Machine_State -> Machine_State -> Integer -> IO (PIPE_State, Bool)
-exec_pipe_simple p m m' u32 =
-  let rv  = mstate_rv_read  m
-      res = decode_I rv u32
-  in case res of
-       Just (ADDI _ _ _) -> return (p,False)
-       _ -> return (p,False)
-
-exec_pipe :: PIPE_State -> Machine_State -> Machine_State -> Integer -> IO (PIPE_State, Bool)
+exec_pipe :: PIPE_State -> Machine_State -> Machine_State -> Integer -> (PIPE_State, PIPE_Result)
 exec_pipe p m m' u32 =
   let rv  = mstate_rv_read  m
       res = decode_I rv u32
   in case res of
-       Just (ADDI _ _ _) -> return (p,False)
-       _ -> return (p,False)
+       Just (ADDI _ _ _) -> (p,PIPE_Trap "ADDI")
+       _ -> (p,PIPE_Success)
