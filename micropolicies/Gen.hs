@@ -42,23 +42,23 @@ exampleMachines =
   let ms = initMachine
       heap_base = 100
       base_code =
-        [ (0, (encode_I RV32 (ADDI 1 0 heap_base), Alloc))
-        , (1, (encode_I RV32 (ADD  1 0 1), NoAlloc))
-        , (2, (encode_I RV32 (SW   1 1 0), NoAlloc))
+        [ (0, ((encode_I RV32 (ADDI 1 0 heap_base), Alloc)))
+        , (1, ((encode_I RV32 (ADD  1 0 1), NoAlloc))) 
+        , (2, ((encode_I RV32 (SW   1 1 0), NoAlloc))) 
         ]
       accept_code =
-        [ (3, (encode_I RV32 (LW 2 1 0)), NoAlloc) ]
+        [ (3, ((encode_I RV32 (LW 2 1 0)), NoAlloc)) ]
       reject_code =
-        [ (3, (encode_I RV32 (ADDI 2 0 heap_base)), NoAlloc)
-        , (4, (encode_I RV32 (LW 3 2 0)), NoAlloc) ]
-      mem_acc = (f_mem ms) { f_dm = Data_Map.fromList (map (second . fst) (base_code ++ accept_code)) }
-      mem_rej = (f_mem ms) { f_dm = Data_Map.fromList (map (second . fst) (base_code ++ reject_code)) }
-      p_macc = (p_mem init_pipe_state) { p_mem = Data_Map.fromList (map (second . MTagI . snd) (base_code ++ accept_code)) }
-      p_mrej = (p_mem init_pipe_state) { p_mem = Data_Map.fromList (map (second . MTagI . snd) (base_code ++ reject_code)) }
+        [ (3, ((encode_I RV32 (ADDI 2 0 heap_base)), NoAlloc))
+        , (4, ((encode_I RV32 (LW 3 2 0)), NoAlloc)) ]
+      mem_acc = (f_mem ms) { f_dm = Data_Map.fromList (map (second fst) (base_code ++ accept_code)) }
+      mem_rej = (f_mem ms) { f_dm = Data_Map.fromList (map (second fst) (base_code ++ reject_code)) }
+      p_macc = MemT $ Data_Map.fromList (map (second $ MTagI . snd) (base_code ++ accept_code)) 
+      p_mrej = MemT $ Data_Map.fromList (map (second $ MTagI . snd) (base_code ++ reject_code)) 
       ms_acc = ms { f_mem = mem_acc }
       ms_rej = ms { f_mem = mem_rej }
-      p_acc = ms { p_mem = p_macc }
-      p_rej = ms { p_mem = p_mrej }
+      p_acc = init_pipe_state { p_mem = p_macc }
+      p_rej = init_pipe_state { p_mem = p_mrej }
   in ((ms_acc,p_acc), (ms_rej,p_rej))
   
 --- Generate input program + tags

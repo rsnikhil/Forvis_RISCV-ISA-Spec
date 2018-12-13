@@ -33,10 +33,18 @@ import Test.QuickCheck
 
 main = do
   -- ms <- head <$> sample' genMachine
-  let ms_acc = fst exampleMachines
-  let (res, ps, ms') = run_loop 100 init_pipe_state ms_acc
+  let ((ms_acc,p_acc),(ms_rej,p_rej)) = exampleMachines
+
+  -- Accept
+  let (res, ps, ms') = run_loop 100 p_acc ms_acc
   putStrLn (show res)
   print_coupled ms' ps
+
+  -- Reject
+  let (res, ps, ms') = run_loop 100 p_rej ms_rej
+  putStrLn (show res)
+  print_coupled ms' ps
+
   
   -- let (ms_acc, ms_rej) = exampleMachines
 
