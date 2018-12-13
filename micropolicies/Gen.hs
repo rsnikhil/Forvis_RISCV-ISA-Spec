@@ -42,15 +42,17 @@ exampleMachines =
   let ms = initMachine
       heap_base = 100
       base_code =
-        [ (0, ((encode_I RV32 (ADDI 1 0 heap_base), Alloc)))
-        , (1, ((encode_I RV32 (ADD  1 0 1), NoAlloc))) 
-        , (2, ((encode_I RV32 (SW   1 1 0), NoAlloc))) 
+        [ (0*4, ((encode_I RV32 (ADDI 1 0 heap_base), Alloc)))
+        , (1*4, ((encode_I RV32 (ADD  1 1 0), NoAlloc)))    -- Useless
+        , (2*4, ((encode_I RV32 (SW   1 1 0), NoAlloc))) 
+        , (3*4, ((encode_I RV32 (ADDI 4 0 heap_base), NoAlloc)))
+        , (4*4, ((encode_I RV32 (ADDI 5 0 heap_base), NoAlloc)))
         ]
       accept_code =
-        [ (3, ((encode_I RV32 (LW 2 1 0)), NoAlloc)) ]
+        [ (5*4, ((encode_I RV32 (LW 2 1 0)), NoAlloc)) ]
       reject_code =
-        [ (3, ((encode_I RV32 (ADDI 2 0 heap_base)), NoAlloc))
-        , (4, ((encode_I RV32 (LW 3 2 0)), NoAlloc)) ]
+        [ (5*4, ((encode_I RV32 (ADDI 2 0 heap_base)), NoAlloc))
+        , (6*4, ((encode_I RV32 (LW 3 2 0)), NoAlloc)) ]
       mem_acc = (f_mem ms) { f_dm = Data_Map.fromList (map (second fst) (base_code ++ accept_code)) }
       mem_rej = (f_mem ms) { f_dm = Data_Map.fromList (map (second fst) (base_code ++ reject_code)) }
       p_macc = MemT $ Data_Map.fromList (map (second $ MTagI . snd) (base_code ++ accept_code)) 

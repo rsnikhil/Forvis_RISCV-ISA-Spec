@@ -206,7 +206,7 @@ exec_pipe p m m' u32 =
                 memc = get_mtag p (addr+imm) in 
             case (rsc,memc) of
               (MTagR t1c, MTagM t2vc t2lc) 
-                | t1c==t2lc -> ok p 
+                | t1c==t2lc -> ok $ set_rtag p rd (MTagR t2vc)
                 | otherwise -> notok p $ "Different colors on Load: " ++ show t1c ++ " and " ++ show t2lc
               _ -> notok p $ "Mangled tags on Load: " ++ show rsc ++ " and " ++ show memc
           SW rs1 rs2 imm -> 

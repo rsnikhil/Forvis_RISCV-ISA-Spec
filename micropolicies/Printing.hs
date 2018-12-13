@@ -107,6 +107,7 @@ instance CoupledPP Machine_State PIPE_State where
     P.vcat [ P.text "PC:" <+> pretty (f_pc ms) (p_pc ps)
            , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs ms) (p_gprs ps))
            , P.text "IMem:" $$ P.nest 2 (pr_imem (f_mem ms))
+           , P.text "Mem:" $$ P.text (show (Data_Map.assocs (f_dm (f_mem ms))))
            ]
 
 print_coupled :: Machine_State -> PIPE_State -> IO ()
