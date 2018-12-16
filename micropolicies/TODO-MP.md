@@ -1,9 +1,7 @@
-haskell-mode for emacs!
+haskell-mode for emacs!  (on BCP's work laptop)
 
-implement memory safety policy
+implement memory safety policy (BCP)
 
-implement a generator for instructions (and programs)
-
-Deal with this:
-    dyld: Library not loaded: lib/libsoftfloat.so
+implement a more sophisticated generator for instructions (and programs)
+(LEO) 
 

@@ -106,7 +106,7 @@ fetch_and_execute pipe_state mstate =
     Fetch_C  u16 -> let (mstate4, _spec_name) = (exec_instr_16b u16 mstate3)
                     in Right (pipe_state, mstate4)  --WRONG?
     Fetch    u32 -> let (mstate4, _spec_name) = (exec_instr_32b  u32   mstate3)
-                        (pipe_state1, trap) = exec_pipe pipe_state mstate3 mstate4 u32 
+                        (pipe_state1, trap) = exec_pipe pipe_state mstate3 u32 
                     in case trap of 
                           PIPE_Trap s -> Left s
                           PIPE_Success -> Right (pipe_state1, mstate4)

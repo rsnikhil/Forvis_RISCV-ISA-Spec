@@ -12,6 +12,9 @@ import Forvis_Spec_I
 import GPR_File
 import Memory
 
+-- This might belong elsewhere
+import Test.QuickCheck
+
 --------------------------------------------------------
 -- This belongs in /src!
 
@@ -185,9 +188,8 @@ set_mtag p a t = p { p_mem = MemT (Data_Map.insert a t (unMemT $ p_mem p)) }
 ok p = (p, PIPE_Success)
 notok p s = (p, PIPE_Trap s)
 
--- TODO: Why m'??
-exec_pipe :: PIPE_State -> Machine_State -> Machine_State -> Integer -> (PIPE_State, PIPE_Result)
-exec_pipe p m m' u32 =
+exec_pipe :: PIPE_State -> Machine_State -> Integer -> (PIPE_State, PIPE_Result)
+exec_pipe p m u32 =
   let rv  = mstate_rv_read  m
       res = decode_I rv u32
       ic = get_mtag p (f_pc m)
@@ -218,3 +220,35 @@ exec_pipe p m m' u32 =
               _ -> notok p $ "Mangled tags on Store: " ++ show rs1c ++ " and " ++ show rs2c
           _ -> ok p 
       Nothing -> ok p
+
+------------------------------------------------------------------------
+-- Testing
+
+{-
+Definition prop_noninterference (ps : Prog * MStatePair) : Checker :=
+  let (p, states) := ps in
+  let ss1' := runProg 100 p states.(s1) in
+  let ss2' := runProg 100 p states.(s2) in
+  let '(ss1',ss2') := trimToSameLength ss1' ss2' in
+  let s1' := hd states.(s1) (rev ss1') in
+  let s2' := hd states.(s2) (rev ss2') in
+  let r1 := getReachable s1' in
+  let r2 := getReachable s2' in
+  if negb (sameReachablePart {|s1:=s1';s2:=s2'|}) then
+    whenFail (newline ++
+              "Reachable parts differ after execution!" ++ newline ++
+              show s1' ++ newline ++ show s2' ++ newline)
+             (checker false)
+  else
+    checker true.
+-}
+
+{-
+data MStatePair =
+  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
+
+prop_noninterference :: MStatePair -> checker
+prop_noninterference ps = error "foo"
+
+testHeapSafety = quickCheck prop_noninterference
+-}

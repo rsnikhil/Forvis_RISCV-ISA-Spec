@@ -11,6 +11,9 @@ all:
 pipe_hello: all
 	$(MAKE) -C .. test_hello
 
+pipe_qc: all
+	../forvis_exe
+
 
 ##############################################################################
 # Probably the rest can be deleted:

@@ -45,6 +45,7 @@ main = do
   putStrLn (show res)
   print_coupled ms' ps
 
+-- main = testHeapSafety
   
   -- let (ms_acc, ms_rej) = exampleMachines
 
