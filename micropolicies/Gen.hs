@@ -91,36 +91,43 @@ genImm n = choose (0, shiftL 1 n)
 -- TODO: For now, random
 -- For load and store to make sense, we need to go through the register file
 -- and pick "valid" current addresses.
-genInstr :: Machine_State -> Gen Instr_I
+genInstr :: Machine_State -> Gen (Instr_I, Tag)
 genInstr ms =          
   frequency [ (1, do -- ADDI
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
                   imm <- genImm 12
-                  return (ADDI rd rs imm))
+                  alloc <- frequency [(1, pure $ MTagI Alloc), (4, pure $ MTagI NoAlloc)]
+                  return (ADDI rd rs imm, alloc))
             , (1, do -- LOAD
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
                   imm <- genImm 12
-                  return (LW rd rs imm))
+                  return (LW rd rs imm, MTagI NoAlloc))
             , (1, do -- STORE
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
                   imm <- genImm 12
-                  return (SW rd rs imm))
+                  return (SW rd rs imm, MTagI NoAlloc))
             , (1, do -- ADD
                   rs1 <- genSourceReg ms
                   rs2 <- genSourceReg ms
                   rd <- genTargetReg ms
-                  return (ADD rd rs1 rs2))
+                  return (ADD rd rs1 rs2, MTagI NoAlloc))
             ]
 
 setInstructions :: Machine_State -> [Instr_I] -> Machine_State
 setInstructions ms instrs =
-  ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList (zip [0..] (map (encode_I RV32) instrs)) }}
+  ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList (zip [0,4..] (map (encode_I RV32) instrs)) }}
 
-genMachine :: Gen Machine_State
+-- | Overwrites any memory tags in the instr memory
+setInstrTags :: PIPE_State -> [Tag] -> PIPE_State
+setInstrTags ps its =
+  ps {p_mem = MemT $ Data_Map.union (Data_Map.fromList (zip [0,4..] its)) (unMemT $ p_mem ps)}
+
+
+genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
   -- TODO: this is random, not generation by execution
-  is <- vectorOf 20 (genInstr initMachine)
-  return $ setInstructions initMachine is
+  (is,its) <- unzip <$> vectorOf 20 (genInstr initMachine)
+  return (setInstructions initMachine is, setInstrTags init_pipe_state its)

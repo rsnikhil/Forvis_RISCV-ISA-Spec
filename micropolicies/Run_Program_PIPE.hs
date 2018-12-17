@@ -29,6 +29,7 @@ import Machine_State
 --import CSR_File
 
 import Forvis_Spec
+import Forvis_Spec_I
 
 import PIPE
 
@@ -52,8 +53,8 @@ run_loop  maxinstrs pipe_state mstate =
       mstate1 = mstate_mem_tick  mstate
 
     -- Simulation aid: Stop due to instruction limit
-    in if instret >= fromIntegral maxinstrs
-    then (OutOfGas, pipe_state, mstate1)
+    in if traceShow instret (instret >= fromIntegral maxinstrs)
+    then  (OutOfGas, pipe_state, mstate1)
 
     -- Simulation aid: Stop due to any other reason
     else if ((run_state /= Run_State_Running) && (run_state /= Run_State_WFI))
@@ -105,11 +106,14 @@ fetch_and_execute pipe_state mstate =
     Fetch_Trap  _ec -> Right (pipe_state, mstate3)  -- WRONG?
     Fetch_C  u16 -> let (mstate4, _spec_name) = (exec_instr_16b u16 mstate3)
                     in Right (pipe_state, mstate4)  --WRONG?
-    Fetch    u32 -> let (mstate4, _spec_name) = (exec_instr_32b  u32   mstate3)
-                        (pipe_state1, trap) = exec_pipe pipe_state mstate3 u32 
-                    in case trap of 
-                          PIPE_Trap s -> Left s
-                          PIPE_Success -> Right (pipe_state1, mstate4)
+
+    Fetch    u32 ->
+      traceShow ("Executing...", decode_I RV32 u32) $
+      let (mstate4, _spec_name) = (exec_instr_32b  u32   mstate3)
+          (pipe_state1, trap) = exec_pipe pipe_state mstate3 u32 
+      in case trap of 
+           PIPE_Trap s -> Left s
+           PIPE_Success -> Right (pipe_state1, mstate4)
 
 -- ================================================================
 -- Read the word in mem [tohost_addr], if such an addr is given,
