@@ -98,6 +98,11 @@ pr_imem m =
   in P.vcat $ map (\(i, Just instr) -> P.integer i <:> pp instr) decoded
 
 -- IDEAS: only show non-trivial registers?
+pr_mem :: Mem -> Doc
+pr_mem m = 
+  let contents = Data_Map.assocs $ f_dm m 
+      decoded  = filter (not . isJust . decode_I RV32 . snd) contents
+  in P.vcat $ map (\(i, d) -> P.integer i <:> P.integer d) decoded
 
 -- TODO: Align better, tabs don't work well
 instance CoupledPP GPR_File GPR_FileT where
@@ -107,12 +112,20 @@ instance CoupledPP GPR_File GPR_FileT where
            $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':' <+> pretty d t)
            $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
 
+instance CoupledPP Mem MemT where
+  pretty (Mem m _) (MemT pm) =
+    let contents = zip (Data_Map.assocs $ m) (Data_Map.assocs pm)
+    in P.vcat $ map (\((i,d),(j,t)) ->
+                        case decode_I RV32 d of
+                          Just instr -> P.integer i <:> pp instr
+                          Nothing -> P.integer i <:> P.integer d
+                    ) contents
+
 instance CoupledPP Machine_State PIPE_State where
   pretty ms ps =
     P.vcat [ P.text "PC:" <+> pretty (f_pc ms) (p_pc ps)
            , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs ms) (p_gprs ps))
-           , P.text "IMem:" $$ P.nest 2 (pr_imem (f_mem ms))
-           , P.text "Mem:" $$ P.text (show (Data_Map.assocs (f_dm (f_mem ms))))
+           , P.text "Memories:" $$ pretty (f_mem ms) (p_mem ps)
            ]
 
 print_coupled :: Machine_State -> PIPE_State -> IO ()
