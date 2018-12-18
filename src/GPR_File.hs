@@ -31,6 +31,7 @@ import Arch_Defs
 -- present, so we use 'fromMaybe' to extract 'v' from 'Just v'.
 
 newtype GPR_File = GPR_File  (Data_Map.Map  InstrField  Integer)
+  deriving (Eq)
 
 mkGPR_File :: GPR_File
 mkGPR_File = GPR_File (Data_Map.fromList (zip

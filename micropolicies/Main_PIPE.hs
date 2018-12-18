@@ -26,16 +26,18 @@ import qualified Data.Map.Strict as Data_Map
 import Machine_State 
 
 import Run_Program_PIPE
+import TestHeapSafety
 
 import Gen
 import Printing
 import Test.QuickCheck
 
 main = do
-  (ms,ps) <- head <$> sample' genMachine
-  let (res, ps', ms') = run_loop 100 ps ms
-  putStrLn (show res)
-  print_coupled ms' ps'
+  quickCheck testHeapSafety
+--  (ms,ps) <- head <$> sample' genMachine
+--  let (res, ps', ms') = run_loop 100 ps ms
+--  putStrLn (show res)
+--  print_coupled ms' ps'
   
 
 --  let ((ms_acc,p_acc),(ms_rej,p_rej)) = exampleMachines

@@ -43,8 +43,12 @@ data Reason = Halted String
             | PIPEError String
             deriving (Show)
 
-run_loop :: Int -> PIPE_State -> Machine_State -> (Reason, PIPE_State, Machine_State) 
+run_loop :: Int -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
 run_loop  maxinstrs pipe_state mstate =
+  run_loop' maxinstrs [(pipe_state, mstate)] pipe_state mstate 
+
+run_loop' :: Int -> [(PIPE_State, Machine_State)] -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
+run_loop'  maxinstrs trace pipe_state mstate =
   let instret   = mstate_csr_read        mstate  csr_addr_minstret
       run_state = mstate_run_state_read  mstate
 
@@ -54,12 +58,12 @@ run_loop  maxinstrs pipe_state mstate =
 
     -- Simulation aid: Stop due to instruction limit
     in if traceShow instret (instret >= fromIntegral maxinstrs)
-    then  (OutOfGas, pipe_state, mstate1)
+    then  (OutOfGas, trace)
 
     -- Simulation aid: Stop due to any other reason
     else if ((run_state /= Run_State_Running) && (run_state /= Run_State_WFI))
     then (Halted $ "Stopping due to runstate " ++ show run_state ++ "; instret = " ++ show instret,
-          pipe_state, mstate1)
+          trace)
 
     -- Fetch-and-execute instruction or WFI-resume, and continue run-loop
     else -- (Someday, we may want to check for user input and buffer it into the uart; 
@@ -67,8 +71,8 @@ run_loop  maxinstrs pipe_state mstate =
          -- If running, fetch-and-execute; if in WFI pause, check resumption
          if (run_state == Run_State_Running) then
             case fetch_and_execute pipe_state mstate1 of
-              Right (ps, ms) -> run_loop maxinstrs ps ms
-              Left s -> (PIPEError s, pipe_state, mstate1)
+              Right (ps, ms) -> run_loop' maxinstrs ((ps, ms) : trace) ps ms
+              Left s -> (PIPEError s, trace) -- pipe_state, mstate1)
          else error "Unimplemented WFI stuff"
 {-
                         else
