@@ -228,7 +228,177 @@ exec_pipe p m u32 =
 ------------------------------------------------------------------------
 -- Testing
 
+{- Noninterference:
+     - for each program p and machine state s1
+     - for each s2 that agrees with s on (the pure values stored in)
+       memory cells colored with reachable colors
+     - p coterminates on s1 and s2
+     - moreover, if it terminates in s1' and s2', then s1' and s2'
+       also agree on all reachable memory cells
+
+   Note that this is quite an intensional property -- not so easy for
+   programmers to reason about their implications!  Also, an
+   interesting extension is to add a stack, either (initially) in
+   hardware or (harder) protected with tags so that called procedures
+   cannot access their callers' stack frames.  This gives a more
+   interesting (though, pragmatically, still rather weak) property.
+   To get a pragmatically more useful property, something like "sealed
+   capabilities" (aka closures) or a protected stack is needed. -}
+
+{- A stupid n^2 reachability algorithm for now... -}
+
 {-
+What we want is to maintain a set of colors that we've seen.  Initially, this will be the colors on the registers.
+
+addColors :: GPR_Addr 
+addColors (x : nat) (cols : Colors.t) : M Colors.t :=
+  a <- get_mem (Z.of_nat x) ;;
+  match a with
+    (_, (HeapSafety.MTagM val_col loc_col)) =>
+      let cols :=
+        if Colors.mem loc_col cols then Colors.add val_col cols else cols in
+      match x with
+        0 => ret cols
+      | S x => addColors x cols
+      end
+  | _ => ret cols
+  end.
+-}
+
+{-
+(* A stupid n^2 reachability algorithm for now... *)
+Fixpoint addColors (x : nat) (cols : Colors.t) : M Colors.t :=
+  a <- get_mem (Z.of_nat x) ;;
+  match a with
+    (_, (HeapSafety.MTagM val_col loc_col)) =>
+      let cols :=
+        if Colors.mem loc_col cols then Colors.add val_col cols else cols in
+      match x with
+        0 => ret cols
+      | S x => addColors x cols
+      end
+  | _ => ret cols
+  end.
+
+Fixpoint addColorsEnough (x : nat) (hi : nat) (cols : Colors.t) : M Colors.t :=
+  cols <- addColors hi cols ;;
+  match x with
+    0 => ret cols
+  | S x =>
+      addColorsEnough x hi cols
+  end.
+
+Fixpoint registerColors (r : nat) (cols : Colors.t) : M Colors.t :=
+  a <- get_reg r ;; let (_, t) := a in
+  match t with
+    HeapSafety.MTagR c =>                            
+      let cols := Colors.add c cols in
+      match r with
+        0 => ret cols
+      | S r => registerColors r cols
+      end
+  | _ => ret cols
+  end.
+
+Definition reachable : M Colors.t :=
+  initcolors <- registerColors (registerFileSize-1) Colors.empty;;
+  NOTRACE "initcolors = " ++ show (Colors.elements initcolors) IN
+  addColorsEnough (memorySize-1) (memorySize-1) initcolors.
+
+Fixpoint vuAux (r : Colors.t) (h : Memory) : G Memory :=
+(* trace ("vuAux " ++ show (Colors.elements r) ++ " " ++ show h ++ newline)*) (
+  match h with
+    [] => ret []
+  | (v, (HeapSafety.MTagM vt lt))::tl =>
+      head <- (if Colors.mem lt r then (*trace ("SAME"++newline)*) (ret (v, (HeapSafety.MTagM vt lt)))
+               else v' <- arbitrary ;; vt' <- arbitrary ;; 
+               ret (v', (HeapSafety.MTagM vt' lt))) ;;
+      tail <- vuAux r tl ;;
+      ret (head :: tail)
+  | _ => ret []  (* should not happen *)
+  end).
+
+Definition getReachable (s : MState) : Colors.t :=
+  match stepResult reachable s with
+    inl _ => Colors.empty
+  | inr c => c
+  end.
+
+Definition varyUnreachable (s : MState) : G MState :=
+  h <- vuAux (getReachable s) s.(memory) ;;
+  NOTRACE ("vuAux of " ++ show s.(memory) ++ newline ++ 
+           "     wrt " ++ show (Colors.elements (getReachable s)) ++ newline ++
+           "      is " ++ show h ++ newline ++ newline) IN
+  ret {| regs := s.(regs) ;
+         memory := h ;
+         pc := s.(pc);
+         pstate := s.(pstate) |}.
+
+Global Instance genMStatePair : Gen MStatePair := {|
+  arbitrary := 
+    s1 <- arbitrary ;;
+    s2 <- varyUnreachable s1 ;;
+    ret {| s1 := s1; s2 := s2 |}
+|}.
+
+Fixpoint srAux (r1 r2 : Colors.t) (h1 h2 : Memory) : bool :=
+  match (h1,h2) with
+    ([],[]) => true
+  | ((v1, HeapSafety.MTagM _ t1)::rest1, 
+    ((v2, (HeapSafety.MTagM _ t2))::rest2)) =>
+      srAux r1 r2 rest1 rest2 
+      && (negb (Colors.mem t1 r1 || Colors.mem t2 r2) || (v1 =? v2)%Z)
+  | (_,_) => false
+  end.
+
+Definition sameReachablePart (states : MStatePair) : bool :=
+  let r1 := getReachable states.(s1) in
+  let r2 := getReachable states.(s2) in
+     Colors.equal r1 r2 
+  && ((map fst states.(s1).(regs)) = (map fst states.(s2).(regs))?)
+  && (srAux r1 r2 states.(s1).(memory) states.(s2).(memory)).
+
+(* Sample (arbitrary : G MStatePair). *)
+
+Global Instance shrinkMStatePair : Shrink MStatePair := {|
+  shrink p := 
+    let candidates := 
+      (r <- shrinkRegistersPair (p.(s1).(regs), p.(s2).(regs)) ;;
+      ret {| s1 := {| regs   := (fst r); 
+                      memory := p.(s1).(memory); 
+                      pc     := p.(s1).(pc); 
+                      pstate := p.(s1).(pstate) |};
+             s2 := {| regs   := (snd r); 
+                      memory := p.(s2).(memory); 
+                      pc     := p.(s2).(pc); 
+                      pstate := p.(s2).(pstate) |};
+           |} )
+     ++
+      (h <- shrinkHeapPair (getReachable p.(s1))
+                           (p.(s1).(memory), p.(s2).(memory)) ;;
+      ret {| s1 := {| regs   := p.(s1).(regs); 
+                      memory := (fst h); 
+                      pc     := p.(s1).(pc); 
+                      pstate := p.(s1).(pstate) |};
+             s2 := {| regs   := p.(s2).(regs); 
+                      memory := (snd h); 
+                      pc     := p.(s2).(pc); 
+                      pstate := p.(s2).(pstate) |};
+           |} ) in
+    filter sameReachablePart candidates
+  |}%list.
+
+Definition prop_varyUnreachable_ok (states : MStatePair) : Checker :=
+  checker (sameReachablePart states).
+(* QuickCheck prop_varyUnreachable_ok. *)
+
+Definition prop_shrinkingPreservesReachability : Checker :=
+  forAll arbitrary $ fun states : MStatePair => 
+    let shrunk := shrink states in
+    (* collect (show (List.length shrunk)) $ *)
+    List.forallb sameReachablePart shrunk.
+(* QuickCheck prop_shrinkingPreservesReachability. *)
+
 Definition prop_noninterference (ps : Prog * MStatePair) : Checker :=
   let (p, states) := ps in
   let ss1' := runProg 100 p states.(s1) in

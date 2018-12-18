@@ -7,6 +7,8 @@ all:
 	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  \
 	   -outputdir  $(TMP_DIR)  -rtsopts -cpp \
 	   Main_PIPE 
+# temporary
+	../forvis_exe
 
 pipe_hello: all
 	$(MAKE) -C .. test_hello
