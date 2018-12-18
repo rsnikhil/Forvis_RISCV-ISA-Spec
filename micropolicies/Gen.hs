@@ -85,7 +85,7 @@ genTargetReg ms =
 
 -- Generate an immediate up to n bits
 genImm :: Int -> Gen InstrField
-genImm n = choose (0, shiftL 1 n)
+genImm n = (4*) <$> choose (0, 1000)
   
 -- Generate an instruction that is valid in the current context
 -- TODO: For now, random

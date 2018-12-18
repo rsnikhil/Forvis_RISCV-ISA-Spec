@@ -204,6 +204,10 @@ exec_pipe p m u32 =
           ADD rd rs1 rs2 -> ok $ set_rtag p rd $ get_rtag p rs1
           LW rd rs imm   -> 
             let rsc = get_rtag p rs
+--                rs1_val  = mstate_gpr_read  mstate  rs1    -- address base
+--                s_imm12  = sign_extend  12  xlen  imm12
+--                eaddr1   = alu_add  xlen  rs1_val  s_imm12
+--                addr   = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
                 addr = mstate_gpr_read m rs
                 memc = get_mtag p (addr+imm) in 
             case (rsc,memc) of

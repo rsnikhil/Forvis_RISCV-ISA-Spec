@@ -108,7 +108,7 @@ fetch_and_execute pipe_state mstate =
                     in Right (pipe_state, mstate4)  --WRONG?
 
     Fetch    u32 ->
-      traceShow ("Executing...", decode_I RV32 u32) $
+      traceShow ("Executing...", decode_I RV32 u32, f_pc mstate3) $
       let (mstate4, _spec_name) = (exec_instr_32b  u32   mstate3)
           (pipe_state1, trap) = exec_pipe pipe_state mstate3 u32 
       in case trap of 
