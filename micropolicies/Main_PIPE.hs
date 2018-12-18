@@ -44,11 +44,11 @@ testHeapSafety =
   prop_noninterference m
 
 main = do
-  quickCheck testHeapSafety
---  (ms,ps) <- head <$> sample' genMachine
---  let (res, ps', ms') = run_loop 100 ps ms
---  putStrLn (show res)
---  print_coupled ms' ps'
+--  quickCheck testHeapSafety
+  (ms,ps) <- head <$> sample' genMachine
+  let (res, (ps', ms') : _ ) = run_loop 100 ps ms
+  putStrLn (show res)
+  print_coupled ms' ps'
   
 
 --  let ((ms_acc,p_acc),(ms_rej,p_rej)) = exampleMachines

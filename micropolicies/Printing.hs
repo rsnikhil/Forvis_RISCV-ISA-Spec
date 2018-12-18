@@ -80,11 +80,16 @@ pr_instr_R_type :: String -> InstrField -> InstrField -> InstrField -> Doc
 pr_instr_R_type label rd rs1 rs2  =
   P.text label <+> pr_register rd <+> pr_register rs1 <+> pr_register rs2
 
+pr_instr_J_type :: String -> InstrField -> InstrField -> Doc
+pr_instr_J_type label rs imm =
+  P.text label <+> pr_register rs <+> P.integer imm
+
 instance PP Instr_I where
   pp (ADDI rd rs imm) = pr_instr_I_type "ADDI" rd rs imm
   pp (LW rd rs imm) = pr_instr_I_type "LW" rd rs imm
   pp (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
   pp (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
+  pp (JAL rs imm) = pr_instr_J_type "JAL" rs imm
 
 pr_imem :: Mem -> Doc
 pr_imem m =

@@ -90,7 +90,7 @@ genTargetReg ms =
 
 -- Generate an immediate up to n bits
 genImm :: Int -> Gen InstrField
-genImm n = (4*) <$> choose (0, 1000)
+genImm n = (4*) <$> choose (1, 10)
   
 -- Generate an instruction that is valid in the current context
 -- TODO: For now, random
@@ -101,18 +101,18 @@ genInstr ms =
   frequency [ (1, do -- ADDI
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
-                  imm <- genImm 12
+                  imm <- genImm 4
                   alloc <- frequency [(1, pure $ MTagI Alloc), (4, pure $ MTagI NoAlloc)]
                   return (ADDI rd rs imm, alloc))
             , (1, do -- LOAD
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
-                  imm <- genImm 12
+                  imm <- genImm 4
                   return (LW rd rs imm, MTagI NoAlloc))
             , (1, do -- STORE
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
-                  imm <- genImm 12
+                  imm <- genImm 4
                   return (SW rd rs imm, MTagI NoAlloc))
             , (1, do -- ADD
                   rs1 <- genSourceReg ms
@@ -121,21 +121,42 @@ genInstr ms =
                   return (ADD rd rs1 rs2, MTagI NoAlloc))
             ]
 
+-- | Instruction 0 is JAL 1000
+--   Instructions are put in loc 1000+
+
 setInstructions :: Machine_State -> [Instr_I] -> Machine_State
 setInstructions ms instrs =
-  ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList (zip [0,4..] (map (encode_I RV32) instrs)) }}
+  ms {f_mem = (f_mem ms) { f_dm = Data_Map.union (f_dm $ f_mem ms) (Data_Map.fromList ((0, encode_I RV32 (JAL 0 1000)) : (zip [1000,1004..] (map (encode_I RV32) instrs)))) }}
 
 -- | Overwrites any memory tags in the instr memory
 setInstrTags :: PIPE_State -> [Tag] -> PIPE_State
 setInstrTags ps its =
-  ps {p_mem = MemT $ Data_Map.union (Data_Map.fromList (zip [0,4..] its)) (unMemT $ p_mem ps)}
+  ps {p_mem = MemT $ Data_Map.union (Data_Map.fromList ((0, MTagI NoAlloc) : (zip [1000,1004..] its))) (unMemT $ p_mem ps)}
 
+genColor :: Gen Color
+genColor = C <$> choose (0, 4)
+
+genMTagM :: Gen Tag
+genMTagM = MTagM <$> genColor <*> genColor
+
+genDataMemory :: Gen (Mem, MemT)
+genDataMemory = do
+  let idx = [4,8..40]
+  combined <- mapM (\i -> do d <- genImm 4
+                             t <- genMTagM
+                             return ((i, d),(i,t))) idx
+  let (m,pm) = unzip combined
+  return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
 
 genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
   -- TODO: this is random, not generation by execution
-  (is,its) <- unzip <$> vectorOf 20 (genInstr initMachine)
-  return (setInstructions initMachine is, setInstrTags init_pipe_state its)
+  -- registers
+  (mem,pmem) <- genDataMemory
+  let ms = initMachine {f_mem = mem}
+      ps = init_pipe_state {p_mem = pmem}
+  (is,its) <- unzip <$> vectorOf 20 (genInstr ms)
+  return (setInstructions ms is, setInstrTags ps its)
 
 varyUnreachableMem :: Set Color -> Mem -> MemT -> Gen (Mem, MemT)
 varyUnreachableMem r (Mem m ra) (MemT pm) = do

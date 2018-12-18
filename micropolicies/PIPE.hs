@@ -35,6 +35,37 @@ encode_I rv (ADDI rd rs1 imm12) = mkInstr_I_type imm12 rs1 0 rd opcode_OP_IMM
 encode_I rv (LW rd rs1 imm12)   = mkInstr_I_type imm12 rs1 funct3_LW rd opcode_LOAD
 encode_I rv (SW rs1 rs2 imm12)  = mkInstr_S_type imm12 rs2 rs1 funct3_SW opcode_STORE
 encode_I rv (ADD rd rs1 rs2)    = mkInstr_R_type funct7_ADD rs2 rs1 funct3_ADD rd opcode_OP
+encode_I rv (JAL rd imm21)      = mkInstr_J_type imm21 rd opcode_JAL
+
+mkInstr_J_type :: InstrField -> InstrField -> InstrField -> Instr_32b
+mkInstr_J_type    imm21         rd            opcode =
+  let
+    legal  = (((   shiftR  imm21  21) == 0)
+              && ((shiftR  rd      5) == 0)
+              && ((shiftR  opcode  7) == 0))
+
+    bits_31_12 = ((    shiftL  (bitSlice  imm21  20  20)  31)
+                  .|. (shiftL  (bitSlice  imm21  10   1)  21)
+                  .|. (shiftL  (bitSlice  imm21  11  11)  20)
+                  .|. (shiftL  (bitSlice  imm21  19  12)  12))
+
+    instr  = (bits_31_12  .|.  (shiftL  rd  7)  .|.  opcode)
+  in
+    instr
+
+mkInstr_U_type  :: InstrField -> InstrField -> InstrField -> Instr_32b
+mkInstr_U_type     imm20         rd            opcode =
+  let
+    legal = (((   shiftR  imm20  20) == 0)
+             && ((shiftR  rd      5) == 0)
+             && ((shiftR  opcode  7) == 0))
+
+    instr = ((    shiftL  imm20  12)
+             .|. (shiftL  rd      7)
+             .|.  opcode)
+  in
+    instr
+
 
 mkInstr_I_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr_32b
 mkInstr_I_type    imm12         rs1           funct3        rd            opcode =
