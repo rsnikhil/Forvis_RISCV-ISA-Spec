@@ -2,6 +2,8 @@ module PIPE where
 
 import qualified Data.Map.Strict as Data_Map
 import Data.Maybe
+import qualified Data.Set as Data_Set
+import Data.Set (Set)
 
 import Bit_Utils
 import Arch_Defs
@@ -102,7 +104,7 @@ mkInstr_S_type    imm12         rs2           rs1           funct3        opcode
 -- probably what we really want, though.
 
 newtype Color = C Int
-                deriving (Eq, Show)
+                deriving (Eq, Show, Ord)
 
 dfltcolor = C 0
 othercolor = C 1
@@ -129,7 +131,7 @@ plainInst = MTagI NoAlloc
 
 ---------------------------------
 
-newtype GPR_FileT = GPR_FileT  (Data_Map.Map  InstrField  Tag)
+newtype GPR_FileT = GPR_FileT  { unGPR :: Data_Map.Map  InstrField  Tag }
   deriving (Eq, Show)
 
 mkGPR_FileT :: GPR_FileT
@@ -245,65 +247,38 @@ exec_pipe p m u32 =
    To get a pragmatically more useful property, something like "sealed
    capabilities" (aka closures) or a protected stack is needed. -}
 
-{- A stupid n^2 reachability algorithm for now... -}
-
-{-
-What we want is to maintain a set of colors that we've seen.  Initially, this will be the colors on the registers.
-
-addColors :: GPR_Addr 
-addColors (x : nat) (cols : Colors.t) : M Colors.t :=
-  a <- get_mem (Z.of_nat x) ;;
-  match a with
-    (_, (HeapSafety.MTagM val_col loc_col)) =>
-      let cols :=
-        if Colors.mem loc_col cols then Colors.add val_col cols else cols in
-      match x with
-        0 => ret cols
-      | S x => addColors x cols
-      end
-  | _ => ret cols
-  end.
+{- A stupid n^2 reachability algorithm for now.  If we find it is too
+   slow as memories get larger, we could improve it like this:
+      - As we go along, maintain a set of "reachable colors" plus a
+        map from "unreachable colors" to the addresses tagged with
+        each of them.  If an unreachable color ever becomes reachable,
+        then add it to the reachable set and recursively traverse the
+        things on its list.
 -}
 
+reachableInOneStep :: MemT -> Set Color -> Set Color
+reachableInOneStep m s =
+  foldr (\t s -> 
+           case t of 
+             MTagM v l -> if Data_Set.member l s then Data_Set.insert v s else s
+             _ -> s)
+   s (Data_Map.elems $ unMemT m)
+
+reachable :: MemT -> Set Color -> Set Color
+reachable m s = 
+  let s' = reachableInOneStep m s in
+  if s == s' then s else reachable m s'
+
+registerColors :: PIPE_State -> Set Color 
+registerColors pstate = 
+  foldr (\t s -> case t of 
+                   MTagR c -> Data_Set.insert c s 
+                   _ -> error "Register tag should be an MTagR")
+    Data_Set.empty (unGPR $ p_gprs pstate) 
+
+
+
 {-
-(* A stupid n^2 reachability algorithm for now... *)
-Fixpoint addColors (x : nat) (cols : Colors.t) : M Colors.t :=
-  a <- get_mem (Z.of_nat x) ;;
-  match a with
-    (_, (HeapSafety.MTagM val_col loc_col)) =>
-      let cols :=
-        if Colors.mem loc_col cols then Colors.add val_col cols else cols in
-      match x with
-        0 => ret cols
-      | S x => addColors x cols
-      end
-  | _ => ret cols
-  end.
-
-Fixpoint addColorsEnough (x : nat) (hi : nat) (cols : Colors.t) : M Colors.t :=
-  cols <- addColors hi cols ;;
-  match x with
-    0 => ret cols
-  | S x =>
-      addColorsEnough x hi cols
-  end.
-
-Fixpoint registerColors (r : nat) (cols : Colors.t) : M Colors.t :=
-  a <- get_reg r ;; let (_, t) := a in
-  match t with
-    HeapSafety.MTagR c =>                            
-      let cols := Colors.add c cols in
-      match r with
-        0 => ret cols
-      | S r => registerColors r cols
-      end
-  | _ => ret cols
-  end.
-
-Definition reachable : M Colors.t :=
-  initcolors <- registerColors (registerFileSize-1) Colors.empty;;
-  NOTRACE "initcolors = " ++ show (Colors.elements initcolors) IN
-  addColorsEnough (memorySize-1) (memorySize-1) initcolors.
 
 Fixpoint vuAux (r : Colors.t) (h : Memory) : G Memory :=
 (* trace ("vuAux " ++ show (Colors.elements r) ++ " " ++ show h ++ newline)*) (
@@ -399,8 +374,16 @@ Definition prop_shrinkingPreservesReachability : Checker :=
     List.forallb sameReachablePart shrunk.
 (* QuickCheck prop_shrinkingPreservesReachability. *)
 
-Definition prop_noninterference (ps : Prog * MStatePair) : Checker :=
-  let (p, states) := ps in
+-}
+
+data MStatePair =
+  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
+
+prop_noninterference :: Testable prop => MStatePair -> prop
+prop_noninterference (M (m1,p1) (m2,p2)) =
+  let (r1,p1',m1') = run_loop 100 p1 m1
+      (r2,p2',m2') = run_loop 100 p2 m2
+
   let ss1' := runProg 100 p states.(s1) in
   let ss2' := runProg 100 p states.(s2) in
   let '(ss1',ss2') := trimToSameLength ss1' ss2' in
@@ -415,14 +398,6 @@ Definition prop_noninterference (ps : Prog * MStatePair) : Checker :=
              (checker false)
   else
     checker true.
--}
-
-{-
-data MStatePair =
-  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
-
-prop_noninterference :: MStatePair -> checker
-prop_noninterference ps = error "foo"
 
 testHeapSafety = quickCheck prop_noninterference
--}
+
