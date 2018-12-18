@@ -32,6 +32,17 @@ import Gen
 import Printing
 import Test.QuickCheck
 
+instance Show Machine_State where
+  show _ = ""
+
+instance Show MStatePair where
+  show _ = ""
+
+testHeapSafety =
+  forAll genMachine $ \(m1, p1) ->
+  forAll (varyUnreachable (m1, p1)) $ \m ->
+  prop_noninterference m
+
 main = do
   quickCheck testHeapSafety
 --  (ms,ps) <- head <$> sample' genMachine

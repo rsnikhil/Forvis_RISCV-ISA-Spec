@@ -7,10 +7,15 @@ import Memory
 import Data.Bits
 
 import qualified Data.Map.Strict as Data_Map
+
+import qualified Data.Set as Data_Set
+import Data.Set (Set)
+
 import Machine_State
 
 import Control.Arrow (second)
 import Test.QuickCheck
+import TestHeapSafety
 
 initMachine = 
   let initial_PC     = 0
@@ -131,3 +136,64 @@ genMachine = do
   -- TODO: this is random, not generation by execution
   (is,its) <- unzip <$> vectorOf 20 (genInstr initMachine)
   return (setInstructions initMachine is, setInstrTags init_pipe_state its)
+
+varyUnreachableMem :: Set Color -> Mem -> MemT -> Gen (Mem, MemT)
+varyUnreachableMem r (Mem m ra) (MemT pm) = do
+  combined <- mapM (\((i,d),(j,t)) ->
+                       case t of
+                         MTagM v l
+                           | Data_Set.member l r -> return ((i,d),(j,t))
+                           | otherwise -> do d' <- genImm 12 -- TODO: This makes no sense
+                                             return ((i,d'),(j,t)) -- TODO: Here we could scramble v
+                         _ -> return ((i,d),(j,t))
+                    ) $ zip (Data_Map.assocs m) (Data_Map.assocs pm)
+  let (m', pm') = unzip combined
+  return (Mem (Data_Map.fromList m') ra, MemT (Data_Map.fromList pm'))
+
+varyUnreachable :: (Machine_State, PIPE_State) -> Gen MStatePair
+varyUnreachable (m, p) = do
+  let r = reachable p
+  (mem', pmem') <- varyUnreachableMem r (f_mem m) (p_mem p)
+  return $ M (m,p) (m {f_mem = mem'}, p {p_mem = pmem'})
+
+  
+{-
+
+
+Global Instance shrinkMStatePair : Shrink MStatePair := {|
+  shrink p := 
+    let candidates := 
+      (r <- shrinkRegistersPair (p.(s1).(regs), p.(s2).(regs)) ;;
+      ret {| s1 := {| regs   := (fst r); 
+                      memory := p.(s1).(memory); 
+                      pc     := p.(s1).(pc); 
+                      pstate := p.(s1).(pstate) |};
+             s2 := {| regs   := (snd r); 
+                      memory := p.(s2).(memory); 
+                      pc     := p.(s2).(pc); 
+                      pstate := p.(s2).(pstate) |};
+           |} )
+     ++
+      (h <- shrinkHeapPair (getReachable p.(s1))
+                           (p.(s1).(memory), p.(s2).(memory)) ;;
+      ret {| s1 := {| regs   := p.(s1).(regs); 
+                      memory := (fst h); 
+                      pc     := p.(s1).(pc); 
+                      pstate := p.(s1).(pstate) |};
+             s2 := {| regs   := p.(s2).(regs); 
+                      memory := (snd h); 
+                      pc     := p.(s2).(pc); 
+                      pstate := p.(s2).(pstate) |};
+           |} ) in
+    filter sameReachablePart candidates
+  |}%list.
+
+
+Definition prop_shrinkingPreservesReachability : Checker :=
+  forAll arbitrary $ fun states : MStatePair => 
+    let shrunk := shrink states in
+    (* collect (show (List.length shrunk)) $ *)
+    List.forallb sameReachablePart shrunk.
+(* QuickCheck prop_shrinkingPreservesReachability. *)
+
+-}
