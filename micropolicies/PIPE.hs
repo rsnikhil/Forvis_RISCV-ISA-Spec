@@ -244,7 +244,8 @@ exec_pipe p m u32 =
                 addr = mstate_gpr_read m rs
                 memc = get_mtag p (addr+imm) in 
             case (rsc,memc) of
-              (MTagR t1c, MTagM t2vc t2lc) 
+              (MTagR t1c, MTagM t2vc t2lc)
+--                  | otherwise -> ok $ set_rtag p rd (MTagR t2vc)
                 | t1c==t2lc -> ok $ set_rtag p rd (MTagR t2vc)
                 | otherwise -> notok p $ "Different colors on Load: " ++ show t1c ++ " and " ++ show t2lc
               _ -> notok p $ "Mangled tags on Load: " ++ show rsc ++ " and " ++ show memc
@@ -258,3 +259,39 @@ exec_pipe p m u32 =
           _ -> ok p 
       Nothing -> ok p
 
+
+-- Need this for printing. We need to reorganize our modules a bit...
+data MStatePair =
+  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
+
+{- A stupid n^2 reachability algorithm for now.  If we find it is too
+   slow as memories get larger, we could improve it like this:
+      - As we go along, maintain a set of "reachable colors" plus a
+        map from "unreachable colors" to the addresses tagged with
+        each of them.  If an unreachable color ever becomes reachable,
+        then add it to the reachable set and recursively traverse the
+        things on its list.
+-}
+
+reachableInOneStep :: MemT -> Set Color -> Set Color
+reachableInOneStep m s =
+  foldr (\t s -> 
+           case t of 
+             MTagM v l -> if Data_Set.member l s then Data_Set.insert v s else s
+             _ -> s)
+   s (Data_Map.elems $ unMemT m)
+
+reachableLoop :: MemT -> Set Color -> Set Color
+reachableLoop m s = 
+  let s' = reachableInOneStep m s in
+  if s == s' then s else reachableLoop m s'
+
+registerColors :: PIPE_State -> Set Color 
+registerColors pstate = 
+  foldr (\t s -> case t of 
+                   MTagR c -> Data_Set.insert c s 
+                   _ -> error "Register tag should be an MTagR")
+    Data_Set.empty (unGPR $ p_gprs pstate) 
+
+reachable :: PIPE_State -> Set Color
+reachable p = reachableLoop (p_mem p) (registerColors p)

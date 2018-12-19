@@ -46,40 +46,6 @@ import Run_Program_PIPE
    To get a pragmatically more useful property, something like "sealed
    capabilities" (aka closures) or a protected stack is needed. -}
 
-{- A stupid n^2 reachability algorithm for now.  If we find it is too
-   slow as memories get larger, we could improve it like this:
-      - As we go along, maintain a set of "reachable colors" plus a
-        map from "unreachable colors" to the addresses tagged with
-        each of them.  If an unreachable color ever becomes reachable,
-        then add it to the reachable set and recursively traverse the
-        things on its list.
--}
-
-reachableInOneStep :: MemT -> Set Color -> Set Color
-reachableInOneStep m s =
-  foldr (\t s -> 
-           case t of 
-             MTagM v l -> if Data_Set.member l s then Data_Set.insert v s else s
-             _ -> s)
-   s (Data_Map.elems $ unMemT m)
-
-reachableLoop :: MemT -> Set Color -> Set Color
-reachableLoop m s = 
-  let s' = reachableInOneStep m s in
-  if s == s' then s else reachableLoop m s'
-
-registerColors :: PIPE_State -> Set Color 
-registerColors pstate = 
-  foldr (\t s -> case t of 
-                   MTagR c -> Data_Set.insert c s 
-                   _ -> error "Register tag should be an MTagR")
-    Data_Set.empty (unGPR $ p_gprs pstate) 
-
-reachable :: PIPE_State -> Set Color
-reachable p = reachableLoop (p_mem p) (registerColors p)
-
-data MStatePair =
-  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
 
 sameReachablePart :: MStatePair -> Bool
 sameReachablePart (M (s1, p1) (s2, p2)) =
@@ -108,10 +74,12 @@ prop_noninterference (M (m1,p1) (m2,p2)) =
       (r2,ss2') = run_loop 100 p2 m2
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
   whenFail (do putStrLn $ "Reachable parts differ after execution!"
-               putStrLn "First One:"
-               print_coupled m1' p1'
-               putStrLn "Second One:"
-               print_coupled m2' p2')
+               print_mstatepair (M (m1', p1') (m2', p2'))
+--               putStrLn "First One:"
+--               print_coupled m1' p1'
+--               putStrLn "Second One:"
+--               print_coupled m2' p2'
+           )
            (sameReachablePart (M (m1', p1') (m2', p2')))
 
 

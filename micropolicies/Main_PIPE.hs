@@ -41,14 +41,15 @@ instance Show MStatePair where
 testHeapSafety =
   forAll genMachine $ \(m1, p1) ->
   forAll (varyUnreachable (m1, p1)) $ \m ->
+--  sameReachablePart m
   prop_noninterference m
 
 main = do
---  quickCheck testHeapSafety
-  (ms,ps) <- head <$> sample' genMachine
-  let (res, (ps', ms') : _ ) = run_loop 100 ps ms
-  putStrLn (show res)
-  print_coupled ms' ps'
+  quickCheckWith stdArgs{maxSuccess=10000} testHeapSafety
+--  (ms,ps) <- head <$> sample' genMachine
+--  let (res, (ps', ms') : _ ) = run_loop 100 ps ms
+--  putStrLn (show res)
+--  print_coupled ms' ps'
   
 
 --  let ((ms_acc,p_acc),(ms_rej,p_rej)) = exampleMachines
