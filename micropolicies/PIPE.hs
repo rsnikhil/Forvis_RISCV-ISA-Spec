@@ -17,112 +17,6 @@ import Memory
 -- This might belong elsewhere
 import Test.QuickCheck
 
---------------------------------------------------------
--- This belongs in /src!
-
-import Data.Bits
-
---opcodeE x   = shiftL x 0
---rdE x       = shiftL x 7
---funct3E x   = shiftL x 12
---rs1E x      = shiftL x 15
---rs2E x      = shiftL x 20
---funct7E x   = shiftL x 25
---imm12E x    = shiftL x 20
-
-encode_I :: RV -> Instr_I -> Instr_32b
-encode_I rv (ADDI rd rs1 imm12) = mkInstr_I_type imm12 rs1 0 rd opcode_OP_IMM 
-encode_I rv (LW rd rs1 imm12)   = mkInstr_I_type imm12 rs1 funct3_LW rd opcode_LOAD
-encode_I rv (SW rs1 rs2 imm12)  = mkInstr_S_type imm12 rs2 rs1 funct3_SW opcode_STORE
-encode_I rv (ADD rd rs1 rs2)    = mkInstr_R_type funct7_ADD rs2 rs1 funct3_ADD rd opcode_OP
-encode_I rv (JAL rd imm21)      = mkInstr_J_type imm21 rd opcode_JAL
-
-mkInstr_J_type :: InstrField -> InstrField -> InstrField -> Instr_32b
-mkInstr_J_type    imm21         rd            opcode =
-  let
-    legal  = (((   shiftR  imm21  21) == 0)
-              && ((shiftR  rd      5) == 0)
-              && ((shiftR  opcode  7) == 0))
-
-    bits_31_12 = ((    shiftL  (bitSlice  imm21  20  20)  31)
-                  .|. (shiftL  (bitSlice  imm21  10   1)  21)
-                  .|. (shiftL  (bitSlice  imm21  11  11)  20)
-                  .|. (shiftL  (bitSlice  imm21  19  12)  12))
-
-    instr  = (bits_31_12  .|.  (shiftL  rd  7)  .|.  opcode)
-  in
-    instr
-
-mkInstr_U_type  :: InstrField -> InstrField -> InstrField -> Instr_32b
-mkInstr_U_type     imm20         rd            opcode =
-  let
-    legal = (((   shiftR  imm20  20) == 0)
-             && ((shiftR  rd      5) == 0)
-             && ((shiftR  opcode  7) == 0))
-
-    instr = ((    shiftL  imm20  12)
-             .|. (shiftL  rd      7)
-             .|.  opcode)
-  in
-    instr
-
-
-mkInstr_I_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr_32b
-mkInstr_I_type    imm12         rs1           funct3        rd            opcode =
-  let
-    legal  = (((   shiftR  imm12  12) == 0)
-              && ((shiftR  rs1     5) == 0)
-              && ((shiftR  funct3  3) == 0)
-              && ((shiftR  rd      5) == 0)
-              && ((shiftR  opcode  7) == 0))
-
-    instr  = ((    shiftL  imm12   20)
-              .|. (shiftL  rs1     15)
-              .|. (shiftL  funct3  12)
-              .|. (shiftL  rd       7)
-              .|. opcode)
-  in
-    -- assert  legal  instr
-    instr
-
-mkInstr_R_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr_32b
-mkInstr_R_type    funct7        rs2           rs1           funct3        rd            opcode =
-  let
-    legal  = (((   shiftR  funct7  7) == 0)
-              && ((shiftR  rs2     5) == 0)
-              && ((shiftR  rs1     5) == 0)
-              && ((shiftR  funct3  3) == 0)
-              && ((shiftR  rd      5) == 0)
-              && ((shiftR  opcode  7) == 0))
-
-    instr = ((   shiftL  funct7  25)
-            .|. (shiftL  rs2     20)
-            .|. (shiftL  rs1     15)
-            .|. (shiftL  funct3  12)
-            .|. (shiftL  rd       7)
-            .|. opcode)
-  in
-    --    assert  legal  instr
-    instr
-
-{-# INLINE mkInstr_S_type #-}
-mkInstr_S_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr_32b
-mkInstr_S_type    imm12         rs2           rs1           funct3        opcode =
-  let
-    legal  = (((   shiftR  imm12  12) == 0)
-              && ((shiftR  rs1     5) == 0)
-              && ((shiftR  rs2     5) == 0)
-              && ((shiftR  funct3  3) == 0)
-              && ((shiftR  opcode  7) == 0))
-
-    instr  = ((    shiftL  (bitSlice  imm12  11 5)  25)
-              .|. (shiftL  rs2                      20)
-              .|. (shiftL  rs1                      15)
-              .|. (shiftL  funct3                   12)
-              .|. (shiftL  (bitSlice  imm12   4 0)   7)
-              .|. opcode)
-  in
-    instr
 
 --------------------------------------------------------
 
@@ -218,6 +112,12 @@ set_mtag p a t = p { p_mem = MemT (Data_Map.insert a t (unMemT $ p_mem p)) }
 
 ---------------------------------
 
+-- Shorthand for (indistinguishable) pairs of m- and p-states 
+data MStatePair =
+  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
+
+---------------------------------
+
 ok p = (p, PIPE_Success)
 notok p s = (p, PIPE_Trap s)
 
@@ -259,39 +159,3 @@ exec_pipe p m u32 =
           _ -> ok p 
       Nothing -> ok p
 
-
--- Need this for printing. We need to reorganize our modules a bit...
-data MStatePair =
-  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
-
-{- A stupid n^2 reachability algorithm for now.  If we find it is too
-   slow as memories get larger, we could improve it like this:
-      - As we go along, maintain a set of "reachable colors" plus a
-        map from "unreachable colors" to the addresses tagged with
-        each of them.  If an unreachable color ever becomes reachable,
-        then add it to the reachable set and recursively traverse the
-        things on its list.
--}
-
-reachableInOneStep :: MemT -> Set Color -> Set Color
-reachableInOneStep m s =
-  foldr (\t s -> 
-           case t of 
-             MTagM v l -> if Data_Set.member l s then Data_Set.insert v s else s
-             _ -> s)
-   s (Data_Map.elems $ unMemT m)
-
-reachableLoop :: MemT -> Set Color -> Set Color
-reachableLoop m s = 
-  let s' = reachableInOneStep m s in
-  if s == s' then s else reachableLoop m s'
-
-registerColors :: PIPE_State -> Set Color 
-registerColors pstate = 
-  foldr (\t s -> case t of 
-                   MTagR c -> Data_Set.insert c s 
-                   _ -> error "Register tag should be an MTagR")
-    Data_Set.empty (unGPR $ p_gprs pstate) 
-
-reachable :: PIPE_State -> Set Color
-reachable p = reachableLoop (p_mem p) (registerColors p)

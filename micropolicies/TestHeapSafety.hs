@@ -21,6 +21,9 @@ import Test.QuickCheck
 -- This belongs in /src!
 
 import Data.Bits
+import Text.PrettyPrint (Doc, (<+>), ($$))
+import qualified Text.PrettyPrint as P
+
 
 import Printing
 import PIPE
@@ -46,6 +49,40 @@ import Run_Program_PIPE
    To get a pragmatically more useful property, something like "sealed
    capabilities" (aka closures) or a protected stack is needed. -}
 
+----------------------------------------
+-- Reachability. Where should this live?
+
+{- A stupid n^2 reachability algorithm for now.  If we find it is too
+   slow as memories get larger, we could improve it like this:
+      - As we go along, maintain a set of "reachable colors" plus a
+        map from "unreachable colors" to the addresses tagged with
+        each of them.  If an unreachable color ever becomes reachable,
+        then add it to the reachable set and recursively traverse the
+        things on its list.
+-}
+
+reachableInOneStep :: MemT -> Set Color -> Set Color
+reachableInOneStep m s =
+  foldr (\t s -> 
+           case t of 
+             MTagM v l -> if Data_Set.member l s then Data_Set.insert v s else s
+             _ -> s)
+   s (Data_Map.elems $ unMemT m)
+
+reachableLoop :: MemT -> Set Color -> Set Color
+reachableLoop m s = 
+  let s' = reachableInOneStep m s in
+  if s == s' then s else reachableLoop m s'
+
+registerColors :: PIPE_State -> Set Color 
+registerColors pstate = 
+  foldr (\t s -> case t of 
+                   MTagR c -> Data_Set.insert c s 
+                   _ -> error "Register tag should be an MTagR")
+    Data_Set.empty (unGPR $ p_gprs pstate) 
+
+reachable :: PIPE_State -> Set Color
+reachable p = reachableLoop (p_mem p) (registerColors p)
 
 sameReachablePart :: MStatePair -> Bool
 sameReachablePart (M (s1, p1) (s2, p2)) =
@@ -67,6 +104,19 @@ sameReachablePart (M (s1, p1) (s2, p2)) =
     && (f_gprs s1 == f_gprs s2)
     && (filterAux (Data_Map.assocs $ f_dm $ f_mem s1) (Data_Map.assocs $ unMemT $ p_mem p1) ==
         filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2))
+
+--- If you want reachability information, this needs to be before the prop_noninterference.
+instance PP MStatePair where
+  pp (M (m1, p1) (m2, p2)) =
+    P.vcat [ P.text "Reachable Colors:" <+> pretty (reachable p1) (reachable p2)
+           , P.text "PC:" <+> pretty (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
+           , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
+           , P.text "Memories:" $$ P.nest 2 (pretty (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
+           ]
+
+print_mstatepair :: MStatePair -> IO ()
+print_mstatepair m = putStrLn $ P.render $ pp m
+
 
 prop_noninterference :: MStatePair -> Property
 prop_noninterference (M (m1,p1) (m2,p2)) =

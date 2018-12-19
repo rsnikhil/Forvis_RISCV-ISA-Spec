@@ -187,16 +187,6 @@ instance CoupledPP (Set Color) (Set Color) where
     else
       P.text "<Discrepancy!>" <+> foldl1 (<+>) (map pp $ Data_Set.elems s1) <||> foldl1 (<+>) (map pp $ Data_Set.elems s2)
   
-instance PP MStatePair where
-  pp (M (m1, p1) (m2, p2)) =
-    P.vcat [ P.text "Reachable Colors:" <+> pretty (reachable p1) (reachable p2)
-           , P.text "PC:" <+> pretty (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
-           , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
-           , P.text "Memories:" $$ P.nest 2 (pretty (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
-           ]
-
-print_mstatepair :: MStatePair -> IO ()
-print_mstatepair m = putStrLn $ P.render $ pp m
 
 print_coupled :: Machine_State -> PIPE_State -> IO ()
 print_coupled ms ps =

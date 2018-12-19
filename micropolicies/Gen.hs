@@ -1,13 +1,16 @@
 module Gen where
 
+
 import Arch_Defs
 import Forvis_Spec_I
-import PIPE
 import Memory
+
 import Data.Bits
 
-import qualified Data.Map.Strict as Data_Map
+import Encoder
+import PIPE
 
+import qualified Data.Map.Strict as Data_Map
 import qualified Data.Set as Data_Set
 import Data.Set (Set)
 
