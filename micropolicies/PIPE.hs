@@ -197,7 +197,7 @@ init_pipe_state = PIPE_State {
   p_pc = initPC,
   p_gprs = mkGPR_FileT,
   p_mem = mkMemT,
-  p_nextcolor = 1
+  p_nextcolor = 5 -- Should not be able to allocate an existing color...
   }
 
 fresh_color :: PIPE_State -> (Color, PIPE_State)
