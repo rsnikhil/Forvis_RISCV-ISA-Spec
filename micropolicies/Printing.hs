@@ -89,11 +89,13 @@ pr_instr_J_type label rs imm =
   P.text label <+> pr_register rs <+> P.integer imm
 
 instance PP Instr_I where
+  pp (ADD 0 0 0) = P.text "<NOP>"
   pp (ADDI rd rs imm) = pr_instr_I_type "ADDI" rd rs imm
   pp (LW rd rs imm) = pr_instr_I_type "LW" rd rs imm
   pp (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
   pp (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
   pp (JAL rs imm) = pr_instr_J_type "JAL" rs imm
+  pp i = error $ show i
 
 pr_imem :: Mem -> Doc
 pr_imem m =
@@ -162,7 +164,9 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
 
         pr_loc ((i,d),(j,t)) =
           case decode_I RV32 d of
-            Just instr -> P.integer i <:> pp instr <@> pp t
+            Just instr
+              | i == 0 || i >= 1000 -> P.integer i <:> pp instr <@> pp t
+              | otherwise -> P.integer i <:> P.integer d <@> pp t
             Nothing -> P.integer i <:> P.integer d <@> pp t
           
 

@@ -31,6 +31,7 @@ import TestHeapSafety
 import Gen
 import Printing
 import Test.QuickCheck
+import Shrinking
 
 instance Show Machine_State where
   show _ = ""
@@ -39,8 +40,7 @@ instance Show MStatePair where
   show _ = ""
 
 testHeapSafety =
-  forAll genMachine $ \(m1, p1) ->
-  forAll (varyUnreachable (m1, p1)) $ \m ->
+  forAllShrink genMStatePair shrinkMStatePair $ \m ->
 --  sameReachablePart m
   prop_noninterference m
 

@@ -180,7 +180,10 @@ varyUnreachable (m, p) = do
   (mem', pmem') <- varyUnreachableMem r (f_mem m) (p_mem p)
   return $ M (m,p) (m {f_mem = mem'}, p {p_mem = pmem'})
 
-  
+genMStatePair :: Gen MStatePair
+genMStatePair = 
+  genMachine >>= varyUnreachable
+
 {-
 
 
