@@ -45,7 +45,7 @@ testHeapSafety =
   prop_noninterference m
 
 main = do
-  quickCheckWith stdArgs{maxSuccess=10000} testHeapSafety
+  quickCheckWith stdArgs{maxSuccess=1000} testHeapSafety
 --  (ms,ps) <- head <$> sample' genMachine
 --  let (res, (ps', ms') : _ ) = run_loop 100 ps ms
 --  putStrLn (show res)

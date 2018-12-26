@@ -133,6 +133,8 @@ prop_noninterference (M (m1,p1) (m2,p2)) =
 --               putStrLn "Second One:"
 --               print_coupled m2' p2'
            )
-           (sameReachablePart (M (m1', p1') (m2', p2')))
+--           (collect (mstate_csr_read m1' csr_addr_minstret) 
+           (collect (f_pc m1')
+             (sameReachablePart (M (m1', p1') (m2', p2'))))
 
 

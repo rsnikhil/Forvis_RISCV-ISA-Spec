@@ -16,7 +16,7 @@ mutant:
 	   -outputdir  $(TMP_DIR)  -rtsopts -cpp -D$(MUT) \
 	   Main_PIPE 
 # temporary
-	../forvis_exe
+	time ../forvis_exe
 
 mutants:
 	make mutant MUT=M_FRESH_COLOR
