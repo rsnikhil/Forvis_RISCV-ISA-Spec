@@ -18,6 +18,9 @@ mutant:
 # temporary
 	../forvis_exe
 
+mutants:
+	make mutant MUT=M_FRESH_COLOR
+	make mutant MUT=M_LW_NOCHECK
 
 pipe_hello: all
 	$(MAKE) -C .. test_hello

@@ -95,7 +95,11 @@ init_pipe_state = PIPE_State {
   }
 
 fresh_color :: PIPE_State -> (Color, PIPE_State)
+#ifndef M_FRESH_COLOR
 fresh_color p = (C $ p_nextcolor p, p {p_nextcolor = p_nextcolor p + 1})
+#else
+fresh_color p = (C 0, p)
+#endif
 
 -- Should be done with lenses...
 get_rtag :: PIPE_State -> GPR_Addr -> Tag

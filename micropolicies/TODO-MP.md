@@ -3,19 +3,16 @@ BEFORE JANUARY PI MEETING
 replace haskell policy by policy interpreter
 (Andrew)
 
-get mutation testing working in some form, maybe just using cpp and makefile
-(BCP)
-
 copy over all the mutants from the Coq version
 (BCP)
 
 get the heap safety policy running using the interpreter
 (All)
 
-________________________
+improve mutation testing (BCP / Leo)
+  - run cpp separately so that we don't recompile everything every time
 
-implement a more sophisticated generator for instructions (and
-programs) -- genbyexec (Leo) 
+________________________
 
 start thinking about stack safety!
   - look at the policy in the draper repo
