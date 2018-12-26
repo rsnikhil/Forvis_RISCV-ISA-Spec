@@ -3,8 +3,6 @@ BEFORE JANUARY PI MEETING
 replace haskell policy by policy interpreter
 (Andrew)
 
-work on shrinking machine states (Leo)
-
 get mutation testing working in some form, maybe just using cpp and makefile
 (BCP)
 
