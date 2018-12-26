@@ -45,6 +45,19 @@ testHeapSafety =
   prop_noninterference m
 
 main = do
+  (ms,ps) <- head <$> sample' genMachine
+  let (res, (ps', ms') : _ ) = run_loop 5 ps ms
+  putStrLn ""
+  putStrLn (show res)
+  putStrLn $ (show res)
+  putStrLn "_______________________________________________________________________"
+  putStrLn "Initial state:"
+  print_coupled ms ps
+  putStrLn "_______________________________________________________________________"
+  putStrLn "Final state:"
+  print_coupled ms' ps'
+
+main1 = do
   quickCheckWith stdArgs{maxSuccess=1000} testHeapSafety
 --  (ms,ps) <- head <$> sample' genMachine
 --  let (res, (ps', ms') : _ ) = run_loop 5 ps ms
