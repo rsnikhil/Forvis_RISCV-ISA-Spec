@@ -45,10 +45,10 @@ data Reason = Halted String
 
 run_loop :: Int -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
 run_loop  maxinstrs pipe_state mstate =
-  run_loop' maxinstrs [(pipe_state, mstate)] pipe_state mstate 
+  run_loop' 0 maxinstrs [(pipe_state, mstate)] pipe_state mstate 
 
-run_loop' :: Int -> [(PIPE_State, Machine_State)] -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
-run_loop'  maxinstrs trace pipe_state mstate =
+run_loop' :: Int -> Int -> [(PIPE_State, Machine_State)] -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
+run_loop'  fuel maxinstrs trace pipe_state mstate =
   let instret   = mstate_csr_read        mstate  csr_addr_minstret
       run_state = mstate_run_state_read  mstate
 
@@ -57,7 +57,7 @@ run_loop'  maxinstrs trace pipe_state mstate =
       mstate1 = mstate_mem_tick  mstate
 
     -- Simulation aid: Stop due to instruction limit
-    in if (instret >= fromIntegral maxinstrs)
+    in if (fuel >= maxinstrs) --fromIntegral maxinstrs)
     then  (OutOfGas, trace)
 
     -- Simulation aid: Stop due to any other reason
@@ -71,7 +71,7 @@ run_loop'  maxinstrs trace pipe_state mstate =
          -- If running, fetch-and-execute; if in WFI pause, check resumption
          if (run_state == Run_State_Running) then
             case fetch_and_execute pipe_state mstate1 of
-              Right (ps, ms) -> run_loop' maxinstrs ((ps, ms) : trace) ps ms
+              Right (ps, ms) -> run_loop' (fuel + 1) maxinstrs ((ps, ms) : trace) ps ms
               Left s -> (PIPEError s, trace) -- pipe_state, mstate1)
          else error "Unimplemented WFI stuff"
 {-

@@ -134,8 +134,6 @@ prop_noninterference (M (m1,p1) (m2,p2)) =
 --               putStrLn "Second One:"
 --               print_coupled m2' p2'
            )
---           (collect (mstate_csr_read m1' csr_addr_minstret) 
---           (collect (f_pc m1')
            (collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32)
              (sameReachablePart (M (m1', p1') (m2', p2'))))
 

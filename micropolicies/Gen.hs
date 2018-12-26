@@ -251,7 +251,14 @@ genMachine = do
       ps = init_pipe_state {p_mem = pmem}
       ms' = setInstrI ms (JAL 0 1000)
       ps' = setInstrTagI ms ps (MTagI NoAlloc)
-  genByExec 10 ms' ps'
+  (ms_fin, ps_fin) <- genByExec 10 ms' ps'
+
+  let ms_fin' =
+        ms' {f_mem = (f_mem ms') { f_dm = Data_Map.union (f_dm $ f_mem ms') (f_dm $ f_mem ms_fin) } }
+      ps_fin' =
+        ps' {p_mem = MemT $ Data_Map.union (unMemT $ p_mem ps') (unMemT $ p_mem ps_fin) }
+
+  return (ms_fin', ps_fin')
 --  (is,its) <- unzip <$> vectorOf 20 (genInstr ms)
 --  return (setInstructions ms is, setInstrTags ps its)
 
