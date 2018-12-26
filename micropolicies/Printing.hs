@@ -224,12 +224,12 @@ print_mstate  indent  mstate = do
 -------------------------------------------------------------
 -- BCP: Needs finishing (and probably it should be pretty, not show)
 
-showCurr (p,m) = (show $ f_pc m) ++ "  XXX" 
+showCurr (p,m) = (show $ f_pc m) ++ "  (Instr)" 
 
 showDiffs s1 s2 = "(Diffs)"
 
 showTrace :: [(PIPE_State,Machine_State)] -> String
 showTrace [] = ""
 showTrace [s] = showCurr s ++ "  Halt"
-showTrace (s1:s2:tr) = showCurr s1 ++ "  " ++ showDiffs s1 s2 ++ "\n" ++ showTrace tr
+showTrace (s1:s2:tr) = showCurr s1 ++ "  " ++ showDiffs s1 s2 ++ "\n" ++ showTrace (s2:tr)
 

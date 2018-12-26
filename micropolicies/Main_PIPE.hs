@@ -44,33 +44,37 @@ testHeapSafety =
 --  sameReachablePart m
   prop_noninterference m
 
-main = do
+main2 = do
   let ((ms,ps),_) = exampleMachines
+  let (res, tr) = run_loop 10 ps ms
+      (ps', ms') : _ = tr
+  putStrLn ""
+  putStrLn "Initial state:"
+  print_coupled ms ps
+  putStrLn "_______________________________________________________________________"
+  putStrLn "Final state:"
+  print_coupled ms' ps'
+  putStrLn "_______________________________________________________________________"
+  putStrLn "Trace:"
+  putStrLn $ showTrace (reverse tr)
+  putStrLn (show res)
+
+main = do
+  (ms,ps) <- head <$> sample' genMachine
   let (res, tr) = run_loop 100 ps ms
       (ps', ms') : _ = tr
   putStrLn ""
   putStrLn "Initial state:"
   print_coupled ms ps
   putStrLn "_______________________________________________________________________"
+  putStrLn "Final state:"
+  print_coupled ms' ps'
+  putStrLn "_______________________________________________________________________"
+  putStrLn "Trace:"
   putStrLn $ showTrace (reverse tr)
   putStrLn (show res)
-  putStrLn "_______________________________________________________________________"
-  putStrLn "Final state:"
-  print_coupled ms' ps'
-
-main2 = do
-  (ms,ps) <- head <$> sample' genMachine
-  let (res, (ps', ms') : _ ) = run_loop 100 ps ms
-  putStrLn ""
-  putStrLn (show res)
   putStrLn $ "Instructions executed: " ++ show (mstate_csr_read ms' csr_addr_minstret)
-  putStrLn "_______________________________________________________________________"
-  putStrLn "Initial state:"
-  print_coupled ms ps
-  putStrLn "_______________________________________________________________________"
-  putStrLn "Final state:"
-  print_coupled ms' ps'
-
+  
 main1 = do
   quickCheckWith stdArgs{maxSuccess=1000} testHeapSafety
 --  (ms,ps) <- head <$> sample' genMachine
