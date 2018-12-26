@@ -99,7 +99,7 @@ genTargetReg ms =
 -- Generate an immediate up to number
 -- Multiple of 4
 genImm :: Integer -> Gen InstrField
-genImm n = (4*) <$> choose (1, n `div` 4)
+genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we not generate 0?
 
 dataMemLow  = 4
 dataMemHigh = 40
@@ -186,15 +186,15 @@ randInstr ms =
 -- | Instruction 0 is JAL 1000
 --   Instructions are put in loc 1000+
 
-setInstructions :: Machine_State -> [Instr_I] -> Machine_State
-setInstructions ms instrs =
-  ms {f_mem = (f_mem ms) { f_dm = Data_Map.union (f_dm $ f_mem ms) (Data_Map.fromList ((0, encode_I RV32 (JAL 0 1000)) : (zip [1000,1004..] (map (encode_I RV32) instrs)))) }}
-
--- | Overwrites any memory tags in the instr memory
-setInstrTags :: PIPE_State -> [Tag] -> PIPE_State
-setInstrTags ps its =
-  ps {p_mem = MemT $ Data_Map.union (Data_Map.fromList ((0, MTagI NoAlloc) : (zip [1000,1004..] its))) (unMemT $ p_mem ps)}
-
+-- setInstructions :: Machine_State -> [Instr_I] -> Machine_State
+-- setInstructions ms instrs =
+--   ms {f_mem = (f_mem ms) { f_dm = Data_Map.union (f_dm $ f_mem ms) (Data_Map.fromList ((0, encode_I RV32 (JAL 0 1000)) : (zip [1000,1004..] (map (encode_I RV32) instrs)))) }}
+-- 
+-- -- | Overwrites any memory tags in the instr memory
+-- setInstrTags :: PIPE_State -> [Tag] -> PIPE_State
+-- setInstrTags ps its =
+--   ps {p_mem = MemT $ Data_Map.union (Data_Map.fromList ((0, MTagI NoAlloc) : (zip [1000,1004..] its))) (unMemT $ p_mem ps)}
+-- 
 genColor :: Gen Color
 genColor =
   frequency [ (9, pure $ C 0)
@@ -206,7 +206,7 @@ genMTagM = MTagM <$> genColor <*> genColor
 genDataMemory :: Gen (Mem, MemT)
 genDataMemory = do
   let idx = [dataMemLow,dataMemLow+4..dataMemHigh]
-  combined <- mapM (\i -> do d <- genImm 4
+  combined <- mapM (\i -> do d <- genImm 4    -- BCP: This always puts 4 in every location!
                              t <- genMTagM
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
@@ -220,45 +220,55 @@ setInstrTagI :: Machine_State -> PIPE_State -> Tag -> PIPE_State
 setInstrTagI ms ps it =
   ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
 
-genByExec :: Int -> Machine_State -> PIPE_State -> Gen (Machine_State, PIPE_State)
-genByExec 0 ms ps = return (ms, ps)
-genByExec n ms ps
+genByExec :: Int -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
+genByExec 0 ms ps instrlocs = return (ms, ps, instrlocs)
+genByExec n ms ps instrlocs
   -- Check if an instruction already exists
   | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
     case fetch_and_execute ps ms of
       Right (ps'', ms'') ->
-        genByExec (n-1) ms'' ps''
+        genByExec (n-1) ms'' ps'' instrlocs
       Left _ ->
   --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
-        return (ms, ps)
+        return (ms, ps, instrlocs)
   | otherwise = do
     (is, it) <- genInstr ms
     let ms' = setInstrI ms is
         ps' = setInstrTagI ms ps it
     case fetch_and_execute ps' ms' of
       Right (ps'', ms'') ->
-        genByExec (n-1) ms'' ps''
+        genByExec (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
       Left _ ->
   --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
-        return (ms', ps')
+        return (ms', ps', instrlocs)
 
 genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
-  -- TODO: this is random, not generation by execution
+  -- TODO: this is random, not generation by execution   (BCP: Really??)
   -- registers
   (mem,pmem) <- genDataMemory
   let ms = initMachine {f_mem = mem}
       ps = init_pipe_state {p_mem = pmem}
       ms' = setInstrI ms (JAL 0 1000)
-      ps' = setInstrTagI ms ps (MTagI NoAlloc)
-  (ms_fin, ps_fin) <- genByExec 10 ms' ps'
+      ps' = setInstrTagI ms ps (MTagI NoAlloc)  -- BCP: Needed??
+  (ms_fin, ps_fin, instrlocs) <- genByExec 10 ms' ps' Data_Set.empty
 
-  let ms_fin' =
-        ms' {f_mem = (f_mem ms') { f_dm = Data_Map.union (f_dm $ f_mem ms') (f_dm $ f_mem ms_fin) } }
+  let final_mem = f_dm $ f_mem ms_fin
+      res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs
+      ms_fin' = 
+        ms' {f_mem = (f_mem ms') { f_dm = res_mem } }  
+
+      final_pmem = unMemT $ p_mem ps_fin
+      res_pmem = foldr (\a pmem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_pmem) pmem) (unMemT $ p_mem ps') instrlocs
       ps_fin' =
-        ps' {p_mem = MemT $ Data_Map.union (unMemT $ p_mem ps') (unMemT $ p_mem ps_fin) }
+        ps' {p_mem = MemT res_pmem}
 
+--  let ms_fin' = 
+--        ms' {f_mem = (f_mem ms') { f_dm = Data_Map.union (f_dm $ f_mem ms') (f_dm $ f_mem ms_fin) } }
+--      ps_fin' =
+--        ps' {p_mem = MemT $ Data_Map.union (unMemT $ p_mem ps') (unMemT $ p_mem ps_fin) }
   return (ms_fin', ps_fin')
+
 --  (is,its) <- unzip <$> vectorOf 20 (genInstr ms)
 --  return (setInstructions ms is, setInstrTags ps its)
 

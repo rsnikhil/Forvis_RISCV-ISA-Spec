@@ -104,6 +104,7 @@ pr_imem m =
   in P.vcat $ map (\(i, Just instr) -> P.integer i <:> pp instr) decoded
 
 -- IDEAS: only show non-trivial registers?
+-- BCP: Yes, please!!
 pr_mem :: Mem -> Doc
 pr_mem m = 
   let contents = Data_Map.assocs $ f_dm m 
@@ -111,6 +112,7 @@ pr_mem m =
   in P.vcat $ map (\(i, d) -> P.integer i <:> P.integer d) decoded
 
 -- TODO: Align better, tabs don't work well
+-- BCP: Maybe just put all (the nontrivial ones) on one line?
 instance CoupledPP GPR_File GPR_FileT where
   pretty (GPR_File m) (GPR_FileT mt) =
     P.vcat $ map (foldl1 (<|>))
@@ -218,3 +220,16 @@ print_mstate  indent  mstate = do
   print_CSR_File  indent  rv  csrs
   -- We do not print memory or MMIO
   putStrLn (indent ++ (show run_state))
+
+-------------------------------------------------------------
+-- BCP: Needs finishing (and probably it should be pretty, not show)
+
+showCurr (p,m) = (show $ f_pc m) ++ "  XXX" 
+
+showDiffs s1 s2 = "(Diffs)"
+
+showTrace :: [(PIPE_State,Machine_State)] -> String
+showTrace [] = ""
+showTrace [s] = showCurr s ++ "  Halt"
+showTrace (s1:s2:tr) = showCurr s1 ++ "  " ++ showDiffs s1 s2 ++ "\n" ++ showTrace tr
+

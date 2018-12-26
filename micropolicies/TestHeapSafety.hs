@@ -118,11 +118,10 @@ instance PP MStatePair where
 print_mstatepair :: MStatePair -> IO ()
 print_mstatepair m = putStrLn $ P.render $ pp m
 
-
 prop_noninterference :: MStatePair -> Property
 prop_noninterference (M (m1,p1) (m2,p2)) =
-  let (r1,ss1') = run_loop 5 p1 m1
-      (r2,ss2') = run_loop 5 p2 m2
+  let (r1,ss1') = run_loop 100 p1 m1
+      (r2,ss2') = run_loop 100 p2 m2
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
   whenFail (do putStrLn $ "Reachable parts differ after execution!"
                putStrLn $ "Original machines:"

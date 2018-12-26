@@ -49,7 +49,7 @@ run_loop  maxinstrs pipe_state mstate =
 
 run_loop' :: Int -> Int -> [(PIPE_State, Machine_State)] -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
 run_loop'  fuel maxinstrs trace pipe_state mstate =
-  let instret   = mstate_csr_read        mstate  csr_addr_minstret
+  let instret   = mstate_csr_read mstate csr_addr_minstret
       run_state = mstate_run_state_read  mstate
 
       -- Tick: regular maintenance (increment cycle count, real-time
