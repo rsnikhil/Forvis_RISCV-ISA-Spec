@@ -49,7 +49,9 @@ shrinkRegister (d,t) = [(d',t') | d' <- shrink d, t' <- shrinkTag t]
 
 -- To shrink an instruction, try converting it to a noop (ADD 0 0 0)
 shrinkInstr :: Instr_I -> [Instr_I]
-shrinkInstr (ADD 0 0 0) = []
+shrinkInstr (ADD 0 0 0)  = []
+-- Do not shrink the initial JAL
+shrinkInstr (JAL 0 1000) = []
 shrinkInstr _ = [ADD 0 0 0]
 
 

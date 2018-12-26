@@ -2,6 +2,7 @@ module Gen where
 
 
 import Arch_Defs
+import GPR_File
 import Forvis_Spec_I
 import Memory
 
@@ -13,12 +14,16 @@ import PIPE
 import qualified Data.Map.Strict as Data_Map
 import qualified Data.Set as Data_Set
 import Data.Set (Set)
+import Data.Maybe (isJust, fromJust)
 
 import Machine_State
 
 import Control.Arrow (second)
 import Test.QuickCheck
 import TestHeapSafety
+
+import Debug.Trace
+import Run_Program_PIPE
 
 initMachine = 
   let initial_PC     = 0
@@ -91,16 +96,69 @@ genTargetReg :: Machine_State -> Gen GPR_Addr
 genTargetReg ms =
   choose (1, 31)
 
--- Generate an immediate up to n bits
-genImm :: Int -> Gen InstrField
-genImm n = (4*) <$> choose (1, 10)
-  
+-- Generate an immediate up to number
+-- Multiple of 4
+genImm :: Integer -> Gen InstrField
+genImm n = (4*) <$> choose (1, n `div` 4)
+
+dataMemLow  = 4
+dataMemHigh = 40
+instrLow = 1000
+
 -- Generate an instruction that is valid in the current context
--- TODO: For now, random
 -- For load and store to make sense, we need to go through the register file
 -- and pick "valid" current addresses.
+
+-- Picks out valid (data registers + max immediate), (jump registers + min immediate), integer registers
+groupRegisters :: GPR_File -> ([(GPR_Addr, Integer)], [(GPR_Addr, Integer)], [GPR_Addr])
+groupRegisters (GPR_File rs) =
+  let regs = Data_Map.assocs rs
+      validData n
+        | n >= dataMemLow && n <= dataMemHigh =
+            Just (dataMemHigh - n)
+        | otherwise = Nothing
+      validJump n = Just (instrLow - n)
+      dataRegs    = map (second fromJust) $ filter (isJust . snd) $ map (second validData) regs
+      controlRegs = map (second fromJust) $ filter (isJust . snd) $ map (second validJump) regs
+      arithRegs   = map fst regs
+  in (dataRegs, controlRegs, arithRegs)       
+
 genInstr :: Machine_State -> Gen (Instr_I, Tag)
-genInstr ms =          
+genInstr ms =
+  let (dataRegs, ctrlRegs, arithRegs) = groupRegisters (f_gprs ms)
+      onNonEmpty [] _= 0
+      onNonEmpty _ n = n
+  in 
+  frequency [ (onNonEmpty arithRegs 1,
+               do -- ADDI
+                  rs <- elements arithRegs
+                  rd <- genTargetReg ms
+                  imm <- genImm 40
+                  -- TODO: Figure out what to do with Malloc
+                  alloc <- frequency [(1, pure $ MTagI Alloc), (4, pure $ MTagI NoAlloc)]
+                  return (ADDI rd rs imm, alloc))
+            , (onNonEmpty dataRegs 1,
+               do -- LOAD
+                  (rs,max_imm) <- elements dataRegs
+                  rd <- genTargetReg ms
+                  imm <- genImm max_imm
+                  return (LW rd rs imm, MTagI NoAlloc))
+            , (onNonEmpty dataRegs 1 * onNonEmpty arithRegs 1,
+               do -- STORE
+                  (rd,max_imm) <- elements dataRegs
+                  rs <- genTargetReg ms
+                  imm <- genImm max_imm
+                  return (SW rd rs imm, MTagI NoAlloc))
+            , (onNonEmpty arithRegs 1,
+               do -- ADD
+                  rs1 <- elements arithRegs
+                  rs2 <- elements arithRegs
+                  rd <- genTargetReg ms
+                  return (ADD rd rs1 rs2, MTagI NoAlloc))
+            ]
+
+randInstr :: Machine_State -> Gen (Instr_I, Tag)
+randInstr ms =          
   frequency [ (1, do -- ADDI
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
@@ -124,6 +182,7 @@ genInstr ms =
                   return (ADD rd rs1 rs2, MTagI NoAlloc))
             ]
 
+
 -- | Instruction 0 is JAL 1000
 --   Instructions are put in loc 1000+
 
@@ -144,12 +203,42 @@ genMTagM = MTagM <$> genColor <*> genColor
 
 genDataMemory :: Gen (Mem, MemT)
 genDataMemory = do
-  let idx = [4,8..40]
+  let idx = [dataMemLow,dataMemLow+4..dataMemHigh]
   combined <- mapM (\i -> do d <- genImm 4
                              t <- genMTagM
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
   return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
+
+setInstrI :: Machine_State -> Instr_I -> Machine_State
+setInstrI ms i =
+  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
+
+setInstrTagI :: Machine_State -> PIPE_State -> Tag -> PIPE_State
+setInstrTagI ms ps it =
+  ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
+
+genByExec :: Int -> Machine_State -> PIPE_State -> Gen (Machine_State, PIPE_State)
+genByExec 0 ms ps = return (ms, ps)
+genByExec n ms ps
+  -- Check if an instruction already exists
+  | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
+    case fetch_and_execute ps ms of
+      Right (ps'', ms'') ->
+        genByExec (n-1) ms'' ps''
+      Left _ ->
+  --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
+        return (ms, ps)
+  | otherwise = do
+    (is, it) <- genInstr ms
+    let ms' = setInstrI ms is
+        ps' = setInstrTagI ms ps it
+    case fetch_and_execute ps' ms' of
+      Right (ps'', ms'') ->
+        genByExec (n-1) ms'' ps''
+      Left _ ->
+  --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
+        return (ms, ps)
 
 genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
@@ -158,8 +247,11 @@ genMachine = do
   (mem,pmem) <- genDataMemory
   let ms = initMachine {f_mem = mem}
       ps = init_pipe_state {p_mem = pmem}
-  (is,its) <- unzip <$> vectorOf 20 (genInstr ms)
-  return (setInstructions ms is, setInstrTags ps its)
+      ms' = setInstrI ms (JAL 0 1000)
+      ps' = setInstrTagI ms ps (MTagI NoAlloc)
+  genByExec 10 ms' ps'
+--  (is,its) <- unzip <$> vectorOf 20 (genInstr ms)
+--  return (setInstructions ms is, setInstrTags ps its)
 
 varyUnreachableMem :: Set Color -> Mem -> MemT -> Gen (Mem, MemT)
 varyUnreachableMem r (Mem m ra) (MemT pm) = do

@@ -124,6 +124,9 @@ prop_noninterference (M (m1,p1) (m2,p2)) =
       (r2,ss2') = run_loop 100 p2 m2
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
   whenFail (do putStrLn $ "Reachable parts differ after execution!"
+               putStrLn $ "Original machines:"
+               print_mstatepair (M (m1,p1) (m2,p2))
+               putStrLn $ "After execution..."
                print_mstatepair (M (m1', p1') (m2', p2'))
 --               putStrLn "First One:"
 --               print_coupled m1' p1'
