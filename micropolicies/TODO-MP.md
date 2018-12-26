@@ -1,5 +1,11 @@
 BEFORE JANUARY PI MEETING
 
+fix
+  - at end of gen by exec, we have the state at the end of the run, not the beginning
+  - grab the instructions only and copy them over into the arguments to
+  - take the delta in the instruction memories
+  - change the name of ms_fin'
+
 replace haskell policy by policy interpreter
 (Andrew)
 
