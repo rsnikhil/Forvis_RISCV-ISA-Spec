@@ -10,6 +10,15 @@ all:
 # temporary
 	../forvis_exe
 
+mutant:
+	mkdir -p  $(TMP_DIR)
+	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  \
+	   -outputdir  $(TMP_DIR)  -rtsopts -cpp -D$(MUT) \
+	   Main_PIPE 
+# temporary
+	../forvis_exe
+
+
 pipe_hello: all
 	$(MAKE) -C .. test_hello
 

@@ -145,9 +145,12 @@ exec_pipe p m u32 =
                 memc = get_mtag p (addr+imm) in 
             case (rsc,memc) of
               (MTagR t1c, MTagM t2vc t2lc)
-                  | otherwise -> ok $ set_rtag p rd (MTagR t2vc)
---                | t1c==t2lc -> ok $ set_rtag p rd (MTagR t2vc)
---                | otherwise -> notok p $ "Different colors on Load: " ++ show t1c ++ " and " ++ show t2lc
+#ifndef M_LW_NOCHECK
+                | t1c==t2lc -> ok $ set_rtag p rd (MTagR t2vc)
+                | otherwise -> notok p $ "Different colors on Load: " ++ show t1c ++ " and " ++ show t2lc
+#else
+                | otherwise -> ok $ set_rtag p rd (MTagR t2vc)
+#endif
               _ -> notok p $ "Mangled tags on Load: " ++ show rsc ++ " and " ++ show memc
           SW rs1 rs2 imm -> 
             let addr = mstate_gpr_read m rs1
