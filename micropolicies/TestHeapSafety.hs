@@ -10,6 +10,7 @@ import Arch_Defs
 
 -- Maybe?
 import Machine_State
+import Forvis_Spec
 import Forvis_Spec_I
 import GPR_File
 import Memory
@@ -120,8 +121,8 @@ print_mstatepair m = putStrLn $ P.render $ pp m
 
 prop_noninterference :: MStatePair -> Property
 prop_noninterference (M (m1,p1) (m2,p2)) =
-  let (r1,ss1') = run_loop 100 p1 m1
-      (r2,ss2') = run_loop 100 p2 m2
+  let (r1,ss1') = run_loop 5 p1 m1
+      (r2,ss2') = run_loop 5 p2 m2
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
   whenFail (do putStrLn $ "Reachable parts differ after execution!"
                putStrLn $ "Original machines:"
@@ -134,7 +135,8 @@ prop_noninterference (M (m1,p1) (m2,p2)) =
 --               print_coupled m2' p2'
            )
 --           (collect (mstate_csr_read m1' csr_addr_minstret) 
-           (collect (f_pc m1')
+--           (collect (f_pc m1')
+           (collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32)
              (sameReachablePart (M (m1', p1') (m2', p2'))))
 
 
