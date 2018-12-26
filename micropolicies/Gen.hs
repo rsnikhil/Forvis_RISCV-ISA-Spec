@@ -137,13 +137,13 @@ genInstr ms =
                   -- TODO: Figure out what to do with Malloc
                   alloc <- frequency [(1, pure $ MTagI Alloc), (4, pure $ MTagI NoAlloc)]
                   return (ADDI rd rs imm, alloc))
-            , (onNonEmpty dataRegs 1,
+            , (onNonEmpty dataRegs 3,
                do -- LOAD
                   (rs,max_imm) <- elements dataRegs
                   rd <- genTargetReg ms
                   imm <- genImm max_imm
                   return (LW rd rs imm, MTagI NoAlloc))
-            , (onNonEmpty dataRegs 1 * onNonEmpty arithRegs 1,
+            , (onNonEmpty dataRegs 3 * onNonEmpty arithRegs 1,
                do -- STORE
                   (rd,max_imm) <- elements dataRegs
                   rs <- genTargetReg ms
@@ -196,7 +196,9 @@ setInstrTags ps its =
   ps {p_mem = MemT $ Data_Map.union (Data_Map.fromList ((0, MTagI NoAlloc) : (zip [1000,1004..] its))) (unMemT $ p_mem ps)}
 
 genColor :: Gen Color
-genColor = C <$> choose (0, 4)
+genColor =
+  frequency [ (9, pure $ C 0)
+            , (1, C <$> choose (0, 4)) ]
 
 genMTagM :: Gen Tag
 genMTagM = MTagM <$> genColor <*> genColor
@@ -238,7 +240,7 @@ genByExec n ms ps
         genByExec (n-1) ms'' ps''
       Left _ ->
   --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
-        return (ms, ps)
+        return (ms', ps')
 
 genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
