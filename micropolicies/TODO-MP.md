@@ -1,18 +1,25 @@
 TODAY
 
-Try to write an explicit test that exposes the second mutant (to make sure
-it really is one!!)
-
 Try the other mutants
 
-can we remove the @ when what's after it is blank?
+Printing
+- can we remove the @ when what's after it is blank?
+- Don't print mem/reg diffs if they're empty
+- Each trace step one line
 
 Falling off the end of memory is not a very interesting behavior -- generate it less often or maybe explicitly look for it and halt execution
+- Look for it, halt execution, traps are not interesting (yet)
 
 there are too mamy magic constants saying how many instructions to generate / execute!
+- name them
 
 are we generating too many "interesting" immediate fields?  (How would we
 tell?)
+
+Put data in initial registers
+- Have to think about multiples of 4
+
+Shrink colors in memory locations (and eventually registers)
 
 ___________________________________________________________
 BEFORE JANUARY PI MEETING

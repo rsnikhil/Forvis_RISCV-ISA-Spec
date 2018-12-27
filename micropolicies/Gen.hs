@@ -139,6 +139,7 @@ instrLow = 1000
 -- and pick "valid" current addresses.
 
 -- Picks out valid (data registers + max immediate), (jump registers + min immediate), integer registers
+-- If not only using multiples of 4, add a modulus to data 
 groupRegisters :: GPR_File -> ([(GPR_Addr, Integer)], [(GPR_Addr, Integer)], [GPR_Addr])
 groupRegisters (GPR_File rs) =
   let regs = Data_Map.assocs rs
