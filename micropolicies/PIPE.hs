@@ -134,7 +134,7 @@ exec_pipe p m u32 =
                 let (c, p') = fresh_color p in
                 ok $ set_rtag p rd (MTagR c)
           ADD rd rs1 rs2 ->
-#ifndef M_WRONG_ADDI
+#ifndef M_WRONG_ADD
             ok $ set_rtag p rd $ get_rtag p rs1
 #else
             ok $ set_rtag p rd (MTagR (C 1))
