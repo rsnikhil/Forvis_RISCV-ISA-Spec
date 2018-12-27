@@ -222,7 +222,7 @@ print_mstate  indent  mstate = do
   putStrLn (indent ++ (show run_state))
 
 -------------------------------------------------------------
--- BCP: Needs finishing (and probably it should be pretty, not show)
+-- BCP: Superseded...
 
 showCurr (p,m) = (show $ f_pc m) ++ "  (Instr)" 
 
