@@ -9,17 +9,17 @@ Printing
 - Each trace step one line  (Done)
 - use the "pad" function to improve / squash memory printing
 - when printing traces, show the tag of each instruction that gets executed
+- fix the "r1000 <-" thing
 
 Can we suppress the warning when compiling Shrinking.hs?
 
-Falling off the end of memory is not a very interesting behavior -- generate it less often or maybe explicitly look for it and halt execution
+Falling off the end of memory is not a very interesting behavior
 - Look for it, halt execution, traps are not interesting (yet)
 
 there are too mamy magic constants saying how many instructions to generate / execute!
 - name them
 
-are we generating too many "interesting" immediate fields?  (How would we
-tell?)
+are we generating too many "interesting" immediate fields?  (How would we tell?)
 
 Put data in initial registers
 - Have to think about multiples of 4
@@ -32,10 +32,7 @@ BEFORE JANUARY PI MEETING
 replace haskell policy by policy interpreter
 (Andrew)
 
-copy over all the mutants from the Coq version
-(BCP)
-
-get the heap safety policy running using the interpreter
+get a heap safety policy running using the interpreter
 (All)
 
 ________________________
