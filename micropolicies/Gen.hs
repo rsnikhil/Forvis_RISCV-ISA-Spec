@@ -77,6 +77,33 @@ exampleMachines =
       p_acc = init_pipe_state { p_mem = p_macc }
       p_rej = init_pipe_state { p_mem = p_mrej }
   in ((ms_acc,p_acc), (ms_rej,p_rej))
+
+{-
+bug_fresh_color =
+  let ms = initMachine
+      heap_base = 100
+      base_code =
+        [ (0*4, ((encode_I RV32 (ADDI 1 0 heap_base), Alloc)))
+        , (1*4, ((encode_I RV32 (ADD  1 1 0), NoAlloc)))    -- Useless
+        , (2*4, ((encode_I RV32 (SW   1 1 0), NoAlloc))) 
+        , (3*4, ((encode_I RV32 (ADDI 4 0 heap_base), NoAlloc)))
+        , (4*4, ((encode_I RV32 (ADDI 5 0 heap_base), NoAlloc)))
+        ]
+      accept_code =
+        [ (5*4, ((encode_I RV32 (LW 2 1 0)), NoAlloc)) ]
+      reject_code =
+        [ (5*4, ((encode_I RV32 (ADDI 2 0 heap_base)), NoAlloc))
+        , (6*4, ((encode_I RV32 (LW 3 2 0)), NoAlloc)) ]
+      mem_acc = (f_mem ms) { f_dm = Data_Map.fromList (map (second fst) (base_code ++ accept_code)) }
+      mem_rej = (f_mem ms) { f_dm = Data_Map.fromList (map (second fst) (base_code ++ reject_code)) }
+      p_macc = MemT $ Data_Map.fromList (map (second $ MTagI . snd) (base_code ++ accept_code)) 
+      p_mrej = MemT $ Data_Map.fromList (map (second $ MTagI . snd) (base_code ++ reject_code)) 
+      ms_acc = ms { f_mem = mem_acc }
+      ms_rej = ms { f_mem = mem_rej }
+      p_acc = init_pipe_state { p_mem = p_macc }
+      p_rej = init_pipe_state { p_mem = p_mrej }
+  in ((ms_acc,p_acc), (ms_rej,p_rej))
+-}
   
 --- Generate input program + tags
 -- Tags in call/ret f1-2-3-4-5

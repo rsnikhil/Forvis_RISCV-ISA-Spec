@@ -210,14 +210,18 @@ instance CoupledPP Diff Diff where
 
 prop_noninterference :: MStatePair -> Property
 prop_noninterference (M (m1,p1) (m2,p2)) =
-  let (r1,ss1') = run_loop 100 p1 m1
-      (r2,ss2') = run_loop 100 p2 m2
+  let (r1,ss1') = run_loop 20 p1 m1
+      (r2,ss2') = run_loop 20 p2 m2
+      ss = zip (reverse ss1') (reverse ss2') 
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
   whenFail (do putStrLn $ "Reachable parts differ after execution!"
-               putStrLn $ "Original machines:"
-               print_mstatepair (M (m1,p1) (m2,p2))
-               putStrLn $ "After execution..."
-               print_mstatepair (M (m1', p1') (m2', p2'))
+               uncurry printTrace (unzip ss)
+-- 
+-- 
+--               putStrLn $ "Original machines:"
+--               print_mstatepair (M (m1,p1) (m2,p2))
+--               putStrLn $ "After execution..."
+--               print_mstatepair (M (m1', p1') (m2', p2'))
 --               putStrLn "First One:"
 --               print_coupled m1' p1'
 --               putStrLn "Second One:"

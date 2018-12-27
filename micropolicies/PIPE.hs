@@ -91,7 +91,7 @@ fresh_color :: PIPE_State -> (Color, PIPE_State)
 #ifndef M_FRESH_COLOR
 fresh_color p = (C $ p_nextcolor p, p {p_nextcolor = p_nextcolor p + 1})
 #else
-fresh_color p = (C 5, p)
+fresh_color p = (C 1, p)
 #endif
 
 -- Should be done with lenses...
