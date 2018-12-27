@@ -9,6 +9,8 @@ Printing
 - use the "pad" function to improve / squash memory printing
 - when printing traces, show the tag of each instruction that gets executed
 
+Can we suppress the warning when compiling Shrinking.hs?
+
 Falling off the end of memory is not a very interesting behavior -- generate it less often or maybe explicitly look for it and halt execution
 - Look for it, halt execution, traps are not interesting (yet)
 

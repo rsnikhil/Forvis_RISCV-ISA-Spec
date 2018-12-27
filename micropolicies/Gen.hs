@@ -276,6 +276,8 @@ genByExec n ms ps instrlocs
   --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
         return (ms', ps', instrlocs)
 
+maxInstrsToGenerate = 60
+
 genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
   -- TODO: this is random, not generation by execution (BCP: Really??)
@@ -286,7 +288,7 @@ genMachine = do
       ps = init_pipe_state {p_mem = pmem}
       ms' = setInstrI ms (JAL 0 1000)
       ps' = setInstrTagI ms ps (MTagI NoAlloc)  -- BCP: Needed??
-  (ms_fin, ps_fin, instrlocs) <- genByExec 10 ms' ps' Data_Set.empty
+  (ms_fin, ps_fin, instrlocs) <- genByExec maxInstrsToGenerate ms' ps' Data_Set.empty
 
   let final_mem = f_dm $ f_mem ms_fin
       res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs

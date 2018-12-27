@@ -78,13 +78,11 @@ data PIPE_State = PIPE_State {
   }
   deriving (Eq, Show)
 
--- TODO: Replace magic number 5 with a constant
-
 init_pipe_state = PIPE_State {
   p_pc = initPC,
   p_gprs = mkGPR_FileT,
   p_mem = mkMemT,
-  p_nextcolor = 5 -- Should not be able to allocate an existing color...
+  p_nextcolor = initialColors -- Should not be able to allocate an existing color...
   }
 
 fresh_color :: PIPE_State -> (Color, PIPE_State)
@@ -127,7 +125,7 @@ exec_pipe p m u32 =
       Just i -> 
         case i of
           ADDI rd rs imm 
-#ifndef M_WRONG_MOVE
+#ifndef M_WRONG_ADDI
             | ic == MTagI NoAlloc -> ok $ set_rtag p rd $ get_rtag p rs
 #else
             | ic == MTagI NoAlloc -> ok $ set_rtag p rd (MTagR (C 1))
@@ -135,7 +133,12 @@ exec_pipe p m u32 =
             | otherwise -> 
                 let (c, p') = fresh_color p in
                 ok $ set_rtag p rd (MTagR c)
-          ADD rd rs1 rs2 -> ok $ set_rtag p rd $ get_rtag p rs1
+          ADD rd rs1 rs2 ->
+#ifndef M_WRONG_ADDI
+            ok $ set_rtag p rd $ get_rtag p rs1
+#else
+            ok $ set_rtag p rd (MTagR (C 1))
+#endif
           LW rd rs imm   -> 
             let rsc = get_rtag p rs
 --                rs1_val  = mstate_gpr_read  mstate  rs1    -- address base
@@ -158,7 +161,13 @@ exec_pipe p m u32 =
                 rs1c = get_rtag p rs1 
                 rs2c = get_rtag p rs2 in 
             case (rs1c,rs2c) of
+#ifndef M_MANGLED_STORE
               (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM t2c t1c)
+#else
+-- TODO: Can we find this one??
+--              (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM t1c t2c)
+              (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM (C 1) (C 1))
+#endif
               _ -> notok p $ "Mangled tags on Store: " ++ show rs1c ++ " and " ++ show rs2c
           _ -> ok p 
       Nothing -> ok p
