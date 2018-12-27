@@ -127,7 +127,11 @@ exec_pipe p m u32 =
       Just i -> 
         case i of
           ADDI rd rs imm 
+#ifndef M_WRONG_MOVE
             | ic == MTagI NoAlloc -> ok $ set_rtag p rd $ get_rtag p rs
+#else
+            | ic == MTagI NoAlloc -> ok $ set_rtag p rd (MTagR (C 1))
+#endif
             | otherwise -> 
                 let (c, p') = fresh_color p in
                 ok $ set_rtag p rd (MTagR c)

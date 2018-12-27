@@ -3,9 +3,11 @@ TODAY
 Try the other mutants
 
 Printing
-- can we remove the @ when what's after it is blank?
-- Don't print mem/reg diffs if they're empty
-- Each trace step one line
+- can we remove the @ when what's after it is blank?  (Done, I think)
+- Don't print mem/reg diffs if they're empty (Done, I think)
+- Each trace step one line  (Done, I think)
+- use the "pad" function to improve / squash memory printing
+- when printing traces, show the tag of each instruction that gets executed
 
 Falling off the end of memory is not a very interesting behavior -- generate it less often or maybe explicitly look for it and halt execution
 - Look for it, halt execution, traps are not interesting (yet)

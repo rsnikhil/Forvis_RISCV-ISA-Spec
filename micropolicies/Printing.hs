@@ -65,13 +65,18 @@ class CoupledPP a b | a -> b where
   pretty :: a -> b -> Doc
 
 instance CoupledPP Integer Tag where
-  pretty d t = pp d P.<> P.char '@' P.<> pp t
+  pretty d t = pp d P.<> (let ppt = pp t in if ppt == P.empty then P.empty else P.char '@' P.<> ppt)
 
 -- Helpers
 x <|> y = x P.<> P.text "\t|\t" P.<> y
 x <:> y = x P.<> P.text ": " P.<> y
-x <@> y = x P.<> P.text "@" P.<> y
-x <||> y = x P.<> P.text "||" P.<> y
+x <@> y = x P.<> (if y == P.empty then P.empty else P.char '@' P.<> y)
+x <@@> y = x P.<> (if y == P.empty then P.empty else P.text " @" P.<> y)
+x <||> y = x P.<> P.text " || " P.<> y
+
+pad :: Int -> Doc -> Doc
+pad i p = let s = show p in
+          P.text (s ++ take (i - (length s)) (repeat ' '))
 
 pr_register :: InstrField -> Doc
 pr_register n = P.char 'r' P.<> P.integer n  
@@ -125,7 +130,7 @@ instance CoupledPP Mem MemT where
     let contents = zip (Data_Map.assocs $ m) (Data_Map.assocs pm)
     in P.vcat $ map (\((i,d),(j,t)) ->
                         case decode_I RV32 d of
-                          Just instr -> P.integer i <:> pp instr <@> pp t
+                          Just instr -> P.integer i <:> pp instr <@@> pp t
                           Nothing -> P.integer i <:> P.integer d <@> pp t
                     ) contents
 
@@ -141,7 +146,7 @@ instance CoupledPP (Integer, Tag) (Integer, Tag) where
     if i1 == i2 && t1 == t2 then
       pretty i1 t1 
     else
-      P.text "<Discrepancy!>" <+> pretty i1 t1 <||> pretty i2 t2
+      pretty i1 t1 <||> pretty i2 t2
 
 instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
   pretty (GPR_File r1, GPR_FileT t1) (GPR_File r2, GPR_FileT t2) =
@@ -220,16 +225,3 @@ print_mstate  indent  mstate = do
   print_CSR_File  indent  rv  csrs
   -- We do not print memory or MMIO
   putStrLn (indent ++ (show run_state))
-
--------------------------------------------------------------
--- BCP: Superseded...
-
-showCurr (p,m) = (show $ f_pc m) ++ "  (Instr)" 
-
-showDiffs s1 s2 = "(Diffs)"
-
-showTrace :: [(PIPE_State,Machine_State)] -> String
-showTrace [] = ""
-showTrace [s] = showCurr s ++ "  Halt"
-showTrace (s1:s2:tr) = showCurr s1 ++ "  " ++ showDiffs s1 s2 ++ "\n" ++ showTrace (s2:tr)
-

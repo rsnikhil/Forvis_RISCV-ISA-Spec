@@ -44,20 +44,22 @@ testHeapSafety =
 --  sameReachablePart m
   prop_noninterference m
 
-main2 = do
-  let ((ms,ps),_) = exampleMachines
-  let (res, tr) = run_loop 10 ps ms
-      (ps', ms') : _ = tr
-  putStrLn ""
-  putStrLn "Initial state:"
-  print_coupled ms ps
-  putStrLn "_______________________________________________________________________"
-  putStrLn "Final state:"
-  print_coupled ms' ps'
-  putStrLn "_______________________________________________________________________"
-  putStrLn "Trace:"
-  putStrLn $ showTrace (reverse tr)
-  putStrLn (show res)
+--main2 = do
+--  let ((ms,ps),_) = exampleMachines
+--  let (res, tr) = run_loop 10 ps ms
+--      (ps', ms') : _ = tr
+--      ss = zip (reverse ss1') (reverse ss2') 
+--  uncurry printTrace (unzip ss)
+--  putStrLn ""
+--  putStrLn "Initial state:"
+--  print_coupled ms ps
+--  putStrLn "_______________________________________________________________________"
+--  putStrLn "Final state:"
+--  print_coupled ms' ps'
+--  putStrLn "_______________________________________________________________________"
+--  putStrLn "Trace:"
+--  putStrLn $ showTrace (reverse tr)
+--  putStrLn (show res)
 
 main4 = do
   (ms,ps) <- head <$> sample' genMachine
@@ -69,11 +71,11 @@ main4 = do
   putStrLn "_______________________________________________________________________"
   putStrLn "Final state:"
   print_coupled ms' ps'
-  putStrLn "_______________________________________________________________________"
-  putStrLn "Trace:"
-  putStrLn $ showTrace (reverse tr)
-  putStrLn (show res)
-  putStrLn $ "Instructions executed: " ++ show (mstate_csr_read ms' csr_addr_minstret)
+--  putStrLn "_______________________________________________________________________"
+--  putStrLn "Trace:"
+--  putStrLn $ showTrace (reverse tr)
+--  putStrLn (show res)
+--  putStrLn $ "Instructions executed: " ++ show (mstate_csr_read ms' csr_addr_minstret)
 
 main5 = do
   M (m1,p1) (m2,p2) <- head <$> sample' (genMachine >>= varyUnreachable)

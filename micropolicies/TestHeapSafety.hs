@@ -125,13 +125,12 @@ prettyTrace :: [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] ->
 prettyTrace [] [] = P.text ""
 prettyTrace [(p1,m1)] [(p2,m2)] = pp (M (m1,p1) (m2,p2))
 prettyTrace (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
-    pp (M (m1,p1) (m2,p2)) $$ prettyDiffs tr1 tr2
+    pp (M (m1,p1) (m2,p2)) $$ P.text "------------------------------" $$ prettyDiffs tr1 tr2
 
 prettyDiffs :: [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
 prettyDiffs ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
   pretty (calcDiff (p11,m11) (p12,m12))
          (calcDiff (p21,m21) (p22,m22))
-  $$ P.text "------------------------"
   $$ prettyDiffs ((p12,m12):tr1) ((p22,m22):tr2)
 prettyDiffs _ _ = P.text ""  
 
@@ -147,7 +146,7 @@ calcDiff (p1,m1) (p2,m2) =
        , d_instr =
            case fst $ instr_fetch m1 of
              Fetch u32 -> decode_I RV32 u32
-             _ -> error "Not fetch in calcDiff"
+             _ -> error "Bad instr fetch in calcDiff"
        , d_reg =
            let GPR_File r1 = f_gprs m1
                GPR_File r2 = f_gprs m2
@@ -190,23 +189,24 @@ instance CoupledPP (Maybe (Integer, Integer, Tag)) (Maybe (GPR_Addr, Integer, Ta
     | i == i', d == d', l == l' =
         P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l
     | otherwise =
-      P.text "<Discrepancy!>" <+> P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||> P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
+      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||> P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
   pretty Nothing Nothing = P.text ""
 
 instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
   pretty (Just i1) (Just i2)
     | i1 == i2  = pp i1
-    | otherwise = 
-        P.text "<Discrepancy!>" <+> pp i1 <||> pp i2
-  pretty Nothing Nothing = P.text "<Not an instruction>"
+    | otherwise = pp i1 <||> pp i2
+  pretty Nothing Nothing = P.text "<Bad instr>"
 
 instance CoupledPP Diff Diff where
   pretty d1 d2 =
-    P.vcat [ P.text "PC:" <+> pretty (d_pc d1) (d_pc d2)
-           , P.text "I:"  <+> pretty (d_instr d1) (d_instr d2)
-           , P.text "Reg Diff:" <+> pretty (d_reg d1) (d_reg d2)
-           , P.text "Mem Diff:" <+> pretty (d_mem d1) (d_mem d2)
-           ]
+    P.vcat [ P.hcat [ pad 5 (pretty (d_pc d1) (d_pc d2))
+                    , P.text " "
+                    , pad 25 (pretty (d_instr d1) (d_instr d2))
+                    , P.text "     "
+                    , pretty (d_reg d1) (d_reg d2)
+                    , pretty (d_mem d1) (d_mem d2)
+           ] ]
 
 prop_noninterference :: MStatePair -> Property
 prop_noninterference (M (m1,p1) (m2,p2)) =
