@@ -16,6 +16,8 @@ import Forvis_Spec_I
 import GPR_File
 import Memory
 
+import Control.Exception.Base (assert)
+
 -- This might belong elsewhere
 import Test.QuickCheck
 
@@ -131,14 +133,14 @@ prettyDiffs :: [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] ->
 prettyDiffs ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
   pretty (calcDiff (p11,m11) (p12,m12))
          (calcDiff (p21,m21) (p22,m22))
-  $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
+-- $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
   $$ prettyDiffs ((p12,m12):tr1) ((p22,m22):tr2)
 prettyDiffs _ _ = P.text ""  
 
-data Diff = Diff { d_pc :: (Integer, Tag)
-                 , d_instr :: Maybe Instr_I
-                 , d_reg :: Maybe (GPR_Addr, Integer, Tag)
-                 , d_mem :: Maybe (Integer, Integer, Tag)
+data Diff = Diff { d_pc :: (Integer, Tag)                  -- value and tag of the current PC
+                 , d_instr :: Maybe Instr_I                -- current instruction
+                 , d_reg :: Maybe (GPR_Addr, Integer, Tag) -- change in registers
+                 , d_mem :: Maybe (Integer, Integer, Tag)  -- change in memory
                  }
 
 calcDiff :: (PIPE_State, Machine_State) -> (PIPE_State, Machine_State) -> Diff
@@ -153,10 +155,14 @@ calcDiff (p1,m1) (p2,m2) =
                GPR_File r2 = f_gprs m2
                GPR_FileT t1 = p_gprs p1
                GPR_FileT t2 = p_gprs p2
+               -- BCP: Something seems funny about these two filters:
+               -- What will happen if the i1 and i2 are not the same
+               -- at some point??  Seems like we will just ignore and
+               -- go on.  We should at least error out (which I have now done). 
                reg_diff =
-                 filter (\((i1,d1),(i2,d2)) -> d1 /= d2) (zip (Data_Map.assocs r1) (Data_Map.assocs r2))
+                 filter (\((i1,d1),(i2,d2)) -> assert (i1 == i2) $ d1 /= d2) (zip (Data_Map.assocs r1) (Data_Map.assocs r2))
                tag_diff =
-                 filter (\((i1,l1),(i2,l2)) -> l1 /= l2) (zip (Data_Map.assocs t1) (Data_Map.assocs t2))
+                 filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs t1) (Data_Map.assocs t2))
            in case (reg_diff, tag_diff) of
                 ([], []) -> Nothing
                 ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
@@ -164,16 +170,19 @@ calcDiff (p1,m1) (p2,m2) =
                   (i,d,) <$> Data_Map.lookup i t2
                 ([],[((i,_),(_,l))]) ->
                   (i,,l) <$> Data_Map.lookup i r2
-                _ -> error "More than one diff in register file"
+                _ -> error $ "More than one diff in register file:" ++ 
+                             " registers = " ++ show reg_diff ++ 
+                             " and tags = " ++ show tag_diff 
        , d_mem =
            let Mem dm1 _ = f_mem m1
                Mem dm2 _ = f_mem m2
                MemT pm1 = p_mem p1
                MemT pm2 = p_mem p2
+               -- BCP: Ditto above concern:
                data_diff =
-                 filter (\((i1,d1),(i2,d2)) -> d1 /= d2) (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
+                 filter (\((i1,d1),(i2,d2)) -> assert (i1 == i2) $ d1 /= d2) (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
                tag_diff =
-                 filter (\((i1,l1),(i2,l2)) -> l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
+                 filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
            in case (data_diff, tag_diff) of
                 ([], []) -> Nothing
                 ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
@@ -181,7 +190,10 @@ calcDiff (p1,m1) (p2,m2) =
                   (i,d,) <$> Data_Map.lookup i pm2
                 ([],[((i,_),(_,l))]) ->
                   (i,,l) <$> Data_Map.lookup i dm2
-                _ -> error "More than one diff in memory file"
+                _ -> error $ "More than one diff in memory file:" ++
+                             " data = " ++ show data_diff ++ 
+                             " and tags = " ++ show tag_diff 
+
        }
 
 -- BCP: Why is it Integer in one place and GPR_Addr in another??
@@ -199,17 +211,15 @@ instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
     | otherwise = pp i1 <||> pp i2
   pretty Nothing Nothing = P.text "<Bad instr>"
 
--- BCP: This is the main thing I don't understand: We are printing
--- diffs between diffs???  What does that mean?
 instance CoupledPP Diff Diff where
   pretty d1 d2 =
-    P.vcat [ P.hcat [ pad 5 (pretty (d_pc d1) (d_pc d2))
-                    , P.text " "
-                    , pad 25 (pretty (d_instr d1) (d_instr d2))
-                    , P.text "     "
-                    , pretty (d_reg d1) (d_reg d2) 
-                    , pretty (d_mem d1) (d_mem d2)
-           ] ]
+    P.hcat [ pad 5 (pretty (d_pc d1) (d_pc d2))
+           , P.text " "
+           , pad 25 (pretty (d_instr d1) (d_instr d2))
+           , P.text "     "
+           , pretty (d_reg d1) (d_reg d2) 
+           , pretty (d_mem d1) (d_mem d2)
+           ] 
 
 prop_noninterference :: MStatePair -> Property
 prop_noninterference (M (m1,p1) (m2,p2)) =

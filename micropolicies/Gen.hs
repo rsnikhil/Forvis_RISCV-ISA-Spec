@@ -88,9 +88,9 @@ bug_mangled_store_color =
         , (1008, ((encode_I RV32 (SW 1 1 0), NoAlloc))) 
         ]
       heap  =
-        [ (4, (17, MTagM (C 2) (C 0))) ]
+        [ (4, (1, MTagM (C 2) (C 0))) ]  -- 17
       heap' =
-        [ (4, (42, MTagM (C 2) (C 0))) ]
+        [ (4, (0, MTagM (C 2) (C 0))) ] -- 42
       m  = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap ) }}
       m' = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap') }}
       p = init_pipe_state { p_mem = MemT $ Data_Map.fromList (map (second snd) (code ++ heap)) }

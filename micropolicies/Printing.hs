@@ -45,30 +45,30 @@ instance PP Tag where
 instance PP Integer where
   pp n = P.sizedText 2 $ show n
 
-instance PP GPR_FileT where
-  pp (GPR_FileT m) =
-    P.vcat $ map (\(i,r) -> pp i <+> P.char ':' <+> pp r)
-           $ Data_Map.assocs m
+--instance PP GPR_FileT where
+--  pp (GPR_FileT m) =
+--    P.vcat $ map (\(i,r) -> pp i <+> P.char ':' <+> pp r)
+--           $ Data_Map.assocs m
+--
+--instance PP PIPE_State where
+--  pp ps = 
+--    P.vcat [ P.text "PC Tag:" <+> pp (p_pc ps)
+--           , P.text "Register Tags:" $$ P.nest 2 (pp $ p_gprs ps)
+--           -- p_mem
+--           ]
+--
+-- print_pipe :: PIPE_State -> IO ()
+-- print_pipe ps =
+--  putStrLn $ P.render $ pp ps
 
-instance PP PIPE_State where
-  pp ps = 
-    P.vcat [ P.text "PC Tag:" <+> pp (p_pc ps)
-           , P.text "Register Tags:" $$ P.nest 2 (pp $ p_gprs ps)
-           -- p_mem
-           ]
-
-print_pipe :: PIPE_State -> IO ()
-print_pipe ps =
-  putStrLn $ P.render $ pp ps
-
--- BCP: I'm confused by the printing stuff: Is this used for printing
--- things with their tags, or is it used for printing differences
--- between pairs of things??  Or both?  I guess both.  If so, then it
--- leads to code that is pretty hard to read!  My proposal would be to
--- have two different typeclasses, one with a "weave" method that
--- weaves together machine-stuff and pipe-stuff for printing and
--- another with a twoAtOnce method for printing two things that should
--- be mostly the same.
+-- BCP: I'm confused by the printing stuff: The CoupledPP class seems
+-- to be used for printing things with their tags AND for printing
+-- differences between pairs of things!?  This leads to code that is
+-- pretty hard to read!  My proposal would be to have two different
+-- typeclasses, one with a "ppTagged" (or ppT if you like) method that
+-- weaves together machine-stuff and pipe-stuff for printing, and
+-- another with a ppTogether method for printing two things _of the
+-- same type_ that are also expected to be mostly the same.
 
 class CoupledPP a b | a -> b where
   pretty :: a -> b -> Doc
@@ -109,7 +109,7 @@ instance PP Instr_I where
   pp (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
   pp (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
   pp (JAL rs imm) = pr_instr_J_type "JAL" rs imm
-  pp i = error $ show i
+  pp i = error $ "Unimplemented pp for Instr_I" ++ show i
 
 pr_imem :: Mem -> Doc
 pr_imem m =
