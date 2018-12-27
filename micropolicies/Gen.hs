@@ -217,7 +217,7 @@ randInstr ms =
 -- setInstrTags ps its =
 --   ps {p_mem = MemT $ Data_Map.union (Data_Map.fromList ((0, MTagI NoAlloc) : (zip [1000,1004..] its))) (unMemT $ p_mem ps)}
 -- 
--- BCP: Too many magin constants!  (like 4, here)
+-- BCP: Too many magic constants!  (like 4, here)
 -- BCP: I reversed the ratio of 0 to other colors
 genColor :: Gen Color
 genColor =
