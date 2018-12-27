@@ -128,7 +128,7 @@ genTargetReg ms =
 -- Generate an immediate up to number
 -- Multiple of 4
 genImm :: Integer -> Gen InstrField
-genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we not generate 0?
+genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we never generate 0?
 
 dataMemLow  = 4
 dataMemHigh = 40
