@@ -1,6 +1,5 @@
 module Gen where
 
-
 import Arch_Defs
 import GPR_File
 import Forvis_Spec_I
@@ -51,6 +50,9 @@ Load r1 r2 @ default
 Put heap_base r2 @ default
 Load r2 r3 @ default
 -}
+-- BCP: We should keep one example machine for each bug, and we should
+-- make it possible to execute all of them and make sure they
+-- "correctly fail" without editing the source code...
 exampleMachines =
   let ms = initMachine
       heap_base = 100
@@ -195,10 +197,12 @@ randInstr ms =
 -- setInstrTags ps its =
 --   ps {p_mem = MemT $ Data_Map.union (Data_Map.fromList ((0, MTagI NoAlloc) : (zip [1000,1004..] its))) (unMemT $ p_mem ps)}
 -- 
+-- BCP: Too many magin constants!  (like 4, here)
+-- BCP: I reversed the ratio of 0 to other colors
 genColor :: Gen Color
 genColor =
-  frequency [ (9, pure $ C 0)
-            , (1, C <$> choose (0, 4)) ]
+  frequency [ (1, pure $ C 0)
+            , (4, C <$> choose (0, 4)) ]
 
 genMTagM :: Gen Tag
 genMTagM = MTagM <$> genColor <*> genColor
@@ -206,7 +210,9 @@ genMTagM = MTagM <$> genColor <*> genColor
 genDataMemory :: Gen (Mem, MemT)
 genDataMemory = do
   let idx = [dataMemLow,dataMemLow+4..dataMemHigh]
-  combined <- mapM (\i -> do d <- genImm 4    -- BCP: This always puts 4 in every location!
+  combined <- mapM (\i -> do d <- genImm 4    -- BCP: This puts 4 in
+                                              -- every location!
+                                              -- Why??
                              t <- genMTagM
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
@@ -244,8 +250,9 @@ genByExec n ms ps instrlocs
 
 genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
-  -- TODO: this is random, not generation by execution   (BCP: Really??)
-  -- registers
+  -- TODO: this is random, not generation by execution (BCP: Really??)
+  -- TODO: registers -- BCP: Yes, some interesting stuff in registers
+  -- would be good!
   (mem,pmem) <- genDataMemory
   let ms = initMachine {f_mem = mem}
       ps = init_pipe_state {p_mem = pmem}

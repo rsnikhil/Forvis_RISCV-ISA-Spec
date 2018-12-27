@@ -59,7 +59,7 @@ main2 = do
   putStrLn $ showTrace (reverse tr)
   putStrLn (show res)
 
-main = do
+main4 = do
   (ms,ps) <- head <$> sample' genMachine
   let (res, tr) = run_loop 100 ps ms
       (ps', ms') : _ = tr
@@ -75,7 +75,7 @@ main = do
   putStrLn (show res)
   putStrLn $ "Instructions executed: " ++ show (mstate_csr_read ms' csr_addr_minstret)
   
-main1 = do
+main = do
   quickCheckWith stdArgs{maxSuccess=1000} testHeapSafety
 --  (ms,ps) <- head <$> sample' genMachine
 --  let (res, (ps', ms') : _ ) = run_loop 5 ps ms
@@ -83,17 +83,20 @@ main1 = do
 --  print_coupled ms ps
 --  print_coupled ms' ps'
 
---  let ((ms_acc,p_acc),(ms_rej,p_rej)) = exampleMachines
---  
---  -- Accept
---  let (res, ps, ms') = run_loop 100 p_acc ms_acc
---  putStrLn (show res)
---  print_coupled ms' ps
--- 
---  -- Reject
---  let (res, ps, ms') = run_loop 100 p_rej ms_rej
---  putStrLn (show res)
---  print_coupled ms' ps
+main3 = do
+  let ((ms_acc,p_acc),(ms_rej,p_rej)) = exampleMachines
+  
+  -- Accept
+  let (res, tr) = run_loop 100 p_acc ms_acc
+      (ps', ms') : _ = tr
+  putStrLn (show res)
+  print_coupled ms' ps'
+ 
+  -- Reject
+  let (res, tr) = run_loop 100 p_rej ms_rej
+      (ps', ms') : _ = tr
+  putStrLn (show res)
+  print_coupled ms' ps'
 
 -- main = testHeapSafety
   

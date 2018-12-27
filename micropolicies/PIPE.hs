@@ -17,16 +17,7 @@ import Memory
 -- This might belong elsewhere
 import Test.QuickCheck
 
-
 --------------------------------------------------------
-
--- Design decision: Do we want to write policies in Haskell, or in
--- RISCV machine instructions (compiled from C or something).  In this
--- experiment I'm assuming the former.  If we go for the latter, it's
--- going to require quite a bit of lower-level plumbing (including
--- keeping two separate copies of the whole RISCV machine state, and
--- making the explicit connections between them).  The latter is
--- probably what we really want, though.
 
 newtype Color = C Int
                 deriving (Eq, Show, Ord)
@@ -87,6 +78,8 @@ data PIPE_State = PIPE_State {
   }
   deriving (Eq, Show)
 
+-- TODO: Replace magic number 5 with a constant
+
 init_pipe_state = PIPE_State {
   p_pc = initPC,
   p_gprs = mkGPR_FileT,
@@ -98,7 +91,7 @@ fresh_color :: PIPE_State -> (Color, PIPE_State)
 #ifndef M_FRESH_COLOR
 fresh_color p = (C $ p_nextcolor p, p {p_nextcolor = p_nextcolor p + 1})
 #else
-fresh_color p = (C 0, p)
+fresh_color p = (C 5, p)
 #endif
 
 -- Should be done with lenses...

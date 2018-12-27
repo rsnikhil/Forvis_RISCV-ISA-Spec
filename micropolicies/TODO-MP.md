@@ -1,12 +1,14 @@
 TODAY
 
-Falling off the end of memory is not a very interesting behavior -- generate it less often or maybe explicitly look for it and halt execution
+Try to write an explicit test that exposes the second mutant
+Try the other mutants
 
-Try to write an explicit test that exercises the second mutant
+Falling off the end of memory is not a very interesting behavior -- generate it less often or maybe explicitly look for it and halt execution
 
 there are too mamy magic constants saying how many instructions to generate / execute!
 
-are we generating too many "interesting" immediate fields?
+are we generating too many "interesting" immediate fields?  (How would we
+tell?)
 
 ___________________________________________________________
 BEFORE JANUARY PI MEETING
