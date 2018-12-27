@@ -182,11 +182,9 @@ calcDiff (p1,m1) (p2,m2) =
                 ([],[((i,_),(_,l))]) ->
                   (i,,l) <$> Data_Map.lookup i dm2
                 _ -> error "More than one diff in memory file"
-                -- BCP: We should not fail here: We _do_ sometimes
-                -- change two different memory locations in the two
-                -- different runs
        }
 
+-- BCP: Why is it Integer in one place and GPR_Addr in another??
 instance CoupledPP (Maybe (Integer, Integer, Tag)) (Maybe (GPR_Addr, Integer, Tag)) where
   pretty (Just (i,d,l)) (Just (i', d', l'))
     | i == i', d == d', l == l' =
@@ -201,13 +199,15 @@ instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
     | otherwise = pp i1 <||> pp i2
   pretty Nothing Nothing = P.text "<Bad instr>"
 
+-- BCP: This is the main thing I don't understand: We are printing
+-- diffs between diffs???  What does that mean?
 instance CoupledPP Diff Diff where
   pretty d1 d2 =
     P.vcat [ P.hcat [ pad 5 (pretty (d_pc d1) (d_pc d2))
                     , P.text " "
                     , pad 25 (pretty (d_instr d1) (d_instr d2))
                     , P.text "     "
-                    , pretty (d_reg d1) (d_reg d2)
+                    , pretty (d_reg d1) (d_reg d2) 
                     , pretty (d_mem d1) (d_mem d2)
            ] ]
 

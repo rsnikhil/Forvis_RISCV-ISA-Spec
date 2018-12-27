@@ -61,6 +61,15 @@ print_pipe :: PIPE_State -> IO ()
 print_pipe ps =
   putStrLn $ P.render $ pp ps
 
+-- BCP: I'm confused by the printing stuff: Is this used for printing
+-- things with their tags, or is it used for printing differences
+-- between pairs of things??  Or both?  I guess both.  If so, then it
+-- leads to code that is pretty hard to read!  My proposal would be to
+-- have two different typeclasses, one with a "weave" method that
+-- weaves together machine-stuff and pipe-stuff for printing and
+-- another with a twoAtOnce method for printing two things that should
+-- be mostly the same.
+
 class CoupledPP a b | a -> b where
   pretty :: a -> b -> Doc
 

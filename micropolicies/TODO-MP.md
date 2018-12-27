@@ -10,6 +10,9 @@ Printing
 - use the "pad" function to improve / squash memory printing
 - when printing traces, show the tag of each instruction that gets executed
 - fix the "r1000 <-" thing
+- Double-check that trace printing is really working: E.g., what will
+  happen if the two traces are running completely different
+  programs?  (This should be allowed, at least by the printing stuff!)
 
 Can we suppress the warning when compiling Shrinking.hs?
 
