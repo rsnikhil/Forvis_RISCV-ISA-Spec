@@ -65,13 +65,13 @@ class CoupledPP a b | a -> b where
   pretty :: a -> b -> Doc
 
 instance CoupledPP Integer Tag where
-  pretty d t = pp d P.<> (let ppt = pp t in if ppt == P.empty then P.empty else P.char '@' P.<> ppt)
+  pretty d t = pp d P.<> (let ppt = pp t in if P.isEmpty ppt then P.empty else P.char '@' P.<> ppt)
 
 -- Helpers
 x <|> y = x P.<> P.text "\t|\t" P.<> y
 x <:> y = x P.<> P.text ": " P.<> y
-x <@> y = x P.<> (if y == P.empty then P.empty else P.char '@' P.<> y)
-x <@@> y = x P.<> (if y == P.empty then P.empty else P.text " @" P.<> y)
+x <@> y = x P.<> (if P.isEmpty y then P.empty else P.char '@' P.<> y)
+x <@@> y = x P.<> (if P.isEmpty y then P.empty else P.text " @" P.<> y)
 x <||> y = x P.<> P.text " || " P.<> y
 
 pad :: Int -> Doc -> Doc

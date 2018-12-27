@@ -1,7 +1,5 @@
 TODAY
 
-Try the other mutants
-
 Printing
 - can we remove the @ when what's after it is blank?  (Done, I think)
 - Don't print mem/reg diffs if they're empty (Done, I think)

@@ -79,9 +79,9 @@ shrinkMems reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
               [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag l1 ]
             | otherwise -> error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
           -- TODO: Shrink data cells
-          (Nothing, Nothing) ->
-            [ ]
-{-
+          (_, _) ->
+            [ ] -- For now
+{-  TODO: Seems to not always work...
             case (l1, l2) of
               (MTagM v1 loc1, MTagM v2 loc2)
                 -- Both reachable, everything should be identical
@@ -102,8 +102,8 @@ shrinkMems reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
                   -- TODO: Shrink labels?
                 | otherwise -> error "Not simultaneously reachable or unreachable?"
               otherwise -> error "Not MTagM's in data memory?"
--}
           _ -> error "Invalid memory locs"
+-}
 
       shrinkMemAux :: [ IndexedTagedInt ] -> [ IndexedTagedInt] -> [ ([IndexedTagedInt], [IndexedTagedInt]) ]
       shrinkMemAux [] [] = []
