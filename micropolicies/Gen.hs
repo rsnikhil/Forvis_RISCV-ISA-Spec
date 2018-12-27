@@ -78,32 +78,24 @@ exampleMachines =
       p_rej = init_pipe_state { p_mem = p_mrej }
   in ((ms_acc,p_acc), (ms_rej,p_rej))
 
-{-
-bug_fresh_color =
+bug_mangled_store_color =
   let ms = initMachine
-      heap_base = 100
-      base_code =
-        [ (0*4, ((encode_I RV32 (ADDI 1 0 heap_base), Alloc)))
-        , (1*4, ((encode_I RV32 (ADD  1 1 0), NoAlloc)))    -- Useless
-        , (2*4, ((encode_I RV32 (SW   1 1 0), NoAlloc))) 
-        , (3*4, ((encode_I RV32 (ADDI 4 0 heap_base), NoAlloc)))
-        , (4*4, ((encode_I RV32 (ADDI 5 0 heap_base), NoAlloc)))
+      heap_base = 4
+      code = map (second $ second MTagI)
+        [ (0, (encode_I RV32 (JAL 0 1000), NoAlloc))
+        , (1000, ((encode_I RV32 (ADDI 1 0 heap_base), NoAlloc)))
+        , (1004, ((encode_I RV32 (LW 1 1 0), NoAlloc)))
+        , (1008, ((encode_I RV32 (SW 1 1 0), NoAlloc))) 
         ]
-      accept_code =
-        [ (5*4, ((encode_I RV32 (LW 2 1 0)), NoAlloc)) ]
-      reject_code =
-        [ (5*4, ((encode_I RV32 (ADDI 2 0 heap_base)), NoAlloc))
-        , (6*4, ((encode_I RV32 (LW 3 2 0)), NoAlloc)) ]
-      mem_acc = (f_mem ms) { f_dm = Data_Map.fromList (map (second fst) (base_code ++ accept_code)) }
-      mem_rej = (f_mem ms) { f_dm = Data_Map.fromList (map (second fst) (base_code ++ reject_code)) }
-      p_macc = MemT $ Data_Map.fromList (map (second $ MTagI . snd) (base_code ++ accept_code)) 
-      p_mrej = MemT $ Data_Map.fromList (map (second $ MTagI . snd) (base_code ++ reject_code)) 
-      ms_acc = ms { f_mem = mem_acc }
-      ms_rej = ms { f_mem = mem_rej }
-      p_acc = init_pipe_state { p_mem = p_macc }
-      p_rej = init_pipe_state { p_mem = p_mrej }
-  in ((ms_acc,p_acc), (ms_rej,p_rej))
--}
+      heap  =
+        [ (4, (42, MTagM (C 2) (C 0))) ]
+      heap' =
+        [ (4, (17, MTagM (C 2) (C 0))) ]
+      m  = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap ) }}
+      m' = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap') }}
+      p = init_pipe_state { p_mem = MemT $ Data_Map.fromList (map (second snd) (code ++ heap)) }
+  in M (m,p) (m',p)
+
   
 --- Generate input program + tags
 -- Tags in call/ret f1-2-3-4-5

@@ -84,7 +84,7 @@ main5 = do
       ss = zip (reverse ss1') (reverse ss2') 
   uncurry printTrace (unzip ss)
   
-main = do
+mainHeap = do
   quickCheckWith stdArgs{maxSuccess=10000} testHeapSafety
 
 main3 = do
@@ -102,6 +102,10 @@ main3 = do
   putStrLn (show res)
   print_coupled ms' ps'
 
+main_mangled =
+  quickCheck $ prop_noninterference bug_mangled_store_color
+
+main = main_mangled  
 -- main = testHeapSafety
   
   -- let (ms_acc, ms_rej) = exampleMachines
