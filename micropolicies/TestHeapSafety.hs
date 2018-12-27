@@ -131,6 +131,7 @@ prettyDiffs :: [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] ->
 prettyDiffs ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
   pretty (calcDiff (p11,m11) (p12,m12))
          (calcDiff (p21,m21) (p22,m22))
+  $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
   $$ prettyDiffs ((p12,m12):tr1) ((p22,m22):tr2)
 prettyDiffs _ _ = P.text ""  
 
@@ -181,7 +182,9 @@ calcDiff (p1,m1) (p2,m2) =
                 ([],[((i,_),(_,l))]) ->
                   (i,,l) <$> Data_Map.lookup i dm2
                 _ -> error "More than one diff in memory file"
-
+                -- BCP: We should not fail here: We _do_ sometimes
+                -- change two different memory locations in the two
+                -- different runs
        }
 
 instance CoupledPP (Maybe (Integer, Integer, Tag)) (Maybe (GPR_Addr, Integer, Tag)) where

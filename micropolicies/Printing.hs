@@ -117,6 +117,7 @@ pr_mem m =
   in P.vcat $ map (\(i, d) -> P.integer i <:> P.integer d) decoded
 
 -- TODO: Align better, tabs don't work well
+-- BCP: Use pad combinator above
 -- BCP: Maybe just put all (the nontrivial ones) on one line?
 instance CoupledPP GPR_File GPR_FileT where
   pretty (GPR_File m) (GPR_FileT mt) =
