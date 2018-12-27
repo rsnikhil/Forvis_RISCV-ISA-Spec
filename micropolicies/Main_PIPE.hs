@@ -74,14 +74,16 @@ main4 = do
   putStrLn $ showTrace (reverse tr)
   putStrLn (show res)
   putStrLn $ "Instructions executed: " ++ show (mstate_csr_read ms' csr_addr_minstret)
-  
+
 main = do
+  M (m1,p1) (m2,p2) <- head <$> sample' (genMachine >>= varyUnreachable)
+  let (r1,ss1') = run_loop 10 p1 m1
+      (r2,ss2') = run_loop 10 p2 m2
+      ss = zip (reverse ss1') (reverse ss2') 
+  uncurry printTrace (unzip ss)
+  
+main5 = do
   quickCheckWith stdArgs{maxSuccess=1000} testHeapSafety
---  (ms,ps) <- head <$> sample' genMachine
---  let (res, (ps', ms') : _ ) = run_loop 5 ps ms
---  putStrLn (show res)
---  print_coupled ms ps
---  print_coupled ms' ps'
 
 main3 = do
   let ((ms_acc,p_acc),(ms_rej,p_rej)) = exampleMachines

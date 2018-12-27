@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances, TupleSections, MultiParamTypeClasses #-}
 module TestHeapSafety where
 
 import qualified Data.Map.Strict as Data_Map
@@ -117,6 +118,95 @@ instance PP MStatePair where
 
 print_mstatepair :: MStatePair -> IO ()
 print_mstatepair m = putStrLn $ P.render $ pp m
+
+printTrace tr1 tr2 = putStrLn $ P.render $ prettyTrace tr1 tr2
+
+prettyTrace :: [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
+prettyTrace [] [] = P.text ""
+prettyTrace [(p1,m1)] [(p2,m2)] = pp (M (m1,p1) (m2,p2))
+prettyTrace (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
+    pp (M (m1,p1) (m2,p2)) $$ prettyDiffs tr1 tr2
+
+prettyDiffs :: [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
+prettyDiffs ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
+  pretty (calcDiff (p11,m11) (p12,m12))
+         (calcDiff (p21,m21) (p22,m22))
+  $$ P.text "------------------------"
+  $$ prettyDiffs ((p12,m12):tr1) ((p22,m22):tr2)
+prettyDiffs _ _ = P.text ""  
+
+data Diff = Diff { d_pc :: (Integer, Tag)
+                 , d_instr :: Maybe Instr_I
+                 , d_reg :: Maybe (GPR_Addr, Integer, Tag)
+                 , d_mem :: Maybe (Integer, Integer, Tag)
+                 }
+
+calcDiff :: (PIPE_State, Machine_State) -> (PIPE_State, Machine_State) -> Diff
+calcDiff (p1,m1) (p2,m2) =
+  Diff { d_pc = (f_pc m1, p_pc p1)
+       , d_instr =
+           case fst $ instr_fetch m1 of
+             Fetch u32 -> decode_I RV32 u32
+             _ -> error "Not fetch in calcDiff"
+       , d_reg =
+           let GPR_File r1 = f_gprs m1
+               GPR_File r2 = f_gprs m2
+               GPR_FileT t1 = p_gprs p1
+               GPR_FileT t2 = p_gprs p2
+               reg_diff =
+                 filter (\((i1,d1),(i2,d2)) -> d1 /= d2) (zip (Data_Map.assocs r1) (Data_Map.assocs r2))
+               tag_diff =
+                 filter (\((i1,l1),(i2,l2)) -> l1 /= l2) (zip (Data_Map.assocs t1) (Data_Map.assocs t2))
+           in case (reg_diff, tag_diff) of
+                ([], []) -> Nothing
+                ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
+                ([((i,_),(_,d))],[]) ->
+                  (i,d,) <$> Data_Map.lookup i t2
+                ([],[((i,_),(_,l))]) ->
+                  (i,,l) <$> Data_Map.lookup i r2
+                _ -> error "More than one diff in register file"
+       , d_mem =
+           let Mem dm1 _ = f_mem m1
+               Mem dm2 _ = f_mem m2
+               MemT pm1 = p_mem p1
+               MemT pm2 = p_mem p2
+               data_diff =
+                 filter (\((i1,d1),(i2,d2)) -> d1 /= d2) (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
+               tag_diff =
+                 filter (\((i1,l1),(i2,l2)) -> l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
+           in case (data_diff, tag_diff) of
+                ([], []) -> Nothing
+                ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
+                ([((i,_),(_,d))],[]) ->
+                  (i,d,) <$> Data_Map.lookup i pm2
+                ([],[((i,_),(_,l))]) ->
+                  (i,,l) <$> Data_Map.lookup i dm2
+                _ -> error "More than one diff in memory file"
+
+       }
+
+instance CoupledPP (Maybe (Integer, Integer, Tag)) (Maybe (GPR_Addr, Integer, Tag)) where
+  pretty (Just (i,d,l)) (Just (i', d', l'))
+    | i == i', d == d', l == l' =
+        P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l
+    | otherwise =
+      P.text "<Discrepancy!>" <+> P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||> P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
+  pretty Nothing Nothing = P.text ""
+
+instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
+  pretty (Just i1) (Just i2)
+    | i1 == i2  = pp i1
+    | otherwise = 
+        P.text "<Discrepancy!>" <+> pp i1 <||> pp i2
+  pretty Nothing Nothing = P.text "<Not an instruction>"
+
+instance CoupledPP Diff Diff where
+  pretty d1 d2 =
+    P.vcat [ P.text "PC:" <+> pretty (d_pc d1) (d_pc d2)
+           , P.text "I:"  <+> pretty (d_instr d1) (d_instr d2)
+           , P.text "Reg Diff:" <+> pretty (d_reg d1) (d_reg d2)
+           , P.text "Mem Diff:" <+> pretty (d_mem d1) (d_mem d2)
+           ]
 
 prop_noninterference :: MStatePair -> Property
 prop_noninterference (M (m1,p1) (m2,p2)) =
