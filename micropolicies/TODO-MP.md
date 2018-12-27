@@ -1,7 +1,11 @@
 TODAY
 
-Try to write an explicit test that exposes the second mutant
+Try to write an explicit test that exposes the second mutant (to make sure
+it really is one!!)
+
 Try the other mutants
+
+can we remove the @ when what's after it is blank?
 
 Falling off the end of memory is not a very interesting behavior -- generate it less often or maybe explicitly look for it and halt execution
 
