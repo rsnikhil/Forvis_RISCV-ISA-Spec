@@ -11,6 +11,7 @@ all:
 	../forvis_exe
 
 mutant:
+	@echo "[37;41m--------- $(MUT) -----------c"
 	mkdir -p  $(TMP_DIR)
 	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2 -fno-ignore-asserts -i$(SRC_DIR)  \
 	   -outputdir  $(TMP_DIR)  -rtsopts -cpp -D$(MUT) \
@@ -23,7 +24,7 @@ temp:
 
 mutants:
 	make mutant MUT=M_WRONG_STORE
-	make mutant MUT=M_MANGLED_STORE
+#	make mutant MUT=M_MANGLED_STORE
 	make mutant MUT=M_WRONG_ADD
 	make mutant MUT=M_WRONG_ADDI
 	make mutant MUT=M_FRESH_COLOR
