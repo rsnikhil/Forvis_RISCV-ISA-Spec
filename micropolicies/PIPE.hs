@@ -107,9 +107,8 @@ get_mtag p a = maybe (MTagM dfltcolor dfltcolor) id $ Data_Map.lookup a (unMemT 
 
 set_mtag :: PIPE_State -> Integer -> Tag -> PIPE_State
 set_mtag p a t =
-  -- TODO: This assertion may not be quite correct -- it assumes all
+  -- TODO: This assertion is not quite correct -- it assumes all
   -- stores are full-word stores
---  assert False $ -- Why doesn't this fail??
   assert (is_STORE_aligned funct3_SW a) $
   p { p_mem = MemT (Data_Map.insert a t (unMemT $ p_mem p)) }
 
