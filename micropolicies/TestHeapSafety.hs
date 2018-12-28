@@ -28,7 +28,6 @@ import Data.Bits
 import Text.PrettyPrint (Doc, (<+>), ($$))
 import qualified Text.PrettyPrint as P
 
-
 import Printing
 import PIPE
 import Run_Program_PIPE
@@ -131,9 +130,14 @@ prettyTrace (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
 
 prettyDiffs :: [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
 prettyDiffs ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
-  pretty (calcDiff (p11,m11) (p12,m12))
-         (calcDiff (p21,m21) (p22,m22))
--- $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
+     P.text "--------------------------------------------------------------------------"
+  $$ P.nest 10 (P.text "Raw Machine 1 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m12)))
+  $$ P.nest 10 (P.text "Raw Machine 1 tags:" $$ P.nest 3 (P.text (show $ p_mem p12)))
+  $$ P.nest 10 (P.text "Raw Machine 2 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m22)))
+  $$ P.nest 10 (P.text "Raw Machine 2 tags:" $$ P.nest 3 (P.text (show $ p_mem p22)))
+  $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
+  $$ pretty (calcDiff (p11,m11) (p12,m12))
+            (calcDiff (p21,m21) (p22,m22))
   $$ prettyDiffs ((p12,m12):tr1) ((p22,m22):tr2)
 prettyDiffs [(p1,m1)] [(p2,m2)] =
   P.text "------------------------------" $$

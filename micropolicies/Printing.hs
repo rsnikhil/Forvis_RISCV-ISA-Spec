@@ -23,7 +23,9 @@ import Text.PrettyPrint (Doc, (<+>), ($$))
 import qualified Text.PrettyPrint as P
 
 import Control.Arrow (second)
-import Data.List.Split(chunksOf)
+import Data.List.Split (chunksOf)
+
+import Control.Exception.Base (assert)
 
 class PP a where
   pp :: a -> Doc
@@ -75,13 +77,16 @@ class CoupledPP a b | a -> b where
   pretty :: a -> b -> Doc
 
 instance CoupledPP Integer Tag where
-  pretty d t = pp d P.<> (let ppt = pp t in if P.isEmpty ppt then P.empty else P.char '@' P.<> ppt)
+  pretty d t = 
+    pp d P.<> 
+    (let ppt = pp t in if show ppt == "" then P.empty else P.char '@' P.<> ppt)
 
 -- Helpers
 x <|> y = x P.<> P.text "\t|\t" P.<> y
 x <:> y = x P.<> P.text ": " P.<> y
-x <@> y = x P.<> (if P.isEmpty y then P.empty else P.char '@' P.<> y)
-x <@@> y = x P.<> (if P.isEmpty y then P.empty else P.text " @" P.<> y)
+-- x <@> y = x P.<> (if P.isEmpty y then P.empty else P.char '@' P.<> y)
+x <@> y = x P.<> (if show y == "" then P.empty else P.char '@' P.<> y)
+x <@@> y = x P.<> (if show y == "" then P.empty else P.text " @" P.<> y)
 x <||> y = x P.<> P.text " || " P.<> y
 
 pad :: Int -> Doc -> Doc
@@ -153,7 +158,7 @@ instance CoupledPP Machine_State PIPE_State where
   pretty ms ps =
     P.vcat [ P.text "PC:" <+> pretty (f_pc ms) (p_pc ps)
            , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs ms) (p_gprs ps))
-           , P.text "Memories:" $$ pretty (f_mem ms) (p_mem ps)
+           , P.text "Memory:" $$ P.nest 2 (pretty (f_mem ms) (p_mem ps))
            ]
 
 instance CoupledPP (Integer, Tag) (Integer, Tag) where
@@ -174,7 +179,7 @@ instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
                 if d1 == d2 && t1 == t2 then 
                   P.integer i <+> P.char ':' <+> pretty d1 t1
                 else
-                  P.integer i <+> P.text "<Discrepancy!>" <+> pretty d1 t1 <||> pretty d2 t2
+                  P.integer i <+> pretty d1 t1 <||> pretty d2 t2
                    )
              $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
                    (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
@@ -184,22 +189,29 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
     let c1 = zip (Data_Map.assocs $ m1) (Data_Map.assocs p1)
         c2 = zip (Data_Map.assocs $ m2) (Data_Map.assocs p2)
 
+        -- BCP: Again, having magic numbers (like 1000) in the code is
+        -- pretty error-prone.  Even for throwaway code, there is a
+        -- pretty high chance of wasting time hunting for bugs.
+        -- Especially when the cost of defining a named constant is so
+        -- close to zero...
         pr_loc ((i,d),(j,t)) =
+          assert (i == j) $
           case decode_I RV32 d of
             Just instr
-              | i == 0 || i >= 1000 -> P.integer i <:> pp instr <@> pp t
-              | otherwise -> P.integer i <:> P.integer d <@> pp t
-            Nothing -> P.integer i <:> P.integer d <@> pp t
-          
+              | i == 0 || i >= 1000 -> P.integer i <:> pp instr <@@> pp t
+              | otherwise -> P.integer i <:> P.integer d <@@> pp t
+            Nothing -> P.integer i <:> P.integer d <@@> pp t
 
         pr_aux acc [] [] = reverse acc
         pr_aux acc [] (loc:locs) = pr_aux ((P.text "R:" <+> pr_loc loc) : acc) [] locs
         pr_aux acc (loc:locs) [] = pr_aux ((P.text "L:" <+> pr_loc loc) : acc) locs []
-        pr_aux acc (((i1,d1),(_,t1)):loc1) (((i2,d2),(_,t2)):loc2)
+        pr_aux acc (((i1,d1),(j1,t1)):loc1) (((i2,d2),(j2,t2)):loc2)
+          | i1 /= j1 = error "misaligned data and tag memories"
+          | i2 /= j2 = error "misaligned data and tag memories"
           | i1 == i2 && d1 == d2 && t1 == t2 =
             pr_aux (pr_loc ((i1,d1),(i1,t1)) : acc) loc1 loc2
           | i1 == i2 =
-            pr_aux ((P.text "<Discrepancy!>" <+> pr_loc ((i1,d1),(i2,t1)) <||> pr_loc ((i2,d2),(i2,t2)) : acc)) loc1 loc2
+            pr_aux ((pr_loc ((i1,d1),(i2,t1)) <||> pr_loc ((i2,d2),(i2,t2)) : acc)) loc1 loc2
           | i1 < i2 =
             pr_aux (P.text "L:" <+> pr_loc ((i1,d1),(i1,t1)) : acc) loc1 (((i2,d2),(i2,t2)):loc2)
           | i1 > i2 = 
@@ -211,7 +223,7 @@ instance CoupledPP (Set Color) (Set Color) where
   pretty s1 s2 =
     if s1 == s2 then foldl1 (<+>) (map pp $ Data_Set.elems s1)
     else
-      P.text "<Discrepancy!>" <+> foldl1 (<+>) (map pp $ Data_Set.elems s1) <||> foldl1 (<+>) (map pp $ Data_Set.elems s2)
+      foldl1 (<+>) (map pp $ Data_Set.elems s1) <||> foldl1 (<+>) (map pp $ Data_Set.elems s2)
   
 
 print_coupled :: Machine_State -> PIPE_State -> IO ()

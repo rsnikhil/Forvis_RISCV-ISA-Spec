@@ -7,6 +7,9 @@ import Data.Set (Set)
 
 import Bit_Utils
 import Arch_Defs
+import Mem_Ops
+
+import Control.Exception (assert)
 
 -- Maybe?
 import Machine_State
@@ -92,7 +95,7 @@ fresh_color p = (C $ p_nextcolor p, p {p_nextcolor = p_nextcolor p + 1})
 fresh_color p = (C 1, p)
 #endif
 
--- Should be done with lenses...
+-- Should be done with lenses...  (BCP: But not clear the alignment check can be...)
 get_rtag :: PIPE_State -> GPR_Addr -> Tag
 get_rtag p = gpr_readT (p_gprs p)
 
@@ -103,7 +106,12 @@ get_mtag :: PIPE_State -> Integer -> Tag
 get_mtag p a = maybe (MTagM dfltcolor dfltcolor) id $ Data_Map.lookup a (unMemT $ p_mem p) 
 
 set_mtag :: PIPE_State -> Integer -> Tag -> PIPE_State
-set_mtag p a t = p { p_mem = MemT (Data_Map.insert a t (unMemT $ p_mem p)) }
+set_mtag p a t =
+  -- TODO: This assertion may not be quite correct -- it assumes all
+  -- stores are full-word stores
+  assert False $ -- Why doesn't this fail??
+  assert (is_STORE_aligned funct3_SW a) $
+  p { p_mem = MemT (Data_Map.insert a t (unMemT $ p_mem p)) }
 
 ---------------------------------
 
