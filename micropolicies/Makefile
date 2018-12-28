@@ -4,7 +4,7 @@ TMP_DIR  = ../tmp_haskell
 
 all:
 	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  \
+	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2 -fno-ignore-asserts -i$(SRC_DIR)  \
 	   -outputdir  $(TMP_DIR)  -rtsopts -cpp \
 	   Main_PIPE 
 # temporary
@@ -12,7 +12,7 @@ all:
 
 mutant:
 	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  \
+	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2 -fno-ignore-asserts -i$(SRC_DIR)  \
 	   -outputdir  $(TMP_DIR)  -rtsopts -cpp -D$(MUT) \
 	   Main_PIPE 
 # temporary
