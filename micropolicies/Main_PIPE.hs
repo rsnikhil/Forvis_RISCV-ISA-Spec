@@ -85,7 +85,7 @@ main5 = do
   uncurry printTrace (unzip ss)
   
 mainHeap = do
-  quickCheckWith stdArgs{maxSuccess=10000} testHeapSafety
+  quickCheckWith stdArgs{maxSuccess=1000000} testHeapSafety
 
 main3 = do
   let ((ms_acc,p_acc),(ms_rej,p_rej)) = exampleMachines
@@ -106,8 +106,8 @@ main_mangled =
   quickCheck $ prop_noninterference bug_mangled_store_color
 
 -- main = main_mangled  
--- main = mainHeap
-main = main5
+main = mainHeap
+-- main = main5
   
 {-
   -- let (ms_acc, ms_rej) = exampleMachines

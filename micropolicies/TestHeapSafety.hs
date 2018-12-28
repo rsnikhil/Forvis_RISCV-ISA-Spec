@@ -17,6 +17,7 @@ import GPR_File
 import Memory
 
 import Control.Exception.Base (assert)
+import Debug.Trace
 
 -- This might belong elsewhere
 import Test.QuickCheck
@@ -205,15 +206,14 @@ calcDiff (p1,m1) (p2,m2) =
                 _ -> error $ "More than one diff in memory file:" ++
                              " data = " ++ show data_diff ++ 
                              " and tags = " ++ show tag_diff 
-
        }
 
--- BCP: Why is it Integer in one place and GPR_Addr in another??
 prettyRegDiff (Just (i,d,l)) (Just (i', d', l')) 
     | i == i', d == d', l == l' =
         P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l
     | otherwise =
-      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||> P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
+      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||> 
+      P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
 prettyRegDiff Nothing Nothing = P.text ""
 
 prettyMemDiff (Just (i,d,l)) (Just (i', d', l')) 
