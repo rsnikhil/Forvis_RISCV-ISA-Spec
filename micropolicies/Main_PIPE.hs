@@ -105,11 +105,9 @@ main3 = do
 main_mangled =
   quickCheck $ prop_noninterference bug_mangled_store_color
 
-main = main_mangled  
---main = mainHeap
+--main = main_mangled  
+main = mainHeap
   
-
-
 {-
   -- let (ms_acc, ms_rej) = exampleMachines
 
