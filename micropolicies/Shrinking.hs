@@ -18,6 +18,7 @@ import Machine_State
 
 import Control.Arrow (second, (***))
 import Test.QuickCheck
+import Gen
 import TestHeapSafety
 
 -- Tag shrinking basically amounts to shrinking the colors
@@ -60,6 +61,8 @@ type IndexedTagedInt = ((Integer,Integer),(Integer, Tag))
 -- Have to perform the same thing to both memories at once
 -- We also need the set of reachable things for data memories
 -- INV: Original memories contain identical indices
+-- INV: dataMemLow <= valid mem addresses <= dataMemHigh
+-- INV: instr addresses 0 \/ >= 1000
 shrinkMems :: Set Color -> (Mem, MemT) -> (Mem, MemT) -> [((Mem, MemT), (Mem,MemT))]
 shrinkMems reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
   let m1' = Data_Map.assocs m1
@@ -68,20 +71,10 @@ shrinkMems reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
       t2' = Data_Map.assocs t2
 
       shrinkMemLoc :: (Integer, Integer, Tag) -> (Integer, Integer, Tag) -> [ (IndexedTagedInt, IndexedTagedInt) ]
-      shrinkMemLoc (j,d1,l1) (_,d2,l2) =
-        case (decode_I RV32 d1, decode_I RV32 d2) of
-          -- Both (identical) instructions
-          (Just i1, Just i2)
-            | i1 == i2 && l1 == l2 ->
-              -- Shrink instruction
-              [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- encode_I RV32 <$> shrinkInstr i1] ++
-              -- Or shrink tag (alloc)
-              [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag l1 ]
-            | otherwise -> error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
-          -- TODO: Shrink data cells
-          (_, _) ->
-            [ ] -- For now
-{-  TODO: Seems to not always work...
+      shrinkMemLoc (j1,d1,l1) (j2,d2,l2)
+        -- Data Memory Location Shrink
+        | j1 == j2 && dataMemLow <= j1 && j1 <= dataMemHigh =
+            let j = j1 in 
             case (l1, l2) of
               (MTagM v1 loc1, MTagM v2 loc2)
                 -- Both reachable, everything should be identical
@@ -91,7 +84,7 @@ shrinkMems reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
                   [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- shrink d1 ]
                   ++ 
                   -- TODO: Or shrink tag 
-                  []
+                  [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag l1 ]
                 -- Both unreachable, shrink independently
                 | not (Data_Set.member loc1 reachable) && not (Data_Set.member loc2 reachable) ->
                   -- Shrink data of one
@@ -99,11 +92,32 @@ shrinkMems reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
                   ++
                   -- Shrink data of second
                   [ (((j, d1), (j, l1)), ((j, d2'),(j, l2))) | d2' <- shrink d2 ]
-                  -- TODO: Shrink labels?
-                | otherwise -> error "Not simultaneously reachable or unreachable?"
-              otherwise -> error "Not MTagM's in data memory?"
-          _ -> error "Invalid memory locs"
--}
+                  ++
+                  -- If we shrink the labels, then the data must be identical
+                  [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag l1 ]
+                | otherwise -> [] --error "Not simultaneously reachable or unreachable?"
+              _ -> [] --error "Not MTagM's in data memory?"
+        -- Instruction Location Shrink
+        | j1 == j2 && j1 >= instrLow =
+          let j = j1 in
+          case (decode_I RV32 d1, decode_I RV32 d2) of
+            -- Both (identical) instructions
+            (Just i1, Just i2)
+              | i1 == i2 && l1 == l2 ->
+                -- Shrink instruction
+                [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- encode_I RV32 <$> shrinkInstr i1] ++
+                -- Or shrink tag (alloc)
+                [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag l1 ]
+              | otherwise ->
+                -- LEO: Should these raise warnings?
+                [] -- error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
+            -- TODO: Shrink data cells
+            _ -> []
+        -- Never shrink the JAL instruction
+        | j1 == j2 && j1 == 0 = []
+        | otherwise =
+          -- WARN?
+          error $ "Here " ++ show  (j1, d1, l1, j2, d2, l2)
 
       shrinkMemAux :: [ IndexedTagedInt ] -> [ IndexedTagedInt] -> [ ([IndexedTagedInt], [IndexedTagedInt]) ]
       shrinkMemAux [] [] = []
@@ -115,7 +129,7 @@ shrinkMems reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
         [ ( ((j1,d1),(j1,l1)) : more1', ((j2,d2),(j2,l2)) : more2' )
         | (more1', more2') <- shrinkMemAux more1 more2 ]
 
-      indexTagedIntsToMem :: _ -> [IndexedTagedInt] -> (Mem, MemT)
+      indexTagedIntsToMem :: Maybe (Integer, Integer) -> [IndexedTagedInt] -> (Mem, MemT)
       indexTagedIntsToMem i itis = ((flip Mem i) . Data_Map.fromList) *** (MemT . Data_Map.fromList) $ unzip itis
         
   in map (indexTagedIntsToMem i1 *** indexTagedIntsToMem i2) $ shrinkMemAux (zip m1' t1') (zip m2' t2')

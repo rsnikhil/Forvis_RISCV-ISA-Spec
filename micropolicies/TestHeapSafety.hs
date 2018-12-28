@@ -197,13 +197,21 @@ calcDiff (p1,m1) (p2,m2) =
        }
 
 -- BCP: Why is it Integer in one place and GPR_Addr in another??
-instance CoupledPP (Maybe (Integer, Integer, Tag)) (Maybe (GPR_Addr, Integer, Tag)) where
-  pretty (Just (i,d,l)) (Just (i', d', l'))
+prettyRegDiff (Just (i,d,l)) (Just (i', d', l')) 
     | i == i', d == d', l == l' =
         P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l
     | otherwise =
       P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||> P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
-  pretty Nothing Nothing = P.text ""
+prettyRegDiff Nothing Nothing = P.text ""
+
+prettyMemDiff (Just (i,d,l)) (Just (i', d', l')) 
+    | i == i', d == d', l == l' =
+        P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty d l
+    | otherwise =
+      P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty d l
+      <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty d' l'
+prettyMemDiff Nothing Nothing = P.text ""
+
 
 instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
   pretty (Just i1) (Just i2)
@@ -217,8 +225,8 @@ instance CoupledPP Diff Diff where
            , P.text " "
            , pad 25 (pretty (d_instr d1) (d_instr d2))
            , P.text "     "
-           , pretty (d_reg d1) (d_reg d2) 
-           , pretty (d_mem d1) (d_mem d2)
+           , prettyRegDiff (d_reg d1) (d_reg d2) 
+           , prettyMemDiff (d_mem d1) (d_mem d2)
            ] 
 
 prop_noninterference :: MStatePair -> Property

@@ -84,8 +84,8 @@ bug_mangled_store_color =
       code = map (second $ second MTagI)
         [ (0, (encode_I RV32 (JAL 0 1000), NoAlloc))
         , (1000, ((encode_I RV32 (ADDI 1 0 heap_base), NoAlloc)))
-        , (1004, ((encode_I RV32 (LW 1 1 0), NoAlloc)))
-        , (1008, ((encode_I RV32 (SW 1 1 0), NoAlloc))) 
+        , (1004, ((encode_I RV32 (LW 2 1 0), NoAlloc)))
+        , (1008, ((encode_I RV32 (SW 1 2 0), NoAlloc))) 
         ]
       heap  =
         [ (4, (1, MTagM (C 2) (C 0))) ]  -- 17
