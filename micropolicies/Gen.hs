@@ -96,7 +96,6 @@ bug_mangled_store_color =
       p = init_pipe_state { p_mem = MemT $ Data_Map.fromList (map (second snd) (code ++ heap)) }
   in M (m,p) (m',p)
 
-  
 --- Generate input program + tags
 -- Tags in call/ret f1-2-3-4-5
 -- Memory colors in movs
@@ -104,26 +103,29 @@ bug_mangled_store_color =
 
 -- Invariants: r0 is always zero
 
+-- GPR's are hard coded to be [0..31], but we only use a couple of them
+maxReg = 4
+
 -- Generate a random register for source
 -- TODO: add types?
 genSourceReg :: Machine_State -> Gen GPR_Addr
 genSourceReg ms =
-  -- GPR's are hard coded to be [0..31].
-  choose (0, 31)
+  choose (0, maxReg)
 
 -- Generate a target register GPR
 -- For now, just avoid R0
 genTargetReg :: Machine_State -> Gen GPR_Addr
 genTargetReg ms =
-  choose (1, 31)
+  choose (1, maxReg)
 
 -- Generate an immediate up to number
 -- Multiple of 4
 genImm :: Integer -> Gen InstrField
-genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we never generate 0?
+-- genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we never generate 0?
+genImm n = (4*) <$> choose (0, n `div` 4)  
 
 dataMemLow  = 4
-dataMemHigh = 40
+dataMemHigh = 12  -- Was 40, but that seems like a lot!
 instrLow = 1000
 
 -- Generate an instruction that is valid in the current context
@@ -134,7 +136,8 @@ instrLow = 1000
 -- If not only using multiples of 4, add a modulus to data 
 groupRegisters :: GPR_File -> ([(GPR_Addr, Integer)], [(GPR_Addr, Integer)], [GPR_Addr])
 groupRegisters (GPR_File rs) =
-  let regs = Data_Map.assocs rs
+  let regs' = Data_Map.assocs rs
+      regs = take 4 regs'  -- Just use the first four registers!
       validData n
         | n >= dataMemLow && n <= dataMemHigh =
             Just (dataMemHigh - n)
@@ -155,9 +158,10 @@ genInstr ms =
                do -- ADDI
                   rs <- elements arithRegs
                   rd <- genTargetReg ms
-                  imm <- genImm 40
+                  imm <- genImm dataMemHigh
                   -- TODO: Figure out what to do with Malloc
-                  alloc <- frequency [(1, pure $ MTagI Alloc), (4, pure $ MTagI NoAlloc)]
+                  alloc <- frequency [(2, pure $ MTagI Alloc), 
+                                      (3, pure $ MTagI NoAlloc)]
                   return (ADDI rd rs imm, alloc))
             , (onNonEmpty dataRegs 3,
                do -- LOAD
