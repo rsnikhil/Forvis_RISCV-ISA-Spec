@@ -108,8 +108,6 @@ main_mangled =
 --main = main_mangled  
 main = mainHeap
   
-
-
 {-
   -- let (ms_acc, ms_rej) = exampleMachines
 

@@ -25,8 +25,6 @@ import qualified Text.PrettyPrint as P
 import Control.Arrow (second)
 import Data.List.Split (chunksOf)
 
-import Control.Exception.Base (assert)
-
 class PP a where
   pp :: a -> Doc
 
@@ -123,8 +121,6 @@ pr_imem m =
       decoded  = filter (isJust . snd) $ map (second $ decode_I RV32) contents
   in P.vcat $ map (\(i, Just instr) -> P.integer i <:> pp instr) decoded
 
--- IDEAS: only show non-trivial registers?
--- BCP: Yes, please!!
 pr_mem :: Mem -> Doc
 pr_mem m = 
   let contents = Data_Map.assocs $ f_dm m 
@@ -140,10 +136,16 @@ pad_int i p = let s = show p in
 -- BCP: Maybe just put all (the nontrivial ones) on one line?
 instance CoupledPP GPR_File GPR_FileT where
   pretty (GPR_File m) (GPR_FileT mt) =
-    P.vcat $ map (foldl1 (<|>))
-           $ chunksOf 4
-           $ map (\((i,d),(i', t)) -> pad_int 2 i <+> P.char ':' <+> pretty d t)
+    P.hcat $ map 
+               (\((i,d),(i', t)) -> 
+                   if d/=0 || t/=(MTagR (C 0))
+                     then P.integer i <:> pretty d t <> P.text "   "
+                     else P.empty)
            $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
+--    P.vcat $ map (foldl1 (<|>))
+--           $ chunksOf 4
+--           $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':' <+> pretty d t)
+--           $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
 
 instance CoupledPP Mem MemT where
   pretty (Mem m _) (MemT pm) =
@@ -168,21 +170,33 @@ instance CoupledPP (Integer, Tag) (Integer, Tag) where
     else
       pretty i1 t1 <||> pretty i2 t2
 
+-- BCP: Better to print the address just once.  And I think if one
+-- memory is defined and the other isn't we could just print
+--     42: 0@B || <UNDEF>
 instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
   pretty (GPR_File r1, GPR_FileT t1) (GPR_File r2, GPR_FileT t2) =
     if r1 == r2 && t1 == t2 then 
       pretty (GPR_File r1) (GPR_FileT t1)
     else
-      P.vcat $ map (foldl1 (<|>))
-             $ chunksOf 4
-             $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
+      P.hcat $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
                 if d1 == d2 && t1 == t2 then 
-                  P.integer i <+> P.char ':' <+> pretty d1 t1
+                  if d1 == 0 && t1 == MTagR (C 0)
+                    then P.empty
+                    else P.integer i <:> pretty d1 t1 <> P.text " i.e. " <> P.text (show t1) <> P.text "   "
                 else
-                  P.integer i <+> pretty d1 t1 <||> pretty d2 t2
-                   )
+                  P.integer i <:> pretty d1 t1 <||> pretty d2 t2 <> P.text "   " )
              $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
                    (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
+--      P.vcat $ map (foldl1 (<|>))
+--             $ chunksOf 4
+--             $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
+--                if d1 == d2 && t1 == t2 then 
+--                  P.integer i <:> pretty d1 t1
+--                else
+--                  P.integer i <:> pretty d1 t1 <||> pretty d2 t2
+--                   )
+--             $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
+--                   (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
     
 instance CoupledPP (Mem, MemT) (Mem, MemT) where
   pretty (Mem m1 _, MemT p1) (Mem m2 _, MemT p2) =
@@ -195,12 +209,12 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
         -- Especially when the cost of defining a named constant is so
         -- close to zero...
         pr_loc ((i,d),(j,t)) =
-          assert (i == j) $
+          pad 5 (P.integer i <> P.char ':') <+>
           case decode_I RV32 d of
             Just instr
-              | i == 0 || i >= 1000 -> P.integer i <:> pp instr <@@> pp t
-              | otherwise -> P.integer i <:> P.integer d <@@> pp t
-            Nothing -> P.integer i <:> P.integer d <@@> pp t
+              | i == 0 || i >= 1000 -> pp instr <@@> pp t
+              | otherwise -> P.integer d <@@> pp t
+            Nothing -> P.integer d <@@> pp t
 
         pr_aux acc [] [] = reverse acc
         pr_aux acc [] (loc:locs) = pr_aux ((P.text "R:" <+> pr_loc loc) : acc) [] locs

@@ -109,6 +109,7 @@ sameReachablePart (M (s1, p1) (s2, p2)) =
         filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2))
 
 --- If you want reachability information, this needs to be before the prop_noninterference.
+-- BCP: This is almost a duplicate of 
 instance PP MStatePair where
   pp (M (m1, p1) (m2, p2)) =
     P.vcat [ P.text "Reachable Colors:" <+> pretty (reachable p1) (reachable p2)
@@ -116,6 +117,8 @@ instance PP MStatePair where
            , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
            , P.text "Memories:" $$ P.nest 2 (pretty (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
            ]
+
+verboseTracing = False
 
 print_mstatepair :: MStatePair -> IO ()
 print_mstatepair m = putStrLn $ P.render $ pp m
@@ -130,12 +133,14 @@ prettyTrace (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
 
 prettyDiffs :: [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
 prettyDiffs ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
+  if verboseTracing then
      P.text "--------------------------------------------------------------------------"
   $$ P.nest 10 (P.text "Raw Machine 1 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m12)))
   $$ P.nest 10 (P.text "Raw Machine 1 tags:" $$ P.nest 3 (P.text (show $ p_mem p12)))
   $$ P.nest 10 (P.text "Raw Machine 2 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m22)))
   $$ P.nest 10 (P.text "Raw Machine 2 tags:" $$ P.nest 3 (P.text (show $ p_mem p22)))
   $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
+  else P.empty
   $$ pretty (calcDiff (p11,m11) (p12,m12))
             (calcDiff (p21,m21) (p22,m22))
   $$ prettyDiffs ((p12,m12):tr1) ((p22,m22):tr2)
@@ -219,7 +224,6 @@ prettyMemDiff (Just (i,d,l)) (Just (i', d', l'))
       <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty d' l'
 prettyMemDiff Nothing Nothing = P.text ""
 
-
 instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
   pretty (Just i1) (Just i2)
     | i1 == i2  = pp i1
@@ -228,9 +232,9 @@ instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
 
 instance CoupledPP Diff Diff where
   pretty d1 d2 =
-    P.hcat [ pad 5 (pretty (d_pc d1) (d_pc d2))
+    P.hcat [ pad 6 (pretty (d_pc d1) (d_pc d2))
            , P.text " "
-           , pad 25 (pretty (d_instr d1) (d_instr d2))
+           , pad 17 (pretty (d_instr d1) (d_instr d2))
            , P.text "     "
            , prettyRegDiff (d_reg d1) (d_reg d2) 
            , prettyMemDiff (d_mem d1) (d_mem d2)
