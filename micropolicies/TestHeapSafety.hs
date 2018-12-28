@@ -135,6 +135,9 @@ prettyDiffs ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
          (calcDiff (p21,m21) (p22,m22))
 -- $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
   $$ prettyDiffs ((p12,m12):tr1) ((p22,m22):tr2)
+prettyDiffs [(p1,m1)] [(p2,m2)] =
+  P.text "------------------------------" $$
+  P.text "Final machine states:" $$ pp (M (m1,p1) (m2,p2))
 prettyDiffs _ _ = P.text ""  
 
 data Diff = Diff { d_pc :: (Integer, Tag)                  -- value and tag of the current PC

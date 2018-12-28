@@ -29,17 +29,18 @@ class PP a where
   pp :: a -> Doc
 
 instance PP Color where
+  pp (C 0) = P.empty
   pp (C n) = P.text $ (["","A","B","C","D","E","X","Y","Z","W"] ++ (repeat "BIGCOLOR")) !! n
 
 instance PP AllocOrNot where
-  pp NoAlloc = P.text ""
+  pp NoAlloc = P.empty
   pp Alloc = P.text "Alloc"
 
 instance PP Tag where
-  pp MTagP = P.text ""
+  pp MTagP = P.empty
   pp (MTagI a) = pp a
   pp (MTagR c) = pp c
-  pp (MTagM (C 0) (C 0)) = P.text ""
+  pp (MTagM (C 0) (C 0)) = P.empty
   pp (MTagM cv cl) = pp cv P.<> P.text "/" P.<> pp cl
 
 instance PP Integer where
@@ -125,6 +126,10 @@ pr_mem m =
       decoded  = filter (not . isJust . decode_I RV32 . snd) contents
   in P.vcat $ map (\(i, d) -> P.integer i <:> P.integer d) decoded
 
+pad_int :: Int -> Integer -> Doc
+pad_int i p = let s = show p in
+          P.text (s ++ take (i - (length s)) (repeat ' '))
+
 -- TODO: Align better, tabs don't work well
 -- BCP: Use pad combinator above
 -- BCP: Maybe just put all (the nontrivial ones) on one line?
@@ -132,7 +137,7 @@ instance CoupledPP GPR_File GPR_FileT where
   pretty (GPR_File m) (GPR_FileT mt) =
     P.vcat $ map (foldl1 (<|>))
            $ chunksOf 4
-           $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':' <+> pretty d t)
+           $ map (\((i,d),(i', t)) -> pad_int 2 i <+> P.char ':' <+> pretty d t)
            $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
 
 instance CoupledPP Mem MemT where
