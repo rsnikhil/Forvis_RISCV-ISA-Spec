@@ -104,7 +104,7 @@ bug_mangled_store_color =
 -- Invariants: r0 is always zero
 
 -- GPR's are hard coded to be [0..31], but we only use a couple of them
-maxReg = 4
+maxReg = 3
 
 -- Generate a random register for source
 -- TODO: add types?
@@ -125,7 +125,7 @@ genImm :: Integer -> Gen InstrField
 genImm n = (4*) <$> choose (0, n `div` 4)  
 
 dataMemLow  = 4
-dataMemHigh = 12  -- Was 40, but that seems like a lot!
+dataMemHigh = 8  -- Was 40, but that seems like a lot! (8 may be too little!)
 instrLow = 1000
 
 -- Generate an instruction that is valid in the current context

@@ -1,6 +1,6 @@
 TODAY
 
-change assert to error
+generate random register contents!
 
 Check for property failure after each step, not just at the end
   (hopefully this will not slow down testing too much!)
