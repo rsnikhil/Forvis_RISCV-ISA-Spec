@@ -55,7 +55,11 @@ mkTagSet (_,_,symtabs) name =
                  (concatMap requires (map snd symtabs))
   in M.fromList (map (\tag -> (qsym tag,Nothing)) ts)
     
-{- We may need other magic ways to build tags indexed by integers... -}
+{- We still need a way to let the client instantiate tags that carry parameters
+   (e.g. colors). Currently the only possible parameter type is Int, so we can just
+   hack this.  The only blocking issue is that parameters attach to individual tags,
+   not to tag sets, so having the latter be the sole exported type doesn't work well.
+   Need to think about the cleanest way to solve this... -}
 
 ---------------------------------
 
