@@ -3,7 +3,7 @@
 Forvis: A Formal RISC-V ISA Specification
 -----------------------------------------
 
-Copyright (c) Rishiyur S. Nikhil, Bluespec, Inc.
+Copyright (c) 2018-2019 Rishiyur S. Nikhil, Bluespec, Inc.
 Portions Copyright (c) Niraj Nayan Sharma, Bluespec, Inc.
 
 See LICENSE for license details.

@@ -1,4 +1,4 @@
--- Copyright (c) 2018 Rishiyur S. Nikhil
+-- Copyright (c) 2018-2019 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module Forvis_Spec_Common where
@@ -128,8 +128,9 @@ finish_trap    mstate           exc_code    tval =
   let
     mstate1 = mstate_upd_on_trap  mstate  False  exc_code  tval
     mstate2 = incr_minstret  mstate1
+    mstate3 = mstate_last_instr_trapped_write  mstate2  True
   in
-    mstate2
+    mstate3
 
 -- Every completed instruction increments minstret
 {-# INLINE incr_minstret #-}
