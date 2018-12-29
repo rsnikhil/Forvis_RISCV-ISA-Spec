@@ -1,0 +1,79 @@
+module heap:
+
+type:
+    data Color = Int (20) // not sure if this means max number of colors is 20 or 2^20
+
+metadata:
+    Cell Color
+    Pointer Color
+    XXX more to come    
+
+policy:
+    XXX more to come	
+
+require:
+    init blah   {...}	
+    XXX more to come
+
+group:
+    loadUpperGrp(-> RD:dest)
+        lui
+        auipc
+
+    jumpGrp( -> RD:return)
+        jal
+
+    jumpRegGrp(RS1:target -> RD:return)
+        jalr
+
+    branchGrp(RS1:op1, RS2:op2 -> )
+        beq
+        bne
+        blt
+        bge
+        bltu
+        bgeu
+
+
+    loadGrp(RS1:addr, MEM:mem -> RD:res)
+        lb
+        lh
+        lw
+        lbu
+        lhu
+
+    storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
+        sb
+        sh
+        sw
+
+    immArithGrp(RS1:op1 -> RD:res)
+        addi
+        slti
+        sltiu
+        xori
+        ori
+        andi
+        slli
+        srli
+        srai
+ 
+    arithGrp(RS1:op1, RS2:op2 -> RD:res)
+        add
+        sub
+        sll
+        slt
+        sltu
+        xor
+        srl
+        sra
+        or 
+        and
+
+    systemGrp( -> )
+        fence
+ 
+    privGrp( -> )
+        ecall
+        ebreak
+
