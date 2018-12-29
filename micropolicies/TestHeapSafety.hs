@@ -17,6 +17,7 @@ import GPR_File
 import Memory
 
 import Control.Exception.Base (assert)
+import Debug.Trace
 
 -- This might belong elsewhere
 import Test.QuickCheck
@@ -109,7 +110,12 @@ sameReachablePart (M (s1, p1) (s2, p2)) =
         filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2))
 
 --- If you want reachability information, this needs to be before the prop_noninterference.
--- BCP: This is almost a duplicate of 
+-- Shorthand for (indistinguishable) pairs of m- and p-states 
+data MStatePair =
+  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
+
+-- BCP: This is almost a duplicate of [??]
+
 instance PP MStatePair where
   pp (M (m1, p1) (m2, p2)) =
     P.vcat [ P.text "Reachable Colors:" <+> pretty (reachable p1) (reachable p2)
@@ -205,15 +211,14 @@ calcDiff (p1,m1) (p2,m2) =
                 _ -> error $ "More than one diff in memory file:" ++
                              " data = " ++ show data_diff ++ 
                              " and tags = " ++ show tag_diff 
-
        }
 
--- BCP: Why is it Integer in one place and GPR_Addr in another??
 prettyRegDiff (Just (i,d,l)) (Just (i', d', l')) 
     | i == i', d == d', l == l' =
         P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l
     | otherwise =
-      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||> P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
+      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||> 
+      P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
 prettyRegDiff Nothing Nothing = P.text ""
 
 prettyMemDiff (Just (i,d,l)) (Just (i', d', l')) 

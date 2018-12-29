@@ -114,11 +114,6 @@ set_mtag p a t =
 
 ---------------------------------
 
--- Shorthand for (indistinguishable) pairs of m- and p-states 
-data MStatePair =
-  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
-
----------------------------------
 
 ok p = (p, PIPE_Success)
 notok p s = (p, PIPE_Trap s)
