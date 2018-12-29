@@ -162,60 +162,76 @@ data Diff = Diff { d_pc :: (Integer, Tag)                  -- value and tag of t
                  , d_mem :: Maybe (Integer, Integer, Tag)  -- change in memory
                  }
 
+-- Generic "find diffs" function: Takes two association lists, both
+-- assumed sorted by their keys and both representing *infinite* maps
+-- with some default value, and returns a list of their differences
+diff :: (Ord a, Eq b) => [(a, b)] -> [(a, b)] -> b -> [(a, (b,b))]
+diff [] [] d = []
+diff ((x1,y1):l1) [] d = (x1,(y1,d)) : diff l1 [] d
+diff [] ((x2,y2):l2) d = (x2,(d,y2)) : diff [] l2 d
+diff ((x1,y1):l1) ((x2,y2):l2) d
+         | x1 < x2   = (x1,(y1,d)) : diff l1 ((x2,y2):l2) d
+         | x1 > x2   = (x2,(d,y2)) : diff ((x1,y1):l1) l2 d
+         | otherwise = if y1 == y2 then diff l1 l2 d else (x1,(y1,y2)) : diff l1 l2 d
+
 calcDiff :: (PIPE_State, Machine_State) -> (PIPE_State, Machine_State) -> Diff
 calcDiff (p1,m1) (p2,m2) =
-  Diff { d_pc = (f_pc m1, p_pc p1)
-       , d_instr =
-           case fst $ instr_fetch m1 of
-             Fetch u32 -> decode_I RV32 u32
-             _ -> error "Bad instr fetch in calcDiff"
-       , d_reg =
-           let GPR_File r1 = f_gprs m1
-               GPR_File r2 = f_gprs m2
-               GPR_FileT t1 = p_gprs p1
-               GPR_FileT t2 = p_gprs p2
-               -- BCP: Something seems funny about these two filters:
-               -- What will happen if the i1 and i2 are not the same
-               -- at some point??  Seems like we will just ignore and
-               -- go on.  We should at least error out (which I have now done).
-               reg_diff =
-                 filter (\((i1,d1),(i2,d2)) -> assert (i1 == i2) $ d1 /= d2) (zip (Data_Map.assocs r1) (Data_Map.assocs r2))
-               tag_diff =
-                 filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs t1) (Data_Map.assocs t2))
-           in case (reg_diff, tag_diff) of
-                ([], []) -> Nothing
-                ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
-                ([((i,_),(_,d))],[]) ->
-                  (i,d,) <$> Data_Map.lookup i t2
-                ([],[((i,_),(_,l))]) ->
-                  (i,,l) <$> Data_Map.lookup i r2
-                _ -> error $ "More than one diff in register file:" ++
-                             " registers = " ++ show reg_diff ++
-                             " and tags = " ++ show tag_diff
-       , d_mem =
-           let Mem dm1 _ = f_mem m1
-               Mem dm2 _ = f_mem m2
-               MemT pm1 = p_mem p1
-               MemT pm2 = p_mem p2
-               -- BCP: Ditto above concern:
-               data_diff =
-                 filter (\((i1,d1),(i2,d2)) ->
-                           if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show ("i1", i1, "d1", d1, "i2", i2, "d2", d2, "dm1", dm1, "dm2", dm2))
+  Diff {
+    d_pc = (f_pc m1, p_pc p1)
+  , d_instr =
+      case fst $ instr_fetch m1 of
+        Fetch u32 -> decode_I RV32 u32
+        _ -> error "Bad instr fetch in calcDiff"
+  , d_reg =
+      let GPR_File r1 = f_gprs m1
+          GPR_File r2 = f_gprs m2
+          GPR_FileT t1 = p_gprs p1
+          GPR_FileT t2 = p_gprs p2
+          reg_diff =
+            filter (\((i1,d1),(i2,d2)) -> assert (i1 == i2) $ d1 /= d2)
+                   (zip (Data_Map.assocs r1) (Data_Map.assocs r2))
+          tag_diff =
+            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2)
+                   (zip (Data_Map.assocs t1) (Data_Map.assocs t2))
+      in case (reg_diff, tag_diff) of
+           ([], []) -> Nothing
+           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
+           ([((i,_),(_,d))],[]) ->
+             (i,d,) <$> Data_Map.lookup i t2
+           ([],[((i,_),(_,l))]) ->
+             (i,,l) <$> Data_Map.lookup i r2
+           _ -> error $ "More than one diff in register file:" ++
+                        " registers = " ++ show reg_diff ++
+                        " and tags = " ++ show tag_diff
+  , d_mem =
+      let Mem dm1 _ = f_mem m1
+          Mem dm2 _ = f_mem m2
+          MemT pm1 = p_mem p1
+          MemT pm2 = p_mem p2
+          both1 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm1) (Data_Map.assocs pm1)
+          both2 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm2) (Data_Map.assocs pm2)
+          diffs = diff both1 both2 (uninitialized_word,plainInst)
+
+          -- BCP: Stopped here
+
+          data_diff =
+            filter (\((i1,d1),(i2,d2)) ->
+                      if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show ("i1", i1, "d1", d1, "i2", i2, "d2", d2, "dm1", dm1, "dm2", dm2))
 --                             assert (i1 == i2) $ d1 /= d2)
-                        (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
-               tag_diff =
-                 filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
-           in case (data_diff, tag_diff) of
-                ([], []) -> Nothing
-                ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
-                ([((i,_),(_,d))],[]) ->
-                  (i,d,) <$> Data_Map.lookup i pm2
-                ([],[((i,_),(_,l))]) ->
-                  (i,,l) <$> Data_Map.lookup i dm2
-                _ -> error $ "More than one diff in memory file:" ++
-                             " data = " ++ show data_diff ++
-                             " and tags = " ++ show tag_diff
-       }
+                   (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
+          tag_diff =
+            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
+      in case (data_diff, tag_diff) of
+           ([], []) -> Nothing
+           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
+           ([((i,_),(_,d))],[]) ->
+             (i,d,) <$> Data_Map.lookup i pm2
+           ([],[((i,_),(_,l))]) ->
+             (i,,l) <$> Data_Map.lookup i dm2
+           _ -> error $ "More than one diff in memory file:" ++
+                        " data = " ++ show data_diff ++
+                        " and tags = " ++ show tag_diff
+  }
 
 prettyRegDiff (Just (i,d,l)) (Just (i', d', l'))
     | i == i', d == d', l == l' =
