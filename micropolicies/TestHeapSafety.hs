@@ -107,6 +107,10 @@ sameReachablePart (M (s1, p1) (s2, p2)) =
         filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2))
 
 --- If you want reachability information, this needs to be before the prop_noninterference.
+-- Shorthand for (indistinguishable) pairs of m- and p-states 
+data MStatePair =
+  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
+
 instance PP MStatePair where
   pp (M (m1, p1) (m2, p2)) =
     P.vcat [ P.text "Reachable Colors:" <+> pretty (reachable p1) (reachable p2)
