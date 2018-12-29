@@ -26,7 +26,7 @@ import qualified Data.Map.Strict as Data_Map
 import Machine_State 
 
 import Run_Program_PIPE
-import TestHeapSafety
+import TestHeapSafety 
 
 import Gen
 import Printing
@@ -47,7 +47,7 @@ testHeapSafety =
 	
 main2 = do
   let ((ms,ps),_) = exampleMachines
-  pol <- load_pipe_policy "heap"
+  pol <- load_pipe_policy "heap.main"
   let (res, tr) = run_loop pol 10 ps ms
       (ps', ms') : _ = tr
   putStrLn ""

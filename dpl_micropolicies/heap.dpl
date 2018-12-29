@@ -4,16 +4,30 @@ type:
     data Color = Int (20) // not sure if this means max number of colors is 20 or 2^20
 
 metadata:
-    Cell Color
-    Pointer Color
-    XXX more to come    
+    Cell Color  // data memory with a color
+    Pointer Color // value with a color (assuming all values are pointers for now)
+    Env   // sole PC tag (not used in any interesting way -- just here for illustration)
+    Inst  // instruction  (not used at all for now)
+    Alloc // the magic alloc instruction
 
 policy:
-    XXX more to come	
+  main =
+      // putting alloc-specific rule first and using ^ means it wins over ordinary ADDI
+      // 'new' is a magic built-in in dpl
+      allocGrp(env == _, code == [+Alloc] -> env = env, res = {(Pointer new)})
+    ^ immArithGrp(env == _, op1 == _ -> env = env, res = op1)        
+    ^ arithGrp(env == _, op1 == _ -> env = env, res = op1)    // dubious, but what B&L had
+    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == [+(Cell color)] ->
+             env = env, res = mem[-(Cell _)])
+    ^ storeGrp(env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] ->
+              env = env, mem = val[+(Cell color)])
 
-require:
-    init blah   {...}	
-    XXX more to come
+require:  // map external names (dotted strings) to tag sets
+    init test.Cell {Cell}
+    init test.Pointer {Pointer}
+    init test.Env {Env}
+    init test.Inst {Inst}
+    init test.AllocInst {Alloc,Inst}
 
 group:
     loadUpperGrp(-> RD:dest)
@@ -34,7 +48,6 @@ group:
         bltu
         bgeu
 
-
     loadGrp(RS1:addr, MEM:mem -> RD:res)
         lb
         lh
@@ -46,6 +59,9 @@ group:
         sb
         sh
         sw
+
+    allocGrp (RS1:op1 -> RD:res)	// not essential to make this a separate group
+        addi
 
     immArithGrp(RS1:op1 -> RD:res)
         addi
