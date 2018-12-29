@@ -124,7 +124,7 @@ instance PP MStatePair where
            , P.text "Memories:" $$ P.nest 2 (pretty (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
            ]
 
-verboseTracing = True
+verboseTracing = False
 
 print_mstatepair :: MStatePair -> IO ()
 print_mstatepair m = putStrLn $ P.render $ pp m
@@ -164,7 +164,11 @@ data Diff = Diff { d_pc :: (Integer, Tag)                  -- value and tag of t
 
 -- Generic "find diffs" function: Takes two association lists, both
 -- assumed sorted by their keys and both representing *infinite* maps
--- with some default value, and returns a list of their differences
+-- with some default value, and returns a list of changes
+--
+-- TODO: Not 100% right: in the cases where we are returniung
+-- something, we should first check whether the thing we are returning
+-- is equal to d!  (And not return it in this case.)
 diff :: (Ord a, Eq b) => [(a, b)] -> [(a, b)] -> b -> [(a, (b,b))]
 diff [] [] d = []
 diff ((x1,y1):l1) [] d = (x1,(y1,d)) : diff l1 [] d
@@ -211,27 +215,29 @@ calcDiff (p1,m1) (p2,m2) =
           both1 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm1) (Data_Map.assocs pm1)
           both2 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm2) (Data_Map.assocs pm2)
           diffs = diff both1 both2 (uninitialized_word,plainInst)
-
-          -- BCP: Stopped here
-
-          data_diff =
-            filter (\((i1,d1),(i2,d2)) ->
-                      if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show ("i1", i1, "d1", d1, "i2", i2, "d2", d2, "dm1", dm1, "dm2", dm2))
---                             assert (i1 == i2) $ d1 /= d2)
-                   (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
-          tag_diff =
-            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
-      in case (data_diff, tag_diff) of
-           ([], []) -> Nothing
-           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
-           ([((i,_),(_,d))],[]) ->
-             (i,d,) <$> Data_Map.lookup i pm2
-           ([],[((i,_),(_,l))]) ->
-             (i,,l) <$> Data_Map.lookup i dm2
-           _ -> error $ "More than one diff in memory file:" ++
-                        " data = " ++ show data_diff ++
-                        " and tags = " ++ show tag_diff
+       in case diffs of
+          [] -> Nothing
+          [(i,(_,(d,t)))] -> Just (i,d,t)
+          _ -> error "More than one memory change!"
   }
+
+--          data_diff =
+--            filter (\((i1,d1),(i2,d2)) ->
+--                      if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show ("i1", i1, "d1", d1, "i2", i2, "d2", d2, "dm1", dm1, "dm2", dm2))
+----                             assert (i1 == i2) $ d1 /= d2)
+--                   (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
+--          tag_diff =
+--            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
+--      in case (data_diff, tag_diff) of
+--           ([], []) -> Nothing
+--           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
+--           ([((i,_),(_,d))],[]) ->
+--             (i,d,) <$> Data_Map.lookup i pm2
+--           ([],[((i,_),(_,l))]) ->
+--             (i,,l) <$> Data_Map.lookup i dm2
+--           _ -> error $ "More than one diff in memory file:" ++
+--                        " data = " ++ show data_diff ++
+--                        " and tags = " ++ show tag_diff
 
 prettyRegDiff (Just (i,d,l)) (Just (i', d', l'))
     | i == i', d == d', l == l' =
