@@ -127,7 +127,7 @@ genImm :: Integer -> Gen InstrField
 genImm n = (4*) <$> choose (0, n `div` 4)  
 
 dataMemLow  = 4
-dataMemHigh = 8  -- Was 40, but that seems like a lot! (8 may be too little!)
+dataMemHigh = 20  -- Was 40, but that seems like a lot! (8 may be too little!)
 instrLow = 1000
 
 -- Generate an instruction that is valid in the current context
@@ -253,16 +253,27 @@ genColor =
   frequency [ (1, pure $ C 0)
             , (4, C <$> choose (0, 4)) ]
 
+-- Only colors up to 2 (for registers)
+genColorLow :: Gen Color
+genColorLow = frequency [ (1, pure $ C 0)
+                        , (2, C <$> choose (0,2)) ]
+
+-- Focus on unreachable colors
+genColorHigh :: Gen Color
+genColorHigh =
+  frequency [ (1, pure $ C 0)
+            , (1, C <$> choose (1,2) )
+            , (3, C <$> choose (3,4) )
+            ]
+
 genMTagM :: Gen Tag
 genMTagM = MTagM <$> genColor <*> genColor
 
 genDataMemory :: Gen (Mem, MemT)
 genDataMemory = do
   let idx = [dataMemLow,dataMemLow+4..dataMemHigh]
-  combined <- mapM (\i -> do d <- genImm 4    -- BCP: This puts 4 in
-                                              -- every location!
-                                              -- Why??
-                             t <- genMTagM
+  combined <- mapM (\i -> do d <- genImm dataMemHigh
+                             t <- MTagM <$> genColor <*> genColorHigh
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
   return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
@@ -307,16 +318,12 @@ updRegs (GPR_File rs) = do
 
 updTags :: GPR_FileT -> Gen GPR_FileT
 updTags (GPR_FileT rs) = do
-  [c1, c2, c3] <- replicateM 3 genColor
+  [c1, c2, c3] <- replicateM 3 genColorLow
   let rs' :: Data_Map.Map Integer Tag = Data_Map.insert 1 (MTagR c1) $ Data_Map.insert 2 (MTagR c2) $ Data_Map.insert 3 (MTagR c3) rs
   return $ GPR_FileT rs'
-  
 
 genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
-  -- TODO: this is random, not generation by execution (BCP: Really??)
-  -- TODO: registers -- BCP: Yes, some interesting stuff in registers
-  -- would be good!
   (mem,pmem) <- genDataMemory
   let ms = initMachine {f_mem = mem}
       ps = init_pipe_state {p_mem = pmem}
