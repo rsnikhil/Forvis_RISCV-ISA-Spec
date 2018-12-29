@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Rishiyur S. Nikhil.  All Rights Reserved.
+# Copyright (c) 2018-2019 Rishiyur S. Nikhil.  All Rights Reserved.
 
 # See LICENSE in this repo for license details.
 

@@ -1,4 +1,4 @@
--- Copyright (c) 2018 Rishiyur S. Nikhil
+-- Copyright (c) 2018-2019 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module Machine_State where
@@ -51,9 +51,10 @@ data Machine_State =
                   f_mem_addr_ranges :: [(Integer, Integer)],    -- list of (addr_start, addr_lim)
 
                   -- For convenience and debugging only; no semantic relevance
-                  f_rv        :: RV,   -- redundant copy of info in CSR MISA
-                  f_verbosity :: Int,
-                  f_run_state :: Run_State
+                  f_rv                 :: RV,   -- redundant copy of info in CSR MISA
+                  f_run_state          :: Run_State,
+                  f_last_instr_trapped :: Bool,
+                  f_verbosity          :: Int
                 }
                                                           -- \end_latex{Machine_State}
 data Run_State = Run_State_Running
@@ -98,9 +99,11 @@ mkMachine_State    rv    misa       initial_PC  addr_ranges            addr_byte
                             f_mmio            = mkMMIO,
                             f_mem_addr_ranges = addr_ranges,
 
-                            f_rv        = rv,
-                            f_verbosity = 0,
-                            f_run_state = Run_State_Running}
+                            f_rv                 = rv,
+                            f_run_state          = Run_State_Running,
+                            f_last_instr_trapped = False,
+                            f_verbosity          = 0
+                           }
   in
     mstate
                                                               -- \end_latex{Machine_State_constructor}
@@ -480,18 +483,25 @@ mstate_wfi_resume    mstate =
 -- ================================================================
 -- read/write misc debug convenience
 
-{-# INLINE mstate_verbosity_read #-}
-mstate_verbosity_read :: Machine_State -> Int
-mstate_verbosity_read  mstate = f_verbosity mstate
-
-mstate_verbosity_write :: Machine_State -> Int -> Machine_State
-mstate_verbosity_write  mstate  verbosity = mstate { f_verbosity = verbosity }
-
 {-# INLINE mstate_run_state_read #-}
 mstate_run_state_read :: Machine_State -> Run_State
-mstate_run_state_read  mstate = f_run_state  mstate
+mstate_run_state_read    mstate = f_run_state  mstate
 
 mstate_run_state_write :: Machine_State -> Run_State -> Machine_State
-mstate_run_state_write  mstate  run_state = mstate { f_run_state = run_state }
+mstate_run_state_write    mstate           run_state = mstate { f_run_state = run_state }
+
+{-# INLINE mstate_last_instr_trapped_read #-}
+mstate_last_instr_trapped_read :: Machine_State -> Bool
+mstate_last_instr_trapped_read    mstate = f_last_instr_trapped mstate
+
+mstate_last_instr_trapped_write :: Machine_State -> Bool -> Machine_State
+mstate_last_instr_trapped_write    mstate           trapped = mstate { f_last_instr_trapped = trapped }
+
+{-# INLINE mstate_verbosity_read #-}
+mstate_verbosity_read :: Machine_State -> Int
+mstate_verbosity_read    mstate = f_verbosity mstate
+
+mstate_verbosity_write :: Machine_State -> Int -> Machine_State
+mstate_verbosity_write    mstate           verbosity = mstate { f_verbosity = verbosity }
 
 -- ================================================================

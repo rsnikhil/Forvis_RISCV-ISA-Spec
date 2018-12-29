@@ -1,4 +1,4 @@
--- Copyright (c) 2018 Rishiyur S. Nikhil
+-- Copyright (c) 2018-2019 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
 module Run_Program where
@@ -48,6 +48,7 @@ import Forvis_Spec
 run_loop :: Int     -> (Maybe Integer) -> Machine_State -> IO (Int, Machine_State)
 run_loop    maxinstrs  m_tohost_addr      mstate = do
   let instret   = mstate_csr_read        mstate  csr_addr_minstret
+      verbosity = mstate_verbosity_read  mstate
       run_state = mstate_run_state_read  mstate
 
       -- Tick: regular maintenance (increment cycle count, real-time
@@ -80,12 +81,13 @@ run_loop    maxinstrs  m_tohost_addr      mstate = do
     -- Fetch-and-execute instruction or WFI-resume, and continue run-loop
     else (do
              -- Debugging: print progress-report every 10M instrs
-             when ((instret `mod` 10000000) == 0) (do
-                                                      let mtime = mstate_mem_read_mtime  mstate2
-                                                      putStrLn  ("[Forvis: instret = " ++ show instret ++
-                                                                 "; MTIME = " ++ show mtime ++
-                                                                 "]")
-                                                      hFlush  stdout)
+             when ((instret `mod` 10000000) == 0) (
+               do
+                 let mtime = mstate_mem_read_mtime  mstate2
+                 putStrLn  ("[Forvis: instret = " ++ show instret ++
+                            "; MTIME = " ++ show mtime ++
+                            "]")
+                 hFlush  stdout)
 
              -- Check for tty console input and, if any, buffer it into the UART
              mstate3 <- get_tty_input  mstate2
@@ -104,6 +106,11 @@ run_loop    maxinstrs  m_tohost_addr      mstate = do
                                               mstate3
                             return mstate3_a
  
+             -- Debugging: print message if last instruction trapped
+             when ((verbosity /= 0)
+                   && (mstate_last_instr_trapped_read  mstate4)) (
+               putStrLn "Last instruction trapped")
+
              -- If the UART has buffered output, consume and print out to the tty console
              mstate5 <- put_tty_output  mstate4
 
@@ -135,21 +142,24 @@ run_loop    maxinstrs  m_tohost_addr      mstate = do
 fetch_and_execute :: Machine_State -> IO  Machine_State
 fetch_and_execute    mstate = do
   let verbosity               = mstate_verbosity_read  mstate
-      (intr_pending, mstate2) = take_interrupt_if_any  mstate
+      mstate1                 = mstate_last_instr_trapped_write  mstate  False
+      (intr_pending, mstate2) = take_interrupt_if_any  mstate1
 
   -- Debug-print when we take an interrupt
   case intr_pending of
     Nothing       -> return ()
     Just exc_code -> do
       let instret = mstate_csr_read  mstate2  csr_addr_minstret
-      when (verbosity >= 1) (putStrLn  ("Taking interrupt; instret = " ++ show instret ++
-                                        "; exc_code = " ++ (showHex  exc_code  "") ++
-                                        "\n"))
-      when (verbosity >= 2) (do
-                                putStrLn "---------------- State before interrupt trap setup"
-                                (mstate_print  "  "  mstate)
-                                putStrLn "---------------- State after interrupt trap setup"
-                                (mstate_print  "  "  mstate2))
+      when (verbosity >= 1) (
+        putStrLn  ("Taking interrupt; instret = " ++ show instret ++
+                   "; exc_code = " ++ (showHex  exc_code  "") ++
+                   "\n"))
+      when (verbosity >= 2) (
+        do
+          putStrLn "---------------- State before interrupt trap setup"
+          mstate_print  "  "  mstate
+          putStrLn "---------------- State after interrupt trap setup"
+          mstate_print  "  "  mstate2)
   -- End debug-print
 
   -- Fetch an instruction
@@ -158,7 +168,7 @@ fetch_and_execute    mstate = do
       (fetch_result, mstate3) = instr_fetch  mstate2
       priv                    = mstate_priv_read  mstate3
 
-  -- Handle fetch-exception of execute
+  -- Handle fetch-exception or execute
   case fetch_result of
     Fetch_Trap  ec -> (do
                           when (verbosity >= 1) (putStrLn ("Fetch Trap:" ++ show_trap_exc_code  ec))

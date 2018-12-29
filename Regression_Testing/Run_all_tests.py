@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright (c) 2018 Rishiyur S. Nikhil
+# Copyright (c) 2018-2019 Rishiyur S. Nikhil
 # See LICENSE for license details
 
 usage_line = (
