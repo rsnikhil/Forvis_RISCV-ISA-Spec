@@ -67,23 +67,23 @@ import Run_Program_PIPE
 
 reachableInOneStep :: MemT -> Set Color -> Set Color
 reachableInOneStep m s =
-  foldr (\t s -> 
-           case t of 
+  foldr (\t s ->
+           case t of
              MTagM v l -> if Data_Set.member l s then Data_Set.insert v s else s
              _ -> s)
    s (Data_Map.elems $ unMemT m)
 
 reachableLoop :: MemT -> Set Color -> Set Color
-reachableLoop m s = 
+reachableLoop m s =
   let s' = reachableInOneStep m s in
   if s == s' then s else reachableLoop m s'
 
-registerColors :: PIPE_State -> Set Color 
-registerColors pstate = 
-  foldr (\t s -> case t of 
-                   MTagR c -> Data_Set.insert c s 
+registerColors :: PIPE_State -> Set Color
+registerColors pstate =
+  foldr (\t s -> case t of
+                   MTagR c -> Data_Set.insert c s
                    _ -> error "Register tag should be an MTagR")
-    Data_Set.empty (unGPR $ p_gprs pstate) 
+    Data_Set.empty (unGPR $ p_gprs pstate)
 
 reachable :: PIPE_State -> Set Color
 reachable p = reachableLoop (p_mem p) (registerColors p)
@@ -110,7 +110,7 @@ sameReachablePart (M (s1, p1) (s2, p2)) =
         filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2))
 
 --- If you want reachability information, this needs to be before the prop_noninterference.
--- Shorthand for (indistinguishable) pairs of m- and p-states 
+-- Shorthand for (indistinguishable) pairs of m- and p-states
 data MStatePair =
   M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
 
@@ -118,13 +118,13 @@ data MStatePair =
 
 instance PP MStatePair where
   pp (M (m1, p1) (m2, p2)) =
-    P.vcat [ P.text "Reachable Colors:" <+> pretty (reachable p1) (reachable p2)
+    P.vcat [ P.text "Reachable:" <+> pretty (reachable p1) (reachable p2)
            , P.text "PC:" <+> pretty (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
            , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
            , P.text "Memories:" $$ P.nest 2 (pretty (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
            ]
 
-verboseTracing = False
+verboseTracing = True
 
 print_mstatepair :: MStatePair -> IO ()
 print_mstatepair m = putStrLn $ P.render $ pp m
@@ -139,7 +139,7 @@ prettyTrace (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
 
 prettyDiffs :: [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
 prettyDiffs ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
-  if verboseTracing then
+  (if verboseTracing then
        P.text "----------------------------------------------------------------"
     $$ P.nest 10 (P.text "Raw Machine 1 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m12)))
     $$ P.nest 10 (P.text "Raw Machine 1 tags:" $$ P.nest 3 (P.text (show $ p_mem p12)))
@@ -147,14 +147,14 @@ prettyDiffs ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
     $$ P.nest 10 (P.text "Raw Machine 2 tags:" $$ P.nest 3 (P.text (show $ p_mem p22)))
     $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
   else
-    P.empty
+    P.empty)
   $$ pretty (calcDiff (p11,m11) (p12,m12))
             (calcDiff (p21,m21) (p22,m22))
   $$ prettyDiffs ((p12,m12):tr1) ((p22,m22):tr2)
 prettyDiffs [(p1,m1)] [(p2,m2)] =
   P.text "------------------------------" $$
   P.text "Final machine states:" $$ pp (M (m1,p1) (m2,p2))
-prettyDiffs _ _ = P.text ""  
+prettyDiffs _ _ = P.text ""
 
 data Diff = Diff { d_pc :: (Integer, Tag)                  -- value and tag of the current PC
                  , d_instr :: Maybe Instr_I                -- current instruction
@@ -177,7 +177,7 @@ calcDiff (p1,m1) (p2,m2) =
                -- BCP: Something seems funny about these two filters:
                -- What will happen if the i1 and i2 are not the same
                -- at some point??  Seems like we will just ignore and
-               -- go on.  We should at least error out (which I have now done). 
+               -- go on.  We should at least error out (which I have now done).
                reg_diff =
                  filter (\((i1,d1),(i2,d2)) -> assert (i1 == i2) $ d1 /= d2) (zip (Data_Map.assocs r1) (Data_Map.assocs r2))
                tag_diff =
@@ -189,9 +189,9 @@ calcDiff (p1,m1) (p2,m2) =
                   (i,d,) <$> Data_Map.lookup i t2
                 ([],[((i,_),(_,l))]) ->
                   (i,,l) <$> Data_Map.lookup i r2
-                _ -> error $ "More than one diff in register file:" ++ 
-                             " registers = " ++ show reg_diff ++ 
-                             " and tags = " ++ show tag_diff 
+                _ -> error $ "More than one diff in register file:" ++
+                             " registers = " ++ show reg_diff ++
+                             " and tags = " ++ show tag_diff
        , d_mem =
            let Mem dm1 _ = f_mem m1
                Mem dm2 _ = f_mem m2
@@ -200,7 +200,7 @@ calcDiff (p1,m1) (p2,m2) =
                -- BCP: Ditto above concern:
                data_diff =
                  filter (\((i1,d1),(i2,d2)) ->
-                           if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show (i1, d1, i2, d2, dm1, dm2))
+                           if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show ("i1", i1, "d1", d1, "i2", i2, "d2", d2, "dm1", dm1, "dm2", dm2))
 --                             assert (i1 == i2) $ d1 /= d2)
                         (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
                tag_diff =
@@ -213,19 +213,19 @@ calcDiff (p1,m1) (p2,m2) =
                 ([],[((i,_),(_,l))]) ->
                   (i,,l) <$> Data_Map.lookup i dm2
                 _ -> error $ "More than one diff in memory file:" ++
-                             " data = " ++ show data_diff ++ 
-                             " and tags = " ++ show tag_diff 
+                             " data = " ++ show data_diff ++
+                             " and tags = " ++ show tag_diff
        }
 
-prettyRegDiff (Just (i,d,l)) (Just (i', d', l')) 
+prettyRegDiff (Just (i,d,l)) (Just (i', d', l'))
     | i == i', d == d', l == l' =
         P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l
     | otherwise =
-      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||> 
+      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||>
       P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
 prettyRegDiff Nothing Nothing = P.text ""
 
-prettyMemDiff (Just (i,d,l)) (Just (i', d', l')) 
+prettyMemDiff (Just (i,d,l)) (Just (i', d', l'))
     | i == i', d == d', l == l' =
         P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty d l
     | otherwise =
@@ -245,20 +245,20 @@ instance CoupledPP Diff Diff where
            , P.text " "
            , pad 17 (pretty (d_instr d1) (d_instr d2))
            , P.text "     "
-           , prettyRegDiff (d_reg d1) (d_reg d2) 
+           , prettyRegDiff (d_reg d1) (d_reg d2)
            , prettyMemDiff (d_mem d1) (d_mem d2)
-           ] 
+           ]
 
 prop_noninterference :: MStatePair -> Property
 prop_noninterference (M (m1,p1) (m2,p2)) =
   let (r1,ss1') = run_loop 20 p1 m1
       (r2,ss2') = run_loop 20 p2 m2
-      ss = zip (reverse ss1') (reverse ss2') 
+      ss = zip (reverse ss1') (reverse ss2')
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
   whenFail (do putStrLn $ "Reachable parts differ after execution!"
                uncurry printTrace (unzip ss)
--- 
--- 
+--
+--
 --               putStrLn $ "Original machines:"
 --               print_mstatepair (M (m1,p1) (m2,p2))
 --               putStrLn $ "After execution..."
@@ -269,8 +269,6 @@ prop_noninterference (M (m1,p1) (m2,p2)) =
 --               print_coupled m2' p2'
            )
            $
---           collect (case fst $ instr_fetch m1' of 
+--           collect (case fst $ instr_fetch m1' of
 --                      Fetch u32 -> decode_I RV32 u32)
              (sameReachablePart (M (m1', p1') (m2', p2')))
-
-
