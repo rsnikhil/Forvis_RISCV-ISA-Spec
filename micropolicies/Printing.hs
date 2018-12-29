@@ -19,7 +19,7 @@ import GPR_File
 import FPR_File
 import CSR_File
 
-import Text.PrettyPrint (Doc, (<+>), ($$), (<>))
+import Text.PrettyPrint (Doc, (<+>), ($$))
 import qualified Text.PrettyPrint as P
 
 import Control.Arrow (second)
@@ -139,7 +139,7 @@ instance CoupledPP GPR_File GPR_FileT where
     P.hcat $ map 
                (\((i,d),(i', t)) -> 
                    if d/=0 || t/=(MTagR (C 0))
-                     then P.integer i <:> pretty d t <> P.text "   "
+                     then P.integer i <:> pretty d t P.<> P.text "   "
                      else P.empty)
            $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
 --    P.vcat $ map (foldl1 (<|>))

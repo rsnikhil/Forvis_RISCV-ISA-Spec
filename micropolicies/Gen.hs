@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Gen where
 
 import Arch_Defs
@@ -17,6 +18,7 @@ import Data.Maybe (isJust, fromJust)
 
 import Machine_State
 
+import Control.Monad
 import Control.Arrow (second)
 import Test.QuickCheck
 import TestHeapSafety
@@ -132,25 +134,40 @@ instrLow = 1000
 -- For load and store to make sense, we need to go through the register file
 -- and pick "valid" current addresses.
 
--- Picks out valid (data registers + max immediate), (jump registers + min immediate), integer registers
+-- Picks out valid (data registers + content + min immediate + max immediate + tag), (jump registers + min immediate), integer registers
 -- If not only using multiples of 4, add a modulus to data 
-groupRegisters :: GPR_File -> ([(GPR_Addr, Integer)], [(GPR_Addr, Integer)], [GPR_Addr])
-groupRegisters (GPR_File rs) =
+groupRegisters :: GPR_File -> GPR_FileT -> ([(GPR_Addr, Integer, Integer, Integer, Tag)], [(GPR_Addr, Integer)], [GPR_Addr])
+groupRegisters (GPR_File rs) (GPR_FileT ts) =
   let regs' = Data_Map.assocs rs
       regs = take 4 regs'  -- Just use the first four registers!
       validData n
         | n >= dataMemLow && n <= dataMemHigh =
-            Just (dataMemHigh - n)
+            -- TODO: If we allow non multiple of 4 values this needs to be fixed
+            let mod = 0 in
+            Just (n, mod, dataMemHigh - n)
+        | n == 0 =
+            -- We can allow a 0 register by adding at least 4
+            Just (0, 4, 40)
         | otherwise = Nothing
       validJump n = Just (instrLow - n)
       dataRegs    = map (second fromJust) $ filter (isJust . snd) $ map (second validData) regs
+      dataRegs'   = map (\(i,(content, minimm,maximm)) -> (i, content, minimm, maximm, fromJust $ Data_Map.lookup i ts)) dataRegs
       controlRegs = map (second fromJust) $ filter (isJust . snd) $ map (second validJump) regs
       arithRegs   = map fst regs
-  in (dataRegs, controlRegs, arithRegs)       
+  in (dataRegs', controlRegs, arithRegs)       
 
-genInstr :: Machine_State -> Gen (Instr_I, Tag)
-genInstr ms =
-  let (dataRegs, ctrlRegs, arithRegs) = groupRegisters (f_gprs ms)
+reachableLocsBetween :: Mem -> MemT -> Integer -> Integer -> Tag -> [Integer]
+reachableLocsBetween (Mem m _) (MemT pm) lo hi (MTagR c) =
+  map fst $ filter (\(i,t) ->
+                      case t of
+                        MTagM v l ->
+                          l == c && i >= lo && i <= hi
+                        _ -> False
+                   ) (Data_Map.assocs pm)
+
+genInstr :: Machine_State -> PIPE_State -> Gen (Instr_I, Tag)
+genInstr ms ps =
+  let (dataRegs, ctrlRegs, arithRegs) = groupRegisters (f_gprs ms) (p_gprs ps)
       onNonEmpty [] _= 0
       onNonEmpty _ n = n
   in 
@@ -165,15 +182,23 @@ genInstr ms =
                   return (ADDI rd rs imm, alloc))
             , (onNonEmpty dataRegs 3,
                do -- LOAD
-                  (rs,max_imm) <- elements dataRegs
+                  (rs,content,min_imm,max_imm,tag) <- elements dataRegs
+                  let locs = --traceShow (content, min_imm, max_imm, tag) $
+                             reachableLocsBetween (f_mem ms) (p_mem ps) (content+min_imm) (content+max_imm) tag
                   rd <- genTargetReg ms
-                  imm <- genImm max_imm
+                  imm <- frequency [ -- Generate a reachable location)
+                                     (--traceShow locs $
+                                       onNonEmpty locs 1,
+                                      do addr <- elements locs
+                                         return $ addr - content)
+                                   , (1, (min_imm+) <$> genImm (max_imm - min_imm))
+                                   ]
                   return (LW rd rs imm, MTagI NoAlloc))
             , (onNonEmpty dataRegs 3 * onNonEmpty arithRegs 1,
                do -- STORE
-                  (rd,max_imm) <- elements dataRegs
+                  (rd,content, min_imm,max_imm,tag) <- elements dataRegs
                   rs <- genTargetReg ms
-                  imm <- genImm max_imm
+                  imm <- (min_imm+) <$> genImm (max_imm - min_imm)
                   return (SW rd rs imm, MTagI NoAlloc))
             , (onNonEmpty arithRegs 1,
                do -- ADD
@@ -262,7 +287,7 @@ genByExec n ms ps instrlocs
   --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
         return (ms, ps, instrlocs)
   | otherwise = do
-    (is, it) <- genInstr ms
+    (is, it) <- genInstr ms ps
     let ms' = setInstrI ms is
         ps' = setInstrTagI ms ps it
     case fetch_and_execute ps' ms' of
@@ -274,6 +299,19 @@ genByExec n ms ps instrlocs
 
 maxInstrsToGenerate = 60
 
+updRegs :: GPR_File -> Gen GPR_File
+updRegs (GPR_File rs) = do
+  [d1, d2, d3] <- replicateM 3 $ genImm 40
+  let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
+  return $ GPR_File rs'
+
+updTags :: GPR_FileT -> Gen GPR_FileT
+updTags (GPR_FileT rs) = do
+  [c1, c2, c3] <- replicateM 3 genColor
+  let rs' :: Data_Map.Map Integer Tag = Data_Map.insert 1 (MTagR c1) $ Data_Map.insert 2 (MTagR c2) $ Data_Map.insert 3 (MTagR c3) rs
+  return $ GPR_FileT rs'
+  
+
 genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
   -- TODO: this is random, not generation by execution (BCP: Really??)
@@ -282,19 +320,23 @@ genMachine = do
   (mem,pmem) <- genDataMemory
   let ms = initMachine {f_mem = mem}
       ps = init_pipe_state {p_mem = pmem}
-      ms' = setInstrI ms (JAL 0 1000)
+      ms' = setInstrI ms (JAL 0 1000) 
       ps' = setInstrTagI ms ps (MTagI NoAlloc)  -- BCP: Needed??
-  (ms_fin, ps_fin, instrlocs) <- genByExec maxInstrsToGenerate ms' ps' Data_Set.empty
+  rs' <- updRegs $ f_gprs ms'
+  ts' <- updTags $ p_gprs ps'
+  let ms2 = ms' {f_gprs = rs'}
+      ps2 = ps' {p_gprs = ts'}
+  (ms_fin, ps_fin, instrlocs) <- genByExec maxInstrsToGenerate ms2 ps2 Data_Set.empty
 
   let final_mem = f_dm $ f_mem ms_fin
       res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs
       ms_fin' = 
-        ms' {f_mem = (f_mem ms') { f_dm = res_mem } }  
+        ms2 {f_mem = (f_mem ms') { f_dm = res_mem } }  
 
       final_pmem = unMemT $ p_mem ps_fin
       res_pmem = foldr (\a pmem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_pmem) pmem) (unMemT $ p_mem ps') instrlocs
       ps_fin' =
-        ps' {p_mem = MemT res_pmem}
+        ps2 {p_mem = MemT res_pmem}
 
 --  let ms_fin' = 
 --        ms' {f_mem = (f_mem ms') { f_dm = Data_Map.union (f_dm $ f_mem ms') (f_dm $ f_mem ms_fin) } }

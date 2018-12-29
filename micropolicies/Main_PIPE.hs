@@ -106,7 +106,7 @@ main_mangled =
   quickCheck $ prop_noninterference bug_mangled_store_color
 
 -- main = main_mangled  
--- main = mainHeap
+--main = mainHeap
 main = main5
   
 {-

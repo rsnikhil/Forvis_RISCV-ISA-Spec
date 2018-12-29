@@ -198,7 +198,10 @@ calcDiff (p1,m1) (p2,m2) =
                MemT pm2 = p_mem p2
                -- BCP: Ditto above concern:
                data_diff =
-                 filter (\((i1,d1),(i2,d2)) -> assert (i1 == i2) $ d1 /= d2) (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
+                 filter (\((i1,d1),(i2,d2)) ->
+                           if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show (i1, d1, i2, d2, dm1, dm2))
+--                             assert (i1 == i2) $ d1 /= d2)
+                        (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
                tag_diff =
                  filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
            in case (data_diff, tag_diff) of
