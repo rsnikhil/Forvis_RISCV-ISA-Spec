@@ -11,7 +11,7 @@ all:
 	../forvis_exe
 
 mutant:
-	@echo "[37;41m--------- $(MUT) -----------c"
+	@echo "[37;41m--------- $(MUT) -----------[0m"
 	mkdir -p  $(TMP_DIR)
 	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2 -fno-ignore-asserts -i$(SRC_DIR)  \
 	   -outputdir  $(TMP_DIR)  -rtsopts -cpp -D$(MUT) \

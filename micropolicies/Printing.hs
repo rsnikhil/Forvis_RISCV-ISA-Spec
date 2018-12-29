@@ -159,7 +159,9 @@ instance CoupledPP Mem MemT where
 instance CoupledPP Machine_State PIPE_State where
   pretty ms ps =
     P.vcat [ P.text "PC:" <+> pretty (f_pc ms) (p_pc ps)
-           , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs ms) (p_gprs ps))
+           , P.text "Registers:" $$
+             let d = pretty (f_gprs ms) (p_gprs ps) in
+               if P.isEmpty d then P.empty else P.nest 2 $ P.char '|' <+> d
            , P.text "Memory:" $$ P.nest 2 (pretty (f_mem ms) (p_mem ps))
            ]
 
@@ -178,15 +180,18 @@ instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
     if r1 == r2 && t1 == t2 then 
       pretty (GPR_File r1) (GPR_FileT t1)
     else
-      P.hcat $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
-                if d1 == d2 && t1 == t2 then 
-                  if d1 == 0 && t1 == MTagR (C 0)
-                    then P.empty
-                    else P.integer i <:> pretty d1 t1 <> P.text " i.e. " <> P.text (show t1) <> P.text "   "
-                else
-                  P.integer i <:> pretty d1 t1 <||> pretty d2 t2 <> P.text "   " )
-             $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
-                   (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
+      let d = P.hcat $ 
+                map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
+                 if d1 == d2 && t1 == t2 then 
+                   if d1 == 0 && t1 == MTagR (C 0)
+                     then P.empty
+                     else P.integer i <:> pretty d1 t1 P.<> P.text " i.e. " P.<> P.text (show t1) P.<> P.text "   "
+                 else
+                   P.integer i <:> pretty d1 t1 <||> pretty d2 t2 P.<> P.text "   " ) $
+               zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
+                   (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2)) in
+      if P.isEmpty d then P.empty else P.nest 2 $ P.char '|' <+> d      
+
 --      P.vcat $ map (foldl1 (<|>))
 --             $ chunksOf 4
 --             $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
@@ -209,7 +214,8 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
         -- Especially when the cost of defining a named constant is so
         -- close to zero...
         pr_loc ((i,d),(j,t)) =
-          pad 5 (P.integer i <> P.char ':') <+>
+          P.char '|' <+>
+          pad 5 (P.integer i P.<> P.char ':') <+>
           case decode_I RV32 d of
             Just instr
               | i == 0 || i >= 1000 -> pp instr <@@> pp t
