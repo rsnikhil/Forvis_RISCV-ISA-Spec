@@ -19,59 +19,77 @@ import GPR_File
 import FPR_File
 import CSR_File
 
-import Text.PrettyPrint (Doc, (<+>), ($$))
+import Text.PrettyPrint (Doc, (<+>), ($$), (<>))
 import qualified Text.PrettyPrint as P
 
 import Control.Arrow (second)
-import Data.List.Split(chunksOf)
+import Data.List.Split (chunksOf)
 
 class PP a where
   pp :: a -> Doc
 
 instance PP Color where
+  pp (C 0) = P.empty
   pp (C n) = P.text $ (["","A","B","C","D","E","X","Y","Z","W"] ++ (repeat "BIGCOLOR")) !! n
 
 instance PP AllocOrNot where
-  pp NoAlloc = P.text ""
+  pp NoAlloc = P.empty
   pp Alloc = P.text "Alloc"
 
 instance PP Tag where
-  pp MTagP = P.text ""
+  pp MTagP = P.empty
   pp (MTagI a) = pp a
   pp (MTagR c) = pp c
-  pp (MTagM (C 0) (C 0)) = P.text ""
+  pp (MTagM (C 0) (C 0)) = P.empty
   pp (MTagM cv cl) = pp cv P.<> P.text "/" P.<> pp cl
 
 instance PP Integer where
   pp n = P.sizedText 2 $ show n
 
-instance PP GPR_FileT where
-  pp (GPR_FileT m) =
-    P.vcat $ map (\(i,r) -> pp i <+> P.char ':' <+> pp r)
-           $ Data_Map.assocs m
+--instance PP GPR_FileT where
+--  pp (GPR_FileT m) =
+--    P.vcat $ map (\(i,r) -> pp i <+> P.char ':' <+> pp r)
+--           $ Data_Map.assocs m
+--
+--instance PP PIPE_State where
+--  pp ps = 
+--    P.vcat [ P.text "PC Tag:" <+> pp (p_pc ps)
+--           , P.text "Register Tags:" $$ P.nest 2 (pp $ p_gprs ps)
+--           -- p_mem
+--           ]
+--
+-- print_pipe :: PIPE_State -> IO ()
+-- print_pipe ps =
+--  putStrLn $ P.render $ pp ps
 
-instance PP PIPE_State where
-  pp ps = 
-    P.vcat [ P.text "PC Tag:" <+> pp (p_pc ps)
-           , P.text "Register Tags:" $$ P.nest 2 (pp $ p_gprs ps)
-           -- p_mem
-           ]
-
-print_pipe :: PIPE_State -> IO ()
-print_pipe ps =
-  putStrLn $ P.render $ pp ps
+-- BCP: I'm confused by the printing stuff: The CoupledPP class seems
+-- to be used for printing things with their tags AND for printing
+-- differences between pairs of things!?  This leads to code that is
+-- pretty hard to read!  My proposal would be to have two different
+-- typeclasses, one with a "ppTagged" (or ppT if you like) method that
+-- weaves together machine-stuff and pipe-stuff for printing, and
+-- another with a ppTogether method for printing two things _of the
+-- same type_ that are also expected to be mostly the same.
 
 class CoupledPP a b | a -> b where
   pretty :: a -> b -> Doc
 
 instance CoupledPP Integer Tag where
-  pretty d t = pp d P.<> P.char '@' P.<> pp t
+  pretty d t = 
+    pp d P.<> 
+    (let ppt = pp t in if show ppt == "" then P.empty else P.char '@' P.<> ppt)
 
 -- Helpers
 x <|> y = x P.<> P.text "\t|\t" P.<> y
 x <:> y = x P.<> P.text ": " P.<> y
-x <@> y = x P.<> P.text "@" P.<> y
-x <||> y = x P.<> P.text "||" P.<> y
+-- x <@> y = x P.<> (if P.isEmpty y then P.empty else P.char '@' P.<> y)
+x <@> y = x P.<> (if show y == "" then P.empty else P.char '@' P.<> y)
+x <@@> y = x P.<> (if show y == "" then P.empty else P.text " @" P.<> y)
+x <||> y = x P.<> P.text " || " P.<> y
+
+pad :: Int -> Doc -> Doc
+pad i p = let s = show p in
+          P.text (s ++ take (i - (length s)) (repeat ' '))
 
 pr_register :: InstrField -> Doc
 pr_register n = P.char 'r' P.<> P.integer n  
@@ -95,7 +113,7 @@ instance PP Instr_I where
   pp (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
   pp (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
   pp (JAL rs imm) = pr_instr_J_type "JAL" rs imm
-  pp i = error $ show i
+  pp i = error $ "Unimplemented pp for Instr_I" ++ show i
 
 pr_imem :: Mem -> Doc
 pr_imem m =
@@ -103,29 +121,38 @@ pr_imem m =
       decoded  = filter (isJust . snd) $ map (second $ decode_I RV32) contents
   in P.vcat $ map (\(i, Just instr) -> P.integer i <:> pp instr) decoded
 
--- IDEAS: only show non-trivial registers?
--- BCP: Yes, please!!
 pr_mem :: Mem -> Doc
 pr_mem m = 
   let contents = Data_Map.assocs $ f_dm m 
       decoded  = filter (not . isJust . decode_I RV32 . snd) contents
   in P.vcat $ map (\(i, d) -> P.integer i <:> P.integer d) decoded
 
+pad_int :: Int -> Integer -> Doc
+pad_int i p = let s = show p in
+          P.text (s ++ take (i - (length s)) (repeat ' '))
+
 -- TODO: Align better, tabs don't work well
+-- BCP: Use pad combinator above
 -- BCP: Maybe just put all (the nontrivial ones) on one line?
 instance CoupledPP GPR_File GPR_FileT where
   pretty (GPR_File m) (GPR_FileT mt) =
-    P.vcat $ map (foldl1 (<|>))
-           $ chunksOf 4
-           $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':' <+> pretty d t)
+    P.hcat $ map 
+               (\((i,d),(i', t)) -> 
+                   if d/=0 || t/=(MTagR (C 0))
+                     then P.integer i <:> pretty d t <> P.text "   "
+                     else P.empty)
            $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
+--    P.vcat $ map (foldl1 (<|>))
+--           $ chunksOf 4
+--           $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':' <+> pretty d t)
+--           $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
 
 instance CoupledPP Mem MemT where
   pretty (Mem m _) (MemT pm) =
     let contents = zip (Data_Map.assocs $ m) (Data_Map.assocs pm)
     in P.vcat $ map (\((i,d),(j,t)) ->
                         case decode_I RV32 d of
-                          Just instr -> P.integer i <:> pp instr <@> pp t
+                          Just instr -> P.integer i <:> pp instr <@@> pp t
                           Nothing -> P.integer i <:> P.integer d <@> pp t
                     ) contents
 
@@ -133,7 +160,7 @@ instance CoupledPP Machine_State PIPE_State where
   pretty ms ps =
     P.vcat [ P.text "PC:" <+> pretty (f_pc ms) (p_pc ps)
            , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs ms) (p_gprs ps))
-           , P.text "Memories:" $$ pretty (f_mem ms) (p_mem ps)
+           , P.text "Memory:" $$ P.nest 2 (pretty (f_mem ms) (p_mem ps))
            ]
 
 instance CoupledPP (Integer, Tag) (Integer, Tag) where
@@ -141,45 +168,64 @@ instance CoupledPP (Integer, Tag) (Integer, Tag) where
     if i1 == i2 && t1 == t2 then
       pretty i1 t1 
     else
-      P.text "<Discrepancy!>" <+> pretty i1 t1 <||> pretty i2 t2
+      pretty i1 t1 <||> pretty i2 t2
 
+-- BCP: Better to print the address just once.  And I think if one
+-- memory is defined and the other isn't we could just print
+--     42: 0@B || <UNDEF>
 instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
   pretty (GPR_File r1, GPR_FileT t1) (GPR_File r2, GPR_FileT t2) =
     if r1 == r2 && t1 == t2 then 
       pretty (GPR_File r1) (GPR_FileT t1)
     else
-      P.vcat $ map (foldl1 (<|>))
-             $ chunksOf 4
-             $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
+      P.hcat $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
                 if d1 == d2 && t1 == t2 then 
-                  P.integer i <+> P.char ':' <+> pretty d1 t1
+                  if d1 == 0 && t1 == MTagR (C 0)
+                    then P.empty
+                    else P.integer i <:> pretty d1 t1 <> P.text " i.e. " <> P.text (show t1) <> P.text "   "
                 else
-                  P.integer i <+> P.text "<Discrepancy!>" <+> pretty d1 t1 <||> pretty d2 t2
-                   )
+                  P.integer i <:> pretty d1 t1 <||> pretty d2 t2 <> P.text "   " )
              $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
                    (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
+--      P.vcat $ map (foldl1 (<|>))
+--             $ chunksOf 4
+--             $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
+--                if d1 == d2 && t1 == t2 then 
+--                  P.integer i <:> pretty d1 t1
+--                else
+--                  P.integer i <:> pretty d1 t1 <||> pretty d2 t2
+--                   )
+--             $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
+--                   (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
     
 instance CoupledPP (Mem, MemT) (Mem, MemT) where
   pretty (Mem m1 _, MemT p1) (Mem m2 _, MemT p2) =
     let c1 = zip (Data_Map.assocs $ m1) (Data_Map.assocs p1)
         c2 = zip (Data_Map.assocs $ m2) (Data_Map.assocs p2)
 
+        -- BCP: Again, having magic numbers (like 1000) in the code is
+        -- pretty error-prone.  Even for throwaway code, there is a
+        -- pretty high chance of wasting time hunting for bugs.
+        -- Especially when the cost of defining a named constant is so
+        -- close to zero...
         pr_loc ((i,d),(j,t)) =
+          pad 5 (P.integer i <> P.char ':') <+>
           case decode_I RV32 d of
             Just instr
-              | i == 0 || i >= 1000 -> P.integer i <:> pp instr <@> pp t
-              | otherwise -> P.integer i <:> P.integer d <@> pp t
-            Nothing -> P.integer i <:> P.integer d <@> pp t
-          
+              | i == 0 || i >= 1000 -> pp instr <@@> pp t
+              | otherwise -> P.integer d <@@> pp t
+            Nothing -> P.integer d <@@> pp t
 
         pr_aux acc [] [] = reverse acc
         pr_aux acc [] (loc:locs) = pr_aux ((P.text "R:" <+> pr_loc loc) : acc) [] locs
         pr_aux acc (loc:locs) [] = pr_aux ((P.text "L:" <+> pr_loc loc) : acc) locs []
-        pr_aux acc (((i1,d1),(_,t1)):loc1) (((i2,d2),(_,t2)):loc2)
+        pr_aux acc (((i1,d1),(j1,t1)):loc1) (((i2,d2),(j2,t2)):loc2)
+          | i1 /= j1 = error "misaligned data and tag memories"
+          | i2 /= j2 = error "misaligned data and tag memories"
           | i1 == i2 && d1 == d2 && t1 == t2 =
             pr_aux (pr_loc ((i1,d1),(i1,t1)) : acc) loc1 loc2
           | i1 == i2 =
-            pr_aux ((P.text "<Discrepancy!>" <+> pr_loc ((i1,d1),(i2,t1)) <||> pr_loc ((i2,d2),(i2,t2)) : acc)) loc1 loc2
+            pr_aux ((pr_loc ((i1,d1),(i2,t1)) <||> pr_loc ((i2,d2),(i2,t2)) : acc)) loc1 loc2
           | i1 < i2 =
             pr_aux (P.text "L:" <+> pr_loc ((i1,d1),(i1,t1)) : acc) loc1 (((i2,d2),(i2,t2)):loc2)
           | i1 > i2 = 
@@ -191,7 +237,7 @@ instance CoupledPP (Set Color) (Set Color) where
   pretty s1 s2 =
     if s1 == s2 then foldl1 (<+>) (map pp $ Data_Set.elems s1)
     else
-      P.text "<Discrepancy!>" <+> foldl1 (<+>) (map pp $ Data_Set.elems s1) <||> foldl1 (<+>) (map pp $ Data_Set.elems s2)
+      foldl1 (<+>) (map pp $ Data_Set.elems s1) <||> foldl1 (<+>) (map pp $ Data_Set.elems s2)
   
 
 print_coupled :: Machine_State -> PIPE_State -> IO ()
@@ -220,16 +266,3 @@ print_mstate  indent  mstate = do
   print_CSR_File  indent  rv  csrs
   -- We do not print memory or MMIO
   putStrLn (indent ++ (show run_state))
-
--------------------------------------------------------------
--- BCP: Needs finishing (and probably it should be pretty, not show)
-
-showCurr (p,m) = (show $ f_pc m) ++ "  (Instr)" 
-
-showDiffs s1 s2 = "(Diffs)"
-
-showTrace :: [(PIPE_State,Machine_State)] -> String
-showTrace [] = ""
-showTrace [s] = showCurr s ++ "  Halt"
-showTrace (s1:s2:tr) = showCurr s1 ++ "  " ++ showDiffs s1 s2 ++ "\n" ++ showTrace (s2:tr)
-

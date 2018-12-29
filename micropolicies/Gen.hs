@@ -1,6 +1,5 @@
 module Gen where
 
-
 import Arch_Defs
 import GPR_File
 import Forvis_Spec_I
@@ -51,6 +50,9 @@ Load r1 r2 @ default
 Put heap_base r2 @ default
 Load r2 r3 @ default
 -}
+-- BCP: We should keep one example machine for each bug, and we should
+-- make it possible to execute all of them and make sure they
+-- "correctly fail" without editing the source code...
 exampleMachines =
   let ms = initMachine
       heap_base = 100
@@ -75,7 +77,25 @@ exampleMachines =
       p_acc = init_pipe_state { p_mem = p_macc }
       p_rej = init_pipe_state { p_mem = p_mrej }
   in ((ms_acc,p_acc), (ms_rej,p_rej))
-  
+
+bug_mangled_store_color =
+  let ms = initMachine
+      heap_base = 4
+      code = map (second $ second MTagI)
+        [ (0, (encode_I RV32 (JAL 0 1000), NoAlloc))
+        , (1000, ((encode_I RV32 (ADDI 1 0 heap_base), NoAlloc)))
+        , (1004, ((encode_I RV32 (LW 1 1 0), NoAlloc)))
+        , (1008, ((encode_I RV32 (SW 1 1 0), NoAlloc))) 
+        ]
+      heap  =
+        [ (4, (17, MTagM (C 2) (C 0))) ]  -- 17
+      heap' =
+        [ (4, (42, MTagM (C 2) (C 0))) ] -- 42
+      m  = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap ) }}
+      m' = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap') }}
+      p = init_pipe_state { p_mem = MemT $ Data_Map.fromList (map (second snd) (code ++ heap)) }
+  in M (m,p) (m',p)
+
 --- Generate input program + tags
 -- Tags in call/ret f1-2-3-4-5
 -- Memory colors in movs
@@ -83,26 +103,29 @@ exampleMachines =
 
 -- Invariants: r0 is always zero
 
+-- GPR's are hard coded to be [0..31], but we only use a couple of them
+maxReg = 3
+
 -- Generate a random register for source
 -- TODO: add types?
 genSourceReg :: Machine_State -> Gen GPR_Addr
 genSourceReg ms =
-  -- GPR's are hard coded to be [0..31].
-  choose (0, 31)
+  choose (0, maxReg)
 
 -- Generate a target register GPR
 -- For now, just avoid R0
 genTargetReg :: Machine_State -> Gen GPR_Addr
 genTargetReg ms =
-  choose (1, 31)
+  choose (1, maxReg)
 
 -- Generate an immediate up to number
 -- Multiple of 4
 genImm :: Integer -> Gen InstrField
-genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we not generate 0?
+-- genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we never generate 0?
+genImm n = (4*) <$> choose (0, n `div` 4)  
 
 dataMemLow  = 4
-dataMemHigh = 40
+dataMemHigh = 8  -- Was 40, but that seems like a lot! (8 may be too little!)
 instrLow = 1000
 
 -- Generate an instruction that is valid in the current context
@@ -110,9 +133,11 @@ instrLow = 1000
 -- and pick "valid" current addresses.
 
 -- Picks out valid (data registers + max immediate), (jump registers + min immediate), integer registers
+-- If not only using multiples of 4, add a modulus to data 
 groupRegisters :: GPR_File -> ([(GPR_Addr, Integer)], [(GPR_Addr, Integer)], [GPR_Addr])
 groupRegisters (GPR_File rs) =
-  let regs = Data_Map.assocs rs
+  let regs' = Data_Map.assocs rs
+      regs = take 4 regs'  -- Just use the first four registers!
       validData n
         | n >= dataMemLow && n <= dataMemHigh =
             Just (dataMemHigh - n)
@@ -133,9 +158,10 @@ genInstr ms =
                do -- ADDI
                   rs <- elements arithRegs
                   rd <- genTargetReg ms
-                  imm <- genImm 40
+                  imm <- genImm dataMemHigh
                   -- TODO: Figure out what to do with Malloc
-                  alloc <- frequency [(1, pure $ MTagI Alloc), (4, pure $ MTagI NoAlloc)]
+                  alloc <- frequency [(2, pure $ MTagI Alloc), 
+                                      (3, pure $ MTagI NoAlloc)]
                   return (ADDI rd rs imm, alloc))
             , (onNonEmpty dataRegs 3,
                do -- LOAD
@@ -195,10 +221,12 @@ randInstr ms =
 -- setInstrTags ps its =
 --   ps {p_mem = MemT $ Data_Map.union (Data_Map.fromList ((0, MTagI NoAlloc) : (zip [1000,1004..] its))) (unMemT $ p_mem ps)}
 -- 
+-- BCP: Too many magic constants!  (like 4, here)
+-- BCP: I reversed the ratio of 0 to other colors
 genColor :: Gen Color
 genColor =
-  frequency [ (9, pure $ C 0)
-            , (1, C <$> choose (0, 4)) ]
+  frequency [ (1, pure $ C 0)
+            , (4, C <$> choose (0, 4)) ]
 
 genMTagM :: Gen Tag
 genMTagM = MTagM <$> genColor <*> genColor
@@ -206,7 +234,9 @@ genMTagM = MTagM <$> genColor <*> genColor
 genDataMemory :: Gen (Mem, MemT)
 genDataMemory = do
   let idx = [dataMemLow,dataMemLow+4..dataMemHigh]
-  combined <- mapM (\i -> do d <- genImm 4    -- BCP: This always puts 4 in every location!
+  combined <- mapM (\i -> do d <- genImm 4    -- BCP: This puts 4 in
+                                              -- every location!
+                                              -- Why??
                              t <- genMTagM
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
@@ -242,16 +272,19 @@ genByExec n ms ps instrlocs
   --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
         return (ms', ps', instrlocs)
 
+maxInstrsToGenerate = 60
+
 genMachine :: Gen (Machine_State, PIPE_State)
 genMachine = do
-  -- TODO: this is random, not generation by execution   (BCP: Really??)
-  -- registers
+  -- TODO: this is random, not generation by execution (BCP: Really??)
+  -- TODO: registers -- BCP: Yes, some interesting stuff in registers
+  -- would be good!
   (mem,pmem) <- genDataMemory
   let ms = initMachine {f_mem = mem}
       ps = init_pipe_state {p_mem = pmem}
       ms' = setInstrI ms (JAL 0 1000)
       ps' = setInstrTagI ms ps (MTagI NoAlloc)  -- BCP: Needed??
-  (ms_fin, ps_fin, instrlocs) <- genByExec 10 ms' ps' Data_Set.empty
+  (ms_fin, ps_fin, instrlocs) <- genByExec maxInstrsToGenerate ms' ps' Data_Set.empty
 
   let final_mem = f_dm $ f_mem ms_fin
       res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs

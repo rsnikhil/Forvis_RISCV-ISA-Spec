@@ -4,24 +4,29 @@ TMP_DIR  = ../tmp_haskell
 
 all:
 	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  \
+	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2 -fno-ignore-asserts -i$(SRC_DIR)  \
 	   -outputdir  $(TMP_DIR)  -rtsopts -cpp \
 	   Main_PIPE 
 # temporary
 	../forvis_exe
 
 mutant:
+	@echo "[37;41m--------- $(MUT) -----------c"
 	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  \
+	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2 -fno-ignore-asserts -i$(SRC_DIR)  \
 	   -outputdir  $(TMP_DIR)  -rtsopts -cpp -D$(MUT) \
 	   Main_PIPE 
 # temporary
 	time ../forvis_exe
 
 temp:
-	make mutant MUT=M_FRESH_COLOR
+	make mutant MUT=M_MANGLED_STORE
 
 mutants:
+	make mutant MUT=M_WRONG_STORE
+#	make mutant MUT=M_MANGLED_STORE
+	make mutant MUT=M_WRONG_ADD
+	make mutant MUT=M_WRONG_ADDI
 	make mutant MUT=M_FRESH_COLOR
 	make mutant MUT=M_LW_NOCHECK
 

@@ -94,6 +94,12 @@ run_loop'  fuel maxinstrs trace pipe_state mstate =
 --     state to the trap vector (so, the fetched instr will be the
 --     first instruction in the trap vector).
 
+mainProcessorTrapped :: Machine_State -> Bool
+-- Checking whether the PC is zero is a simple (and doubtless
+-- inadequate) proxy for some more complicated check that we should
+-- probably be doing...
+mainProcessorTrapped m = f_pc m == 0
+
 fetch_and_execute :: PIPE_State -> Machine_State -> Either String (PIPE_State, Machine_State)
 fetch_and_execute pipe_state mstate = 
   let _verbosity               = mstate_verbosity_read  mstate
@@ -117,7 +123,10 @@ fetch_and_execute pipe_state mstate =
           (pipe_state1, trap) = exec_pipe pipe_state mstate3 u32 
       in case trap of 
            PIPE_Trap s -> Left s
-           PIPE_Success -> Right (pipe_state1, mstate4)
+           PIPE_Success ->
+             if mainProcessorTrapped mstate4 
+               then Right (pipe_state, mstate4)
+               else Right (pipe_state1, mstate4)
 
 -- ================================================================
 -- Read the word in mem [tohost_addr], if such an addr is given,

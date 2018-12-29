@@ -7,6 +7,9 @@ import Data.Set (Set)
 
 import Bit_Utils
 import Arch_Defs
+import Mem_Ops
+
+import Control.Exception (assert)
 
 -- Maybe?
 import Machine_State
@@ -17,16 +20,7 @@ import Memory
 -- This might belong elsewhere
 import Test.QuickCheck
 
-
 --------------------------------------------------------
-
--- Design decision: Do we want to write policies in Haskell, or in
--- RISCV machine instructions (compiled from C or something).  In this
--- experiment I'm assuming the former.  If we go for the latter, it's
--- going to require quite a bit of lower-level plumbing (including
--- keeping two separate copies of the whole RISCV machine state, and
--- making the explicit connections between them).  The latter is
--- probably what we really want, though.
 
 newtype Color = C Int
                 deriving (Eq, Show, Ord)
@@ -91,17 +85,17 @@ init_pipe_state = PIPE_State {
   p_pc = initPC,
   p_gprs = mkGPR_FileT,
   p_mem = mkMemT,
-  p_nextcolor = 5 -- Should not be able to allocate an existing color...
+  p_nextcolor = initialColors -- Should not be able to allocate an existing color...
   }
 
 fresh_color :: PIPE_State -> (Color, PIPE_State)
 #ifndef M_FRESH_COLOR
 fresh_color p = (C $ p_nextcolor p, p {p_nextcolor = p_nextcolor p + 1})
 #else
-fresh_color p = (C 0, p)
+fresh_color p = (C 1, p)
 #endif
 
--- Should be done with lenses...
+-- Should be done with lenses...  (BCP: But not clear the alignment check can be...)
 get_rtag :: PIPE_State -> GPR_Addr -> Tag
 get_rtag p = gpr_readT (p_gprs p)
 
@@ -112,7 +106,11 @@ get_mtag :: PIPE_State -> Integer -> Tag
 get_mtag p a = maybe (MTagM dfltcolor dfltcolor) id $ Data_Map.lookup a (unMemT $ p_mem p) 
 
 set_mtag :: PIPE_State -> Integer -> Tag -> PIPE_State
-set_mtag p a t = p { p_mem = MemT (Data_Map.insert a t (unMemT $ p_mem p)) }
+set_mtag p a t =
+  -- TODO: This assertion is not quite correct -- it assumes all
+  -- stores are full-word stores
+  assert (is_STORE_aligned funct3_SW a) $
+  p { p_mem = MemT (Data_Map.insert a t (unMemT $ p_mem p)) }
 
 ---------------------------------
 
@@ -129,11 +127,20 @@ exec_pipe p m u32 =
       Just i -> 
         case i of
           ADDI rd rs imm 
+#ifndef M_WRONG_ADDI
             | ic == MTagI NoAlloc -> ok $ set_rtag p rd $ get_rtag p rs
+#else
+            | ic == MTagI NoAlloc -> ok $ set_rtag p rd (MTagR (C 1))
+#endif
             | otherwise -> 
                 let (c, p') = fresh_color p in
                 ok $ set_rtag p rd (MTagR c)
-          ADD rd rs1 rs2 -> ok $ set_rtag p rd $ get_rtag p rs1
+          ADD rd rs1 rs2 ->
+#ifndef M_WRONG_ADD
+            ok $ set_rtag p rd $ get_rtag p rs1
+#else
+            ok $ set_rtag p rd (MTagR (C 1))
+#endif
           LW rd rs imm   -> 
             let rsc = get_rtag p rs
 --                rs1_val  = mstate_gpr_read  mstate  rs1    -- address base
@@ -156,7 +163,16 @@ exec_pipe p m u32 =
                 rs1c = get_rtag p rs1 
                 rs2c = get_rtag p rs2 in 
             case (rs1c,rs2c) of
+#ifndef M_WRONG_STORE
+#ifndef M_MANGLED_STORE
               (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM t2c t1c)
+#else
+              (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM t1c t2c)
+#endif
+#else
+              -- This one is copied from the Coq version: 
+              (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM (C 1) t1c)
+#endif
               _ -> notok p $ "Mangled tags on Store: " ++ show rs1c ++ " and " ++ show rs2c
           _ -> ok p 
       Nothing -> ok p
