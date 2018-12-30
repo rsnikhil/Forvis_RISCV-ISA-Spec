@@ -208,6 +208,7 @@ genInstr ms ps =
                   return (ADD rd rs1 rs2, MTagI NoAlloc))
             ]
 
+{-
 randInstr :: Machine_State -> Gen (Instr_I, Tag)
 randInstr ms =          
   frequency [ (1, do -- ADDI
@@ -232,7 +233,7 @@ randInstr ms =
                   rd <- genTargetReg ms
                   return (ADD rd rs1 rs2, MTagI NoAlloc))
             ]
-
+-}
 
 -- | Instruction 0 is JAL 1000
 --   Instructions are put in loc 1000+
