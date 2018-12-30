@@ -287,7 +287,7 @@ setInstrTagI :: Machine_State -> PIPE_State -> Tag -> PIPE_State
 setInstrTagI ms ps it =
   ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
 
-genByExec :: Int -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
+genByExec :: Integer -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
 genByExec 0 ms ps instrlocs = return (ms, ps, instrlocs)
 genByExec n ms ps instrlocs
   -- Check if an instruction already exists
@@ -308,8 +308,6 @@ genByExec n ms ps instrlocs
       Left _ ->
   --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
         return (ms', ps', instrlocs)
-
-maxInstrsToGenerate = 60
 
 updRegs :: GPR_File -> Gen GPR_File
 updRegs (GPR_File rs) = do
