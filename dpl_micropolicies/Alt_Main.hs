@@ -26,10 +26,13 @@ import qualified Data.Map.Strict as Data_Map
 import Machine_State 
 
 import Run_Program_PIPE
+import Generator (genASTFile,genSymbolsFile)
 
 main = do
-  pol <- load_pipe_policy "heap.main"
-  putStrLn $ show pol  
+  (name,pol,symbols) <- load_pipe_policy "heap.main"
+  putStrLn $ "module name = " ++ (show name)
+  genASTFile (Just pol)
+  genSymbolsFile symbols
 
 {-main2 = do
   let ((ms,ps),_) = exampleMachines
