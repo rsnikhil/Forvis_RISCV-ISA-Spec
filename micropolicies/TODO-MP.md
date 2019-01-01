@@ -1,8 +1,8 @@
 TODAY
 
-Try to add some more mutants to the heap safety policy
+Integrate Andrew's policy language interpreter
 
-Integrate Andrew's poolicy language interpreter
+make a PR for the /src and / changes
 
 Printing
 - Double-check that trace printing is really working: E.g., what will
