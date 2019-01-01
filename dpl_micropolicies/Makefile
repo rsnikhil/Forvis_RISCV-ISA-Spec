@@ -10,7 +10,7 @@ all:
 	   -XLambdaCase \
 	   -package megaparsec-5.3.1 -hide-package language-c-0.6.1 \
 	   -outputdir  $(TMP_DIR)  -rtsopts -cpp \
-	   Main_PIPE 
+	   Alt_Main
 # temporary
 	../forvis_exe
 

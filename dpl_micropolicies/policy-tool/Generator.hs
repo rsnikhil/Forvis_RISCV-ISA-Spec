@@ -114,6 +114,7 @@ genModule opts md =
     writeFile modFile $ unlines $ printModule md
 -}
 
+{-  TEMPORARILY OMIT
 genFiles :: Options
          -> ModSymbols
          -> [(ModName, QSym)]
@@ -206,3 +207,4 @@ dump stuff = do
   hPutStrLn stderr "\nHere's some stuff:: " 
   hPutStrLn stderr $ unlines $ map show stuff
         
+END TEMPORARY OMIT -}
