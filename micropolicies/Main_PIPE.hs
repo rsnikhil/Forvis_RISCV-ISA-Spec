@@ -85,7 +85,7 @@ main5 = do
   uncurry printTrace (unzip ss)
   
 mainHeap = do
-  quickCheckWith stdArgs{maxSuccess=1000} testHeapSafety
+  quickCheckWith stdArgs{maxSuccess=100000000} testHeapSafety
 
 main3 = do
   let ((ms_acc,p_acc),(ms_rej,p_rej)) = exampleMachines

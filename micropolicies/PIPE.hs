@@ -164,13 +164,8 @@ exec_pipe p m u32 =
                 rs2c = get_rtag p rs2 in 
             case (rs1c,rs2c) of
 #ifndef M_WRONG_STORE
-#ifndef M_MANGLED_STORE
               (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM t2c t1c)
 #else
-              (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM t1c t2c)
-#endif
-#else
-              -- This one is copied from the Coq version: 
               (MTagR t1c, MTagR t2c) -> ok $ set_mtag p (addr+imm) (MTagM (C 1) t1c)
 #endif
               _ -> notok p $ "Mangled tags on Store: " ++ show rs1c ++ " and " ++ show rs2c

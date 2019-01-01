@@ -80,24 +80,6 @@ exampleMachines =
       p_rej = init_pipe_state { p_mem = p_mrej }
   in ((ms_acc,p_acc), (ms_rej,p_rej))
 
-bug_mangled_store_color =
-  let ms = initMachine
-      heap_base = 4
-      code = map (second $ second MTagI)
-        [ (0, (encode_I RV32 (JAL 0 1000), NoAlloc))
-        , (1000, ((encode_I RV32 (ADDI 1 0 heap_base), NoAlloc)))
-        , (1004, ((encode_I RV32 (LW 1 1 0), NoAlloc)))
-        , (1008, ((encode_I RV32 (SW 1 1 0), NoAlloc))) 
-        ]
-      heap  =
-        [ (4, (17, MTagM (C 2) (C 0))) ]  -- 17
-      heap' =
-        [ (4, (42, MTagM (C 2) (C 0))) ] -- 42
-      m  = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap ) }}
-      m' = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap') }}
-      p = init_pipe_state { p_mem = MemT $ Data_Map.fromList (map (second snd) (code ++ heap)) }
-  in M (m,p) (m',p)
-
 --- Generate input program + tags
 -- Tags in call/ret f1-2-3-4-5
 -- Memory colors in movs
