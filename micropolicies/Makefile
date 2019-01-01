@@ -19,12 +19,8 @@ mutant:
 # temporary
 	time ../forvis_exe
 
-temp:
-	make mutant MUT=M_MANGLED_STORE
-
 mutants:
 	make mutant MUT=M_WRONG_STORE
-#	make mutant MUT=M_MANGLED_STORE
 	make mutant MUT=M_WRONG_ADD
 	make mutant MUT=M_WRONG_ADDI
 	make mutant MUT=M_FRESH_COLOR

@@ -80,24 +80,6 @@ exampleMachines =
       p_rej = init_pipe_state { p_mem = p_mrej }
   in ((ms_acc,p_acc), (ms_rej,p_rej))
 
-bug_mangled_store_color =
-  let ms = initMachine
-      heap_base = 4
-      code = map (second $ second MTagI)
-        [ (0, (encode_I RV32 (JAL 0 1000), NoAlloc))
-        , (1000, ((encode_I RV32 (ADDI 1 0 heap_base), NoAlloc)))
-        , (1004, ((encode_I RV32 (LW 1 1 0), NoAlloc)))
-        , (1008, ((encode_I RV32 (SW 1 1 0), NoAlloc))) 
-        ]
-      heap  =
-        [ (4, (17, MTagM (C 2) (C 0))) ]  -- 17
-      heap' =
-        [ (4, (42, MTagM (C 2) (C 0))) ] -- 42
-      m  = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap ) }}
-      m' = ms {f_mem = (f_mem ms) { f_dm = Data_Map.fromList $ map (second fst) (code ++ heap') }}
-      p = init_pipe_state { p_mem = MemT $ Data_Map.fromList (map (second snd) (code ++ heap)) }
-  in M (m,p) (m',p)
-
 --- Generate input program + tags
 -- Tags in call/ret f1-2-3-4-5
 -- Memory colors in movs
@@ -208,6 +190,7 @@ genInstr ms ps =
                   return (ADD rd rs1 rs2, MTagI NoAlloc))
             ]
 
+{-
 randInstr :: Machine_State -> Gen (Instr_I, Tag)
 randInstr ms =          
   frequency [ (1, do -- ADDI
@@ -232,7 +215,7 @@ randInstr ms =
                   rd <- genTargetReg ms
                   return (ADD rd rs1 rs2, MTagI NoAlloc))
             ]
-
+-}
 
 -- | Instruction 0 is JAL 1000
 --   Instructions are put in loc 1000+
@@ -286,7 +269,7 @@ setInstrTagI :: Machine_State -> PIPE_State -> Tag -> PIPE_State
 setInstrTagI ms ps it =
   ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
 
-genByExec :: Int -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
+genByExec :: Integer -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
 genByExec 0 ms ps instrlocs = return (ms, ps, instrlocs)
 genByExec n ms ps instrlocs
   -- Check if an instruction already exists
@@ -307,8 +290,6 @@ genByExec n ms ps instrlocs
       Left _ ->
   --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
         return (ms', ps', instrlocs)
-
-maxInstrsToGenerate = 60
 
 updRegs :: GPR_File -> Gen GPR_File
 updRegs (GPR_File rs) = do

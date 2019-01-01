@@ -271,6 +271,45 @@ instance CoupledPP Diff Diff where
            , prettyMemDiff (d_mem d1) (d_mem d2)
            ]
 
+-- TODO: The fact that we need this is a sad indication of how confused
+-- everything is about whether pipe or machine states go first...
+flipboth :: ((a,b),(a,b)) -> ((b,a),(b,a))
+flipboth ((a1,b1),(a2,b2)) = ((b1,a1),(b2,a2))
+
+prop_NI' count maxcount trace (M (m1,p1) (m2,p2)) =
+  let run_state1 = mstate_run_state_read m1
+      run_state2 = mstate_run_state_read m2
+      m1' = mstate_mem_tick m1
+      m2' = mstate_mem_tick m2 
+      trace' = ((m1,p1),(m2,p2)) : trace  in
+  if count >= maxcount then 
+    label "Out of gas" $ property True 
+  -- BCP: Check for traps too
+  else if run_state1 /= Run_State_Running || run_state2 /= Run_State_Running then 
+    label (show run_state1 ++ " / " ++ show run_state2) $ property True
+  else
+    case (fetch_and_execute p1 m1', fetch_and_execute p2 m2') of
+      (Right (p1r,m1r), Right (p2r, m2r)) ->
+        (whenFail (do putStrLn $ "Reachable parts differ after execution!"
+                      let finalTrace = map flipboth $ reverse $ 
+                                       ((m1r,p1r), (m2r, p2r)) : trace'
+                      uncurry printTrace (unzip finalTrace)) $
+           property $ sameReachablePart (M (m1r,p1r) (m2r, p2r)))
+        .&&. 
+        prop_NI' (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
+      (Left s1, Left s2) ->
+         label ("Pipe trap " ++ s1 ++ " / " ++ s2) $ property True
+      (Left s1, _) ->
+         label ("Pipe trap " ++ s1) $ property True
+      (_, Left s2) ->
+         label ("Pipe trap " ++ s2) $ property True
+
+maxInstrsToGenerate = 60
+
+prop_noninterference :: MStatePair -> Property
+prop_noninterference ms = prop_NI' 0 maxInstrsToGenerate [] ms
+
+{-
 prop_noninterference :: MStatePair -> Property
 prop_noninterference (M (m1,p1) (m2,p2)) =
   let (r1,ss1') = run_loop 20 p1 m1
@@ -294,3 +333,4 @@ prop_noninterference (M (m1,p1) (m2,p2)) =
 --           collect (case fst $ instr_fetch m1' of
 --                      Fetch u32 -> decode_I RV32 u32)
              (sameReachablePart (M (m1', p1') (m2', p2')))
+-}
