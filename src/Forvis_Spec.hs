@@ -122,23 +122,13 @@ instr_fetch  mstate =
 read_n_instr_bytes :: Machine_State -> Int   -> Integer -> (Mem_Result, Machine_State)
 read_n_instr_bytes    mstate           n_bytes  va =
   let
+    -- Read mem, possibly with virtual mem translation
     is_instr = True
-    is_read  = True
     funct3   = if (n_bytes == 4) then  funct3_LW  else  funct3_LH
 
-    --     If Virtual Mem is active, translate pc to a physical addr
-    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
-                           vm_translate  mstate  is_instr  is_read  va
-                         else
-                           (Mem_Result_Ok  va, mstate)
-
-    --     If no trap due to Virtual Mem translation, read 2 bytes from memory
-    (result2, mstate2) = case result1 of
-                           Mem_Result_Err  exc_code -> (result1, mstate1)
-                           Mem_Result_Ok   pa ->
-                             mstate_mem_read   mstate1  exc_code_instr_access_fault  funct3  pa
+    (result1, mstate1) = mstate_vm_read  mstate  is_instr  exc_code_instr_access_fault  funct3  va
   in
-    (result2, mstate2)
+    (result1, mstate1)
 
 -- ================================================================
 -- Execute one 32b instruction

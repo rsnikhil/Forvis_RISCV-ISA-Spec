@@ -216,36 +216,26 @@ exec_FLD  is_C  (FLD  rd  rs1  imm12)  mstate =
     rv   = mstate_rv_read  mstate
     xlen = mstate_xlen_read  mstate
 
-    --     Compute effective address
+    -- Compute effective address
     rs1_val = mstate_gpr_read  mstate  rs1
     s_imm12 = sign_extend  12  xlen  imm12
     eaddr1  = alu_add  xlen  rs1_val  s_imm12
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
-    --     If Virtual Mem is active, translate to a physical addr
-    is_instr     = False
-    is_read      = True
+    -- Read mem, possibly with virtual mem translation
+    is_instr = False
+    (result1, mstate1) = mstate_vm_read  mstate  is_instr  exc_code_load_access_fault  funct3_FLD  eaddr2
+
+    -- Finish with trap, or finish with loading Rd with load-value
     is_n_lt_FLEN = False
-    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
-                           vm_translate  mstate  is_instr  is_read  eaddr2
-                         else
-                           (Mem_Result_Ok  eaddr2, mstate)
-
-    --     If no trap due to Virtual Mem translation, read from memory
-    (result2, mstate2) = case result1 of
-                           Mem_Result_Err  exc_code -> (result1, mstate1)
-                           Mem_Result_Ok   eaddr2_pa ->
-                             mstate_mem_read   mstate1  exc_code_load_access_fault  funct3_FLD  eaddr2_pa
-
-    --     Finally: finish with trap, or finish with loading Rd with load-value
-    mstate3 = case result2 of
+    mstate2 = case result1 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  mstate2  exc_code  eaddr2
+                  finish_trap  mstate1  exc_code  eaddr2
 
                 Mem_Result_Ok  d_u64    ->
-                  finish_frd_and_pc_plus_4  mstate2  rd  d_u64  is_n_lt_FLEN
+                  finish_frd_and_pc_plus_4  mstate1  rd  d_u64  is_n_lt_FLEN
   in
-    mstate3
+    mstate2
 
 -- ================================================================
 -- FSD
@@ -258,32 +248,21 @@ exec_FSD  is_C  (FSD  rs1  rs2  imm12)  mstate =
 
     rs2_val = mstate_fpr_read  mstate  rs2   -- store value
 
-    --     Compute effective address
+    -- Compute effective address
     rs1_val = mstate_gpr_read  mstate  rs1    -- address base
     s_imm12 = sign_extend  12  xlen  imm12
     eaddr1  = alu_add  xlen  rs1_val  s_imm12
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
-    --     If Virtual Mem is active, translate to a physical addr
-    is_instr = False
-    is_read  = False
-    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
-                           vm_translate  mstate  is_instr  is_read  eaddr2
-                         else
-                           (Mem_Result_Ok  eaddr2, mstate)
+    -- Write mem, possibly with virtual mem translation
+    (result1, mstate1) = mstate_vm_write  mstate  funct3_FSD  eaddr2  rs2_val
 
-    --     If no trap due to Virtual Mem translation, store to memory
-    (result2, mstate2) = case result1 of
-                           Mem_Result_Err  exc_code -> (result1, mstate1)
-                           Mem_Result_Ok   eaddr2_pa ->
-                             mstate_mem_write   mstate1  funct3_FSD  eaddr2_pa  rs2_val
-
-    --     Finally: finish with trap, or finish with fall-through
-    mstate3 = case result2 of
-                Mem_Result_Err exc_code -> finish_trap  mstate2  exc_code  eaddr2
-                Mem_Result_Ok  _        -> finish_pc_incr  mstate2  is_C
+    -- Finish with trap, or finish with fall-through
+    mstate2 = case result1 of
+                Mem_Result_Err exc_code -> finish_trap  mstate1  exc_code  eaddr2
+                Mem_Result_Ok  _        -> finish_pc_incr  mstate1  is_C
   in
-    mstate3
+    mstate2
 
 -- ================================================================
 -- FMADD_D

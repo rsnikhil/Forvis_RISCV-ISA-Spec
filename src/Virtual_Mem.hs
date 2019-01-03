@@ -64,8 +64,89 @@ fn_vm_is_active    mstate           is_instr =
     vm_active
 
 -- ================================================================
--- This is the main function of this module.
--- It translates a virtual address into a physical address.
+-- Read memory, possibly with Virtual Mem translation
+
+{-# INLINE mstate_vm_read #-}
+mstate_vm_read :: Machine_State ->
+                  Bool ->                -- is instruction-fetch, not data-load
+                  Exc_Code ->            -- in case of access fault
+                  InstrField ->          -- funct3, providing access size (B, H, W, D)
+                  Integer ->             -- effective address (virtual or physical)
+                  (Mem_Result, Machine_State)
+mstate_vm_read  mstate  is_instr  exc_code_access_fault  funct3  eaddr =
+  let
+    -- If Virtual Mem is active, translate to a physical addr
+    is_read = True
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  eaddr
+                         else
+                           (Mem_Result_Ok  eaddr, mstate)
+    -- If no trap due to Virtual Mem translation, read from memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   eaddr_pa ->
+                             mstate_mem_read   mstate1  exc_code_access_fault  funct3  eaddr_pa
+  in
+    (result2, mstate2)
+
+-- ================================================================
+-- Write memory, possibly with Virtual Mem translation
+
+{-# INLINE mstate_vm_write #-}
+mstate_vm_write :: Machine_State ->
+                   InstrField ->          -- funct3, providing access size (B, H, W, D)
+                   Integer ->             -- effective address (virtual or physical)
+                   Integer ->             -- store-value
+                   (Mem_Result, Machine_State)
+mstate_vm_write  mstate  funct3  eaddr  store_val =
+  let
+    -- If Virtual Mem is active, translate to a physical addr
+    is_instr = False
+    is_read  = False
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  eaddr
+                         else
+                           (Mem_Result_Ok  eaddr, mstate)
+
+    -- If no trap due to Virtual Mem translation, store to memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   eaddr_pa ->
+                             mstate_mem_write   mstate1  funct3  eaddr_pa  store_val
+  in
+    (result2, mstate2)
+
+-- ================================================================
+-- Do AMO op on memory, possibly with Virtual Mem translation
+
+{-# INLINE mstate_vm_amo #-}
+mstate_vm_amo :: Machine_State ->
+                 InstrField ->          -- funct3, providing access size (B, H, W, D)
+                 InstrField ->          -- msbs5
+                 InstrField ->          -- aq
+                 InstrField ->          -- rl
+                 Integer ->             -- effective address (virtual or physical)
+                 Integer ->             -- store-value
+                 (Mem_Result, Machine_State)
+mstate_vm_amo  mstate  funct3  msbs5  aq  rl  eaddr  store_val =
+  let
+    is_instr = False
+    is_read  = False
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  eaddr
+                         else
+                           (Mem_Result_Ok  eaddr, mstate)
+
+    -- If no trap due to Virtual Mem translation, do AMO op in memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   eaddr_pa ->
+                             mstate_mem_amo  mstate1  eaddr_pa  funct3  msbs5  aq  rl  store_val
+  in
+    (result2, mstate2)
+
+-- ================================================================
+-- vm_translate    translates a virtual address into a physical address.
 -- Notes:
 --   - 'is_instr' is True if this is for an instruction-fetch as opposed to LOAD/STORE
 --   - 'is_read'  is True for LOAD, False for STORE/AMO
@@ -74,6 +155,7 @@ fn_vm_is_active    mstate           is_instr =
 --   - 2nd component of tuple result is new mem state,  potentially modified
 --         (page table A D bits, cache tracking, TLB tracking, ...)               -- \begin_latex{vm_translate}
 
+{-# INLINE vm_translate #-}
 vm_translate :: Machine_State -> Bool  ->  Bool  -> Integer -> (Mem_Result, Machine_State)
 vm_translate    mstate           is_instr  is_read  va =
   let                                                                             -- \end_latex{vm_translate}

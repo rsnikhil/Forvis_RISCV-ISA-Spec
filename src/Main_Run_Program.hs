@@ -235,10 +235,8 @@ run_program_from_files    rv    misa       files       num_instrs  watch_tohost 
                            putStr   (if (all_console_output == "") then "--none--\n" else all_console_output))
 
   -- Info only: show final mtime
-  let (mem_result, _) = mstate_mem_read  mstate3  exc_code_load_access_fault  funct3_LD  addr_mtime
-  case mem_result of
-    Mem_Result_Ok   t -> putStrLn ("Final value of mtime: " ++ show t)
-    Mem_Result_Err  _ -> return ()
+  let t = mstate_mem_read_mtime  mstate3
+  putStrLn ("Final value of mtime: " ++ show t)
 
   return exit_value
   

@@ -156,32 +156,21 @@ exe_AMO  funct3  msbs5  is_C  rd  rs1  rs2  aq  rl  mstate =
     rv      = mstate_rv_read  mstate
     rs2_val = mstate_gpr_read  mstate  rs2
 
-    --     Compute effective address
+    -- Compute effective address
     eaddr1  = mstate_gpr_read  mstate  rs1
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
-    --     If Virtual Mem is active, translate to a physical addr
-    is_instr = False
-    is_read  = False
-    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
-                           vm_translate  mstate  is_instr  is_read  eaddr2
-                         else
-                           (Mem_Result_Ok  eaddr2, mstate)
+    -- If Virtual Mem is active, translate to a physical addr
+    (result1, mstate1) = mstate_vm_amo  mstate  funct3  msbs5  aq  rl  eaddr2  rs2_val
 
-    --     If no trap due to Virtual Mem translation, do AMO op in memory
-    (result2, mstate2) = case result1 of
-                           Mem_Result_Err  exc_code -> (result1, mstate1)
-                           Mem_Result_Ok   eaddr2_pa ->
-                             mstate_mem_amo  mstate1  eaddr2_pa  funct3  msbs5  aq  rl  rs2_val
-
-    --     Finally: finish with trap, or finish with loading Rd with AMO result
-    mstate3 = case result2 of
+    -- Finish with trap, or finish with loading Rd with AMO result
+    mstate2 = case result1 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  mstate2  exc_code  eaddr2
+                  finish_trap  mstate1  exc_code  eaddr2
 
                 Mem_Result_Ok  x        ->
-                  finish_rd_and_pc_incr  mstate2  rd  x  is_C
+                  finish_rd_and_pc_incr  mstate1  rd  x  is_C
   in
-    mstate3
+    mstate2
 
 -- ================================================================

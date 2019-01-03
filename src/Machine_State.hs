@@ -446,7 +446,7 @@ mstate_mem_tick  mstate =
   in
     mstate1
 
--- I/O: convenience function to read mtime
+-- I/O: convenience back-door function to read mtime directly
 -- (instead of using mstate_mem_read, which can raise exceptions etc.)
 
 {-# INLINE mstate_mem_read_mtime #-}
