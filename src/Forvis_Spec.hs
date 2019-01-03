@@ -31,7 +31,8 @@ import Forvis_Spec_M           -- Extension 'M' (Integer Multiply/Divide)
 import Forvis_Spec_A           -- Extension 'A' (Atomic Memory Ops (AMO))
 import Forvis_Spec_C           -- Extension 'C' (Compressed 16-bit instrs)
 
--- import Forvis_Spec_FD        -- Extensions 'F' and 'D' (single- and double-precision floating point)
+import Forvis_Spec_F           -- Extension 'F' (single-precision floating point)
+import Forvis_Spec_D           -- Extension 'D' (double-precision floating point)
 
 -- Privileged Architecture instructions
 import Forvis_Spec_Priv
@@ -148,6 +149,7 @@ exec_instr_32b    instr_32b    mstate =
   let
     rv   = mstate_rv_read  mstate
     misa = mstate_csr_read  mstate  csr_addr_misa
+    frm  = mstate_csr_read  mstate  csr_addr_frm
     is_C = False
 
     dec_I         = decode_I         rv        instr_32b
@@ -156,6 +158,8 @@ exec_instr_32b    instr_32b    mstate =
     dec_I64       = decode_I64       rv        instr_32b
     dec_M         = decode_M         rv        instr_32b
     dec_A         = decode_A         rv        instr_32b
+    dec_F         = decode_F   frm   rv        instr_32b
+    dec_D         = decode_D   frm   rv        instr_32b
     dec_Priv      = decode_Priv      rv        instr_32b
   in
     case dec_I of
@@ -182,16 +186,24 @@ exec_instr_32b    instr_32b    mstate =
                           Just instr_A -> (exec_instr_A  is_C  instr_A  mstate,
                                            show  instr_A)
                           Nothing ->
-                            case dec_Priv of
-                              Just instr_Priv -> (exec_instr_Priv  instr_32b  is_C  instr_Priv  mstate,
-                                                  show  instr_Priv)
+                            case dec_F of
+                              Just instr_F -> (exec_instr_F  is_C  instr_F  mstate,
+                                               show  instr_F)
                               Nothing ->
-                                -- Illegal instruction trap, since does not decode to any 32b instr
-                                let
-                                  tval    = instr_32b
-                                  mstate1 = finish_trap  mstate  exc_code_illegal_instruction  tval
-                                in
-                                  (mstate1, "Illegal instr 0x" ++ showHex instr_32b "")
+                                case dec_D of
+                                  Just instr_D -> (exec_instr_D  is_C  instr_D  mstate,
+                                                   show  instr_D)
+                                  Nothing ->
+                                    case dec_Priv of
+                                      Just instr_Priv -> (exec_instr_Priv  instr_32b  is_C  instr_Priv  mstate,
+                                                          show  instr_Priv)
+                                      Nothing ->
+                                        -- Illegal instruction trap, since does not decode to any 32b instr
+                                        let
+                                          tval    = instr_32b
+                                          mstate1 = finish_trap  mstate  exc_code_illegal_instruction  tval
+                                        in
+                                          (mstate1, "Illegal instr 0x" ++ showHex instr_32b "")
 
 -- ================================================================
 -- Execute one 16b instruction

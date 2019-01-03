@@ -323,6 +323,142 @@ funct2_C_SUBW     = 0x0 :: InstrField    -- 2'b_00
 funct4_C_EBREAK   = 0x9 :: InstrField    -- 4'b_1001
 
 -- ================================================================
+-- 'F' and 'D' extensions (single- and double-precision Floating Point)
+
+opcode_LOAD_FP   = 0x07   :: InstrField  -- 7'b_00_001_11
+
+funct3_FLW       = 0x2    :: InstrField  -- 3'b_010
+
+opcode_STORE_FP  = 0x27   :: InstrField  -- 7'b_01_001_11
+
+funct3_FSW       = 0x2    :: InstrField  -- 3'b_010
+
+opcode_FMADD     = 0x43   :: InstrField  -- 7'b_100_0011
+opcode_FMSUB     = 0x47   :: InstrField  -- 7'b_100_0111
+opcode_FNMSUB    = 0x4B   :: InstrField  -- 7'b_100_1011
+opcode_FNMADD    = 0x4F   :: InstrField  -- 7'b_100_1111
+
+funct2_FMADD_S   = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
+funct2_FMSUB_S   = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
+funct2_FNMSUB_S  = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
+funct2_FNMADD_S  = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
+
+opcode_OP_FP     = 0x53   :: InstrField  -- 7'b_10_100_11
+
+funct7_FADD_S    = 0x0    :: InstrField  -- 7'b_000_0000
+funct7_FSUB_S    = 0x4    :: InstrField  -- 7'b_000_0100
+funct7_FMUL_S    = 0x8    :: InstrField  -- 7'b_000_1000
+funct7_FDIV_S    = 0xC    :: InstrField  -- 7'b_000_1100
+
+funct12_FSQRT_S  = 0x580  :: InstrField  -- 7'b_0101_1000_0000
+
+funct7_FSGNJ_S   = 0x10   :: InstrField  -- 7'b_001_0000
+funct3_FSGNJ_S   = 0x0    :: InstrField  -- 3'b_000
+
+funct7_FSGNJN_S  = 0x10   :: InstrField  -- 7'b_001_0000
+funct3_FSGNJN_S  = 0x1    :: InstrField  -- 3'b_001
+
+funct7_FSGNJX_S  = 0x10   :: InstrField  -- 7'b_001_0000
+funct3_FSGNJX_S  = 0x2    :: InstrField  -- 3'b_010
+
+funct7_FMIN_S    = 0x14   :: InstrField  -- 7'b_001_01000
+funct3_FMIN_S    = 0x0    :: InstrField  -- 3'b_000
+
+funct7_FMAX_S    = 0x14   :: InstrField  -- 7'b_001_01000
+funct3_FMAX_S    = 0x1    :: InstrField  -- 3'b_000
+
+funct12_FCVT_W_S  = 0xC00  :: InstrField  -- 12'b_1100_0000_0000
+funct12_FCVT_WU_S = 0xC01  :: InstrField  -- 12'b_1100_0000_0001
+
+funct12_FMV_X_W   = 0xE00  :: InstrField  -- 12'b_1110_0000_0000
+funct3_FMV_X_W    = 0x0    :: InstrField  -- 3'b_000
+
+funct7_FEQ_S      = 0x50   :: InstrField  -- 7'b_101_0000
+funct3_FEQ_S      = 0x2    :: InstrField  -- 3'b_010
+funct7_FLT_S      = 0x50   :: InstrField  -- 7'b_101_0000
+funct3_FLT_S      = 0x1    :: InstrField  -- 3'b_001
+funct7_FLE_S      = 0x50   :: InstrField  -- 7'b_101_0000
+funct3_FLE_S      = 0x0    :: InstrField  -- 3'b_000
+
+funct12_FCLASS_S  = 0xE00  :: InstrField  -- 12'b_1110_0000_0000
+funct3_FCLASS_S   = 0x1    :: InstrField  -- 3'b_001
+
+funct12_FCVT_S_W  = 0xD00  :: InstrField  -- 12'b_1101_0000_0000
+funct12_FCVT_S_WU = 0xD01  :: InstrField  -- 12'b_1101_0000_0001
+
+funct12_FMV_W_X   = 0xF00  :: InstrField  -- 12'b_1111_0000_0000
+funct3_FMV_W_X    = 0x0    :: InstrField  -- 3'b_000
+
+-- RV64F
+
+funct12_FCVT_L_S  = 0xC02  :: InstrField  -- 12'b_1100_0000_0010
+funct12_FCVT_LU_S = 0xC03  :: InstrField  -- 12'b_1100_0000_0011
+funct12_FCVT_S_L  = 0xD02  :: InstrField  -- 12'b_1101_0000_0010
+funct12_FCVT_S_LU = 0xD03  :: InstrField  -- 12'b_1101_0000_0011
+
+-- ================================================================
+
+funct3_FLD       = 0x3    :: InstrField  -- 3'b_011
+funct3_FSD       = 0x3    :: InstrField  -- 3'b_011
+
+funct2_FMADD_D   = 0x1    :: InstrField  -- 2'b_01    (instr [26:25])
+funct2_FMSUB_D   = 0x1    :: InstrField  -- 2'b_01    (instr [26:25])
+funct2_FNMSUB_D  = 0x1    :: InstrField  -- 2'b_01    (instr [26:25])
+funct2_FNMADD_D  = 0x1    :: InstrField  -- 2'b_01    (instr [26:25])
+
+funct7_FADD_D    = 0x1    :: InstrField  -- 7'b_000_0001
+funct7_FSUB_D    = 0x5    :: InstrField  -- 7'b_000_0101
+funct7_FMUL_D    = 0x9    :: InstrField  -- 7'b_000_1001
+funct7_FDIV_D    = 0xD    :: InstrField  -- 7'b_000_1101
+
+funct12_FSQRT_D  = 0x5A0  :: InstrField  -- 7'b_0101_1010_0000
+
+funct7_FSGNJ_D   = 0x11   :: InstrField  -- 7'b_001_0000
+funct3_FSGNJ_D   = 0x0    :: InstrField  -- 3'b_000
+
+funct7_FSGNJN_D  = 0x11   :: InstrField  -- 7'b_001_0000
+funct3_FSGNJN_D  = 0x1    :: InstrField  -- 3'b_001
+
+funct7_FSGNJX_D  = 0x11   :: InstrField  -- 7'b_001_0000
+funct3_FSGNJX_D  = 0x2    :: InstrField  -- 3'b_010
+
+funct7_FMIN_D    = 0x15   :: InstrField  -- 7'b_001_01000
+funct3_FMIN_D    = 0x0    :: InstrField  -- 3'b_000
+
+funct7_FMAX_D    = 0x15   :: InstrField  -- 7'b_001_01000
+funct3_FMAX_D    = 0x1    :: InstrField  -- 3'b_001
+
+funct12_FCVT_S_D = 0x401  :: InstrField  -- 12'b_0100_0000_0001
+funct12_FCVT_D_S = 0x420  :: InstrField  -- 12'b_0100_0010_0000
+
+funct7_FEQ_D      = 0x51   :: InstrField  -- 7'b_101_0001
+funct3_FEQ_D      = 0x2    :: InstrField  -- 3'b_010
+funct7_FLT_D      = 0x51   :: InstrField  -- 7'b_101_0001
+funct3_FLT_D      = 0x1    :: InstrField  -- 3'b_001
+funct7_FLE_D      = 0x51   :: InstrField  -- 7'b_101_0001
+funct3_FLE_D      = 0x0    :: InstrField  -- 3'b_000
+
+funct12_FCLASS_D  = 0xE20  :: InstrField  -- 12'b_1110_0010_0000
+funct3_FCLASS_D   = 0x1    :: InstrField  -- 3'b_001
+
+funct12_FCVT_W_D  = 0xC20  :: InstrField  -- 12'b_1100_0010_0000
+funct12_FCVT_WU_D = 0xC21  :: InstrField  -- 12'b_1100_0010_0001
+funct12_FCVT_D_W  = 0xD20  :: InstrField  -- 12'b_1101_0010_0000
+funct12_FCVT_D_WU = 0xD21  :: InstrField  -- 12'b_1101_0000_0001
+
+-- RV64D
+
+funct12_FCVT_L_D  = 0xC22  :: InstrField  -- 12'b_1100_0010_0010
+funct12_FCVT_LU_D = 0xC23  :: InstrField  -- 12'b_1100_0020_0011
+funct12_FMV_X_D   = 0xE20  :: InstrField  -- 12'b_1110_0010_0000
+funct3_FMV_X_D    = 0x0    :: InstrField  -- 3'b_000
+
+funct12_FCVT_D_L  = 0xD22  :: InstrField  -- 12'b_1101_0010_0010
+funct12_FCVT_D_LU = 0xD23  :: InstrField  -- 12'b_1101_0010_0011
+funct12_FMV_D_X   = 0xF20  :: InstrField  -- 12'b_1111_0010_0000
+funct3_FMV_D_X    = 0x0    :: InstrField  -- 3'b_000
+
+-- ================================================================
 -- Exception Codes                                 \begin_latex{exception_codes_A}
 
 type Exc_Code = Integer
