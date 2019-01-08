@@ -1,5 +1,8 @@
 TODAY
 
+Nikhil: I've added the 'last_instr_trapped' flag we discussed in email yesterday.
+Please see 'git log' for details.
+
 Integrate Andrew's policy language interpreter
 
 make a PR for the /src and / changes
