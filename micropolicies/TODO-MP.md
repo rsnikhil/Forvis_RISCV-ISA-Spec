@@ -13,9 +13,11 @@ Printing
   programs?  (This should be allowed, at least by the printing stuff!)
 - When printing reachable colors, we should include (C 0) (if it is reachable!)
 
-Use Nikhil's new "has the machine trapped" bit
-
 Shrink colors in memory locations (and eventually registers)  (Done yet?)
+
+Stack stuff:
+  - "stack clean" is too aggressive.  Ideally, we want to remove just PIPE.o!
+  - figure out how to invoke the -cpp flag from inside package.yaml
 
 ___________________________________________________________
 BEFORE JANUARY PI MEETING

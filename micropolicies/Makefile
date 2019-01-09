@@ -4,20 +4,14 @@ TMP_DIR  = ../tmp_haskell
 
 all:
 	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2 -fno-ignore-asserts -i$(SRC_DIR)  \
-	   -outputdir  $(TMP_DIR)  -rtsopts -cpp \
-	   Main_PIPE 
-# temporary
-	../forvis_exe
+	stack build --ghc-options="-cpp" :micropolicies-exe 
 
+# TODO: "stack clean" is too aggressive.  Ideally, we want to remove just PIPE.o!
 mutant:
 	@echo "[37;41m--------- $(MUT) -----------[0m"
-	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2 -fno-ignore-asserts -i$(SRC_DIR)  \
-	   -outputdir  $(TMP_DIR)  -rtsopts -cpp -D$(MUT) \
-	   Main_PIPE 
-# temporary
-	time ../forvis_exe
+	stack clean
+	stack build --ghc-options="-cpp -D$(MUT)" :micropolicies-exe 
+	time stack exec micropolicies-exe
 
 mutants:
 	make mutant MUT=M_WRONG_STORE
@@ -32,6 +26,8 @@ pipe_hello: all
 pipe_qc: all
 	../forvis_exe
 
+stack:
+	stack build --ghc-options="-cpp" :micropolicies-exe
 
 ##############################################################################
 # Probably the rest can be deleted:

@@ -102,11 +102,7 @@ main3 = do
   putStrLn (show res)
   print_coupled ms' ps'
 
-main_mangled =
-  quickCheck $ prop_noninterference bug_mangled_store_color
-
--- main = main_mangled  
-main = mainHeap
+main = mainHeap 
 -- main = main5
   
 {-
