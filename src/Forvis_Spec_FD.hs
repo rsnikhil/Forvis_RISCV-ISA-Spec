@@ -3,6 +3,8 @@
 
 module Forvis_Spec_FD where
 
+#ifdef FLOAT
+
 -- ================================================================
 -- Part of: specification of all RISC-V instructions.
 
@@ -1208,3 +1210,4 @@ spec_F_FCLASS    mstate           instr        is_C =
     (is_legal, mstate1)
 
 -- ================================================================
+#endif

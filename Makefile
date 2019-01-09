@@ -182,3 +182,7 @@ full_clean:
 	rm  -r -f  *~  $(SRC_DIR)/*~  $(TMP_DIR)  *.hi *.o  $(FORVIS_EXE)
 
 # ================================================================
+# Experimental
+
+stack:
+	stack build --ghc-options="-cpp"

@@ -1,3 +1,6 @@
+.stack-work/
+forvis.cabal
+*~
 README.html
 tmp_haskell
 *exe
