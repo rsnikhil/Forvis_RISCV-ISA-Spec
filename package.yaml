@@ -21,40 +21,121 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
-# TODO: Can the rest of these be moved to just apply to micropolicies?
+# TODO: Can the rest of these be moved to just apply to micropolicies, etc.?
 - containers
 - bytestring
 - elf
 - QuickCheck
 - pretty
 - split
+# These are for dpl:
+- containers
+- transformers
+- lens
+# These are for policy-tool:
+- array
+- containers
+- directory
+- filepath
+- language-c-quote
+- mainland-pretty
+- megaparsec >= 5.0 && <6.0
+- mtl
+- srcloc
+- text
+- unix
+- unordered-containers
+- yaml
+# - containers
+# - megaparsec
+# - wl-pprint-text
+# - text
+# - hspec
+# - elf
+# - bytestring
+# - yaml
+# - lens
+# - either
+# - transformers
+
+# extra-deps:
+# - megaparsec-5.3.1@sha256:9527bd6a857331fee73702ebcac48ad61a62bc198c3c2360b0b3afa5779d19f5
 
 library:
   source-dirs: src
 
+# Needed only for DPL?
+# ghc-options:
+#- -Wincomplete-patterns
+#- -Werror
+
+default-extensions:
+  - CPP
+# From policy-tool (?)
+  - MultiParamTypeClasses
+  - FunctionalDependencies
+  - GeneralizedNewtypeDeriving
+  - RecordWildCards
+  - FlexibleContexts
+  - PatternSynonyms
+  - TypeApplications
+  - LambdaCase
+  - DeriveFunctor
+# From policy-eval
+  - LambdaCase
+  - DeriveFunctor
+  - DeriveAnyClass
+  - DeriveGeneric
+  - StandaloneDeriving
+  - ConstraintKinds
+  - GADTs
+  - TypeSynonymInstances
+  - FlexibleInstances
+  - FlexibleContexts
+  - ViewPatterns
+  - RecordWildCards
+
 executables:
-  forvis-exe:
-    main:                Main.hs
-    source-dirs:         src
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    - -cpp
-    dependencies:
-    - forvis
-  micropolicies-exe:
-    main:                Main_PIPE.hs
+
+  dpl-exe:
+    main:                Alt_Main.hs
     source-dirs:
-    - micropolicies
+    - dpl_micropolicies
+    - dpl_micropolicies/policy-tool
+    - dpl_micropolicies/policy-eval
     - src
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
-    - -cpp
     dependencies:
     - forvis
+
+# Commented out temporarily to speed up debugging:
+#
+#   forvis-exe:
+#     main:                Main.hs
+#     source-dirs:         src
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+# #    - -cpp
+#     dependencies:
+#     - forvis
+# 
+#   micropolicies-exe:
+#     main:                Main_PIPE.hs
+#     source-dirs:
+#     - micropolicies
+#     - src
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+# #    - -cpp
+#     dependencies:
+#     - forvis
 
 # tests:
 #   forvis-test:

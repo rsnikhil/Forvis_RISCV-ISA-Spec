@@ -1,7 +1,7 @@
 -- Copyright (c) 2018 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
-module Main where
+module Main_PIPE where
 
 -- ================================================================
 -- This is the 'main' function of the program, which just dispatches

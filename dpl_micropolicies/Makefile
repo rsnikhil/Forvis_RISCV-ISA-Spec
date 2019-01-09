@@ -1,10 +1,13 @@
+all:
+	stack build :dpl-exe 
+
 SRC_DIR  = ../src
 TOOL_DIR = ./policy-tool
 EVAL_DIR = ./policy-eval
 FORVIS_EXE = forvis_exe
 TMP_DIR  = ../tmp_haskell
 
-all:
+all-old:
 	mkdir -p  $(TMP_DIR)
 	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR) -i$(TOOL_DIR) -i$(EVAL_DIR) \
 	   -XLambdaCase \
