@@ -185,4 +185,4 @@ full_clean:
 # Experimental
 
 stack:
-	stack build --ghc-options="-cpp"
+	stack build --ghc-options="-cpp" -v

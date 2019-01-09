@@ -8,7 +8,7 @@ copyright:           "2019 Author name here"
 
 extra-source-files:
 - README.md
-- ChangeLog.md
+# - ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -24,6 +24,8 @@ dependencies:
 - containers
 - bytestring
 - elf
+- QuickCheck
+- pretty
 
 library:
   source-dirs: src
@@ -31,21 +33,34 @@ library:
 executables:
   forvis-exe:
     main:                Main.hs
-    source-dirs:         app
+    source-dirs:         src
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -cpp
+    dependencies:
+    - forvis
+  micropolicies-exe:
+    main:                Main_PIPE.hs
+    source-dirs:
+    - micropolicies
+    - src
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -cpp
     dependencies:
     - forvis
 
-tests:
-  forvis-test:
-    main:                Spec.hs
-    source-dirs:         test
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - forvis
+# tests:
+#   forvis-test:
+#     main:                Spec.hs
+#     source-dirs:         test
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+#     dependencies:
+#     - forvis
