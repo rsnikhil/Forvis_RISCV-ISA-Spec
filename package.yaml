@@ -32,31 +32,34 @@ dependencies:
 - containers
 - transformers
 - lens
-# These are for policy-tool:
-- array
-- containers
-- directory
-- filepath
-- language-c-quote
-- mainland-pretty
-- megaparsec >= 5.0 && <6.0
-- mtl
-- srcloc
-- text
-- unix
-- unordered-containers
-- yaml
+- either < 5
+- policy-tool
+- policy-eval
+# # These are for policy-tool:
+# - array
 # - containers
-# - megaparsec
-# - wl-pprint-text
+# - directory
+# - filepath
+# - language-c-quote
+# - mainland-pretty
+# - megaparsec >= 5.0 && <6.0
+# - mtl
+# - srcloc
 # - text
-# - hspec
-# - elf
-# - bytestring
+# - unix
+# - unordered-containers
 # - yaml
-# - lens
-# - either
-# - transformers
+# # - containers
+# # - megaparsec
+# # - wl-pprint-text
+# # - text
+# # - hspec
+# # - elf
+# # - bytestring
+# # - yaml
+# # - lens
+# # - either
+# # - transformers
 
 # extra-deps:
 # - megaparsec-5.3.1@sha256:9527bd6a857331fee73702ebcac48ad61a62bc198c3c2360b0b3afa5779d19f5
@@ -64,45 +67,37 @@ dependencies:
 library:
   source-dirs: src
 
-# Needed only for DPL?
-# ghc-options:
-#- -Wincomplete-patterns
-#- -Werror
-
 default-extensions:
   - CPP
-# From policy-tool (?)
-  - MultiParamTypeClasses
-  - FunctionalDependencies
-  - GeneralizedNewtypeDeriving
-  - RecordWildCards
-  - FlexibleContexts
-  - PatternSynonyms
-  - TypeApplications
-  - LambdaCase
-  - DeriveFunctor
-# From policy-eval
-  - LambdaCase
-  - DeriveFunctor
-  - DeriveAnyClass
-  - DeriveGeneric
-  - StandaloneDeriving
-  - ConstraintKinds
-  - GADTs
-  - TypeSynonymInstances
-  - FlexibleInstances
-  - FlexibleContexts
-  - ViewPatterns
-  - RecordWildCards
+# # From policy-tool (?)
+#   - MultiParamTypeClasses
+#   - FunctionalDependencies
+#   - GeneralizedNewtypeDeriving
+#   - RecordWildCards
+#   - FlexibleContexts
+#   - PatternSynonyms
+#   - TypeApplications
+#   - LambdaCase
+#   - DeriveFunctor
+# # From policy-eval
+#   - LambdaCase
+#   - DeriveFunctor
+#   - DeriveAnyClass
+#   - DeriveGeneric
+#   - StandaloneDeriving
+#   - ConstraintKinds
+#   - GADTs
+#   - TypeSynonymInstances
+#   - FlexibleInstances
+#   - FlexibleContexts
+#   - ViewPatterns
+#   - RecordWildCards
 
 executables:
-
   dpl-exe:
     main:                Alt_Main.hs
     source-dirs:
     - dpl_micropolicies
-    - dpl_micropolicies/policy-tool
-    - dpl_micropolicies/policy-eval
     - src
     ghc-options:
     - -threaded

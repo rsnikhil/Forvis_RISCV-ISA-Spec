@@ -17,7 +17,7 @@ Shrink colors in memory locations (and eventually registers)  (Done yet?)
 
 Stack stuff:
   - "stack clean" is too aggressive.  Ideally, we want to remove just PIPE.o!
-  - figure out how to invoke the -cpp flag from inside package.yaml
+  - try moving all the stack stuff inside the micropolicies / dpl* directories
 
 ___________________________________________________________
 BEFORE JANUARY PI MEETING
