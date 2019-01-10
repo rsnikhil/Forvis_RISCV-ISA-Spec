@@ -3,7 +3,7 @@ module EvalCommon where
 import System.IO
 import Control.Monad (forM_, msum)
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.Either
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.State
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -20,7 +20,7 @@ import Symbols
 type TagValue = M.Map QSym (Maybe Int)
 
 -- Models failure and contains a unique int generator
-type TagResult a = EitherT TagFailure (State Int) a
+type TagResult a = ExceptT TagFailure (State Int) a
 
 data TagFailure
   = TFExplicit String
@@ -34,10 +34,10 @@ failI :: TagResult a
 failI = left TFImplicit
 
 orI :: TagResult a -> TagResult a -> TagResult a
-orI ma mb = EitherT $ do
-  a <- runEitherT ma
+orI ma mb = ExceptT $ do
+  a <- runExceptT ma
   case a of
-    Left TFImplicit -> runEitherT mb
+    Left TFImplicit -> runExceptT mb
     _ -> pure a
 
 mkUnique :: TagResult Int
@@ -123,7 +123,7 @@ type QGroupDecl = GroupDecl [ISA] QSym
 type QModuleDecl = ModuleDecl QSym
 
 runTagResult :: Int -> TagResult a -> (Either TagFailure a, Int)
-runTagResult gen m = runState (runEitherT m) gen
+runTagResult gen m = runState (runExceptT m) gen
 
 pe = hPutStrLn stderr
 
