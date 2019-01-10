@@ -32,7 +32,7 @@ dependencies:
 - containers
 - transformers
 - lens
-- either < 5
+- either
 - policy-tool
 - policy-eval
 # # These are for policy-tool:

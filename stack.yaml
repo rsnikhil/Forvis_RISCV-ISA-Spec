@@ -1,9 +1,8 @@
 flags: {}
 packages:
-  - .
-  - ../hope-policy-tool
-  - ../hope-policy-interpreter/policy-eval
-
+- .
+- ../hope-policy-tool
+- ../hope-policy-interpreter/policy-eval
 extra-deps:
 - QuickCheck-2.10.1
 - aeson-1.4.2.0
@@ -11,11 +10,9 @@ extra-deps:
 - exceptions-0.8.3
 - free-5.1
 - megaparsec-5.3.1
+- mono-traversable-1.0.10.0
 - primitive-0.6.4.0
 - semigroupoids-5.3.2
+- vector-0.12.0.2
 - vector-algorithms-0.8.0.1
-# - either-4.4.1.1
-# - either-4.5@sha256:f5b2e1a60e194da5dd66a381c7c3f1f37b8c5fc714efd8a03904c36857e836c4
-# - free-4.12.4@sha256:c014d770f289f8afa7a4b7ff167dda84b8b4c341ab5c76088538735d575ab13e
-
 resolver: lts-12.21
