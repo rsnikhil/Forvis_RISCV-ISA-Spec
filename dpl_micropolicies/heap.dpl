@@ -1,7 +1,7 @@
 module heap:
 
 type:
-    data Color = Int (20) // not sure if this means max number of colors is 20 or 2^20
+    data Color = Int (20) // this means max number of colors is 20 (??)
 
 metadata:
     Cell Color  // data memory with a color
@@ -16,7 +16,7 @@ policy:
       // 'new' is a magic built-in in dpl
       allocGrp(env == _, code == [+Alloc] -> env = env, res = {(Pointer new)})
     ^ immArithGrp(env == _, op1 == _ -> env = env, res = op1)        
-    ^ arithGrp(env == _, op1 == _ -> env = env, res = op1)    // dubious, but what B&L had
+    ^ arithGrp(env == _, op1 == _ -> env = env, res = op1)  
     ^ loadGrp(env == _, addr == {(Pointer color)}, mem == [+(Cell color)] ->
              env = env, res = mem[-(Cell _)])
     ^ storeGrp(env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] ->
@@ -28,6 +28,11 @@ require:  // map external names (dotted strings) to tag sets
     init test.Env {Env}
     init test.Inst {Inst}
     init test.AllocInst {Alloc,Inst}
+// Needs to be modified to attach an optional int to the string on the right...
+//     init test.Cell1 {Cell(1)}
+// or
+//     init test.Cell() {Cell()}
+// There's code in PIPE.hs to do this, but it needs to be fixed to deal with tags, not tag sets
 
 group:
     loadUpperGrp(-> RD:dest)

@@ -1,5 +1,6 @@
 all:
 	stack build :dpl-exe 
+	stack exec dpl-exe
 
 SRC_DIR  = ../src
 TOOL_DIR = ./policy-tool

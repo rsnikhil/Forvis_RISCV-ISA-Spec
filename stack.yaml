@@ -1,18 +1,18 @@
 flags: {}
 packages:
 - .
-- ../hope-policy-tool
-- ../hope-policy-interpreter/policy-eval
+- location:
+    git: 'https://github.com/draperlaboratory/hope-policy-tool.git'
+    commit: faea4a2c0031d5829c95d72d0ea54bc819ebf1f9
+  extra-dep: true
+- location:
+    git: 'https://github.com/draperlaboratory/hope-policy-interpreter.git'
+    commit: 83fdc893a759da41273f98af6e1a8723156ef8e1
+  extra-dep: true
+  subdirs:
+    - policy-eval
+
 extra-deps:
-- QuickCheck-2.10.1
-- aeson-1.4.2.0
-- base-orphans-0.8
-- exceptions-0.8.3
-- free-5.1
-- megaparsec-5.3.1
-- mono-traversable-1.0.10.0
-- primitive-0.6.4.0
-- semigroupoids-5.3.2
-- vector-0.12.0.2
-- vector-algorithms-0.8.0.1
-resolver: lts-12.21
+  - elf-0.28
+
+resolver: lts-9.21
