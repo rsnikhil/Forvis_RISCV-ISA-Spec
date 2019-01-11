@@ -46,21 +46,17 @@ load_pipe_policy fname =
           Just polMod -> return polMod
 
 {- Use 'requires' section in module definition to translate from 
-   a dotted string ([String]) to a TagSet -}
-mkTagSet :: PIPE_Policy -> [String] -> TagSet
-mkTagSet (_,_,symtabs) name =
+   a dotted string ([String]) to a TagSet.
+   Each tag in the tag set is applied to the corresponding (Maybe Int) param,
+   which represents an (optional) parameter (e.g. color) to attach to the tag.  -}
+mkTagSet :: PIPE_Policy -> [String] -> [Maybe Int] -> TagSet
+mkTagSet (_,_,symtabs) name params =
   let Init _ _ (ISExact _ ts) =          
         maybe (error $ "mkTag cannot find " ++ (show name)) id $
             find (\ (Init _ name' _) -> name == name')
                  (concatMap requires (map snd symtabs))
-  in M.fromList (map (\tag -> (qsym tag,Nothing)) ts)
+  in M.fromList (zipWith (\tag param -> (qsym tag,param)) ts params)
     
-{- We still need a way to let the client instantiate tags that carry parameters
-   (e.g. colors). Currently the only possible parameter type is Int, so we can just
-   hack this.  The only blocking issue is that parameters attach to individual tags,
-   not to tag sets, so having the latter be the sole exported type doesn't work well.
-   Need to think about the cleanest way to solve this... -}
-
 ---------------------------------
 
 newtype GPR_FileT = GPR_FileT  { unGPR :: Data_Map.Map  InstrField  TagSet }

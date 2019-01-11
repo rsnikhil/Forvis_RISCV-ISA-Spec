@@ -33,6 +33,12 @@ require:  // map external names (dotted strings) to tag sets
 // or
 //     init test.Cell() {Cell()}
 // There's code in PIPE.hs to do this, but it needs to be fixed to deal with tags, not tag sets
+// APT: The PIPE code has now been fixed so that whenever you translate an external name
+// you pass a list of (Maybe Int's) representing the optional ints to attach to each tag in the RHS tag set.
+// E.g. mkTagSet policy ["test","Pointer"] [Just 42]
+//      mkTagSet policy ["test","Env"] [Nothing]
+//      mkTagSet policy ["test","AllocInst"] [Nothing,Nothing]
+
 
 group:
     loadUpperGrp(-> RD:dest)
