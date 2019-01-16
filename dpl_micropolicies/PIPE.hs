@@ -57,6 +57,18 @@ mkTagSet (_,_,symtabs) name params =
                  (concatMap requires (map snd symtabs))
   in M.fromList (zipWith (\tag param -> (qsym tag,param)) ts params)
     
+{- Also need an inverse function like this:
+
+rdTagSet :: PIPE_Policy -> TagSet -> [([String],[Maybe Int])]
+
+returns the (zero or more) `requires` names that match a given tag set.
+
+Writing this is difficult, because the ordering of
+the TagSet map entries is unpredictable (though presumably deterministic).
+The best way may be to forward-compute all possible TagSets (with
+Nothing parameter) and then compare them with the argument using a 
+custom equality that ignores the parameter. -}
+
 ---------------------------------
 
 newtype GPR_FileT = GPR_FileT  { unGPR :: Data_Map.Map  InstrField  TagSet }
