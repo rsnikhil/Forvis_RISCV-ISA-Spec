@@ -2,6 +2,7 @@ module PIPE(PIPE_Policy,
             load_pipe_policy,
             TagSet,
             mkTagSet,
+            rdTagSet,
             GPR_FileT(..),
             mkGPR_FileT, gpr_readT, gpr_writeT,
             MemT(..),
@@ -16,7 +17,7 @@ import qualified Data.Map as M -- should clean up to use just one kind of Data.M
 import Data.Maybe
 import qualified Data.Set as Data_Set
 import Data.Set (Set)
-import Data.List (find)
+import Data.List (find,sort)
 import Numeric (showHex)
 import Data.Char
                      
@@ -57,6 +58,22 @@ mkTagSet (_,_,symtabs) name params =
                  (concatMap requires (map snd symtabs))
   in M.fromList (zipWith (\tag param -> (qsym tag,param)) ts params)
     
+{- Inverse of mkTagSet. Returns a list, since zero or more 'requires'
+   might match a given TagSet. 
+   (The implementation is fiddly (and inefficient!) because maps are 
+   sorted by key, but we must remember the order in which tag bits 
+   are listed in the 'requires' clause so as to match up the parameters.) -}
+rdTagSet :: PIPE_Policy -> TagSet -> [([String],[Maybe Int])]
+rdTagSet (_,_,symtabs) ts =  
+  map (\ (name,tbs) -> (name, map ((M.!) ts) tbs)) matching_tss
+   where
+    matching_tss = filter (\ (_,tbs) -> (M.keys ts == sort tbs)) all_tss
+    all_tss =
+          map
+           (\ (Init _ name (ISExact _ ts))  -> (name, map qsym ts))
+           (concatMap requires (map snd symtabs))
+
+
 {- Also need an inverse function like this:
 
 rdTagSet :: PIPE_Policy -> TagSet -> [([String],[Maybe Int])]

@@ -28,7 +28,10 @@ require:  // map external names (dotted strings) to tag sets
     init test.Env {Env}
     init test.Inst {Inst}
     init test.AllocInst {Alloc,Inst}
+    init test.CP {Cell,Pointer}
+    init test.PC {Pointer,Cell}
 // Needs to be modified to attach an optional int to the string on the right...
+
 //     init test.Cell1 {Cell(1)}
 // or
 //     init test.Cell() {Cell()}
