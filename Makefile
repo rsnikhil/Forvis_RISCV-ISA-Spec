@@ -35,7 +35,7 @@ default:
 # interface to C code (Berkeley 'softfloat' library).
 
 # The following def of FLOAT should be commented-out to EXCLUDE F and D
-# The following def of FLOAT should be uncommented   to INCLUDE F and D
+# The following def of FLOAT should be uncommented   to INCLUDE F and D (or define FLOAT=yes on command line)
 # FLOAT := yes
 
 UNAME := $(shell uname)
