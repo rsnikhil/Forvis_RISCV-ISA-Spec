@@ -163,21 +163,28 @@ to_Opt_Num_Instrs s = case (readDec s) of
 to_Opt_Arch :: String -> MyOpt
 to_Opt_Arch s =
   let
+    is_misa_opt :: Char -> Bool
+#ifdef FLOAT
+    is_misa_opt  ch = (('a' <= ch) && (ch <= 'z'))
+#else
+    is_misa_opt  ch = (('a' <= ch) && (ch <= 'z') && (ch /= 'd') && (ch /= 'f'))
+#endif
+
     mk_misa  :: RV -> String -> Integer -> MyOpt
     mk_misa     rv    s         misa =
       case s of
-        []                                    -> (let
-                                                     misa_mxl | rv == RV32 = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
-                                                              | rv == RV64 = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)
-                                                     misa' = (misa_mxl .|. misa)
-                                                   in
-                                                     Opt_Arch  rv  misa')
+        []                          -> (let
+                                           misa_mxl | rv == RV32 = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
+                                                    | rv == RV64 = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)
+                                           misa' = (misa_mxl .|. misa)
+                                         in
+                                           Opt_Arch  rv  misa')
 
-        (ch:s1)  | ('a' <= ch) && (ch <= 'z') -> (let
-                                                     bit = shiftL  1  ((ord ch) - (ord 'a'))
-                                                     misa' = misa .|. bit
-                                                  in
-                                                     mk_misa  rv  s1  misa')
+        (ch:s1)  | is_misa_opt (ch) -> (let
+                                           bit = shiftL  1  ((ord ch) - (ord 'a'))
+                                           misa' = misa .|. bit
+                                        in
+                                           mk_misa  rv  s1  misa')
 
         _                                     -> Opt_Err  "Illegal --arch command-line arg"
 

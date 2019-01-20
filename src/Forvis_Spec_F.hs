@@ -79,6 +79,68 @@ data Instr_F = FLW        GPR_Addr  GPR_Addr  InstrField              -- rd, rs1
   deriving (Eq, Show)
 
 -- ================================================================
+-- Decode constants for 'F' instructions
+
+funct3_FLW       = 0x2    :: InstrField  -- 3'b_010
+funct3_FSW       = 0x2    :: InstrField  -- 3'b_010
+
+funct2_FMADD_S   = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
+funct2_FMSUB_S   = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
+funct2_FNMSUB_S  = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
+funct2_FNMADD_S  = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
+
+funct7_FADD_S    = 0x0    :: InstrField  -- 7'b_000_0000
+funct7_FSUB_S    = 0x4    :: InstrField  -- 7'b_000_0100
+funct7_FMUL_S    = 0x8    :: InstrField  -- 7'b_000_1000
+funct7_FDIV_S    = 0xC    :: InstrField  -- 7'b_000_1100
+
+funct12_FSQRT_S  = 0x580  :: InstrField  -- 7'b_0101_1000_0000
+
+funct7_FSGNJ_S   = 0x10   :: InstrField  -- 7'b_001_0000
+funct3_FSGNJ_S   = 0x0    :: InstrField  -- 3'b_000
+
+funct7_FSGNJN_S  = 0x10   :: InstrField  -- 7'b_001_0000
+funct3_FSGNJN_S  = 0x1    :: InstrField  -- 3'b_001
+
+funct7_FSGNJX_S  = 0x10   :: InstrField  -- 7'b_001_0000
+funct3_FSGNJX_S  = 0x2    :: InstrField  -- 3'b_010
+
+funct7_FMIN_S    = 0x14   :: InstrField  -- 7'b_001_01000
+funct3_FMIN_S    = 0x0    :: InstrField  -- 3'b_000
+
+funct7_FMAX_S    = 0x14   :: InstrField  -- 7'b_001_01000
+funct3_FMAX_S    = 0x1    :: InstrField  -- 3'b_000
+
+funct12_FCVT_W_S  = 0xC00  :: InstrField  -- 12'b_1100_0000_0000
+funct12_FCVT_WU_S = 0xC01  :: InstrField  -- 12'b_1100_0000_0001
+
+funct12_FMV_X_W   = 0xE00  :: InstrField  -- 12'b_1110_0000_0000
+funct3_FMV_X_W    = 0x0    :: InstrField  -- 3'b_000
+
+funct7_FEQ_S      = 0x50   :: InstrField  -- 7'b_101_0000
+funct3_FEQ_S      = 0x2    :: InstrField  -- 3'b_010
+funct7_FLT_S      = 0x50   :: InstrField  -- 7'b_101_0000
+funct3_FLT_S      = 0x1    :: InstrField  -- 3'b_001
+funct7_FLE_S      = 0x50   :: InstrField  -- 7'b_101_0000
+funct3_FLE_S      = 0x0    :: InstrField  -- 3'b_000
+
+funct12_FCLASS_S  = 0xE00  :: InstrField  -- 12'b_1110_0000_0000
+funct3_FCLASS_S   = 0x1    :: InstrField  -- 3'b_001
+
+funct12_FCVT_S_W  = 0xD00  :: InstrField  -- 12'b_1101_0000_0000
+funct12_FCVT_S_WU = 0xD01  :: InstrField  -- 12'b_1101_0000_0001
+
+funct12_FMV_W_X   = 0xF00  :: InstrField  -- 12'b_1111_0000_0000
+funct3_FMV_W_X    = 0x0    :: InstrField  -- 3'b_000
+
+-- RV64F
+
+funct12_FCVT_L_S  = 0xC02  :: InstrField  -- 12'b_1100_0000_0010
+funct12_FCVT_LU_S = 0xC03  :: InstrField  -- 12'b_1100_0000_0011
+funct12_FCVT_S_L  = 0xD02  :: InstrField  -- 12'b_1101_0000_0010
+funct12_FCVT_S_LU = 0xD03  :: InstrField  -- 12'b_1101_0000_0011
+
+-- ================================================================
 -- Decode from 32b representation to Instr_F data structure
 -- 'frm' is the value from CSR FRM (rounding mode)
 

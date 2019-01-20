@@ -57,7 +57,7 @@ type FPR_Addr = Integer
 type CSR_Addr = Integer
                                                    -- \end_latex{Instr}
 -- ================================================================
--- Major and minor opcodes
+-- Opcodes
 
 -- ----------------
 -- 'I' (Base instruction set)
@@ -65,19 +65,23 @@ type CSR_Addr = Integer
 opcode_LUI       = 0x37  :: InstrField    -- 7'b_01_101_11
 opcode_AUIPC     = 0x17  :: InstrField    -- 7'b_00_101_11
 opcode_JAL       = 0x6F  :: InstrField    -- 7'b_11_011_11
-
 opcode_JALR      = 0x67  :: InstrField    -- 7'b_11_001_11
-funct3_JALR      = 0x0   :: InstrField    -- 3'b_000
-
 opcode_BRANCH    = 0x63  :: InstrField    -- 7'b_11_000_11
-funct3_BEQ       = 0x0  :: InstrField     -- 3'b_000
-funct3_BNE       = 0x1  :: InstrField     -- 3'b_001
-funct3_BLT       = 0x4  :: InstrField     -- 3'b_100
-funct3_BGE       = 0x5  :: InstrField     -- 3'b_101
-funct3_BLTU      = 0x6  :: InstrField     -- 3'b_110
-funct3_BGEU      = 0x7  :: InstrField     -- 3'b_111
-
 opcode_LOAD      = 0x03  :: InstrField    -- 7'b_00_000_11
+opcode_STORE     = 0x23  :: InstrField    -- 7'b_01_000_11
+opcode_OP_IMM    = 0x13  :: InstrField    -- 7'b_00_100_11
+opcode_OP        = 0x33  :: InstrField    -- 7'b_01_100_11
+opcode_MISC_MEM  = 0x0F  :: InstrField    -- 7'b_00_011_11
+opcode_OP_IMM_32 = 0x1B  :: InstrField    -- 7'b_00_110_11
+opcode_OP_32     = 0x3B  :: InstrField    -- 7'b_01_110_11
+opcode_SYSTEM    = 0x73  :: InstrField    -- 7'b_11_100_11
+
+-- ----------------
+-- Whereas most sub-opcodes are defined locally within
+-- Forvis_Spec_*.hs modules, these are defined here because they are
+-- also used in the memory and memory-mapped IO modules.
+
+-- opcode_LOAD sub-opcodes
 funct3_LB        = 0x0   :: InstrField    -- 3'b_000
 funct3_LH        = 0x1   :: InstrField    -- 3'b_001
 funct3_LW        = 0x2   :: InstrField    -- 3'b_010
@@ -86,141 +90,31 @@ funct3_LBU       = 0x4   :: InstrField    -- 3'b_100
 funct3_LHU       = 0x5   :: InstrField    -- 3'b_101
 funct3_LWU       = 0x6   :: InstrField    -- 3'b_110
 
-opcode_STORE     = 0x23  :: InstrField    -- 7'b_01_000_11
+-- opcode_STORE sub-opcodes
 funct3_SB        = 0x0   :: InstrField    -- 3'b_000
 funct3_SH        = 0x1   :: InstrField    -- 3'b_001
 funct3_SW        = 0x2   :: InstrField    -- 3'b_010
 funct3_SD        = 0x3   :: InstrField    -- 3'b_011
 
-opcode_OP_IMM    = 0x13  :: InstrField    -- 7'b_00_100_11
-funct3_ADDI      = 0x0   :: InstrField    -- 3'b_000
-funct3_SLTI      = 0x2   :: InstrField    -- 3'b_010
-funct3_SLTIU     = 0x3   :: InstrField    -- 3'b_011
-funct3_XORI      = 0x4   :: InstrField    -- 3'b_100
-funct3_ORI       = 0x6   :: InstrField    -- 3'b_110
-funct3_ANDI      = 0x7   :: InstrField    -- 3'b_111
-funct3_SLLI      = 0x1   :: InstrField    -- 3'b_001
-funct3_SRLI      = 0x5   :: InstrField    -- 3'b_101
-funct3_SRAI      = 0x5   :: InstrField    -- 3'b_101
-
--- OP_IMM.SLLI/SRLI/SRAI for RV32
-msbs7_SLLI       = 0x00  :: InstrField    -- 7'b_000_0000
-msbs7_SRLI       = 0x00  :: InstrField    -- 7'b_000_0000
-msbs7_SRAI       = 0x20  :: InstrField    -- 7'b_010_0000
-
--- OP_IMM.SLLI/SRLI/SRAI for RV64
-msbs6_SLLI       = 0x00  :: InstrField    -- 6'b_00_0000
-msbs6_SRLI       = 0x00  :: InstrField    -- 6'b_00_0000
-msbs6_SRAI       = 0x10  :: InstrField    -- 6'b_01_0000
-
-
-opcode_OP        = 0x33  :: InstrField    -- 7'b_01_100_11
-funct3_ADD       = 0x0   :: InstrField    -- 3'b_000
-funct7_ADD       = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_SUB       = 0x0   :: InstrField    -- 3'b_000
-funct7_SUB       = 0x20  :: InstrField    -- 7'b_010_0000
-funct3_SLT       = 0x2   :: InstrField    -- 3'b_010
-funct7_SLT       = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_SLTU      = 0x3   :: InstrField    -- 3'b_011
-funct7_SLTU      = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_XOR       = 0x4   :: InstrField    -- 3'b_100
-funct7_XOR       = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_OR        = 0x6   :: InstrField    -- 3'b_110
-funct7_OR        = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_AND       = 0x7   :: InstrField    -- 3'b_111
-funct7_AND       = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_SLL       = 0x1   :: InstrField    -- 3'b_001
-funct7_SLL       = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_SRL       = 0x5   :: InstrField    -- 3'b_101
-funct7_SRL       = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_SRA       = 0x5   :: InstrField    -- 3'b_101
-funct7_SRA       = 0x20  :: InstrField    -- 7'b_010_0000
-
-opcode_MISC_MEM  = 0x0F  :: InstrField    -- 7'b_00_011_11
-funct3_FENCE     = 0x0   :: InstrField    -- 3'b_000
-funct3_FENCE_I   = 0x1   :: InstrField    -- 3'b_001
-
-opcode_OP_IMM_32 = 0x1B  :: InstrField    -- 7'b_00_110_11
-funct3_ADDIW     = 0x0   :: InstrField    -- 3'b_000
-funct3_SLLIW     = 0x1   :: InstrField    -- 3'b_001
-funct7_SLLIW     = 0x00   :: InstrField   -- 7'b_0000000
-funct3_SRLIW     = 0x5   :: InstrField    -- 3'b_101
-funct7_SRLIW     = 0x00   :: InstrField   -- 7'b_0000000
-funct3_SRAIW     = 0x5   :: InstrField    -- 3'b_101
-funct7_SRAIW     = 0x20   :: InstrField   -- 7'b_0100000
-
-opcode_OP_32     = 0x3B  :: InstrField    -- 7'b_01_110_11
-funct3_ADDW      = 0x0   :: InstrField    -- 3'b_000
-funct7_ADDW      = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_SUBW      = 0x0   :: InstrField    -- 3'b_000
-funct7_SUBW      = 0x20  :: InstrField    -- 7'b_010_0000
-funct3_SLLW      = 0x1   :: InstrField    -- 3'b_001
-funct7_SLLW      = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_SRLW      = 0x5   :: InstrField    -- 3'b_101
-funct7_SRLW      = 0x00  :: InstrField    -- 7'b_000_0000
-funct3_SRAW      = 0x5   :: InstrField    -- 3'b_101
-funct7_SRAW      = 0x20  :: InstrField    -- 7'b_010_0000
-
--- SYSTEM: user level
-opcode_SYSTEM    = 0x73  :: InstrField    -- 7'b_11_100_11
+-- opcode_SYSTEM sub-opcodes
 funct3_PRIV      = 0x0   :: InstrField    -- 3'b_000
-funct12_ECALL    = 0x000 :: InstrField    -- 12'b_0000_0000_0000
-funct12_EBREAK   = 0x001 :: InstrField    -- 12'b_0000_0000_0001
-funct3_CSRRW     = 0x1   :: InstrField    -- 3'b_001
-funct3_CSRRWI    = 0x5   :: InstrField    -- 3'b_101
-funct3_CSRRS     = 0x2   :: InstrField    -- 3'b_010
-funct3_CSRRC     = 0x3   :: InstrField    -- 3'b_011
-funct3_CSRRSI    = 0x6   :: InstrField    -- 3'b_110
-funct3_CSRRCI    = 0x7   :: InstrField    -- 3'b_111
-
--- SYSTEM: privileged
-funct12_URET     = 0x002 :: InstrField    -- 12'b_0000_0000_0010
-funct12_SRET     = 0x102 :: InstrField    -- 12'b_0001_0000_0010
-funct12_MRET     = 0x302 :: InstrField    -- 12'b_0011_0000_0010
-funct12_WFI      = 0x105 :: InstrField    -- 12'b_0001_0000_0101
-funct7_SFENCE_VM = 0x09  :: InstrField    --  7'b_000_1001
 
 -- ================================================================
 -- 'M' extension
 
--- Shares opcode_OP with base instr set
-
-funct3_MUL       = 0x0   :: InstrField    -- 3'b_000
-funct7_MUL       = 0x01  :: InstrField    -- 7'b_000_0001
-funct3_MULH      = 0x1   :: InstrField    -- 3'b_001
-funct7_MULH      = 0x01  :: InstrField    -- 7'b_000_0001
-funct3_MULHSU    = 0x2   :: InstrField    -- 3'b_010
-funct7_MULHSU    = 0x01  :: InstrField    -- 7'b_000_0001
-funct3_MULHU     = 0x3   :: InstrField    -- 3'b_011
-funct7_MULHU     = 0x01  :: InstrField    -- 7'b_000_0001
-
-funct3_DIV       = 0x4   :: InstrField    -- 3'b_100
-funct7_DIV       = 0x01  :: InstrField    -- 7'b_000_0001
-funct3_DIVU      = 0x5   :: InstrField    -- 3'b_101
-funct7_DIVU      = 0x01  :: InstrField    -- 7'b_000_0001
-
-funct3_REM       = 0x6   :: InstrField    -- 3'b_110
-funct7_REM       = 0x01  :: InstrField    -- 7'b_000_0001
-funct3_REMU      = 0x7   :: InstrField    -- 3'b_111
-funct7_REMU      = 0x01  :: InstrField    -- 7'b_000_0001
-
--- Shares opcode_OP_32 with base instr set
-
-funct3_MULW     = 0x0    :: InstrField    -- 3'b_000
-funct7_MULW     = 0x01   :: InstrField    -- 7'b_000_0001
-funct3_DIVW     = 0x4    :: InstrField    -- 3'b_100
-funct7_DIVW     = 0x01   :: InstrField    -- 7'b_000_0001
-funct3_DIVUW    = 0x5    :: InstrField    -- 3'b_101
-funct7_DIVUW    = 0x01   :: InstrField    -- 7'b_000_0001
-funct3_REMW     = 0x6    :: InstrField    -- 3'b_110
-funct7_REMW     = 0x01   :: InstrField    -- 7'b_000_0001
-funct3_REMUW    = 0x7    :: InstrField    -- 3'b_111
-funct7_REMUW    = 0x01   :: InstrField    -- 7'b_000_0001
+-- opcode_OP     same as in base instruction set
+-- opcode_OP_32  same as in base instruction set
 
 -- ================================================================
 -- 'A' extension
 
 opcode_AMO       = 0x2F  :: InstrField    -- 7'b_01_011_11
+
+-- ----------------
+-- Whereas most sub-opcodes are defined locally within
+-- Forvis_Spec_*.hs modules, these are defined here because they are
+-- also used in the memory and memory-mapped IO modules.
+
 funct3_AMO_W     = 0x2   :: InstrField    -- 3'b010
 funct3_AMO_D     = 0x3   :: InstrField    -- 3'b011
 msbs5_AMO_LR     = 0x02  :: InstrField    -- 5'b00010
@@ -236,227 +130,15 @@ msbs5_AMO_MINU   = 0x18  :: InstrField    -- 5'b11000
 msbs5_AMO_MAXU   = 0x1C  :: InstrField    -- 5'b11100
 
 -- ================================================================
--- 'C' Extension ("Compressed") major opcodes ('quadrants' 0, 1 and 2)
-
-opcode_C0 = 0x0 :: InstrField    -- 2'b00
-opcode_C1 = 0x1 :: InstrField    -- 2'b01
-opcode_C2 = 0x2 :: InstrField    -- 2'b10
-
-funct3_C_LWSP     = 0x2 :: InstrField    -- 3'b_010
-funct3_C_LDSP     = 0x3 :: InstrField    -- 3'b_011     RV64 and RV128
-funct3_C_LQSP     = 0x1 :: InstrField    -- 3'b_001     RV128
-funct3_C_FLWSP    = 0x3 :: InstrField    -- 3'b_011     RV32FC
-funct3_C_FLDSP    = 0x1 :: InstrField    -- 3'b_001     RV32DC, RV64DC
-
-funct3_C_SWSP     = 0x6 :: InstrField    -- 3'b_110
-
-funct3_C_SQSP     = 0x5 :: InstrField    -- 3'b_101     RV128
-funct3_C_FSDSP    = 0x5 :: InstrField    -- 3'b_101     RV32DC, RV64DC
-
-funct3_C_SDSP     = 0x7 :: InstrField    -- 3'b_111     RV64 and RV128
-funct3_C_FSWSP    = 0x7 :: InstrField    -- 3'b_111     RV32FC
-
-funct3_C_LQ       = 0x1 :: InstrField    -- 3'b_001     RV128
-funct3_C_FLD      = 0x1 :: InstrField    -- 3'b_001     RV32DC, RV64DC
-
-funct3_C_LW       = 0x2 :: InstrField    -- 3'b_010
-
-funct3_C_LD       = 0x3 :: InstrField    -- 3'b_011     RV64 and RV128
-funct3_C_FLW      = 0x3 :: InstrField    -- 3'b_011     RV32FC
-
-funct3_C_FSD      = 0x5 :: InstrField    -- 3'b_101     RV32DC, RV64DC
-funct3_C_SQ       = 0x5 :: InstrField    -- 3'b_101     RV128
-
-funct3_C_SW       = 0x6 :: InstrField    -- 3'b_110
-
-funct3_C_SD       = 0x7 :: InstrField    -- 3'b_111     RV64 and RV128
-funct3_C_FSW      = 0x7 :: InstrField    -- 3'b_111     RV32FC
-
-funct3_C_JAL      = 0x1 :: InstrField    -- 3'b_001     RV32
-funct3_C_J        = 0x5 :: InstrField    -- 3'b_101
-funct3_C_BEQZ     = 0x6 :: InstrField    -- 3'b_110
-funct3_C_BNEZ     = 0x7 :: InstrField    -- 3'b_111
-
-funct4_C_JR       = 0x8 :: InstrField    -- 4'b_1000
-funct4_C_JALR     = 0x9 :: InstrField    -- 4'b_1001
-
-funct3_C_LI       = 0x2 :: InstrField    -- 3'b_010
-funct3_C_LUI      = 0x3 :: InstrField    -- 3'b_011     RV64 and RV128
-
-funct3_C_NOP      = 0x0 :: InstrField    -- 3'b_000
-funct3_C_ADDI     = 0x0 :: InstrField    -- 3'b_000
-funct3_C_ADDIW    = 0x1 :: InstrField    -- 3'b_001
-funct3_C_ADDI16SP = 0x3 :: InstrField    -- 3'b_011
-funct3_C_ADDI4SPN = 0x0 :: InstrField    -- 3'b_000
-funct3_C_SLLI     = 0x0 :: InstrField    -- 3'b_000
-
-funct3_C_SRLI     = 0x4 :: InstrField    -- 3'b_100
-funct2_C_SRLI     = 0x0 :: InstrField    -- 2'b_00
-
-funct3_C_SRAI     = 0x4 :: InstrField    -- 3'b_100
-funct2_C_SRAI     = 0x1 :: InstrField    -- 2'b_01
-
-funct3_C_ANDI     = 0x4 :: InstrField    -- 3'b_100
-funct2_C_ANDI     = 0x2 :: InstrField    -- 2'b_10
-
-funct4_C_MV       = 0x8 :: InstrField    -- 4'b_1000
-funct4_C_ADD      = 0x9 :: InstrField    -- 4'b_1001
-
-funct6_C_AND      = 0x23 :: InstrField   -- 6'b_100_0_11
-funct2_C_AND      = 0x3 :: InstrField    -- 2'b_11
-
-funct6_C_OR       = 0x23 :: InstrField   -- 6'b_100_0_11
-funct2_C_OR       = 0x2 :: InstrField    -- 2'b_10
-
-funct6_C_XOR      = 0x23 :: InstrField   -- 6'b_100_0_11
-funct2_C_XOR      = 0x1 :: InstrField    -- 2'b_01
-
-funct6_C_SUB      = 0x23 :: InstrField   -- 6'b_100_0_11
-funct2_C_SUB      = 0x0 :: InstrField    -- 2'b_01
-
-funct6_C_ADDW     = 0x27 :: InstrField   -- 6'b_100_1_11
-funct2_C_ADDW     = 0x1 :: InstrField    -- 2'b_01
-
-funct6_C_SUBW     = 0x27 :: InstrField   -- 6'b_100_1_11
-funct2_C_SUBW     = 0x0 :: InstrField    -- 2'b_00
-
-funct4_C_EBREAK   = 0x9 :: InstrField    -- 4'b_1001
-
--- ================================================================
 -- 'F' and 'D' extensions (single- and double-precision Floating Point)
 
 opcode_LOAD_FP   = 0x07   :: InstrField  -- 7'b_00_001_11
-
-funct3_FLW       = 0x2    :: InstrField  -- 3'b_010
-
 opcode_STORE_FP  = 0x27   :: InstrField  -- 7'b_01_001_11
-
-funct3_FSW       = 0x2    :: InstrField  -- 3'b_010
-
 opcode_FMADD     = 0x43   :: InstrField  -- 7'b_100_0011
 opcode_FMSUB     = 0x47   :: InstrField  -- 7'b_100_0111
 opcode_FNMSUB    = 0x4B   :: InstrField  -- 7'b_100_1011
 opcode_FNMADD    = 0x4F   :: InstrField  -- 7'b_100_1111
-
-funct2_FMADD_S   = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
-funct2_FMSUB_S   = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
-funct2_FNMSUB_S  = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
-funct2_FNMADD_S  = 0x0    :: InstrField  -- 2'b_00    (instr [26:25])
-
 opcode_OP_FP     = 0x53   :: InstrField  -- 7'b_10_100_11
-
-funct7_FADD_S    = 0x0    :: InstrField  -- 7'b_000_0000
-funct7_FSUB_S    = 0x4    :: InstrField  -- 7'b_000_0100
-funct7_FMUL_S    = 0x8    :: InstrField  -- 7'b_000_1000
-funct7_FDIV_S    = 0xC    :: InstrField  -- 7'b_000_1100
-
-funct12_FSQRT_S  = 0x580  :: InstrField  -- 7'b_0101_1000_0000
-
-funct7_FSGNJ_S   = 0x10   :: InstrField  -- 7'b_001_0000
-funct3_FSGNJ_S   = 0x0    :: InstrField  -- 3'b_000
-
-funct7_FSGNJN_S  = 0x10   :: InstrField  -- 7'b_001_0000
-funct3_FSGNJN_S  = 0x1    :: InstrField  -- 3'b_001
-
-funct7_FSGNJX_S  = 0x10   :: InstrField  -- 7'b_001_0000
-funct3_FSGNJX_S  = 0x2    :: InstrField  -- 3'b_010
-
-funct7_FMIN_S    = 0x14   :: InstrField  -- 7'b_001_01000
-funct3_FMIN_S    = 0x0    :: InstrField  -- 3'b_000
-
-funct7_FMAX_S    = 0x14   :: InstrField  -- 7'b_001_01000
-funct3_FMAX_S    = 0x1    :: InstrField  -- 3'b_000
-
-funct12_FCVT_W_S  = 0xC00  :: InstrField  -- 12'b_1100_0000_0000
-funct12_FCVT_WU_S = 0xC01  :: InstrField  -- 12'b_1100_0000_0001
-
-funct12_FMV_X_W   = 0xE00  :: InstrField  -- 12'b_1110_0000_0000
-funct3_FMV_X_W    = 0x0    :: InstrField  -- 3'b_000
-
-funct7_FEQ_S      = 0x50   :: InstrField  -- 7'b_101_0000
-funct3_FEQ_S      = 0x2    :: InstrField  -- 3'b_010
-funct7_FLT_S      = 0x50   :: InstrField  -- 7'b_101_0000
-funct3_FLT_S      = 0x1    :: InstrField  -- 3'b_001
-funct7_FLE_S      = 0x50   :: InstrField  -- 7'b_101_0000
-funct3_FLE_S      = 0x0    :: InstrField  -- 3'b_000
-
-funct12_FCLASS_S  = 0xE00  :: InstrField  -- 12'b_1110_0000_0000
-funct3_FCLASS_S   = 0x1    :: InstrField  -- 3'b_001
-
-funct12_FCVT_S_W  = 0xD00  :: InstrField  -- 12'b_1101_0000_0000
-funct12_FCVT_S_WU = 0xD01  :: InstrField  -- 12'b_1101_0000_0001
-
-funct12_FMV_W_X   = 0xF00  :: InstrField  -- 12'b_1111_0000_0000
-funct3_FMV_W_X    = 0x0    :: InstrField  -- 3'b_000
-
--- RV64F
-
-funct12_FCVT_L_S  = 0xC02  :: InstrField  -- 12'b_1100_0000_0010
-funct12_FCVT_LU_S = 0xC03  :: InstrField  -- 12'b_1100_0000_0011
-funct12_FCVT_S_L  = 0xD02  :: InstrField  -- 12'b_1101_0000_0010
-funct12_FCVT_S_LU = 0xD03  :: InstrField  -- 12'b_1101_0000_0011
-
--- ================================================================
-
-funct3_FLD       = 0x3    :: InstrField  -- 3'b_011
-funct3_FSD       = 0x3    :: InstrField  -- 3'b_011
-
-funct2_FMADD_D   = 0x1    :: InstrField  -- 2'b_01    (instr [26:25])
-funct2_FMSUB_D   = 0x1    :: InstrField  -- 2'b_01    (instr [26:25])
-funct2_FNMSUB_D  = 0x1    :: InstrField  -- 2'b_01    (instr [26:25])
-funct2_FNMADD_D  = 0x1    :: InstrField  -- 2'b_01    (instr [26:25])
-
-funct7_FADD_D    = 0x1    :: InstrField  -- 7'b_000_0001
-funct7_FSUB_D    = 0x5    :: InstrField  -- 7'b_000_0101
-funct7_FMUL_D    = 0x9    :: InstrField  -- 7'b_000_1001
-funct7_FDIV_D    = 0xD    :: InstrField  -- 7'b_000_1101
-
-funct12_FSQRT_D  = 0x5A0  :: InstrField  -- 7'b_0101_1010_0000
-
-funct7_FSGNJ_D   = 0x11   :: InstrField  -- 7'b_001_0000
-funct3_FSGNJ_D   = 0x0    :: InstrField  -- 3'b_000
-
-funct7_FSGNJN_D  = 0x11   :: InstrField  -- 7'b_001_0000
-funct3_FSGNJN_D  = 0x1    :: InstrField  -- 3'b_001
-
-funct7_FSGNJX_D  = 0x11   :: InstrField  -- 7'b_001_0000
-funct3_FSGNJX_D  = 0x2    :: InstrField  -- 3'b_010
-
-funct7_FMIN_D    = 0x15   :: InstrField  -- 7'b_001_01000
-funct3_FMIN_D    = 0x0    :: InstrField  -- 3'b_000
-
-funct7_FMAX_D    = 0x15   :: InstrField  -- 7'b_001_01000
-funct3_FMAX_D    = 0x1    :: InstrField  -- 3'b_001
-
-funct12_FCVT_S_D = 0x401  :: InstrField  -- 12'b_0100_0000_0001
-funct12_FCVT_D_S = 0x420  :: InstrField  -- 12'b_0100_0010_0000
-
-funct7_FEQ_D      = 0x51   :: InstrField  -- 7'b_101_0001
-funct3_FEQ_D      = 0x2    :: InstrField  -- 3'b_010
-funct7_FLT_D      = 0x51   :: InstrField  -- 7'b_101_0001
-funct3_FLT_D      = 0x1    :: InstrField  -- 3'b_001
-funct7_FLE_D      = 0x51   :: InstrField  -- 7'b_101_0001
-funct3_FLE_D      = 0x0    :: InstrField  -- 3'b_000
-
-funct12_FCLASS_D  = 0xE20  :: InstrField  -- 12'b_1110_0010_0000
-funct3_FCLASS_D   = 0x1    :: InstrField  -- 3'b_001
-
-funct12_FCVT_W_D  = 0xC20  :: InstrField  -- 12'b_1100_0010_0000
-funct12_FCVT_WU_D = 0xC21  :: InstrField  -- 12'b_1100_0010_0001
-funct12_FCVT_D_W  = 0xD20  :: InstrField  -- 12'b_1101_0010_0000
-funct12_FCVT_D_WU = 0xD21  :: InstrField  -- 12'b_1101_0000_0001
-
--- RV64D
-
-funct12_FCVT_L_D  = 0xC22  :: InstrField  -- 12'b_1100_0010_0010
-funct12_FCVT_LU_D = 0xC23  :: InstrField  -- 12'b_1100_0020_0011
-funct12_FMV_X_D   = 0xE20  :: InstrField  -- 12'b_1110_0010_0000
-funct3_FMV_X_D    = 0x0    :: InstrField  -- 3'b_000
-
-funct12_FCVT_D_L  = 0xD22  :: InstrField  -- 12'b_1101_0010_0010
-funct12_FCVT_D_LU = 0xD23  :: InstrField  -- 12'b_1101_0010_0011
-funct12_FMV_D_X   = 0xF20  :: InstrField  -- 12'b_1111_0010_0000
-funct3_FMV_D_X    = 0x0    :: InstrField  -- 3'b_000
 
 -- ================================================================
 -- Exception Codes                                 \begin_latex{exception_codes_A}

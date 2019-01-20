@@ -51,11 +51,6 @@ library for IEEE Floating Point emulation.
         - Virtual Memory schemes SV32, SV39 and SV48
     - Privilege Level U (User)
 
-    [TEMPORARY UNDER-CONSTRUCTION NOTE: Around 2018-11-24 we started a
-     major change to introduce an explicit 'decode' step. This is
-     ready for all except 'F' and 'D', which are temporarily disabled.
-     We expect them to be re-enabled in mid- to late- December 2018]
-
 - Forvis can be executed today as a Haskell program, which in turn
     executes RISC-V ELF binaries.  This is a sequential
     interpretation: one-instruction-at-a-time, sequential memory
@@ -84,14 +79,14 @@ library for IEEE Floating Point emulation.
    these tests, a script to run them as a regression, and sample
    output logs.
 
-### What's coming soon (target: December 2018)
+### What's coming soon (target: Spring 2019)
 
 - 'Feature List' argument that configures Forvis to make particular
     allowed implementation choices (such as: trap or handle misaligned
     mem access) so that its instruction trace exactly matches a
     particular implementation.
 
-### What's coming next (target: Spring 2019)
+### What's coming next (target: Summer 2019)
 
 - Interpreter supporting concurrency (modeling out-of-order execution,
     pipelining, speculation, multi-hart and more), and integration
@@ -151,8 +146,9 @@ Forvis_Spec_I.hs
 >         Forvis_Spec_I64.hs
 >         Forvis_Spec_A.hs
 >         Forvis_Spec_C.hs
->         Forvis_Spec_FD.hs    FPR_File.hs
 >         Forvis_Spec_M.hs
+>         Forvis_Spec_F.hs    FPR_File.hs
+>         Forvis_Spec_D.hs    FPR_File.hs
 
 You can ignore the following, which are used for testing virtual
 memory translation and Tandem Verification, respectively (you're
@@ -194,11 +190,22 @@ softfloat-hs) that require `ghc` version 8.2.1 or later.
 
 will tell you what version of ghc you have.
 
-#### One-time build of the `softfloat` C library
+#### Optional one-time build of the `softfloat` C library
 
-Next, you need to the following one-time action to get, build and
-install the Berkeley 'softfloat' IEEE floating point emulation
-library.
+If you are not interested in the RISC-V F and D extensions (single-
+and double-precision floating point), you can skip this section and
+its steps.
+
+By default, the Makefile builds a Forvis simulator **without** F and D
+because the build is a little more involved, using the Berkeley
+'softfloat' IEEE floating point emulation library and the Galois
+Haskell foreign-function interface wrappers for softfloat.
+
+To include F and D, you should first uncomment the `# FLOAT := yes`
+line in the Makefile.
+
+Next, you need the following one-time action to get, build and install
+the Berkeley 'softfloat' .
 
         $ make  build_softfloat
 
@@ -246,6 +253,11 @@ information on the binaries.
 
 Please see `Regression_Testing/README.txt` for how to automatically
 run Forvis on all ELF files in a directory tree such as `Test_Programs/`.
+
+Note: the default build excludes the RISC-V F and D extensions
+(single- and double-precision floating point). When you run the
+regression, it will expectedly fail on all the ISA tests for F and D
+(having 'uf' and 'ud' in the filenames of the tests).
 
 ----------------------------------------------------------------
 

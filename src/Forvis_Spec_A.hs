@@ -160,7 +160,7 @@ exe_AMO  funct3  msbs5  is_C  rd  rs1  rs2  aq  rl  mstate =
     eaddr1  = mstate_gpr_read  mstate  rs1
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
-    -- If Virtual Mem is active, translate to a physical addr
+    -- Do the AMO op
     (result1, mstate1) = mstate_vm_amo  mstate  funct3  msbs5  aq  rl  eaddr2  rs2_val
 
     -- Finish with trap, or finish with loading Rd with AMO result

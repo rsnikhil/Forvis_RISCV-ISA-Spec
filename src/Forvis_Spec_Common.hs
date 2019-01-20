@@ -23,10 +23,13 @@ import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 -- Local imports
 
 import Bit_Utils
-import FPU
 import Arch_Defs
 import Machine_State
 import CSR_File
+
+#ifdef FLOAT
+import FPU
+#endif
 
 -- ================================================================
 -- Common ways to finish an instruction.
@@ -96,6 +99,28 @@ finish_pc    mstate           new_pc =
   in
     mstate2
 
+-- Trap with given exception code and trap value
+{-# INLINE finish_trap #-}
+finish_trap :: Machine_State -> Exc_Code -> Integer -> Machine_State
+finish_trap    mstate           exc_code    tval =
+  let
+    mstate1 = mstate_upd_on_trap  mstate  False  exc_code  tval
+    mstate2 = incr_minstret  mstate1
+    mstate3 = mstate_last_instr_trapped_write  mstate2  True
+  in
+    mstate3
+
+-- Every completed instruction increments minstret
+{-# INLINE incr_minstret #-}
+incr_minstret :: Machine_State -> Machine_State
+incr_minstret  mstate =
+  let
+    minstret = mstate_csr_read  mstate  csr_addr_minstret
+    mstate1  = mstate_csr_write  mstate  csr_addr_minstret  (minstret + 1)
+  in
+    mstate1
+
+#ifdef FLOAT
 -- Update FPU.RD, CSR.FFlags, increment PC by 4, increment INSTRET       \begin_latex{finish_frd_fflags_and_pc_plus_4}
 {-# INLINE finish_frd_fflags_and_pc_plus_4 #-}
 finish_frd_fflags_and_pc_plus_4 :: Machine_State -> FPR_Addr -> Integer -> Integer -> Bool -> Machine_State
@@ -120,28 +145,8 @@ finish_frd_and_pc_plus_4    mstate           rd          rd_val     is_n_lt_FLEN
       mstate3 = incr_minstret     mstate2
   in
     mstate3
+#endif
                                                                -- \end_latex{finish_frd_and_pc_plus_4}
--- Trap with given exception code and trap value
-{-# INLINE finish_trap #-}
-finish_trap :: Machine_State -> Exc_Code -> Integer -> Machine_State
-finish_trap    mstate           exc_code    tval =
-  let
-    mstate1 = mstate_upd_on_trap  mstate  False  exc_code  tval
-    mstate2 = incr_minstret  mstate1
-    mstate3 = mstate_last_instr_trapped_write  mstate2  True
-  in
-    mstate3
-
--- Every completed instruction increments minstret
-{-# INLINE incr_minstret #-}
-incr_minstret :: Machine_State -> Machine_State
-incr_minstret  mstate =
-  let
-    minstret = mstate_csr_read  mstate  csr_addr_minstret
-    mstate1  = mstate_csr_write  mstate  csr_addr_minstret  (minstret + 1)
-  in
-    mstate1
-
 -- ================================================================
 -- Trap actions:
 --   - Compute new privilege level

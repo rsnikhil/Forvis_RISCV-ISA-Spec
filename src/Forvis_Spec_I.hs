@@ -27,7 +27,7 @@ import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 -- ================================================================
 -- 'I' Base instruction set
 
--- NOTE: opcode_XXX, funct3_XXX are defined in module Arch_Defs
+-- NOTE: opcode_XXX are defined in module Arch_Defs
 
 -- ================================================================
 -- Data structure for instructions in 'I' (base instruction set)
@@ -81,6 +81,70 @@ data Instr_I = LUI    GPR_Addr  InstrField              -- rd,  imm20
              | ECALL
              | EBREAK
   deriving (Eq, Show)
+
+-- ================================================================
+-- Decode constants for 'I' instructions
+
+-- opcode_JALR sub-opcodes
+funct3_JALR      = 0x0   :: InstrField    -- 3'b_000
+
+-- opcode_BRANCH sub-opcodes
+funct3_BEQ       = 0x0  :: InstrField     -- 3'b_000
+funct3_BNE       = 0x1  :: InstrField     -- 3'b_001
+funct3_BLT       = 0x4  :: InstrField     -- 3'b_100
+funct3_BGE       = 0x5  :: InstrField     -- 3'b_101
+funct3_BLTU      = 0x6  :: InstrField     -- 3'b_110
+funct3_BGEU      = 0x7  :: InstrField     -- 3'b_111
+
+-- opcode_OP_IMM sub-opcodes
+funct3_ADDI      = 0x0   :: InstrField    -- 3'b_000
+funct3_SLTI      = 0x2   :: InstrField    -- 3'b_010
+funct3_SLTIU     = 0x3   :: InstrField    -- 3'b_011
+funct3_XORI      = 0x4   :: InstrField    -- 3'b_100
+funct3_ORI       = 0x6   :: InstrField    -- 3'b_110
+funct3_ANDI      = 0x7   :: InstrField    -- 3'b_111
+funct3_SLLI      = 0x1   :: InstrField    -- 3'b_001
+funct3_SRLI      = 0x5   :: InstrField    -- 3'b_101
+funct3_SRAI      = 0x5   :: InstrField    -- 3'b_101
+
+-- OP_IMM.SLLI/SRLI/SRAI sub-opcodes for RV32
+msbs7_SLLI       = 0x00  :: InstrField    -- 7'b_000_0000
+msbs7_SRLI       = 0x00  :: InstrField    -- 7'b_000_0000
+msbs7_SRAI       = 0x20  :: InstrField    -- 7'b_010_0000
+
+-- OP_IMM.SLLI/SRLI/SRAI subopcodes for RV64
+msbs6_SLLI       = 0x00  :: InstrField    -- 6'b_00_0000
+msbs6_SRLI       = 0x00  :: InstrField    -- 6'b_00_0000
+msbs6_SRAI       = 0x10  :: InstrField    -- 6'b_01_0000
+
+-- opcode_OP sub-opcodes
+funct3_ADD       = 0x0   :: InstrField    -- 3'b_000
+funct7_ADD       = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_SUB       = 0x0   :: InstrField    -- 3'b_000
+funct7_SUB       = 0x20  :: InstrField    -- 7'b_010_0000
+funct3_SLT       = 0x2   :: InstrField    -- 3'b_010
+funct7_SLT       = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_SLTU      = 0x3   :: InstrField    -- 3'b_011
+funct7_SLTU      = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_XOR       = 0x4   :: InstrField    -- 3'b_100
+funct7_XOR       = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_OR        = 0x6   :: InstrField    -- 3'b_110
+funct7_OR        = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_AND       = 0x7   :: InstrField    -- 3'b_111
+funct7_AND       = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_SLL       = 0x1   :: InstrField    -- 3'b_001
+funct7_SLL       = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_SRL       = 0x5   :: InstrField    -- 3'b_101
+funct7_SRL       = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_SRA       = 0x5   :: InstrField    -- 3'b_101
+funct7_SRA       = 0x20  :: InstrField    -- 7'b_010_0000
+
+-- opcode_MISC_MEM sub-opcodes
+funct3_FENCE     = 0x0   :: InstrField    -- 3'b_000
+
+-- opcode_SYSTEM sub-opcodes
+funct12_ECALL    = 0x000 :: InstrField    -- 12'b_0000_0000_0000
+funct12_EBREAK   = 0x001 :: InstrField    -- 12'b_0000_0000_0001
 
 -- ================================================================
 -- Decode from 32b representation to Instr_I data structure
@@ -138,8 +202,8 @@ decode_I    rv    instr_32b =
       | opcode==opcode_LUI   = Just  (LUI    rd  imm20_U)
       | opcode==opcode_AUIPC = Just  (AUIPC  rd  imm20_U)
 
-      | opcode==opcode_JAL  = Just  (JAL   rd  imm21_J)
-      | opcode==opcode_JALR = Just  (JALR  rd  rs1  imm12_I)
+      | opcode==opcode_JAL                       = Just  (JAL   rd  imm21_J)
+      | opcode==opcode_JALR, funct3==funct3_JALR = Just  (JALR  rd  rs1  imm12_I)
 
       | opcode==opcode_BRANCH, funct3==funct3_BEQ  = Just  (BEQ  rs1 rs2 imm13_B)
       | opcode==opcode_BRANCH, funct3==funct3_BNE  = Just  (BNE  rs1 rs2 imm13_B)

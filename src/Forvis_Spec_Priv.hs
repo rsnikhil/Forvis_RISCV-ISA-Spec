@@ -24,8 +24,7 @@ import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 -- ================================================================
 -- Privileged Architecture instruction set
 
--- NOTE: opcode_SYSTEM, funct12_URET/SRET/MRET/WFI, func7_SFENCE_VM
--- are defined in module Arch_Defs
+-- NOTE: opcode_SYSTEM is defined in module Arch_Defs
 
 -- ================================================================
 -- Data structure for instructions in Privileged Arch
@@ -36,6 +35,16 @@ data Instr_Priv = URET
                 | WFI
                 | SFENCE_VM  GPR_Addr  GPR_Addr    -- rs1  rs2
   deriving (Eq, Show)
+
+-- ================================================================
+-- Decode constants for 'Priv' instructions
+
+-- opcode_SYSTEM sub-opcodes
+funct12_URET     = 0x002 :: InstrField    -- 12'b_0000_0000_0010
+funct12_SRET     = 0x102 :: InstrField    -- 12'b_0001_0000_0010
+funct12_MRET     = 0x302 :: InstrField    -- 12'b_0011_0000_0010
+funct12_WFI      = 0x105 :: InstrField    -- 12'b_0001_0000_0101
+funct7_SFENCE_VM = 0x09  :: InstrField    --  7'b_000_1001
 
 -- ================================================================
 -- Decode from 32b representation to Instr_I data structure

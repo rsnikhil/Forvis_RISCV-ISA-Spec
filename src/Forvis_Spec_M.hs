@@ -26,8 +26,7 @@ import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 -- ================================================================
 -- 'M' Extension (Integer Multiply/Divide)
 
--- NOTE: opcode_OP, opcode_OP_32, funct3_XXX, funct7_XXX
--- are defined in module Arch_Defs
+-- NOTE: opcode_OP, opcode_OP_32 are defined in module Arch_Defs
 
 -- ================================================================
 -- Data structure for instructions in 'I' (base instruction set)
@@ -48,6 +47,41 @@ data Instr_M = MUL     GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
              | REMW    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
              | REMUW   GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
   deriving (Eq, Show)
+
+-- ================================================================
+-- Decode constants for 'M' instructions
+
+-- opcode_OP sub-opcodes
+funct3_MUL       = 0x0   :: InstrField    -- 3'b_000
+funct7_MUL       = 0x01  :: InstrField    -- 7'b_000_0001
+funct3_MULH      = 0x1   :: InstrField    -- 3'b_001
+funct7_MULH      = 0x01  :: InstrField    -- 7'b_000_0001
+funct3_MULHSU    = 0x2   :: InstrField    -- 3'b_010
+funct7_MULHSU    = 0x01  :: InstrField    -- 7'b_000_0001
+funct3_MULHU     = 0x3   :: InstrField    -- 3'b_011
+funct7_MULHU     = 0x01  :: InstrField    -- 7'b_000_0001
+
+funct3_DIV       = 0x4   :: InstrField    -- 3'b_100
+funct7_DIV       = 0x01  :: InstrField    -- 7'b_000_0001
+funct3_DIVU      = 0x5   :: InstrField    -- 3'b_101
+funct7_DIVU      = 0x01  :: InstrField    -- 7'b_000_0001
+
+funct3_REM       = 0x6   :: InstrField    -- 3'b_110
+funct7_REM       = 0x01  :: InstrField    -- 7'b_000_0001
+funct3_REMU      = 0x7   :: InstrField    -- 3'b_111
+funct7_REMU      = 0x01  :: InstrField    -- 7'b_000_0001
+
+-- opcode_OP_32 sub-opcodes
+funct3_MULW     = 0x0    :: InstrField    -- 3'b_000
+funct7_MULW     = 0x01   :: InstrField    -- 7'b_000_0001
+funct3_DIVW     = 0x4    :: InstrField    -- 3'b_100
+funct7_DIVW     = 0x01   :: InstrField    -- 7'b_000_0001
+funct3_DIVUW    = 0x5    :: InstrField    -- 3'b_101
+funct7_DIVUW    = 0x01   :: InstrField    -- 7'b_000_0001
+funct3_REMW     = 0x6    :: InstrField    -- 3'b_110
+funct7_REMW     = 0x01   :: InstrField    -- 7'b_000_0001
+funct3_REMUW    = 0x7    :: InstrField    -- 3'b_111
+funct7_REMUW    = 0x01   :: InstrField    -- 7'b_000_0001
 
 -- ================================================================
 -- Decode from 32b representation to Instr_M data structure

@@ -22,15 +22,20 @@ import Machine_State
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
--- 'I' Base instruction set
+-- 'Zifencei' instruction set
 
--- NOTE: opcode_XXX, funct3_XXX are defined in module Arch_Defs
+-- NOTE: opcode_XXX are defined in module Arch_Defs
 
 -- ================================================================
 -- Data structure for instructions in 'Zifencei'
 
 data Instr_Zifencei = FENCE_I
   deriving (Eq, Show)
+
+-- ================================================================
+-- Decode constants for 'Zifencei' instructions
+
+funct3_FENCE_I   = 0x1   :: InstrField    -- 3'b_001
 
 -- ================================================================
 -- Decode from 32b representation to Instr_Zifencei data structure

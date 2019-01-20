@@ -26,7 +26,7 @@ import Forvis_Spec_I
 -- ================================================================
 -- 'I64' Base instruction set (RV64 only)
 
--- NOTE: opcode_XXX, funct3_XXX are defined in module Arch_Defs
+-- NOTE: opcode_XXX are defined in module Arch_Defs
 
 -- ================================================================
 
@@ -44,7 +44,31 @@ data Instr_I64 = LWU    GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
                | SRAW   GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
   deriving (Eq, Show)
 
--- ================
+-- ================================================================
+-- Decode constants for 'I64' instructions
+
+-- opcode_OP_IMM_32 sub-opcodes
+funct3_ADDIW     = 0x0   :: InstrField    -- 3'b_000
+funct3_SLLIW     = 0x1   :: InstrField    -- 3'b_001
+funct7_SLLIW     = 0x00   :: InstrField   -- 7'b_0000000
+funct3_SRLIW     = 0x5   :: InstrField    -- 3'b_101
+funct7_SRLIW     = 0x00   :: InstrField   -- 7'b_0000000
+funct3_SRAIW     = 0x5   :: InstrField    -- 3'b_101
+funct7_SRAIW     = 0x20   :: InstrField   -- 7'b_0100000
+
+-- opcode_OP_32 sub-opcodes
+funct3_ADDW      = 0x0   :: InstrField    -- 3'b_000
+funct7_ADDW      = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_SUBW      = 0x0   :: InstrField    -- 3'b_000
+funct7_SUBW      = 0x20  :: InstrField    -- 7'b_010_0000
+funct3_SLLW      = 0x1   :: InstrField    -- 3'b_001
+funct7_SLLW      = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_SRLW      = 0x5   :: InstrField    -- 3'b_101
+funct7_SRLW      = 0x00  :: InstrField    -- 7'b_000_0000
+funct3_SRAW      = 0x5   :: InstrField    -- 3'b_101
+funct7_SRAW      = 0x20  :: InstrField    -- 7'b_010_0000
+
+-- ================================================================
 -- Decode from 32b representation to Instr_I64 data structure
 
 decode_I64 :: RV -> Instr_32b -> Maybe Instr_I64

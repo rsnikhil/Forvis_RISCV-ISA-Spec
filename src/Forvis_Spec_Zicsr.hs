@@ -23,9 +23,9 @@ import CSR_File
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
--- 'I' Base instruction set
+-- 'Zicsr' instruction set
 
--- NOTE: opcode_XXX, funct3_XXX are defined in module Arch_Defs
+-- NOTE: opcode_XXX are defined in module Arch_Defs
 
 -- ================================================================
 -- Data structure for instructions in 'Zicsr'
@@ -37,6 +37,17 @@ data Instr_Zicsr = CSRRW   GPR_Addr  GPR_Addr  CSR_Addr    -- rd, rs1,  csr_addr
                  | CSRRSI  GPR_Addr  GPR_Addr  CSR_Addr    -- rd, zimm, csr_addr
                  | CSRRCI  GPR_Addr  GPR_Addr  CSR_Addr    -- rd, zimm, csr_addr
   deriving (Eq, Show)
+
+-- ================================================================
+-- Decode constants for 'Zicsr' instructions
+
+-- opcode_SYSTEM sub-opcodes
+funct3_CSRRW     = 0x1   :: InstrField    -- 3'b_001
+funct3_CSRRWI    = 0x5   :: InstrField    -- 3'b_101
+funct3_CSRRS     = 0x2   :: InstrField    -- 3'b_010
+funct3_CSRRC     = 0x3   :: InstrField    -- 3'b_011
+funct3_CSRRSI    = 0x6   :: InstrField    -- 3'b_110
+funct3_CSRRCI    = 0x7   :: InstrField    -- 3'b_111
 
 -- ================================================================
 -- Decode from 32b representation to Instr_Zicsr data structure
