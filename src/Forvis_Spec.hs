@@ -13,11 +13,12 @@ import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 import Data.Int     -- For Intxx type (signed fixed-width ints)
 import Numeric (showHex)
 
--- Local imports
+-- Project imports
 
 import Bit_Utils
 import Arch_Defs
 import Machine_State
+import CSR_File
 import Virtual_Mem
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
@@ -249,7 +250,7 @@ take_interrupt_if_any    mstate =
     priv    = mstate_priv_read  mstate
 
     tval    = 0
-    intr_pending = fn_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv
+    intr_pending = csr_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv
   in
     case intr_pending of
       Nothing        -> (intr_pending, mstate)

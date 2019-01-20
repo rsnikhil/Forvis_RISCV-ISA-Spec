@@ -13,11 +13,12 @@ module Forvis_Spec_Priv where
 
 import Data.Bits    -- For bit-wise 'and' (.&.) etc.
 
--- Local imports
+-- Project imports
 
 import Bit_Utils
 import Arch_Defs
 import Machine_State
+import CSR_File
 
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
@@ -33,18 +34,18 @@ data Instr_Priv = URET
                 | SRET
                 | MRET
                 | WFI
-                | SFENCE_VM  GPR_Addr  GPR_Addr    -- rs1  rs2
+                | SFENCE_VMA  GPR_Addr  GPR_Addr    -- rs1  rs2
   deriving (Eq, Show)
 
 -- ================================================================
 -- Decode constants for 'Priv' instructions
 
 -- opcode_SYSTEM sub-opcodes
-funct12_URET     = 0x002 :: InstrField    -- 12'b_0000_0000_0010
-funct12_SRET     = 0x102 :: InstrField    -- 12'b_0001_0000_0010
-funct12_MRET     = 0x302 :: InstrField    -- 12'b_0011_0000_0010
-funct12_WFI      = 0x105 :: InstrField    -- 12'b_0001_0000_0101
-funct7_SFENCE_VM = 0x09  :: InstrField    --  7'b_000_1001
+funct12_URET      = 0x002 :: InstrField    -- 12'b_0000_0000_0010
+funct12_SRET      = 0x102 :: InstrField    -- 12'b_0001_0000_0010
+funct12_MRET      = 0x302 :: InstrField    -- 12'b_0011_0000_0010
+funct12_WFI       = 0x105 :: InstrField    -- 12'b_0001_0000_0101
+funct7_SFENCE_VMA = 0x09  :: InstrField    --  7'b_000_1001
 
 -- ================================================================
 -- Decode from 32b representation to Instr_I data structure
@@ -66,7 +67,7 @@ decode_Priv    rv    instr_32b =
       | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, imm12_I==funct12_SRET = Just SRET
       | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, imm12_I==funct12_MRET = Just MRET
       | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, rs1==0, imm12_I==funct12_WFI  = Just WFI
-      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, funct7==funct7_SFENCE_VM      = Just (SFENCE_VM  rs1  rs2)
+      | opcode==opcode_SYSTEM, rd==0, funct3==funct3_PRIV, funct7==funct7_SFENCE_VMA     = Just (SFENCE_VMA  rs1  rs2)
       | True = Nothing
   in
     instr_Priv
@@ -80,11 +81,11 @@ type Spec_Instr_Priv = Bool -> Instr_Priv -> Machine_State -> Machine_State
 exec_instr_Priv :: Instr_32b -> Spec_Instr_Priv
 exec_instr_Priv  instr_32b  is_C  instr_Priv  mstate =
   case instr_Priv of
-    MRET                -> exec_xRET       instr_32b  is_C  instr_Priv  mstate
-    SRET                -> exec_xRET       instr_32b  is_C  instr_Priv  mstate
-    URET                -> exec_xRET       instr_32b  is_C  instr_Priv  mstate
-    WFI                 -> exec_WFI        instr_32b  is_C  instr_Priv  mstate
-    SFENCE_VM  rs1  rs2 -> exec_SFENCE_VM  instr_32b  is_C  instr_Priv  mstate
+    MRET                 -> exec_xRET        instr_32b  is_C  instr_Priv  mstate
+    SRET                 -> exec_xRET        instr_32b  is_C  instr_Priv  mstate
+    URET                 -> exec_xRET        instr_32b  is_C  instr_Priv  mstate
+    WFI                  -> exec_WFI         instr_32b  is_C  instr_Priv  mstate
+    SFENCE_VMA  rs1  rs2 -> exec_SFENCE_VMA  instr_32b  is_C  instr_Priv  mstate
 
 -- ================================================================
 -- MRET/SRET/URET
@@ -187,10 +188,10 @@ exec_WFI  instr_32b  is_C  instr_Priv  mstate =
     mstate1
 
 -- ================================================================
--- SFENCE.VM
+-- SFENCE.VMA
 
-exec_SFENCE_VM :: Instr_32b -> Spec_Instr_Priv
-exec_SFENCE_VM  instr_32b  is_C  (SFENCE_VM  rs1  rs2)  mstate =
+exec_SFENCE_VMA :: Instr_32b -> Spec_Instr_Priv
+exec_SFENCE_VMA  instr_32b  is_C  (SFENCE_VMA  rs1  rs2)  mstate =
   let
     priv   = mstate_priv_read  mstate
 
@@ -209,7 +210,7 @@ exec_SFENCE_VM  instr_32b  is_C  (SFENCE_VM  rs1  rs2)  mstate =
                     finish_trap  mstate  exc_code_illegal_instruction  tval
                 else
                   let
-                    mstate1 = mstate_mem_sfence_vm  mstate  rs1_val  rs2_val
+                    mstate1 = mstate_mem_sfence_vma  mstate  rs1_val  rs2_val
                   in
                     finish_pc_incr  mstate1  is_C
   in

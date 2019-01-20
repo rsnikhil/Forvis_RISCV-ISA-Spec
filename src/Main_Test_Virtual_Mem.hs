@@ -25,6 +25,7 @@ import Numeric (showHex, readHex)
 import Arch_Defs
 import Mem_Ops
 import Machine_State
+import CSR_File
 import Virtual_Mem
 
 -- ================================================================

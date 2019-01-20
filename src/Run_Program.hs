@@ -51,9 +51,9 @@ run_loop    maxinstrs  m_tohost_addr      mstate = do
       verbosity = mstate_verbosity_read  mstate
       run_state = mstate_run_state_read  mstate
 
-      -- Tick: regular maintenance (increment cycle count, real-time
-      -- timer, propagate interrupts, etc.)
-      mstate1 = mstate_mem_tick  mstate
+      -- Tick: advance independent processes in IO devices
+      -- (increment cycle count, real-time timer, propagate interrupts, etc.)
+      mstate1 = mstate_io_tick  mstate
 
       -- Simulation/testing: read <tohost> location, if any
       (tohost_u64, mstate2) = mstate_mem_read_tohost  mstate1  m_tohost_addr

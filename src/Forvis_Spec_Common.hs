@@ -41,8 +41,9 @@ import FPU
 --     - upating the MINSTRET register (number of instructions retired)
 -- These functions capture those standard finishes.
 
+-- ----------------
 -- Update GPR RD, increment PC by 2 or 4, increment INSTRET           \begin_latex{finish_rd_and_pc_incr}
-{-# INLINE finish_rd_and_pc_incr #-}
+
 finish_rd_and_pc_incr :: Machine_State -> GPR_Addr -> Integer -> Bool -> Machine_State
 finish_rd_and_pc_incr    mstate           rd          rd_val     is_C =
   let mstate1 = mstate_gpr_write  mstate  rd  rd_val
@@ -52,10 +53,12 @@ finish_rd_and_pc_incr    mstate           rd          rd_val     is_C =
       mstate3 = incr_minstret     mstate2
   in
     mstate3
-                                                               -- \end_latex{finish_rd_and_pc_incr}
+                                                                   -- \end_latex{finish_rd_and_pc_incr}
+{-# INLINE finish_rd_and_pc_incr #-}
 
+-- ----------------
 -- Update GPR RD, CSR.FFlags, increment PC by 4, increment INSTRET       \begin_latex{finish_grd_fflags_and_pc_plus_4}
-{-# INLINE finish_grd_fflags_and_pc_plus_4 #-}
+
 finish_grd_fflags_and_pc_plus_4 :: Machine_State -> GPR_Addr -> Integer -> Integer -> Machine_State
 finish_grd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflags  =
   let
@@ -64,10 +67,12 @@ finish_grd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflag
     mstate2 = finish_rd_and_pc_incr  mstate1  rd  rd_val  is_C
   in
     mstate2
-                                                               -- \end_latex{finish_grd_fflags_and_pc_plus_4}
+                                                                      -- \end_latex{finish_grd_fflags_and_pc_plus_4}
+{-# INLINE finish_grd_fflags_and_pc_plus_4 #-}
 
+-- ----------------
 -- Update GPR RD, update PC to new value, increment INSTRET
-{-# INLINE finish_rd_and_pc #-}
+
 finish_rd_and_pc :: Machine_State -> GPR_Addr -> Integer -> Integer -> Machine_State
 finish_rd_and_pc    mstate           rd          rd_val     new_pc =
   let
@@ -77,8 +82,11 @@ finish_rd_and_pc    mstate           rd          rd_val     new_pc =
   in
     mstate3
 
+{-# INLINE finish_rd_and_pc #-}
+
+-- ----------------
 -- Increment PC by 2 or 4, increment INSTRET
-{-# INLINE finish_pc_incr #-}
+
 finish_pc_incr :: Machine_State -> Bool -> Machine_State
 finish_pc_incr    mstate           is_C =
   let
@@ -89,8 +97,11 @@ finish_pc_incr    mstate           is_C =
   in
     mstate2
 
+{-# INLINE finish_pc_incr #-}
+
+-- ----------------
 -- Update PC to new value
-{-# INLINE finish_pc #-}
+
 finish_pc :: Machine_State -> Integer -> Machine_State
 finish_pc    mstate           new_pc =
   let
@@ -99,8 +110,11 @@ finish_pc    mstate           new_pc =
   in
     mstate2
 
+{-# INLINE finish_pc #-}
+
+-- ----------------
 -- Trap with given exception code and trap value
-{-# INLINE finish_trap #-}
+
 finish_trap :: Machine_State -> Exc_Code -> Integer -> Machine_State
 finish_trap    mstate           exc_code    tval =
   let
@@ -110,8 +124,11 @@ finish_trap    mstate           exc_code    tval =
   in
     mstate3
 
+{-# INLINE finish_trap #-}
+
+-- ----------------
 -- Every completed instruction increments minstret
-{-# INLINE incr_minstret #-}
+
 incr_minstret :: Machine_State -> Machine_State
 incr_minstret  mstate =
   let
@@ -120,9 +137,13 @@ incr_minstret  mstate =
   in
     mstate1
 
+{-# INLINE incr_minstret #-}
+
 #ifdef FLOAT
+
+-- ----------------
 -- Update FPU.RD, CSR.FFlags, increment PC by 4, increment INSTRET       \begin_latex{finish_frd_fflags_and_pc_plus_4}
-{-# INLINE finish_frd_fflags_and_pc_plus_4 #-}
+
 finish_frd_fflags_and_pc_plus_4 :: Machine_State -> FPR_Addr -> Integer -> Integer -> Bool -> Machine_State
 finish_frd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflags     is_n_lt_FLEN =
   let
@@ -130,10 +151,12 @@ finish_frd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflag
     mstate2 = finish_frd_and_pc_plus_4  mstate1  rd  rd_val  is_n_lt_FLEN
   in
     mstate2
-                                                               -- \end_latex{finish_frd_and_pc_plus_4}
+                                                                      -- \end_latex{finish_frd_fflags_and_pc_plus_4}
+{-# INLINE finish_frd_fflags_and_pc_plus_4 #-}
 
--- Update FPU.FRD, increment PC by 4, increment INSTRET               \begin_latex{finish_frd_and_pc_plus_4}
-{-# INLINE finish_frd_and_pc_plus_4 #-}
+-- ----------------
+-- Update FPU.FRD, increment PC by 4, increment INSTRET           \begin_latex{finish_frd_and_pc_plus_4}
+
 finish_frd_and_pc_plus_4 :: Machine_State -> FPR_Addr -> Integer -> Bool -> Machine_State
 finish_frd_and_pc_plus_4    mstate           rd          rd_val     is_n_lt_FLEN =
   let mstate1 = if (is_n_lt_FLEN) then 
@@ -145,24 +168,27 @@ finish_frd_and_pc_plus_4    mstate           rd          rd_val     is_n_lt_FLEN
       mstate3 = incr_minstret     mstate2
   in
     mstate3
-#endif
                                                                -- \end_latex{finish_frd_and_pc_plus_4}
+{-# INLINE finish_frd_and_pc_plus_4 #-}
+
+#endif
+
 -- ================================================================
--- Trap actions:
+-- Trap actions:                                               -- \begin_latex{mstate_upd_on_trap}
 --   - Compute new privilege level
---   - Update privilege and interrupt-enable stacks in CSR MSTATUS
+--   - Update privilege
+--   - Update interrupt-enable stacks in CSR MSTATUS
 --   - Update CSRs xEPC, xCAUSE, xTVAL
 --   - Compute new PC from xTVEC and branch to it
 
-{-# INLINE mstate_upd_on_trap #-}
 mstate_upd_on_trap :: Machine_State -> Bool ->       Exc_Code -> Integer -> Machine_State
 mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
-  let
+  let                                                          -- \end_latex{mstate_upd_on_trap}
     rv      = mstate_rv_read    mstate
     priv    = mstate_priv_read  mstate
     pc      = mstate_pc_read    mstate
 
-    -- START
+    -- Compute new privilege level
     new_priv    = (let
                       misa         = mstate_csr_read  mstate  csr_addr_misa
                       misa_s       = misa_flag  misa  'S'
@@ -190,6 +216,7 @@ mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
                       else
                         m_Priv_Level)
 
+    -- Update interrupt-enable stacks in CSR MSTATUS
     mstatus     = mstate_csr_read  mstate  csr_addr_mstatus
     new_mstatus = (let
                       (mpp,spp,mpie,spie,upie,mie,sie,uie) = mstatus_stack_fields  mstatus
@@ -206,6 +233,7 @@ mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
                    in
                       mstatus_upd_stack_fields  mstatus  (mpp',spp',mpie',spie',upie',mie',sie',uie'))
 
+    -- Update CSRs xEPC, xCAUSE, xTVAL
     (csr_addr_xepc,
      csr_addr_xcause,
      csr_addr_xtval,
@@ -219,7 +247,7 @@ mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
                                      csr_addr_stval,
                                      csr_addr_stvec,  mstate_csr_read  mstate  csr_addr_stvec)
 
-    -- Compute the new PC
+    -- Compute new PC from xTVEC
     vector_offset = exc_code * 4
     pc1           = if is_interrupt && (tvec_mode (xtvec) == tvec_mode_VECTORED)
                     then tvec_base xtvec + vector_offset
@@ -228,7 +256,7 @@ mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
                     then pc1
                     else pc1 .&. 0xFFFFFFFF
 
-    -- Record new priv, pc, and CSRs status, epc, cause, tval
+    -- Record new priv, pc (next pc), and CSRs status, epc, cause, tval
     mstate1 = mstate_priv_write  mstate   new_priv
     mstate2 = mstate_pc_write    mstate1  pc2
 
@@ -238,5 +266,7 @@ mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
     mstate6 = mstate_csr_write   mstate5  csr_addr_xtval  tval
   in
     mstate6
+
+{-# INLINE mstate_upd_on_trap #-}
 
 -- ================================================================

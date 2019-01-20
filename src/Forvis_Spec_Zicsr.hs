@@ -22,11 +22,6 @@ import CSR_File
 
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
--- ================================================================
--- 'Zicsr' instruction set
-
--- NOTE: opcode_XXX are defined in module Arch_Defs
-
 -- ================================================================
 -- Data structure for instructions in 'Zicsr'
 
@@ -39,7 +34,8 @@ data Instr_Zicsr = CSRRW   GPR_Addr  GPR_Addr  CSR_Addr    -- rd, rs1,  csr_addr
   deriving (Eq, Show)
 
 -- ================================================================
--- Decode constants for 'Zicsr' instructions
+-- Sub-opcodes for 'Zicsr' instructions
+-- NOTE: opcode_SYSTEM is defined in module Arch_Defs
 
 -- opcode_SYSTEM sub-opcodes
 funct3_CSRRW     = 0x1   :: InstrField    -- 3'b_001
@@ -101,16 +97,17 @@ exec_CSRRWI  instr_32b  is_C  (CSRRWI  rd  zimm  csr_addr)  mstate =
   exec_CSRR_W  instr_32b  funct3_CSRRWI  is_C  rd  zimm  csr_addr  mstate
 
 exec_CSRR_W :: Instr_32b ->
-               InstrField ->
-               Bool ->
+               InstrField ->        -- funct3
+               Bool ->              -- is_C
                CSR_Addr ->
-               InstrField ->
+               InstrField ->        -- rs1
                CSR_Addr ->
-               Machine_State -> Machine_State
+               Machine_State ->
+               Machine_State
 exec_CSRR_W  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
   let
     priv       = mstate_priv_read  mstate
-    permission = mstate_csr_read_permission  mstate  priv  csr_addr
+    permission = mstate_csr_permission  mstate  priv  csr_addr
     legal2     = (permission == CSR_Permission_RW)
 
     -- Read CSR only if rd is not 0
@@ -175,7 +172,7 @@ exec_CSRR_S_C :: Instr_32b ->
 exec_CSRR_S_C  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
   let
     priv       = mstate_priv_read  mstate
-    permission = mstate_csr_read_permission  mstate  priv  csr_addr
+    permission = mstate_csr_permission  mstate  priv  csr_addr
 
     legal2 | (permission == CSR_Permission_None) = False
            | (permission == CSR_Permission_RO)   = (rs1 == 0)

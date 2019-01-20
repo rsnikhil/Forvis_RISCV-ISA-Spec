@@ -23,6 +23,7 @@ import Data.Bits
 -- import ALU
 import Arch_Defs
 import Machine_State
+import CSR_File
 import Run_Program
 
 -- ================================================================

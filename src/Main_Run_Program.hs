@@ -32,6 +32,7 @@ import Read_Hex_File
 
 import Arch_Defs
 import Machine_State
+import CSR_File
 import Run_Program
 import Mem_Ops
 import Memory

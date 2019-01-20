@@ -1,7 +1,12 @@
 -- Copyright (c) 2018-2019 Rishiyur S. Nikhil
 -- See LICENSE for license details
-
-module GPR_File where
+                                                -- \begin_latex{GPR_File_header}
+module GPR_File (GPR_File,
+                 mkGPR_File,
+                 gpr_read,
+                 gpr_write,
+                 print_GPR_File) where
+                                                -- \end_latex{GPR_File_header}
 
 -- ================================================================
 -- This module defines an abstraction for
@@ -12,7 +17,6 @@ module GPR_File where
 
 import Data.Maybe
 import Data.Bits
--- import Numeric (showHex, readHex)
 import qualified Data.Map.Strict as Data_Map
 
 -- Project imports
@@ -29,16 +33,23 @@ import Arch_Defs
 -- 'Maybe Integer' which may be 'Just v' if the index is in the map,
 -- and 'Nothing' otherwise.  Here, we only use indexes that are
 -- present, so we use 'fromMaybe' to extract 'v' from 'Just v'.
-
+                                                                    -- \begin_latex{GPR_File}
 newtype GPR_File = GPR_File  (Data_Map.Map  InstrField  Integer)
 
 mkGPR_File :: GPR_File
 mkGPR_File = GPR_File (Data_Map.fromList (zip
                                            [0..31]
                                            (repeat (fromIntegral 0))))
+                                                                    -- \end_latex{GPR_File}
+
+-- Read a GPR
 
 gpr_read :: GPR_File ->    GPR_Addr -> Integer
 gpr_read    (GPR_File dm)  reg = fromMaybe 0 (Data_Map.lookup  reg  dm)
+
+{-# INLINE gpr_read #-}
+
+-- Write a value to a GPR
 
 gpr_write :: GPR_File ->    GPR_Addr -> Integer -> GPR_File
 gpr_write    (GPR_File dm)  reg         val =
@@ -50,19 +61,7 @@ gpr_write    (GPR_File dm)  reg         val =
     -- We use 'seq' to force evaluation of val1
     seq  val1  (GPR_File (Data_Map.insert  reg  val1  dm))
 
--- This version of gpr_write checks that 'val' is non-negative and fits in 'xlen' bits
-
-gpr_write_check :: Int -> GPR_File -> GPR_Addr -> Integer -> GPR_File
-gpr_write_check    xlen   gpr_file    reg         val =
-  let
-    err_msg = "gpr_write_check: reg " ++ show reg ++ " val " ++ show val ++ "; does not fit in " ++ show xlen ++ " bits"
-
-    val1 | (val < 0)                = error  err_msg
-         | (shiftR  val  xlen /= 0) = error  err_msg
-         | True                     = val
-  in
-    -- We use 'seq' to force evaluation of val1
-    seq val1 (gpr_write  gpr_file  reg  val1)
+{-# INLINE gpr_write #-}
 
 -- ================================================================
 -- print_GPR_File prints four regs per line, in hex, with given indent

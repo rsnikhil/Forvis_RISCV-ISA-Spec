@@ -39,6 +39,7 @@ import Bit_Utils
 import Arch_Defs
 import Mem_Ops
 import Machine_State
+import CSR_File
 
 -- ================================================================
 -- Check if Virtual Memory is active or not               -- \begin_latex{fn_vm_is_active}
@@ -63,10 +64,11 @@ fn_vm_is_active    mstate           is_instr =
   in
     vm_active
 
+{-# INLINE fn_vm_is_active #-}
+
 -- ================================================================
 -- Read memory, possibly with Virtual Mem translation
 
-{-# INLINE mstate_vm_read #-}
 mstate_vm_read :: Machine_State ->
                   Bool ->                -- is instruction-fetch, not data-load
                   Exc_Code ->            -- in case of access fault
@@ -89,10 +91,11 @@ mstate_vm_read  mstate  is_instr  exc_code_access_fault  funct3  eaddr =
   in
     (result2, mstate2)
 
+{-# INLINE mstate_vm_read #-}
+
 -- ================================================================
 -- Write memory, possibly with Virtual Mem translation
 
-{-# INLINE mstate_vm_write #-}
 mstate_vm_write :: Machine_State ->
                    InstrField ->          -- funct3, providing access size (B, H, W, D)
                    Integer ->             -- effective address (virtual or physical)
@@ -116,10 +119,11 @@ mstate_vm_write  mstate  funct3  eaddr  store_val =
   in
     (result2, mstate2)
 
+{-# INLINE mstate_vm_write #-}
+
 -- ================================================================
 -- Do AMO op on memory, possibly with Virtual Mem translation
 
-{-# INLINE mstate_vm_amo #-}
 mstate_vm_amo :: Machine_State ->
                  InstrField ->          -- funct3, providing access size (B, H, W, D)
                  InstrField ->          -- msbs5
@@ -145,7 +149,9 @@ mstate_vm_amo  mstate  funct3  msbs5  aq  rl  eaddr  store_val =
   in
     (result2, mstate2)
 
--- ================================================================
+{-# INLINE mstate_vm_amo #-}
+
+-- ================================================================               -- \begin_latex{vm_translate}
 -- vm_translate    translates a virtual address into a physical address.
 -- Notes:
 --   - 'is_instr' is True if this is for an instruction-fetch as opposed to LOAD/STORE
@@ -153,9 +159,8 @@ mstate_vm_amo  mstate  funct3  msbs5  aq  rl  eaddr  store_val =
 --   - 1st component of tuple result is 'Mem_Result_Err exc_code' if there was a trap
 --   -     and 'Mem_Result_Ok pa' if it successfully translated to a phys addr
 --   - 2nd component of tuple result is new mem state,  potentially modified
---         (page table A D bits, cache tracking, TLB tracking, ...)               -- \begin_latex{vm_translate}
+--         (page table A D bits, cache tracking, TLB tracking, ...)
 
-{-# INLINE vm_translate #-}
 vm_translate :: Machine_State -> Bool  ->  Bool  -> Integer -> (Mem_Result, Machine_State)
 vm_translate    mstate           is_instr  is_read  va =
   let                                                                             -- \end_latex{vm_translate}
@@ -251,6 +256,8 @@ vm_translate    mstate           is_instr  is_read  va =
     (mem_result, mstate1) = ptw  mstate  pt_base_addr  start_level
   in
     (mem_result, mstate1)
+
+{-# INLINE vm_translate #-}
 
 -- ================================================================
 -- Supervisor Mode Virtual Memory modes

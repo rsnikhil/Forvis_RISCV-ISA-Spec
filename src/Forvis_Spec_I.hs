@@ -83,7 +83,7 @@ data Instr_I = LUI    GPR_Addr  InstrField              -- rd,  imm20
   deriving (Eq, Show)
 
 -- ================================================================
--- Decode constants for 'I' instructions
+-- Sub-opcodes for 'I' instructions
 
 -- opcode_JALR sub-opcodes
 funct3_JALR      = 0x0   :: InstrField    -- 3'b_000
@@ -615,7 +615,7 @@ exec_SRL   is_C  (SRL    rd  rs1  rs2)  mstate = exec_OP  alu_srl   is_C  rd  rs
 exec_SRA  :: Spec_Instr_I
 exec_SRA   is_C  (SRA    rd  rs1  rs2)  mstate = exec_OP  alu_sra   is_C  rd  rs1  rs2  mstate
 
-                                                                    -- \begin_latex{spec_ADD_2}
+                                                                    -- \begin_latex{exec_ADD_2}
 exec_OP :: (Int -> Integer -> Integer -> Integer) ->
            Bool ->
            GPR_Addr ->
@@ -625,9 +625,9 @@ exec_OP :: (Int -> Integer -> Integer -> Integer) ->
 exec_OP    alu_op  is_C  rd  rs1  rs2  mstate =
   let
     xlen    = mstate_xlen_read  mstate
-    rs1_val = mstate_gpr_read   mstate  rs1
-    rs2_val = mstate_gpr_read   mstate  rs2
-    rd_val  = alu_op  xlen  rs1_val  rs2_val
+    rs1_val = mstate_gpr_read   mstate  rs1        -- read rs1
+    rs2_val = mstate_gpr_read   mstate  rs2        -- read rs2
+    rd_val  = alu_op  xlen  rs1_val  rs2_val       -- compute rd_val
     mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
   in
     mstate1                                                         -- \end_latex{exec_ADD_2}

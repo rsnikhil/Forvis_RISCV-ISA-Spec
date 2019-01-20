@@ -9,7 +9,7 @@ Run
 
     $ make full
 
-to run pdflatex twice, bigtex once, and pdflatex again to create the
+to run pdflatex twice, bibtex once, and pdflatex again to create the
 PDF document.  The multiple runs resolve various cross-references in
 the document etc.
 
