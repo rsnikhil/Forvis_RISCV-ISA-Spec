@@ -379,21 +379,6 @@ mstate_mem_sfence_vma  mstate  rs1_val  rs2_val = mstate
 {-# INLINE mstate_mem_fence_i #-}
 {-# INLINE mstate_mem_sfence_vma #-}
 
--- ================================================================
--- Check if an interrupt is pending to resume from WFI state.
--- Note: resuming from WFI does not actually take the interrupt, just
--- resumes at the instruction following WFI (which may, in turn, take
--- the interrupt).  Thus, this condition is typically weaker than
--- condition for taking an interrupt (see csr_wfi_resume).
-
-mstate_wfi_resume :: Machine_State -> Bool
-mstate_wfi_resume    mstate =
-  let
-    mip = mstate_csr_read  mstate  csr_addr_mip
-    mie = mstate_csr_read  mstate  csr_addr_mie
-  in
-    csr_wfi_resume  mip  mie
-
 -- ================================================================
 -- Simulation aids
 

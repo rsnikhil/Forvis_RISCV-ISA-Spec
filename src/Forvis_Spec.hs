@@ -60,7 +60,6 @@ data Fetch_Result = Fetch_Trap  Exc_Code
                   | Fetch       Integer
                   deriving (Show)
 
-{-# INLINE instr_fetch #-}
 instr_fetch :: Machine_State -> (Fetch_Result, Machine_State)
 instr_fetch  mstate =
   let                                                              -- \end_latex{instr_fetch}
@@ -121,7 +120,6 @@ instr_fetch  mstate =
                                                  in
                                                     (Fetch  u32,  mstate2)))
 
-{-# INLINE read_n_instr_bytes #-}
 read_n_instr_bytes :: Machine_State -> Int   -> Integer -> (Mem_Result, Machine_State)
 read_n_instr_bytes    mstate           n_bytes  va =
   let
@@ -132,6 +130,9 @@ read_n_instr_bytes    mstate           n_bytes  va =
     (result1, mstate1) = mstate_vm_read  mstate  is_instr  exc_code_instr_access_fault  funct3  va
   in
     (result1, mstate1)
+
+{-# INLINE instr_fetch #-}
+{-# INLINE read_n_instr_bytes #-}
 
 -- ================================================================
 -- Execute one 32b instruction
@@ -204,6 +205,8 @@ exec_instr_32b    instr_32b    mstate =
                                         in
                                           (mstate1, "Illegal instr 0x" ++ showHex instr_32b "")
 
+{-# INLINE exec_instr_32b #-}
+
 -- ================================================================
 -- Execute one 16b instruction
 
@@ -233,12 +236,13 @@ exec_instr_16b    instr_16b    mstate =
         in
           (mstate1, "Illegal instr " ++ showHex instr_16b "")
 
--- ================================================================
+{-# INLINE exec_instr_16b #-}
+
+-- ================================================================
 -- Take interrupt if interrupts pending and enabled                   \begin_latex{take_interrupt}
 
-{-# INLINE take_interrupt_if_any #-}
-take_interrupt_if_any :: Machine_State -> (Maybe Exc_Code, Machine_State)
-take_interrupt_if_any    mstate =
+mstate_take_interrupt_if_any :: Machine_State -> (Maybe Exc_Code, Machine_State)
+mstate_take_interrupt_if_any    mstate =
   let                                                              -- \end_latex{take_interrupt}
     misa    = mstate_csr_read  mstate  csr_addr_misa
     mstatus = mstate_csr_read  mstate  csr_addr_mstatus
@@ -260,5 +264,22 @@ take_interrupt_if_any    mstate =
           mstate2 = mstate_run_state_write  mstate1  Run_State_Running
         in
           (intr_pending, mstate2)
+
+{-# INLINE mstate_take_interrupt_if_any #-}
+
+-- ================================================================
+-- Check if an interrupt is pending to resume from WFI state.
+-- Note: resuming from WFI does not actually take the interrupt, just
+-- resumes at the instruction following WFI (which may, in turn, take
+-- the interrupt).  Thus, this condition is typically weaker than
+-- condition for taking an interrupt (see csr_wfi_resume).
+
+mstate_wfi_resume :: Machine_State -> Bool
+mstate_wfi_resume    mstate =
+  let
+    mip = mstate_csr_read  mstate  csr_addr_mip
+    mie = mstate_csr_read  mstate  csr_addr_mie
+  in
+    csr_wfi_resume  mip  mie
 
 -- ================================================================

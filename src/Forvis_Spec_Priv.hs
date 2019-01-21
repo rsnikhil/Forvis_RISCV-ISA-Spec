@@ -22,11 +22,6 @@ import CSR_File
 
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
--- ================================================================
--- Privileged Architecture instruction set
-
--- NOTE: opcode_SYSTEM is defined in module Arch_Defs
-
 -- ================================================================
 -- Data structure for instructions in Privileged Arch
 
@@ -38,7 +33,8 @@ data Instr_Priv = URET
   deriving (Eq, Show)
 
 -- ================================================================
--- Decode constants for 'Priv' instructions
+-- Sub-opcodes for 'Priv' instructions
+-- NOTE: opcode_SYSTEM is defined in module Arch_Defs
 
 -- opcode_SYSTEM sub-opcodes
 funct12_URET      = 0x002 :: InstrField    -- 12'b_0000_0000_0010

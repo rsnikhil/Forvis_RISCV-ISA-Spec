@@ -27,11 +27,6 @@ import Virtual_Mem
 import Forvis_Spec_Common    -- Canonical ways to finish an instruction
 
 -- ================================================================
--- 'F' extension (single-precision floating point)
-
--- NOTE: opcode_XXX, funct3_XXX are defined in module Arch_Defs
-
--- ================================================================
 -- Data structure for instructions in 'F'
 -- (single-precision floating point instruction set)
 
@@ -79,7 +74,8 @@ data Instr_F = FLW        GPR_Addr  GPR_Addr  InstrField              -- rd, rs1
   deriving (Eq, Show)
 
 -- ================================================================
--- Decode constants for 'F' instructions
+-- Sub-opcodes for 'F' instructions
+-- NOTE: opcode_XXX are defined in module Arch_Defs
 
 funct3_FLW       = 0x2    :: InstrField  -- 3'b_010
 funct3_FSW       = 0x2    :: InstrField  -- 3'b_010

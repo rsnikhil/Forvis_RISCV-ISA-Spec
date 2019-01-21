@@ -16,11 +16,11 @@ import Data.Bits
 import Data.Word    -- For Wordxx type (unsigned fixed-width ints)
 import Bit_Utils
 import Arch_Defs
+import CSR_File
 
 -- Other library imports
 
 import SoftFloat    -- from https://github.com/GaloisInc/softfloat-hs.git
-
 
 -- ================================================================
 -- IEEE Format based definitions for SP and DP values

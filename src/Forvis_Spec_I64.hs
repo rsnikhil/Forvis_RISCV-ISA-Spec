@@ -23,11 +23,6 @@ import Machine_State
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 import Forvis_Spec_I
 
--- ================================================================
--- 'I64' Base instruction set (RV64 only)
-
--- NOTE: opcode_XXX are defined in module Arch_Defs
-
 -- ================================================================
 
 data Instr_I64 = LWU    GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
@@ -45,7 +40,9 @@ data Instr_I64 = LWU    GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
   deriving (Eq, Show)
 
 -- ================================================================
--- Decode constants for 'I64' instructions
+-- Sub-opcodes for 'I64' instructions
+-- NOTE: opcode_XXX are defined in module Arch_Defs
+
 
 -- opcode_OP_IMM_32 sub-opcodes
 funct3_ADDIW     = 0x0   :: InstrField    -- 3'b_000

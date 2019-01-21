@@ -23,11 +23,6 @@ import Machine_State
 
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
--- ================================================================
--- 'M' Extension (Integer Multiply/Divide)
-
--- NOTE: opcode_OP, opcode_OP_32 are defined in module Arch_Defs
-
 -- ================================================================
 -- Data structure for instructions in 'I' (base instruction set)
 
@@ -49,7 +44,8 @@ data Instr_M = MUL     GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
   deriving (Eq, Show)
 
 -- ================================================================
--- Decode constants for 'M' instructions
+-- Sub-opcodes for 'M' instructions
+-- NOTE: opcode_OP, opcode_OP_32 are defined in module Arch_Defs
 
 -- opcode_OP sub-opcodes
 funct3_MUL       = 0x0   :: InstrField    -- 3'b_000

@@ -143,7 +143,7 @@ fetch_and_execute :: Machine_State -> IO  Machine_State
 fetch_and_execute    mstate = do
   let verbosity               = mstate_verbosity_read  mstate
       mstate1                 = mstate_last_instr_trapped_write  mstate  False
-      (intr_pending, mstate2) = take_interrupt_if_any  mstate1
+      (intr_pending, mstate2) = mstate_take_interrupt_if_any  mstate1
 
   -- Debug-print when we take an interrupt
   case intr_pending of

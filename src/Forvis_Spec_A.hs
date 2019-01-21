@@ -26,8 +26,6 @@ import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 -- ================================================================
 -- 'A' Extension
 
--- Note: the following are defined in module Arch_Defs
---     opcode_AMO, funct3_AMO_W/D, msbs5_AMO_LR/SC/ADD/SWAP/XOR/AND/OR/MIN/MAX/MINU/MAXU
 
 -- ================================================================
 -- Data structure for instructions in 'M'
@@ -60,7 +58,8 @@ data Instr_A = LR_W       GPR_Addr  GPR_Addr            InstrField  InstrField  
   deriving (Eq, Show)
 
 -- ================================================================
--- Decode from 32b representation to Instr_M data structure
+-- Sub-opcodes for 'M' instructions
+-- Note: opcode_AMO is defined in module Arch_Defs
 
 decode_A :: RV -> Instr_32b -> Maybe Instr_A
 decode_A    rv    instr_32b =

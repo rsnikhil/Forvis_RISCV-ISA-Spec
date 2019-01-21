@@ -18,7 +18,6 @@ import Bit_Utils
 -- ================================================================
 -- EQ: test for equality
 
-{-# INLINE alu_eq #-}
 alu_eq :: Int -> Integer -> Integer -> Bool
 alu_eq    xlen   rs1_val    rs2_val =
   let
@@ -28,10 +27,11 @@ alu_eq    xlen   rs1_val    rs2_val =
   in
     (u1 == u2)
 
+{-# INLINE alu_eq #-}
+
 -- ================================================================
 -- NEQ: test for inequality
 
-{-# INLINE alu_ne #-}
 alu_ne :: Int -> Integer -> Integer -> Bool
 alu_ne    xlen   rs1_val    rs2_val =
   let
@@ -41,10 +41,11 @@ alu_ne    xlen   rs1_val    rs2_val =
   in
     (u1 /= u2)
 
+{-# INLINE alu_ne #-}
+
 -- ================================================================
 -- LT: test for less-than (signed)
 
-{-# INLINE alu_lt #-}
 alu_lt :: Int -> Integer -> Integer -> Bool
 alu_lt    xlen   rs1_val    rs2_val =
   let
@@ -53,10 +54,11 @@ alu_lt    xlen   rs1_val    rs2_val =
   in
     (s1 < s2)
 
+{-# INLINE alu_lt #-}
+
 -- ================================================================
 -- GE: test for greater-than-or-equal (signed)
 
-{-# INLINE alu_ge #-}
 alu_ge :: Int -> Integer -> Integer -> Bool
 alu_ge    xlen   rs1_val    rs2_val =
   let
@@ -65,10 +67,11 @@ alu_ge    xlen   rs1_val    rs2_val =
   in
     (s1 >= s2)
 
+{-# INLINE alu_ge #-}
+
 -- ================================================================
 -- LTU: test for less-than (unsigned)
 
-{-# INLINE alu_ltu #-}
 alu_ltu :: Int -> Integer -> Integer -> Bool
 alu_ltu    xlen   rs1_val    rs2_val =
   let
@@ -78,10 +81,11 @@ alu_ltu    xlen   rs1_val    rs2_val =
   in
     (u1 < u2)
 
+{-# INLINE alu_ltu #-}
+
 -- ================================================================
 -- GEU: test for greater-than-or-equal (unsigned)
 
-{-# INLINE alu_geu #-}
 alu_geu :: Int -> Integer -> Integer -> Bool
 alu_geu    xlen   rs1_val    rs2_val =
   let
@@ -91,10 +95,11 @@ alu_geu    xlen   rs1_val    rs2_val =
   in
     (u1 >= u2)
 
+{-# INLINE alu_geu #-}
+
 -- ================================================================
 -- ADD: signed addition
 
-{-# INLINE alu_add #-}
 alu_add :: Int -> Integer -> Integer -> Integer
 alu_add    xlen   rs1_val    rs2_val =
   let
@@ -104,12 +109,13 @@ alu_add    xlen   rs1_val    rs2_val =
   in
     cvt_Integer_to_2s_comp  xlen  result
 
+{-# INLINE alu_add #-}
+
 -- ================
 -- ADDW: signed addition of lower 32 bits of args; only in RV64.
 -- Operates on lower 32 bits of the args, treating them as 32-bit signed integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_addw #-}
 alu_addw :: Integer -> Integer -> Integer
 alu_addw    rs1_val    rs2_val =
   let
@@ -117,10 +123,11 @@ alu_addw    rs1_val    rs2_val =
   in
     sign_extend  32  64  result_32
 
+{-# INLINE alu_addw #-}
+
 -- ================================================================
 -- SUB: signed subtraction
 
-{-# INLINE alu_sub #-}
 alu_sub :: Int -> Integer -> Integer -> Integer
 alu_sub    xlen   rs1_val    rs2_val =
   let
@@ -130,12 +137,13 @@ alu_sub    xlen   rs1_val    rs2_val =
   in
     cvt_Integer_to_2s_comp  xlen  result
 
+{-# INLINE alu_sub #-}
+
 -- ================
 -- SUBW: signed subtraction of lower 32 bits of args; only in RV64.
 -- Operates on lower 32 bits of the args, treating them as 32-bit signed integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_subw #-}
 alu_subw :: Integer -> Integer -> Integer
 alu_subw    rs1_val    rs2_val =
   let
@@ -143,10 +151,11 @@ alu_subw    rs1_val    rs2_val =
   in
     sign_extend  32  64  result_32
 
+{-# INLINE alu_subw #-}
+
 -- ================================================================
 -- SLT: set if less-than, signed
 
-{-# INLINE alu_slt #-}
 alu_slt :: Int -> Integer -> Integer -> Integer
 alu_slt    xlen   rs1_val    rs2_val =
   let
@@ -156,10 +165,11 @@ alu_slt    xlen   rs1_val    rs2_val =
   in
     cvt_Integer_to_2s_comp  xlen  result
 
+{-# INLINE alu_slt #-}
+
 -- ================================================================
 -- SLTU: set if less-than, unsigned
 
-{-# INLINE alu_sltu #-}
 alu_sltu :: Int -> Integer -> Integer -> Integer
 alu_sltu    xlen   rs1_val    rs2_val =
   let
@@ -170,31 +180,35 @@ alu_sltu    xlen   rs1_val    rs2_val =
   in
     cvt_Integer_to_2s_comp  xlen  result
 
+{-# INLINE alu_sltu #-}
+
 -- ================================================================
 -- AND: bitwise AND
 
-{-# INLINE alu_and #-}
 alu_and :: Int -> Integer -> Integer -> Integer
 alu_and    xlen   rs1_val    rs2_val = rs1_val  .&.  rs2_val
+
+{-# INLINE alu_and #-}
 
 -- ================================================================
 -- OR: bitwise OR
 
-{-# INLINE alu_or #-}
 alu_or :: Int -> Integer -> Integer -> Integer
 alu_or    xlen   rs1_val    rs2_val = rs1_val  .|.  rs2_val
+
+{-# INLINE alu_or #-}
 
 -- ================================================================
 -- XOR: bitwise XOR
 
-{-# INLINE alu_xor #-}
 alu_xor :: Int -> Integer -> Integer -> Integer
 alu_xor    xlen   rs1_val    rs2_val = xor  rs1_val  rs2_val
+
+{-# INLINE alu_xor #-}
 
 -- ================================================================
 -- SLL: shift-left logical
 
-{-# INLINE alu_sll #-}
 alu_sll :: Int -> Integer -> Integer -> Integer
 alu_sll    xlen   rs1_val    rs2_val =
   let
@@ -205,12 +219,13 @@ alu_sll    xlen   rs1_val    rs2_val =
   in
     result
 
+{-# INLINE alu_sll #-}
+
 -- ================
 -- SLLW: shift-left logical of lower 32 bits of args; only in RV64.
 -- Operates on lower 32 bits of the args, treating them as 32-bit signed integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_sllw #-}
 alu_sllw :: Integer -> Integer -> Integer
 alu_sllw    rs1_val    rs2_val =
   let
@@ -218,10 +233,11 @@ alu_sllw    rs1_val    rs2_val =
   in
     sign_extend  32  64  result_32
 
+{-# INLINE alu_sllw #-}
+
 -- ================================================================
 -- SRL: shift-right logical
 
-{-# INLINE alu_srl #-}
 alu_srl :: Int -> Integer -> Integer -> Integer
 alu_srl    xlen   rs1_val    rs2_val =
   let
@@ -232,12 +248,13 @@ alu_srl    xlen   rs1_val    rs2_val =
   in
     result
 
+{-# INLINE alu_srl #-}
+
 -- ================
 -- SRLW: shift-right logical of lower 32 bits of args; only in RV64.
 -- Operates on lower 32 bits of the args, treating them as 32-bit signed integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_srlw #-}
 alu_srlw :: Integer -> Integer -> Integer
 alu_srlw    rs1_val    rs2_val =
   let
@@ -245,10 +262,11 @@ alu_srlw    rs1_val    rs2_val =
   in
     sign_extend  32  64  result_32
 
+{-# INLINE alu_srlw #-}
+
 -- ================================================================
 -- SRA: shift-right arithmetic
 
-{-# INLINE alu_sra #-}
 alu_sra :: Int -> Integer -> Integer -> Integer
 alu_sra    xlen   rs1_val    rs2_val =
   let
@@ -259,12 +277,13 @@ alu_sra    xlen   rs1_val    rs2_val =
   in
     result
 
+{-# INLINE alu_sra #-}
+
 -- ================
 -- SRAW: shift-right arithmetic of lower 32 bits of args; only in RV64.
 -- Operates on lower 32 bits of the args, treating them as 32-bit signed integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_sraw #-}
 alu_sraw :: Integer -> Integer -> Integer
 alu_sraw    rs1_val    rs2_val =
   let
@@ -273,10 +292,11 @@ alu_sraw    rs1_val    rs2_val =
   in
     result
 
+{-# INLINE alu_sraw #-}
+
 -- ================================================================
 -- MUL: signed multiplication
 
-{-# INLINE alu_mul #-}
 alu_mul :: Int -> Integer -> Integer -> Integer
 alu_mul    xlen   rs1_val    rs2_val =
   let
@@ -286,12 +306,13 @@ alu_mul    xlen   rs1_val    rs2_val =
   in
     cvt_Integer_to_2s_comp  xlen  result_i
 
+{-# INLINE alu_mul #-}
+
 -- ================
 -- MULW: signed multiplication of lower 32 bits of args; only in RV64.
 -- Operates on lower 32 bits of the args, treating them as 32-bit signed integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_mulw #-}
 alu_mulw :: Integer -> Integer -> Integer
 alu_mulw    rs1_val    rs2_val =
   let
@@ -299,10 +320,11 @@ alu_mulw    rs1_val    rs2_val =
   in
     sign_extend  32  64  result
 
+{-# INLINE alu_mulw #-}
+
 -- ================================================================
 -- MULH: signed multiplication, high bits
 
-{-# INLINE alu_mulh #-}
 alu_mulh :: Int -> Integer -> Integer -> Integer
 alu_mulh    xlen   rs1_val    rs2_val =
   let
@@ -315,10 +337,11 @@ alu_mulh    xlen   rs1_val    rs2_val =
   in
     result
 
+{-# INLINE alu_mulh #-}
+
 -- ================================================================
 -- MULHU: unsigned multiplication, high bits
 
-{-# INLINE alu_mulhu #-}
 alu_mulhu :: Int -> Integer -> Integer -> Integer
 alu_mulhu    xlen   rs1_val    rs2_val =
   let
@@ -331,10 +354,11 @@ alu_mulhu    xlen   rs1_val    rs2_val =
   in
     result
 
+{-# INLINE alu_mulhu #-}
+
 -- ================================================================
 -- MULHSU: signed x unsigned multiplication, high bits
 
-{-# INLINE alu_mulhsu #-}
 alu_mulhsu :: Int -> Integer -> Integer -> Integer
 alu_mulhsu    xlen   rs1_val    rs2_val =
   let
@@ -348,13 +372,14 @@ alu_mulhsu    xlen   rs1_val    rs2_val =
   in
     result
 
+{-# INLINE alu_mulhsu #-}
+
 -- ================================================================
 -- DIV: signed division
 -- Special case: signed division by zero => quotient all bits set.
 -- Special case: signed division overflow, when most-negative integer (xlen-bit) is divided by -1 (xlen-bit).
 --     => quotient is equal to the dividend.
 
-{-# INLINE alu_div #-}
 alu_div :: Int -> Integer -> Integer -> Integer
 alu_div    xlen   rs1_val    rs2_val =
   let
@@ -380,12 +405,13 @@ alu_div    xlen   rs1_val    rs2_val =
   in
     result
 
+{-# INLINE alu_div #-}
+
 -- ================
 -- DIVW: signed division of lower 32 bits of args; only in RV64.
 -- Divides lower 32 bits of the args, treating them as 32-bit signed integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_divw #-}
 alu_divw :: Integer -> Integer -> Integer
 alu_divw    rs1_val    rs2_val =
   let
@@ -393,12 +419,13 @@ alu_divw    rs1_val    rs2_val =
   in
     sign_extend  32  64  result_32
 
+{-# INLINE alu_divw #-}
+
 -- ================================================================
 -- DIVU: unsigned division
 -- Special case: unsigned division by zero => quotient all bits set.
 -- Unsigned division overflow cannot occur.
 
-{-# INLINE alu_divu #-}
 alu_divu :: Int -> Integer -> Integer -> Integer
 alu_divu    xlen   rs1_val    rs2_val =
   let
@@ -417,18 +444,21 @@ alu_divu    xlen   rs1_val    rs2_val =
       in
         result
 
+{-# INLINE alu_divu #-}
+
 -- ================
 -- DIVUW: unsigned division of lower 32 bits of args; only in RV64.
 -- Divides lower 32 bits of the args, treating them as 32-bit unsigned integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_divuw #-}
 alu_divuw :: Integer -> Integer -> Integer
 alu_divuw    rs1_val    rs2_val =
   let
     result_32 = alu_divu  32  rs1_val  rs2_val
   in
     sign_extend  32  64  result_32
+
+{-# INLINE alu_divuw #-}
 
 -- ================================================================
 -- REM: signed remainder
@@ -438,7 +468,6 @@ alu_divuw    rs1_val    rs2_val =
 -- Special case: signed remainder overflow, when most-negative integer (xlen-bit) is divided by -1 (xlen-bit).
 -- => remainder is 0
 
-{-# INLINE alu_rem #-}
 alu_rem :: Int -> Integer -> Integer -> Integer
 alu_rem    xlen   rs1_val    rs2_val =
   let
@@ -464,18 +493,21 @@ alu_rem    xlen   rs1_val    rs2_val =
   in
     result
 
+{-# INLINE alu_rem #-}
+
 -- ================
 -- REMW: signed remainder of lower 32 bits of args; only in RV64.
 -- Remainders lower 32 bits of the args, treating them as 32-bit signed integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_remw #-}
 alu_remw :: Integer -> Integer -> Integer
 alu_remw    rs1_val    rs2_val =
   let
     result_32 = alu_rem  32  rs1_val  rs2_val
   in
     sign_extend  32  64  result_32
+
+{-# INLINE alu_remw #-}
 
 -- ================================================================
 -- REMU: unsigned remainder
@@ -484,7 +516,6 @@ alu_remw    rs1_val    rs2_val =
 
 -- Unsigned remainder overflow cannot occur.
 
-{-# INLINE alu_remu #-}
 alu_remu :: Int -> Integer -> Integer -> Integer
 alu_remu    xlen   rs1_val    rs2_val =
   let
@@ -502,17 +533,20 @@ alu_remu    xlen   rs1_val    rs2_val =
       in
         result
 
+{-# INLINE alu_remu #-}
+
 -- ================
 -- REMUW: unsigned remainder of lower 32 bits of args; only in RV64.
 -- Operates on lower 32 bits of the args, treating them as 32-bit unsigned integers.
 -- Returns sign-extension to 64 bits of lower 32 bits of result.
 
-{-# INLINE alu_remuw #-}
 alu_remuw :: Integer -> Integer -> Integer
 alu_remuw    rs1_val    rs2_val =
   let
     result_32 = alu_remu  32  rs1_val  rs2_val
   in
     sign_extend  32  64  result_32
+
+{-# INLINE alu_remuw #-}
 
 -- ================================================================

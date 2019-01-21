@@ -24,13 +24,8 @@ import Virtual_Mem
 
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
--- ================================================================
--- 'I' Base instruction set
-
--- NOTE: opcode_XXX are defined in module Arch_Defs
-
 -- ================================================================
--- Data structure for instructions in 'I' (base instruction set)
+-- Data structure for instructions in 'I' (base instruction set)                \begin_latex{Instr_I}
 
 data Instr_I = LUI    GPR_Addr  InstrField              -- rd,  imm20
              | AUIPC  GPR_Addr  InstrField              -- rd,  imm20
@@ -38,7 +33,7 @@ data Instr_I = LUI    GPR_Addr  InstrField              -- rd,  imm20
              | JAL    GPR_Addr  InstrField              -- rd,  imm21
              | JALR   GPR_Addr  GPR_Addr  InstrField    -- rd,  rs1, imm12
 
-             | BEQ    GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
+             | BEQ    GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13      \end_latex{...Instr_I}
              | BNE    GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
              | BLT    GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
              | BGE    GPR_Addr  GPR_Addr  InstrField    -- rs1, rs2, imm13
@@ -84,14 +79,15 @@ data Instr_I = LUI    GPR_Addr  InstrField              -- rd,  imm20
 
 -- ================================================================
 -- Sub-opcodes for 'I' instructions
-
+-- NOTE: opcode_XXX are defined in module Arch_Defs
+                                                                  -- \begin_latex{sub_opcodes_I}
 -- opcode_JALR sub-opcodes
 funct3_JALR      = 0x0   :: InstrField    -- 3'b_000
 
 -- opcode_BRANCH sub-opcodes
 funct3_BEQ       = 0x0  :: InstrField     -- 3'b_000
 funct3_BNE       = 0x1  :: InstrField     -- 3'b_001
-funct3_BLT       = 0x4  :: InstrField     -- 3'b_100
+funct3_BLT       = 0x4  :: InstrField     -- 3'b_100              -- \end_latex{...sub_opcodes_I}
 funct3_BGE       = 0x5  :: InstrField     -- 3'b_101
 funct3_BLTU      = 0x6  :: InstrField     -- 3'b_110
 funct3_BGEU      = 0x7  :: InstrField     -- 3'b_111
@@ -147,7 +143,7 @@ funct12_ECALL    = 0x000 :: InstrField    -- 12'b_0000_0000_0000
 funct12_EBREAK   = 0x001 :: InstrField    -- 12'b_0000_0000_0001
 
 -- ================================================================
--- Decode from 32b representation to Instr_I data structure
+-- Decode from 32b representation to Instr_I data structure        -- \begin_latex{decode_I_A}
 
 decode_I :: RV -> Instr_32b -> Maybe Instr_I
 decode_I    rv    instr_32b =
@@ -159,7 +155,7 @@ decode_I    rv    instr_32b =
     rs1     = bitSlice  instr_32b  19  15
     rs2     = bitSlice  instr_32b  24  20
     funct7  = bitSlice  instr_32b  31  25
-
+                                                                   -- \end_latex{...decode_I_A}
     imm12_I = bitSlice  instr_32b  31  20
 
     imm12_S = (shiftL  (bitSlice  instr_32b  31  25) 5) .|. (bitSlice  instr_32b  11 7)
@@ -168,11 +164,12 @@ decode_I    rv    instr_32b =
                .|. (shiftL  (bitSlice  instr_32b  30  25)   5)
                .|. (shiftL  (bitSlice  instr_32b  11   8)   1)
                .|. (shiftL  (bitSlice  instr_32b   7   7)  11))
-
+                                                                                       -- \begin_latex{decode_I_B}
     imm21_J = ((    shiftL  (bitSlice  instr_32b  31  31)  20)
                .|. (shiftL  (bitSlice  instr_32b  30  21)   1)
                .|. (shiftL  (bitSlice  instr_32b  20  20)  11)
                .|. (shiftL  (bitSlice  instr_32b  19  12)  12))
+                                                                                       -- \end_latex{decode_I_B}
 
     imm20_U = bitSlice  instr_32b  31  12
 
@@ -197,14 +194,14 @@ decode_I    rv    instr_32b =
     fm      = bitSlice  instr_32b  31  28
     pred    = bitSlice  instr_32b  27  24
     succ    = bitSlice  instr_32b  23  20
-
-    instr_I
+                                                                                       -- \begin_latex{decode_I_C}
+    m_instr_I
       | opcode==opcode_LUI   = Just  (LUI    rd  imm20_U)
       | opcode==opcode_AUIPC = Just  (AUIPC  rd  imm20_U)
 
       | opcode==opcode_JAL                       = Just  (JAL   rd  imm21_J)
       | opcode==opcode_JALR, funct3==funct3_JALR = Just  (JALR  rd  rs1  imm12_I)
-
+                                                                                       -- \end_latex{...decode_I_C}
       | opcode==opcode_BRANCH, funct3==funct3_BEQ  = Just  (BEQ  rs1 rs2 imm13_B)
       | opcode==opcode_BRANCH, funct3==funct3_BNE  = Just  (BNE  rs1 rs2 imm13_B)
       | opcode==opcode_BRANCH, funct3==funct3_BLT  = Just  (BLT  rs1 rs2 imm13_B)
@@ -215,6 +212,7 @@ decode_I    rv    instr_32b =
       | opcode==opcode_LOAD, funct3==funct3_LB  = Just  (LB  rd rs1 imm12_I)
       | opcode==opcode_LOAD, funct3==funct3_LH  = Just  (LH  rd rs1 imm12_I)
       | opcode==opcode_LOAD, funct3==funct3_LW  = Just  (LW  rd rs1 imm12_I)
+
       | opcode==opcode_LOAD, funct3==funct3_LBU = Just  (LBU rd rs1 imm12_I)
       | opcode==opcode_LOAD, funct3==funct3_LHU = Just  (LHU rd rs1 imm12_I)
 
@@ -251,10 +249,10 @@ decode_I    rv    instr_32b =
 
       | True = Nothing
   in
-    instr_I
+    m_instr_I
 
 -- ================================================================
--- Execution of Instr_I
+-- Execution of Instr_I                                                    -- \begin_latex{exec_instr_I}
 
 type Spec_Instr_I = Bool -> Instr_I -> Machine_State -> Machine_State
 --                  is_C    instr_I    mstate           mstate'
@@ -267,7 +265,7 @@ exec_instr_I  is_C  instr_I  mstate =
 
     JAL    rd   imm21      -> exec_JAL    is_C  instr_I  mstate
     JALR   rd   rs1  imm12 -> exec_JALR   is_C  instr_I  mstate
-
+                                                                           -- \end_latex{...exec_instr_I}
     BEQ    rs1  rs2  imm13 -> exec_BEQ    is_C  instr_I  mstate
     BNE    rs1  rs2  imm13 -> exec_BNE    is_C  instr_I  mstate
     BLT    rs1  rs2  imm13 -> exec_BLT    is_C  instr_I  mstate
@@ -312,7 +310,7 @@ exec_instr_I  is_C  instr_I  mstate =
     EBREAK                 -> exec_EBREAK is_C  instr_I  mstate
 
 -- ================================================================
--- LUI
+-- LUI                                                    -- \begin_latex{exec_LUI}
 
 exec_LUI :: Spec_Instr_I
 exec_LUI  is_C  (LUI  rd  imm20)  mstate =
@@ -322,6 +320,7 @@ exec_LUI  is_C  (LUI  rd  imm20)  mstate =
     mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
   in
     mstate1
+                                                          -- \end_latex{exec_LUI}
 
 -- ================================================================
 -- AUIPC
@@ -365,7 +364,7 @@ exec_JAL  is_C  (JAL  rd  imm21)  mstate =
     mstate1
 
 -- ================================================================
--- JALR
+-- JALR                                                                    -- \begin_latex{exec_JALR}
 
 exec_JALR :: Spec_Instr_I
 exec_JALR  is_C  (JALR  rd  rs1  imm12)  mstate =
@@ -392,6 +391,7 @@ exec_JALR  is_C  (JALR  rd  rs1  imm12)  mstate =
                 finish_trap  mstate  exc_code_instr_addr_misaligned  new_pc'
   in
     mstate1
+                                                                           -- \end_latex{exec_JALR}
 
 -- ================================================================
 -- BRANCH (BEQ, BNE, BLT, BGE, BLTU, BGEU)
@@ -482,10 +482,15 @@ exec_LOAD    is_C    rd          rs1         imm12         funct3        mstate 
     s_imm12 = sign_extend  12  xlen  imm12
     eaddr1  = alu_add  xlen  rs1_val  s_imm12
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
-
+                                                                                -- \begin_latex{exec_LOAD}
     -- Read mem, possibly with virtual mem translation
     is_instr = False
-    (result1, mstate1) = mstate_vm_read  mstate  is_instr  exc_code_load_access_fault  funct3  eaddr2
+    (result1, mstate1) = mstate_vm_read  mstate
+                                         is_instr
+                                         exc_code_load_access_fault
+                                         funct3
+                                         eaddr2
+                                                                                -- \end_latex{exec_LOAD}
 
     -- Finish with trap, or finish with loading Rd with load-value
     mstate2 = case result1 of
@@ -585,35 +590,45 @@ exec_OP_IMM    alu_op                                    is_C    rd          rs1
 -- OP: ADD, SUB, SLT, SLTU, XOR, OR, AND, SLL, SRL, SRA
                                                                     -- \begin_latex{exec_ADD_1}
 exec_ADD  :: Spec_Instr_I
-exec_ADD   is_C  (ADD    rd  rs1  rs2)  mstate = exec_OP  alu_add   is_C  rd  rs1  rs2  mstate
+exec_ADD   is_C  (ADD    rd  rs1  rs2)  mstate =
+  exec_OP  alu_add   is_C  rd  rs1  rs2  mstate
                                                                     -- \end_latex{exec_ADD_1}
 
 exec_SUB  :: Spec_Instr_I
-exec_SUB   is_C  (SUB    rd  rs1  rs2)  mstate = exec_OP  alu_sub   is_C  rd  rs1  rs2  mstate
+exec_SUB   is_C  (SUB    rd  rs1  rs2)  mstate =
+  exec_OP  alu_sub   is_C  rd  rs1  rs2  mstate
 
 exec_SLT  :: Spec_Instr_I
-exec_SLT   is_C  (SLT    rd  rs1  rs2)  mstate = exec_OP  alu_slt   is_C  rd  rs1  rs2  mstate
+exec_SLT   is_C  (SLT    rd  rs1  rs2)  mstate =
+  exec_OP  alu_slt   is_C  rd  rs1  rs2  mstate
 
 exec_SLTU :: Spec_Instr_I
-exec_SLTU  is_C  (SLTU   rd  rs1  rs2)  mstate = exec_OP  alu_sltu  is_C  rd  rs1  rs2  mstate
+exec_SLTU  is_C  (SLTU   rd  rs1  rs2)  mstate =
+  exec_OP  alu_sltu  is_C  rd  rs1  rs2  mstate
 
 exec_XOR  :: Spec_Instr_I
-exec_XOR   is_C  (XOR    rd  rs1  rs2)  mstate = exec_OP  alu_xor   is_C  rd  rs1  rs2  mstate
+exec_XOR   is_C  (XOR    rd  rs1  rs2)  mstate =
+  exec_OP  alu_xor   is_C  rd  rs1  rs2  mstate
 
 exec_OR   :: Spec_Instr_I
-exec_OR    is_C  (OR     rd  rs1  rs2)  mstate = exec_OP  alu_or    is_C  rd  rs1  rs2  mstate
+exec_OR    is_C  (OR     rd  rs1  rs2)  mstate =
+  exec_OP  alu_or    is_C  rd  rs1  rs2  mstate
 
 exec_AND  :: Spec_Instr_I
-exec_AND   is_C  (AND    rd  rs1  rs2)  mstate = exec_OP  alu_and   is_C  rd  rs1  rs2  mstate
+exec_AND   is_C  (AND    rd  rs1  rs2)  mstate =
+  exec_OP  alu_and   is_C  rd  rs1  rs2  mstate
 
 exec_SLL  :: Spec_Instr_I
-exec_SLL   is_C  (SLL    rd  rs1  rs2)  mstate = exec_OP  alu_sll   is_C  rd  rs1  rs2  mstate
+exec_SLL   is_C  (SLL    rd  rs1  rs2)  mstate =
+  exec_OP  alu_sll   is_C  rd  rs1  rs2  mstate
 
 exec_SRL  :: Spec_Instr_I
-exec_SRL   is_C  (SRL    rd  rs1  rs2)  mstate = exec_OP  alu_srl   is_C  rd  rs1  rs2  mstate
+exec_SRL   is_C  (SRL    rd  rs1  rs2)  mstate =
+  exec_OP  alu_srl   is_C  rd  rs1  rs2  mstate
 
 exec_SRA  :: Spec_Instr_I
-exec_SRA   is_C  (SRA    rd  rs1  rs2)  mstate = exec_OP  alu_sra   is_C  rd  rs1  rs2  mstate
+exec_SRA   is_C  (SRA    rd  rs1  rs2)  mstate =
+  exec_OP  alu_sra   is_C  rd  rs1  rs2  mstate
 
                                                                     -- \begin_latex{exec_ADD_2}
 exec_OP :: (Int -> Integer -> Integer -> Integer) ->
