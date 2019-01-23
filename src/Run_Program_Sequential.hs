@@ -1,7 +1,7 @@
 -- Copyright (c) 2018-2019 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
-module Run_Program where
+module Run_Program_Sequential where
 
 -- ================================================================
 -- This module has a 'run loop' for a purely sequential execution of a

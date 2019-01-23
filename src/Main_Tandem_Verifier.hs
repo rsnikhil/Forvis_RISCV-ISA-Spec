@@ -24,7 +24,7 @@ import Data.Bits
 import Arch_Defs
 import Machine_State
 import CSR_File
-import Run_Program
+import Run_Program_Sequential
 
 -- ================================================================
 

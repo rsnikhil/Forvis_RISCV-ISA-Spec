@@ -173,6 +173,8 @@ PC    & Program Counter \\
 \hline
 RVWMO & RISC-V Weak Memory Ordering (default memory model) \\
 \hline
+RZtso & RISC-V Optional TSO Weak Memory Model \\
+\hline
 spec  & Specification \\
 \hline
 Sv32  & Virtual Memory System in RV32 systems \\
@@ -205,19 +207,23 @@ and the RISC-V Foundation web site: \verb|https://riscv.org|
 
 % ----------------------------------------------------------------
 
-\subsection*{Acknowledgments}
+\subsection*{Thanks ...}
 
-Thanks to the original creators of RISC-V for making all this possible in the first place.
+\begin{tightlist}
 
-Thanks to Bluespec, Inc. for supporting this work.
+\item to the original creators of RISC-V for making all this possible in the first place.
 
-Thanks to the RISC-V Foundation for constituting the ISA Formal
-Specification Technical Group.
+\item to Bluespec, Inc. for supporting this work.
 
-Thanks to the members of the RISC-V Foundation's ISA Formal
-Specification Technical Group with whom we have had many wonderful
-discussions on a weekly basis that have inspired and clarified this
-work.
+\item to the RISC-V Foundation for recognizing the importance of formal
+specs and constituting the ISA Formal Specification Technical Group.
+
+\item to the members of the RISC-V Foundation's ISA Formal
+Specification Technical Group with whom we have wonderful weekly
+discussions on this topic.
+
+\end{tightlist}
+
 
 % ****************************************************************
 % TABLE OF CONTENTS
@@ -244,32 +250,55 @@ work.
 
 \newpage
 
-\section{Introduction}
-
-\markboth{Introduction}{\copyrightnotice}
-
 \setcounter{page}{1}
 % \renewcommand{\thepage}{\arabic{page}}
+\markboth{}{Forvis Reading Guide \copyrightnotice}
+
+% ****************************************************************
+
+\section{Introduction}
 
 \label{sec_intro}
 
 % ================================================================
 
-This is a reading guide for Forvis, a formal RISC-V ISA specification
-written in ``extremely elementary'' Haskell. It can be executed as a
-RISC-V simulator which, in turn, executes RISC-V binaries.
+\subsection{Brief intro}
 
-A separate document describes how to build the spec as a simulator and
-have it execute RISC-V ELF binary.  Another document describes how to
-extend this spec for new ISA extensions.
+\label{sec_how_to_read}
+
+The Forvis spec is written in the well-known functional programming
+language Haskell.  This document is not the spec; it is just an
+initial reading guide for the spec code, both for people unfamiliar
+with Haskell and for those who know Haskell but would like a guided
+tour to get familiar with the spec.  You may wish to open the code in
+your favorite code-viewing editor, and have this document open on the
+side.  The code fragments in this document are automatically extracted
+from the actual spec code.  Once you are familiar with the code, this
+reading guide should no longer be necessary.
+
+The Haskell code for Forvis can be compiled and executed as a RISC-V
+simulator, executing RISC-V ELF file binaries.  A separate document
+explains the details of how to do this.  Another document describes
+how to extend this spec for new ISA extensions.
+
+Please skip to Sec.\ref{sec_guided_tour_overview} if you wish to dive
+into the technical stuff.  The rest of Sec.~\ref{sec_intro} contains
+goals and rationale.  Appendix.~\ref{sec_haskell_cheat_sheet} contains a
+small Haskell cheat sheet to which you may want to refer if you are
+unfamiliar with Haskell and encounter something unfamiliar in the
+code.
+
+% ================================================================
+
+\subsection{Forvis goals}
 
 This is a work-in-progress, one of several similar concurrent efforts
 within the ``ISA Formal Specification'' Technical Group constituted by
 The RISC-V Foundation ({\tt https://riscv.org}).  We welcome your
 feedback, comments and suggestions.\footnote{Forvis, and this
-document, are available at: {\tt https://github.com/rsnikhil/RISCV-ISA-Spec}}
+document, are available at: {\tt https://github.com/rsnikhil/Forvis\_RISCV\-ISA-Spec}}
 
-Forvis corresponds to these original English-text specs:
+The original English-language specs for RISC-V are:
 \begin{itemize}
 
 \item {\it The RISC-V Instruction Set Manual, Volume I: Unprivileged ISA},
@@ -285,19 +314,15 @@ Forvis corresponds to these original English-text specs:
 
 \end{itemize}
 
-% ================================================================
-
-\subsection{Forvis goals}
-
-Forvis is a formal specification of the RISC-V Instruction Set
-Architecture, i.e., it is written in a precise, unambiguous language
-(here, Haskell) without regard to hardware implementation
-considerations; clarity and precision are paramount concerns.  In
-contrast, specs written a natural language such as English are often
-prone to ambiguity, inconsistency and incompleteness.  Further, a
-formal spec can be parsed and processed automatically, connecting to
-other formal analysis and transformation tools.  In addition to
-precision and completeness, Forvis also has these goals:
+Forvis is a formal specification of those specs, i.e., it is written
+in a precise, unambiguous language (here, Haskell) without regard to
+hardware implementation considerations; clarity and precision are
+paramount concerns.  In contrast, specs written a natural language
+such as English are often prone to ambiguity, inconsistency and
+incompleteness.  Further, a formal spec can be parsed and processed
+automatically, connecting to other formal analysis and transformation
+tools.  In addition to precision and completeness, Forvis also has
+these goals:
 
 \begin{itemize}
 
@@ -329,7 +354,9 @@ supports:
 
   % ----------------
   \begin{tightlist}
-   \item A couple of base ISAs: RV32 (32-bit) and RV64 (64-bit) (an RV128 base is under development)
+
+   \item A couple of base ISAs: RV32I (32-bit integers) and RV64I
+     (64-bit integers) (an RV128I base is under development)
 
    \item Numerous extensions, such as M (Integer Multiply/Divide), A
     (Atomic Memory Ops), F (single precision floating point), D
@@ -431,41 +458,969 @@ connect to other tools, such as proof assistants, theorem provers, and
 so on (including the alternate ``concurrent'' interpreter described at
 the end of the next section).
 
-% ----------------
+% ****************************************************************
 
-\subsubsection{The code in this document is real}
+\section{Guided Tour Overview}
 
-This document is produced with a kind of ``literate programming''
-process (Knuth~1984~\cite{Knuth1984}).  The Forvis spec \emph{is} the
-collection of Haskell source code files, and this document is just a
-reading guide.  All the code fragments herein are automatically
-extracted from the actual Haskell code during document production.  As
-a reading guide, this document is not meant to be read on its own, but
-as an accompaniment to perusing the actual source code.
+\label{sec_guided_tour_overview}
+
+This guided tour focuses on the base Integer instruction set (RV32I
+and RV64I), since that is enough to get familiar with the overall
+structure and style of Forvis.  Then, at your convenience, you can
+peruse the specs for the other standard instruction extensions (A, M,
+C, F, D, and Zifencei), each of which is in its own separate file.
+
+Fig.\ref{Fig_Overview} shows an overview of (most of) the source files
+and illustrates their roles.\footnote{For every Haskell module {\tt
+Foo} in the figure, you'll find a file {\tt src/Foo.hs} in the
+repository.}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=6in]{Figs/Fig_Overview}
+    \caption{\label{Fig_Overview}
+                    Overview of Forvis files/modules}
+\end{figure}
+We'll begin by studying common infrastructure for the semantics (modules shown in green):
+\begin{tightlist}
+
+\item \verb|Arch_Defs|: Basic types for register names and values, constant definitions for opcodes, memory responses, etc.
+
+\item \verb|GPR_File|: Modeling the integer register file
+
+\item \verb|Memory_File|: Modeling memory
+
+\item \verb|Machine_State|: A data structure that holds the
+\emph{entire} machine state, including the PC, CPU registers, and memory.
+
+\item \verb|Forvis_Spec_Common|: Functions that capture the few standard ways in which all instructions ``finish''.
+
+\end{tightlist}
+
+Then we'll focus on the spec for the base integer instruction set
+(modules shown in red): \verb|Forvis_Spec_I| and \verb|ALU|.  We'll
+also discuss \verb|Forvis_Spec| which specifies instruction-fetch and
+the top-level execution-dispatch (dispatching to the I spec or one of
+the other specs).
+
+Finally, we'll discuss the Priviliged Architecture instructions
+(modules shown in yellow) in \verb|Forvis_Spec_Priv|, along with the
+Control-and-Status Register instructions \verb|Zicsr| and register
+file \verb|CSR_File|.
+
+The execution spec is modularized in the same way as the ISA itself:
+
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+Haskell module                  & Description \\
+(append {\tt .hs} for filename) & \\
+\hline
+\hline
+{\tt Forvis\_Spec\_I}        & Base Integer Instruction Set, R32 and RV64 \\
+\hline
+{\tt Forvis\_Spec\_I64}      & Base Integer Instruction Set, RV64 only \\
+\hline
+{\tt Forvis\_Spec\_M}        & Integer Multiply/Divide instructions \\
+\hline
+{\tt Forvis\_Spec\_A}        & Atomic ops \\
+\hline
+{\tt Forvis\_Spec\_C}        & Compressed instructions \\
+\hline
+{\tt Forvis\_Spec\_F}        & Single-precision Floating Point instructions \\
+\hline
+{\tt Forvis\_Spec\_D}        & Double-precision Floating Point instructions \\
+\hline
+{\tt Forvis\_Spec\_Zifencei} & FENCE.I instruction \\
+\hline
+{\tt Forvis\_Spec\_Priv}     & Privileged Architecture instructions \\
+\hline
+{\tt Forvis\_Spec\_Zicsr}    & CSR instructions \\
+\hline
+\end{tabular}
+\end{center}
+
+The module for each group X follows a similar plan:
+\begin{itemize}
+
+\item Declaration of a type \verb|data Instr_X|, a data structure for
+the logical fields of instructions in the group X (a Haskell
+``algebraic data type'' ).  These are like ``abstract syntax trees''
+for instructions in the group.
+
+\item Definitions of sub-opcodes for instructions in group X.  These
+are values of fields in the 32-bit instruction that collectively
+specify a particular instruction opcode.
+
+\item A decode function \verb|decode_X| of type: \\
+\hmm \verb|decode_X :: RV -> Instr_32b -> Maybe Instr_X| \\
+that takes a a 32-bit instruction and returns a result that is either:
+  \begin{tightlist}
+
+    \item \verb|Nothing|: this is not an instruction in this group
+
+    \item \verb|Just adt|: this is an instruction in this group, and
+    \verb|adt| is a value of type \verb|Instr_X|, i.e., the logical
+    view of the instruction.
+
+  \end{tightlist}
+  The \verb|RV| argument is because these functions serve for both the
+  RV32 and RV64 base integer instructions, but some instructions are
+  only valid in RV64.
+
+\item An execution-dispatch function \verb|exec_instr_X| that
+dispatches each kind of instruction in the group to a specific
+execution function for that particular kind of instruction.
+
+\item A series of functions \verb|exec_OP1|, \verb|exec_OP2|, ..., one per opcode, describing
+the semantics of that kind of instruction.
+
+\end{itemize}
+
+Since all the modules follow this plan, we will not describe them all in detail here.
+
+% ****************************************************************
+
+\section{Preliminaries for Instruction Specs}
 
 % ================================================================
 
-\subsection{How to read the spec code}
+\subsection{File {\tt Arch\_Defs.hs}: basic architectural definitions}
 
-\markboth{How to read}{\copyrightnotice}
+\label{sec_arch_defs}
 
-\label{sec_how_to_read}
+% ================================================================
 
-As mentioned earlier, the Forvis spec is Haskell source code.  This
-document is just a reading guide, and contains code fragments
-automatically extracted from the actual source code.  This document is
-not meant to be read on its own, but as a reference for clarification
-and commentary while you are reading the actual code.
+\subsubsection{Base ISA type}
 
-For all readers, whether familiar with Haskell or not, this guide will
-help you navigate the source code; reading the code and files in the
-presented order may help you absorb the code most quickly.
+The following defines a data type {\tt RV} with two possible values,
+{\tt RV32} and {\tt RV64}.  It is analogous to an ``enum'' declaration
+in C, defining a family of constants.  The {\tt deriving} clause says
+that Haskell can automatically extend the equality operator {\tt ==}
+to work on values of type {\tt RV}, and that Haskell can automatically
+extend the {\tt show()} function to work on such values, producing
+printable Strings {\tt "RV32"} and {\tt "RV64"}, respectively.
 
-Readers familiar with Haskell can skip the following sub-section.
+\input{Extracted/RV.tex}
 
-% ----------------------------------------------------------------
+% ================================================================
 
-\subsubsection{Basic Haskell concepts and notation}
+\subsubsection{Key architectural types: instructions and registers}
+
+Througout the spec, we use Haskell's ``unbounded integer'' type
+(\verb'Integer') to represent values that are typically represented in
+bit vectors of fixed size in hardware.  Unbounded integers are truly
+unbounded and have no limit such as the typical 32 bits or 64 bits
+found in most programming languages.  Unbounded integers never
+overflow. In the spec, we take care of 32-bit and 64-bit overflow
+explicitly.
+
+Below, we define Haskell ``type synonyms'' as more readable synonyms
+for Haskell's {\tt Integer} type.
+
+\input{Extracted/Instr.tex}
+
+Next, we have Haskell function that decides whether a particular
+instruction is a 32-bit instruction or a 16-bit (compressed)
+instruction, by testing its two least-significant bits.
+
+\input{Extracted/is_instr_C.tex}
+
+Here, and everywhere in the spec, you can safely ignore the
+\verb|INLINE| annotation.  These are ``pragmas`` or ``directives'' to
+the Haskell compiler when we compiler this spec into a simulator, and
+are purely meant to improve the performance (speed) of the simulator.
+In accordance with the their unimportance to the semantics, we always
+write these \verb|INLINE| annotations \emph{below} the corresponding
+function.
+
+% ================================================================
+
+\subsubsection{Major Opcodes for 32-bit instructions}
+
+The 7 least-significant bits of a 32-bit instruction constitute its
+``major opcode''.  This section defines them for the base ``I''
+instruction set.
+
+\input{Extracted/Major_Opcodes.tex}
+
+Later in the file, we see major-opcode definitions for the ``A''
+(Atomics) extension\footnote{I am grateful to my colleague Joe Stoy
+for introducing me to the etymology of the word ``atomic''.  It can be
+read as ``a+tom+ic''.  The ``tom'' (as in ``tomography'') means
+``cut'', and the ``a`` negates it ($\rightarrow$ ``uncuttable'').}, the ``F'' and
+``D'' extensions (single-precision and double floating point).
+
+Most instructions also have other fields that further refine the
+opcode; we call them ``sub-opcodes''.  These are generally defined in
+the separate modules for each extention (for example, in a section
+labelled ``Sub-opcodes for 'I' instructions'' in file
+\verb|Forvis_Spec_I.hs|) because they are only used locally there.
+
+However, some sub-opcodes are used in multiple modules and are
+therefore defined in this file (\verb|Arch_Defs.hs|).  This is true of
+all the memory-operation sub-opcodes such as \verb|funct3_LB|,
+\verb|funct3_SB|, \verb|msbs5_AMO_ADD|, etc., as well as
+\verb|funct3_PRIV|.
+
+% ================================================================
+
+\subsubsection{Exception Codes}
+
+We define a type synonym for exception codes, and the values of all
+the standard exception codes for interrupts:
+
+\input{Extracted/exception_codes_A}
+
+... and for traps:
+
+\input{Extracted/exception_codes_B}
+
+% ================================================================
+
+\subsubsection{Memory responses}
+
+\label{sec_mem_responses}
+
+We define a type {\tt Mem\_Result} for responses from memory.  This
+may be {\tt Mem\_Result\_Ok} (successful), in which case it returns a
+value (irrelevant for STORE instructions, but relevant for LOAD,
+load-reserved, store-conditional, and AMO ops).  Otherwise it is a
+{\tt Mem\_Result\_Err}, in which case it returns an exception code
+(such as misalignment error, an access error, or a page fault.)
+
+\input{Extracted/Mem_Result}
+
+When returning a result, we construct expressions like these:
+\begin{tabbing}
+\hmmm \= {\tt Mem\_Result\_Ok} \hm \= \emph{value-expression} \\
+      \> {\tt Mem\_Result\_Err}    \> \emph{exception-value-expression}
+\end{tabbing}
+
+When fielding a result, we deconstruct it using a case-expression like this:
+\begin{tabbing}
+\hmmm \= {\tt case} mem-result {\tt of} \\
+      \> \hm \= {\tt Mem\_Result\_Ok v} \hm {\tt ->} \= \emph{use} v \emph{in an expression} \\
+      \>     \> {\tt Mem\_Result\_Err ec}   {\tt ->} \> \emph{use} ec \emph{in an expression}
+\end{tabbing}
+
+% ================================================================
+
+\subsubsection{Privilege Levels}
+
+RISC-V defines 3 standard privilege levels: Machine, Supervisor and User:
+
+\input{Extracted/Priv_Level}
+
+% ================================================================
+
+\subsection{File {\tt GPR\_File.hs}: General Purpose Registers}
+
+\label{sec_gprs}
+
+\verb|GPR_File.hs| implements a file of general-purpose registers.
+
+We represent it using Haskell's \verb|Data_Map.Map| type, which is an
+associative map (like a Python ``dictionary'') that associates
+register names with values).  This representation choice is purely
+internal to this module because in the export list in the module
+header at the top of the file:
+
+\input{Extracted/GPR_File_header}
+
+we mention the type \verb|GPR_File| without exporting its internal
+representation.  If, instead, we had said ``\verb|GPR_File(..)|'',
+we'd expose its internal detail.  Thus, we can freely change the
+representation to something else (and change the API functions
+accordingnly) without affecting any of the rest of the modules.  In
+other words, \verb|GPR_File| is an \emph{abstract type} for the rest
+of the modules.  Here is the representation and constructor:
+
+\input{Extracted/GPR_File}
+
+The \verb|zip| function constructs a listof intial values, associating
+each register name 0..31 with 0 (randomly chosen, since the spec does
+not specify the initial value of any register).
+
+This is followed by the API functions \verb|gpr_read| and
+\verb|gpr_write|.  The latter always writes 0 into GPR 0, so we can
+only ever read 0 from GPR 0.\footnote{In ``{\tt seq~val1~(..)}'' in
+the last line of {\tt gpr\_write}, only the part in parentheses is
+relevant, doing the actual GPR register file update; the rest is a
+wrapper that is merely a Haskell performance optimization for the
+simulator, concerned with Haskell's lazy evaluation regime.}
+
+% ================================================================
+
+\subsection{File {\tt Machine\_State.hs}: architectural and machine state}
+
+\label{sec_machine_state}
+
+[Reminder: this is for the simple, sequential,
+one-instruction-at-a-time interpreter.  The concurrent interpreter has
+a substantially different machine state.]
+
+% ================================================================
+
+\subsubsection{Handling RV32 and RV64 simultaneously}
+
+Although each hardware implementation will typically be either an RV32
+system or an RV64 system, the spec encompasses implementations that
+can simultaneously support both.  For example, machine-privilege code
+may run in RV64 mode while supervisor- and user-privilege code may run
+in RV32 mode.  There is also a future RV128 being defined.
+
+In Forvis, which covers RV32 and RV64 and their simultaneous use, we
+represent everything using \emph{unbounded} integers (Haskell's
+``\verb|Integer|'' type).  The semantics of each instruction are
+defined to be governed by the current RV setting which is available in
+the architectural state (specifically, MISA.MXL, MSTATUS.SXL,
+MSTATUS.UXL, etc.).  An RV32 setting can render some instructions
+illegal, and limits calculations on values to 32-bit arithmetic.
+
+% ================================================================
+
+\subsubsection{Machine State}
+
+We define a new type representing a complete ``machine state'', which
+is just a record or struct.  The first few fields represent a RISC-V
+hart's basic architectural state: a Program Counter, general purpose
+registers, floating-point regsiters, control-and-status Registers, and
+the current privilege level at which it is running. This is followed
+by two fields representing memory and memory-mapped I/O devices.
+
+Finally, we have fields that are not semantically relevant, but are
+needed or useful in simulation or formal reasoning, gathering
+statistics, etc., including a list of legal address ranges (memory
+load/store instructions should trap if accessing anything outside this
+range).
+
+\input{Extracted/Machine_State}
+
+This record-with-fields is a purely internal representation choice in
+this module.  Clients of this module only access it via the
+\verb|mstate_|{\it{}function} API that follows.\footnote{Haskell has
+export-import mechanisms to enforce this external invisibility of our
+representation choice, but we have omitted them here to avoid
+clutter.}
+
+The following function is a constructor that returns a new machine state:
+
+\input{Extracted/Machine_State_constructor}
+
+All functions that ``update'' the machine state are written in purely
+functional style: the first argument is typically a machine state, and
+the final result is the new machine state.  This will be evident in
+their type signatures:
+
+\begin{tabbing}\tt
+\hmm {\it somefunction} :: Machine\_State -> {\it ...other arguments...} -> Machine\_State
+\end{tabbing}
+
+What follows is a series of API functions to read or update the
+machine state, such as the following to access and update the PC:
+
+\input{Extracted/PC_access}
+
+The \verb|mstate_pc_write| function just applies the \verb|f_pc| field
+selector to the machine state to extract that field.  The
+\verb|mstate_pc_write| function uses Haskell's ``field update'' notation:
+
+\begin{tabbing}\tt
+\hmm \verb|mstate { f_pc = val }|
+\end{tabbing}
+to construct (and return) a new machine state in which the \verb|f_pc|
+field has the new value.
+
+In many of the API functions, such as those to read and write GPRs,
+FPRs or CSRs, the function merely invokes the appropriate API of the
+corresponding component (GPR file, FPR file or CSR file).
+
+In the API functions for read, write and atomic memory operations,
+such as \verb|mstate_mem_read|, we check if the given address is a
+supported memory address and return an exception if not.  Otherwise,
+we triage the address to determine if it is for actual memory or for a
+memory-mapped I/O device, and direct the request to the appropriate
+component.
+
+The API functions for FENCE, FENCE.I and SFENCE.VMA are currenty
+no-ops in the spec since they only come into play when there is
+concurrency involving multiple paths to memory from one or more harts
+(hardware threads).  The current specs is interpreted in a completely
+sequential, one-instruction-at-a-time manner; there is only one path
+to memory involving instructions and data; and there is only one hart.
+
+The file ends with a number of functions to aid in simulation, to move
+console input and output between the machine state and the console, to
+``tick'' IO devices (which logically run concurrently with the CPU), etc.
+
+% ****************************************************************
+
+\section{File {\tt Forvis\_Spec\_I}: Base Integer Instruction Specs}
+
+\label{sec_ISA_spec_I}
+
+% ================================================================
+
+\subsection{Algebraic Data Type for I instructions}
+
+The file begins with a Haskell data type declaration for the type
+\verb|Instr_I|
+
+\input{Extracted/Instr_I}
+
+This should be read as follows: ``A value of type \verb|Instr_I| is
+\begin{tightlist}
+
+\item \emph{either} a \verb|LUI| instruction, in which case it has two
+fields of type \verb|GPR_Addr| and
+\verb|InstrField| (the destination register rd and an immediate value),
+
+\item \emph{or} a \verb|AUIPC| instruction, in which case it has two
+fields of type \verb|GPR_Addr| and \verb|InstrField| (the destination
+register rd and an immediate value),
+
+\item \emph{or} a \verb|JAL| instruction, in which case it has two
+fields of type \verb|GPR_Addr| and \verb|InstrField| (the destination
+register rd and an immediate value),
+
+\item \emph{or} a \verb|JALR| instruction, in which case it has three
+fields of type \verb|GPR_Addr|, \verb|GPR_Addr| and \verb|InstrField|
+(the destination register rd, the source register rs1, and an
+immediate value),
+
+\item ... and so on.''
+
+\end{tightlist}
+
+% ----------------
+
+\subsection{Sub-opcodes for I instructions}
+
+The next section defines values of other fields in a 32-bit
+instruction that further refine the group opcode into a specific
+opcode:
+
+\input{Extracted/sub_opcodes_I}
+
+These are values in the 3-bit field in bits [14:12] of a 32-bit instruction.
+
+% ----------------
+
+\subsection{Decoder for I instructions}
+
+The next section defines the function \verb|decode_I| whose arguments
+are {\tt rv} (because some I instructions are only valid in RV64 and
+not in RV32) and a 32-bit instruction.  The result is of type
+\verb|Maybe Instr_I|, i.e., it is:
+
+\begin{tightlist}
+
+ \item \emph{either} \verb|Nothing|: this is not an I instruction,
+
+ \item \emph{or} \verb|Just instr_I|: this is an I instruction, and
+ the field \verb|instr_I| is value of type \verb|Instr_I|, the logical
+ view of the instruction.
+
+\end{tightlist}
+
+\input{Extracted/decode_I_A}
+
+The first few lines of the function use \verb|bitSlice| to extract
+bit-fields of the instruction.  This is a help-function defined in
+\verb|Bit_Utils.hs|, and {\tt bitSlice~x~[$j$,$k$]} is equivalent to
+the Verilog/SystemVerilog bit-selection {\tt x[$j$,$k$]}.  Note that
+some field-extractions can involve some complex bit-shuffling, such
+as:
+
+\input{Extracted/decode_I_B}
+
+The function finally defines the result \verb|m_instr_I| (of type
+\verb|Maybe Instr_I|) by dispatching on a series of conditions, each
+checking for a particular opcode:
+
+\input{Extracted/decode_I_C}
+
+If none of the conditions match, it returns \verb|Nothing|
+
+
+% ----------------
+
+\subsection{Dispatcher for I instructions}
+
+The next function is simply a dispatcher that takes an \verb|Instr_I|
+value and, based on the kind of I instruction it is, dispatches to a
+specific execution function for that kind of of instruction.
+
+\input{Extracted/exec_instr_I}
+
+It uses the Haskell pattern-matching \verb|case| statement to
+determine which kind of instruction it is, and invokes the appropriate
+function.  Note, it has no check for illegal instructions; the fact
+that the argument is of type \verb|Instr_I| means it can only be a
+valid I instruction.
+
+Note that we've defined the type \verb|Spec_Instr_I| to be a
+type-synonym for: \\
+\hm\verb|Bool -> Instr_I -> Machine_State -> Machine_State| \\
+because all our spec functions will have this common type.
+
+The first argument, \verb|is_C| is a boolean indicating whether the
+current instruction is a regular 32-bit instruction or a 16-bit (C,
+compressed) instruction.  In RISC-V, each 16-bit instruction is
+defined as a ``short form'' for a specific corresponding 32-bit
+instruction.  Thus, we define the semantics in one function, but use
+the parameter \verb|is_C| to remember whether we're doing this for a
+32-bit or 16-bit instruction.  For almost all instructions, we either
+update the PC with the address of the next instruction, or we remember
+address of the next instruction (e.g., in JAL and JALR). This
+next-instruction-address may be the current PC +2 or +4, depending on
+\verb|is_C|.
+
+% ----------------
+
+\subsection{Execution semantics for each I instruction}
+
+There is one \verb|exec_|\emph{FOO} function for each opcode
+\emph{FOO}.  We examine excerpts of a few of them, for illustration.
+
+The first I instruction, LUI, is very simple:
+
+\input{Extracted/exec_LUI}
+
+It uses the 20-bit immedate to calculate a value \verb|rd_val| to save
+in the destination register \verb|rd|, and calls a standard ``finish''
+function to write the destination register and increment the PC.
+
+The \verb|JALR| instruction is a bit more complex:
+
+\input{Extracted/exec_JALR}
+
+We see that that saved ``return-address'' (\verb|rd_val| is calculated
+as PC+2 or PC+4 depending on \verb|is_C|.  The jump-target PC is
+initially calculated by adding the offset to the \verb|rs1_val|.
+Then, per the spec, we clear its bit [0] to 0.  Then we check if is is
+properly aligned, which decision itself depends on whether MISA.C is
+currently active or not.  Finally, if the target is properly aligned,
+we finish normally (updating rd and incrementing PC), otherwise we
+finish by trapping with exception code
+\verb|exc_code_instr_addr_misaligned|, and storing \verb|new_pc'| in
+the TVAL CSR.
+
+The functions for memory load instructions \verb|exec_LB|,
+\verb|exec_LH|, \verb|exec_LW|, \verb|exec_LD| all funnel back through
+a common \verb|exec_LOAD| help-function.  Let's focus on this excerpt:
+
+\input{Extracted/exec_LOAD}
+
+Its work is done by \verb|mstate_vm_read|, which is in file
+\verb|Virtual_Mem.hs|, which does all memory reads.  By examining
+\verb|mstate|, it can decide whether the address is a virtual or
+physical address, and do the translation if needed.  During
+translation or subsequent memory access, it may encounter a fault.
+The final result is of type \verb|Mem_Result| (described in
+Sec.~\ref{sec_mem_responses}), indicating that it's ok (and contains
+the appropriate payload, or an error (and contains the appropriate
+exception code).
+
+Moving further down, the ADD instruction is handled by the following
+function:
+
+\input{Extracted/exec_ADD_1}
+
+This just dispatches to the function \verb|exec_OP| which is used by
+all the \verb|opcode_OP| functions.  To this common function, we pass
+the function \verb|alu_add| (defined in file \verb|ALU.hs|) to
+indicate the specific function to be performed on the operands.
+
+The \verb|exec_OP| function is simple.  We read the Rs1 and Rs2
+registers, perform the specified \verb|alu_op|, and finish by updating
+the destination register \verb|rd| and incrementing the PC (by 4 or 2,
+respectively, depending boolean \verb|is_C|, which indicates whether
+the current instruction is a regular 32-bit instruction or a 16-bit C
+(compressed) instruction.  The \verb|finish| function will also
+increment MINSTRET (see discussion in
+Sec.~\ref{sec_standard_finish_functions}).
+
+\input{Extracted/exec_ADD_2}
+
+% ================================================================
+
+\subsection{File {\tt Forvis\_Spec\_Common.hs}: Common 'instruction-finishing' functions}
+
+\label{sec_standard_finish_functions}
+
+All instructions ``finish'' in one of a few common ways, and these are
+captured as functions in this module.  For example: this function
+captures the common finish of all ALU instructions, which:
+\begin{tightlist}
+
+\item write a result value \verb|rd_val| to the GPR \verb|rd|;
+
+\item increment the PC by 4 or 2, depending on boolean \verb|is_C|,
+which indicates whether the current instruction is a regular 32-bit
+instruction or a 16-bit C (compressed) instruction;
+
+\item and increment the MINSTRET (instructions retired) counter.
+
+\end{tightlist}
+
+\input{Extracted/finish_rd_and_pc_incr}
+
+% ================================================================
+
+\subsection{File {\tt ALU.hs}: A pure integer ALU}
+
+The module \verb|ALU| represents the ``pure integer ALU'', i.e., pure
+functions of one or two inputs representing the various integer
+arithmetic, logic and comparison operatinos of interest.  Most of the
+functions are quite straightforward, invoking Haskell primitives to
+perform the actual operations.
+
+All considerations of whether we are dealing with 32-bit or 64-bit
+input and output values, whether they are to be interpreted as signed
+or unsigned values, etc., are confined to this module.  Outside this
+module, all values are ``stored'' as Haskell's \verb|Integer| data
+type.
+
+% ****************************************************************
+
+\section{Instruction fetch}
+
+The start of the code for instruction fetch looks like this:
+
+\input{Extracted/instr_fetch}
+
+The \verb|instr_fetch| function takes the current machine state as
+argument, and attempts to read and instruction from memory, returning
+a 2-tuple: a \verb|Fetch Result| and the updated machine state.
+
+The \verb|Fetch_Result| can indicate that there was a fault (such as a
+memory access fault or page fault) during the attempted memory-read,
+or that the instruction is a 16-bit instruction from the 'C' ISA
+extension, or that the instructionis a regular 32-bit instruction.  In
+all cases, there could have been a change in the machine state, and
+hence it returns the updated machine state.
+
+The body of the \verb|instr_fetch| function first checks the 'C' flag
+in CSR MISA to see if compressed instructions are supported.  If not,
+it reads a 4-byte (32-bit) instruction from memory.  If 'C' is
+supported, it first reads 2 bytes from memory, and checks if it
+encodes a possible 'C' instruction. If not, it then reads 2 more bytes
+from memory and returns it as a full 32-bit instruction.  Of course,
+either of these two reads can fault, and this is the reason we read
+two bytes at a time: the first read may succeed with a 'C'
+instruction, in which case we do not want to encounter a fault for
+reading two more bytes which may be unnecessary in the program flow.
+
+% ****************************************************************
+
+\section{Privileged architecture}
+
+% ================================================================
+
+\subsection{File {\tt CSR\_File.hs}: Control and Status Registers}
+
+\label{sec_csrs}
+
+\verb|CSR_File.hs| implements a file of Control and Status registers.
+The module begins with definitions of reset values for CSRs at the
+User, Supervisor and Machine levels of privilege.
+
+% ================================================================
+
+\subsubsection{CSR addresses}
+
+The next few sections define the addresses of all the standard CSRs
+(Control and Status Registers), at User, Supervisor and Machine
+Privilege levels.
+
+\input{Extracted/CSR_Addresses}
+
+% ================================================================
+
+\subsubsection{The MISA CSR}
+
+A key CSR is MISA (``Machine ISA Register'').  The 2 most-significant
+bits are called \verb|MXL| and it encodes the current ``native'' width
+of the ISA (width of PC and GPRs), which can be 32, 64 or 128 bits.
+
+\input{Extracted/MISA_fields_A}
+
+The lower 26 bits are named by letters of the alphabet, A-Z, with bit
+0 being A and Bit 25 begin Z.  The function \verb|misa_flag|, when
+given the value in the MISA register and a letter of the alphabet
+(uppercase or lowercase), returns a boolean indicating whether the
+corresponding bit is set or not.
+
+\input{Extracted/MISA_fields_B}
+
+This is followed by symbolic-name definitions for the integer bit
+positions of the 26 alphabets and the MXL field.
+
+\input{Extracted/MISA_fields_C}
+
+% ================================================================
+
+\subsubsection{The MSTATUS CSR}
+
+Another key CSR is MSTATUS (``Machine Mode Status'').  The code starts
+with definitions for the integer bit positions of its fields.
+
+This is followed by two help-functions that are used in defining the
+semantics of exceptions (interrupts and traps) and
+returns-from-exceptions.  The least-significant 8 fields of MSTATUS
+represent a shallow ``stack'' of interrupt-enable and privilege
+bits. On an exception, we push new values on to this stack, and when
+we return-from-exception we pop the stack. The function
+\verb|mstatus_stack_fields| extracts the stack, returning the fields
+as an 8-tuple: \verb|(mpp,spp,mpie,spie,upie,mie,sie,uie)|.  The
+inverse function, \verb|mstatus_upd_stack_fields| takes an MSTATUS
+value and an 8-tuple of new stack values, and returns a new MSTATUS
+with the stack updated.
+
+Not all fields in MSTATUS are used (they may be defined in future
+versions of the spec).  The next few definitions describe ``masks''
+that restrict an MSTATUS value to defined fields so that we do not
+disturb the undefined fields.  Some of the fields of MSTATUS are
+visible as the SSTATUS (Supervisor Status) and USTATUS (User Status)
+at lower privilege levels.  Masks for these views are also defined
+here.
+
+The API functions \verb|csr_read| and \verb|csr_write|.  The main
+subtlety here is that the certain distinct CSR addresses refer to
+``views'' of the same underlying register with various restrictions:
+
+\begin{itemize}
+\item
+\verb|USTATUS| and \verb|SSTATUS| are restricted views of \verb|MSTATUS|
+
+\item
+\verb|UIE| and \verb|SIE| are restricted views of \verb|MIE|
+
+\item
+\verb|UIP| and \verb|SIP| are restricted views of \verb|MIP|
+\end{itemize}
+
+
+The functions \verb|mstatus_stack_fields| and
+\verb|mstatus_upd_stack_fields| encapsulate reading and writing the
+``stack'' in the MSTATUS register containing the ``previous
+privilege'', ``previous interrupt enable'' and ``interrupt enable''
+fields.  This stack is pushed on traps/interrupts, and popped on
+URET/SRET/MRET instructions.
+
+The function \verb|fn_interrupt_pending| was mentioned earlier in
+Sec.~\ref{sec_interrupts}; it analyzes the MSTATUS, MIP, MIE and
+current privilege level to decide whether a machine/supervisor/user
+external/software/timer interrupt is pending, and if so, which one.
+
+% ================================================================
+
+\subsection{File {\tt Virtual\_Mem.hs}: Virtual Memory}
+
+\label{sec_vm}
+
+Essentially all the code to support virtual memory is in the file
+\verb|Virtual_Mem.hs|.
+
+There are four broad classes of memory access: instruction fetch,
+loads, stores, and AMOs.  The function \verb|fn_vm_is_active| checks
+whether the effective address computed in each kind of memory access
+is a virtual memory address that needs to be translated to a physical
+memory address.  It examines the current privilege level, and the
+value in the ``mode'' field of CSR SATP.  It also takes into account
+that if MSTATUS.MPRV is set, then loads, stores and AMOs should be
+regarded as occurring at the privilege level MSTATUS.MPP instead of
+the current privilege.
+
+\input{Extracted/fn_vm_is_active}
+
+In file \verb|Forvis_Spec.hs|, in the spec functions for the four
+classes of memory access (\verb|instr_fetch|, \verb|spec_LOAD|,
+\verb|spec_STORE| and \verb|spec_AMO|), the code first invokes
+\verb|fn_vm_is_active| to check if virtual-to-physical address
+translation is required.  If so, it then invokes the function
+\verb|vm_translate| to perform the translation.  This function can
+return a memory access fault or page fault, or a successful
+translation with a physical address.  We use the \verb|Memory_Result|
+type to return this range of results.  The \verb|vm_translate|
+function may also modify machine state (``access'' and ``dirty'' bits
+in page tables, internal cache- and TLB-tracking state, etc.), and so
+the machine state is both an argument and a result of the function.
+
+\input{Extracted/vm_translate}
+
+% ================================================================
+
+\subsection{Interrupts}
+
+\label{sec_interrupts}
+
+\input{Extracted/take_interrupt}
+
+The \verb|take_interrupt_if_any| function can be applied between any
+two instruction executions. It uses the function
+\verb|fn_interrupt_pending| that examines MSTATUS, MIP, MIE and the
+current privilege level to check if there is an interrupt is pending
+and the hart is ready to handle it.  If so, it applies
+\verb|mstate_upd_on_trap| to update the machine state, which it
+returns along with True.  Otherwise, it returns False and the
+unchanged machine state.
+
+% ****************************************************************
+
+\section{Sequential (one-instruction-at-a-time)  interpretation}
+
+The sequential interpreter has a machine state \verb|M| as described
+in Sec.~\ref{sec_machine_state}, and a list \emph{spec\_fns} of spec
+functions as described in the previous section, i.e., each having the
+type:
+
+\hmmm {\tt Machine\_State -> Instr -> (Bool, Machine\_State)}
+
+The interpreter performs the following, forever:
+
+\hmm \begin{minipage}[t]{5in}
+
+It uses the memory-access API function \verb|mstate_mem_read| to read
+an instruction from \verb|M|.  It then applies each function from
+\emph{spec\_fns}, one by one until one of them returns
+\verb|(True,M')|, i.e., one of them successfully decodes and executes
+the instruction.
+
+\vspace*{1ex}
+
+If all the functions in \emph{spec\_fns} return \verb|(False,...)|,
+the interpreter applies the \verb|finish_trap| function to \verb|M|
+with the \verb|ILLEGAL_INSTRUCTION| exception code to produce the next
+state \verb|M'|.
+
+\end{minipage}
+
+% ****************************************************************
+
+\section{File {\tt Forvis\_Spec.hs}: the ISA spec}
+
+\label{sec_foobaz}
+
+The entire spec is essentially in this one file.  The major sections
+are:
+\begin{itemize}
+
+\item A function \verb|instr_fetch| expressing instruction-fetch,
+    returning a regular 32-bit instruction, or 'C' compressed 16-bit
+    instruction, or an instruction-fetch fault.
+
+\item A large number of functions named \verb|spec_|{\it{}OPCODE}
+describing the semantics of all RISC-V instructions.
+
+\item A small number of functions name \verb|finish_|{\it{}scheme}
+capturing the few common schemes by which instructions finish (write
+Rd, increment PC, increment MINSTRET, trap, ...)
+
+\item A function \verb|mstate_upd_on_trap| (which is perhaps the most
+intricate) that updates the machine state for a trap.  It computes the
+new privilege level, new PC, new MSTATUS, new MEPC/{\linebreak[0]}SEPC/{\linebreak[0]}UEPC, new
+MCAUSE/{\linebreak[0]}SCAUSE/{\linebreak[0]}UCAUSE, and new MTVAL/{\linebreak[0]}STVAL/{\linebreak[0]}UTVAL based on whether
+it was an interrupt or synchronous trap, the current privilege level,
+the MSTATUS register, MIP and MIE registers, MIDELEG and MEDELEG
+registers, MTVEC/{\linebreak[0]}STVEC/{\linebreak[0]}UTVEC
+
+\item A function \verb|exec_instr| (and it's counterpart
+\verb|exec_instr_C| for 'C' compressed instructions) that uses all the
+\verb|spec_|{\it{}OPCODE} to update the machine state by executing
+exactly one instruction.
+
+\item A function \verb|take_interrupt_if_any| that checks the machine
+state to see if an interrupt is pending and updates the machine state
+if so (to be poised at the trap vector).
+
+\end{itemize}
+
+% ****************************************************************
+
+\section{Other source code files}
+
+\label{sec_misc}
+
+\verb|Bit_Manipulation.hs| contains utilities for bit manipulation,
+including sign- and zero-extension, truncation, conversion, etc. that
+are relevant for these semantics.
+
+Most of the remaining files are not part of ISA semantics, but
+infrastructure for building a ``system'': a boot ROM, a memory, and
+I/O devices such as a timer (MTIME and MTIMECMP), a software-interrupt
+location (MSIP), and a UART for console I/O.
+
+\verb|Main.hs| is a driver program that just dispatches to one of two
+use-cases, \verb|Main_RunProgram.hs| (free-running) or
+\verb|Main_TandemVerifier.hs| (Tandem Verification).
+
+\verb|Main_RunProgram.hs| reads RISC-V binaries (ELF), initializes
+architecture state and memory, and calls \verb|RunProgram| to run the
+loaded program, up to a specified maximum number of instructions.
+
+\verb|Run_Program.hs| contains the FETCH-EXECUTE loop, along with some
+heuristic stopping-conditions (maximum instruction count, detected
+self-loop, detected non-zero write into \verb|tohost| memory location,
+etc.
+
+\verb|Main_TandemVerifier.hs| sets up Forvis to be a slave processs to
+a tandem verifier, receiving commands on stdin and sending responses
+on stdout.  The commands allow a tandem verifier to initialize
+architecture state, execute 1 or more instructions, and query
+archtectural state. Responses include tandem verification packets
+which the verifier can use to check an implementation.
+
+\verb|Addres_Map.hs| specifies the address map for the ``system'': the
+base address and address range for each memory and I/O device.
+
+\verb|Memory.hs| implements a memory model with read, write and AMO
+functions.
+
+\verb|MMIO.hs| implements the memory-mapped I/O system.
+
+\verb|Mem_Ops.hs| defines instruction field values that specify the
+type and size of memory operations.  These are duplicates of defs in
+\verb|Forvis_Spec.hs| where they are in the specs of LOAD, STORE and
+AMO instructions.  They are repeated here because this information is
+also needed in \verb|Memory.hs|, \verb|MMIO.hs| and other places.
+
+\verb|UART.hs| is a model of the popular National Semiconductor
+NS16550A UART.
+
+\verb|Elf.hs| and \verb|Read_Hex_File.hs| are functions for reading
+ELF files and ``Hex Memory'' files, respectively.
+
+% ================================================================
+
+\subsection{File {\tt FPU.hs}}
+
+The module \verb|FPU| is the floating-point analog of the integer
+\verb|ALU| module, and represents a ``pure floating point ALU'',
+encapsulating all floating-point arithmetic, logic, comparision and
+conversion operations. All considerations of single-precision
+vs. double-precision, conversions between these and integers etc., are
+confined to this module.
+
+% ****************************************************************
+
+\newpage
+
+\markboth{BIBLIOGRAPHY}{\copyrightnotice}
+
+\addcontentsline{toc}{section}{Bibliography}
+
+\bibliographystyle{abbrv}
+\bibliography{forvis_reading_guide}
+
+% ****************************************************************
+
+\appendix
+
+\section{Haskell cheat sheet for reading Forvis code}
+
+\label{sec_haskell_cheat_sheet}
 
 Haskell is a pure functional language: everything is expressed as pure
 mathematical functions from arguments to results, and composition of
@@ -581,917 +1536,6 @@ x \verb/.|./ y      & x \verb/|/ y  & Bitwise OR operator \\
 \verb|shiftR x n|   & \verb|x >> n| & Right shift (arith if x is signed, logical otherwise) \\
 \hline
 \end{tabular}
-
-% ****************************************************************
-
-\section{File Arch\_Defs.hs: basic architectural definitions}
-
-\markboth{Basic Architectural Definitions}{\copyrightnotice}
-
-\label{sec_arch_defs}
-
-% ================================================================
-
-\subsection{Base ISA type}
-
-The following defines a data type {\tt RV} with two possible values,
-{\tt RV32} and {\tt RV64}.  It is analogous to an ``enum'' declaration
-in C, defining a family of constants.  The {\tt deriving} clause says
-that Haskell can automatically extend the equality operator {\tt ==}
-to work on values of type {\tt RV}, and that Haskell can automatically
-extend the {\tt show()} function to work on such values, producing
-printable Strings {\tt "RV32"} and {\tt "RV64"}, respectively.
-
-\input{Extracted/RV.tex}
-
-% ================================================================
-
-\subsection{Key architectural types: instructions and registers}
-
-Througout the spec, we use Haskell's ``unbounded integer'' type
-(\verb'Integer') to represent values that are typically represented in
-bit vectors of fixed size in hardware.  Unbounded integers are truly
-unbounded and have no limit such as the typical 32 bits or 64 bits
-found in most programming languages.  Unbounded integers never
-overflow. In the spec, we take care of 32-bit and 64-bit overflow
-explicitly.
-
-Below, we define Haskell ``type synonyms'' as more readable synonyms
-for Haskell's {\tt Integer} type.
-
-\input{Extracted/Instr.tex}
-
-Next, we have Haskell function that decides whether a particular
-instruction is a 32-bit instruction or a 16-bit (compressed)
-instruction, by testing its two least-significant bits.
-
-\input{Extracted/is_instr_C.tex}
-
-Here, and everywhere in the spec, you can safely ignore the
-\verb|INLINE| annotation.  These are ``pragmas`` or ``directives'' to
-the Haskell compiler when we compiler this spec into a simulator, and
-are purely meant to improve the performance (speed) of the simulator.
-In accordance with the their unimportance to the semantics, we always
-write these \verb|INLINE| annotations \emph{below} the corresponding
-function.
-
-% ================================================================
-
-\subsection{Major Opcodes for 32-bit instructions}
-
-The 7 least-significant bits of a 32-bit instruction constitute its
-``major opcode''.  This section defines them for the base ``I''
-instruction set.
-
-\input{Extracted/Major_Opcodes.tex}
-
-Later in the file, we see major-opcode definitions for the ``A''
-(Atomics) extension\footnote{I am grateful to my colleague Joe Stoy
-for introducing me to the etymology of the word ``atomic''.  It can be
-read as ``a+tom+ic''.  The ``tom'' (as in ``tomography'') means
-``cut'', and the ``a`` negates it ($\rightarrow$ ``uncuttable'').}, the ``F'' and
-``D'' extensions (single-precision and double floating point).
-
-Most instructions also have other fields that further refine the
-opcode; we call them ``sub-opcodes''.  These are generally defined in
-the separate modules for each extention (for example, in a section
-labelled ``Sub-opcodes for 'I' instructions'' in file
-\verb|Forvis_Spec_I.hs|) because they are only used locally there.
-
-However, some sub-opcodes are used in multiple modules and are
-therefore defined in this file (\verb|Arch_Defs.hs|).  This is true of
-all the memory-operation sub-opcodes such as \verb|funct3_LB|,
-\verb|funct3_SB|, \verb|msbs5_AMO_ADD|, etc., as well as
-\verb|funct3_PRIV|.
-
-% ================================================================
-
-\subsection{Exception Codes}
-
-We define a type synonym for exception codes, and the values of all
-the standard exception codes for interrupts:
-
-\input{Extracted/exception_codes_A}
-
-... and for traps:
-
-\input{Extracted/exception_codes_B}
-
-% ================================================================
-
-\subsection{Memory responses}
-
-\label{sec_mem_responses}
-
-We define a type {\tt Mem\_Result} for responses from memory.  This
-may be {\tt Mem\_Result\_Ok} (successful), in which case it returns a
-value (irrelevant for STORE instructions, but relevant for LOAD,
-load-reserved, store-conditional, and AMO ops).  Otherwise it is a
-{\tt Mem\_Result\_Err}, in which case it returns an exception code
-(such as misalignment error, an access error, or a page fault.)
-
-\input{Extracted/Mem_Result}
-
-When returning a result, we construct expressions like these:
-\begin{tabbing}
-\hmmm \= {\tt Mem\_Result\_Ok} \hm \= \emph{value-expression} \\
-      \> {\tt Mem\_Result\_Err}    \> \emph{exception-value-expression}
-\end{tabbing}
-
-When fielding a result, we deconstruct it using a case-expression like this:
-\begin{tabbing}
-\hmmm \= {\tt case} mem-result {\tt of} \\
-      \> \hm \= {\tt Mem\_Result\_Ok v} \hm {\tt ->} \= \emph{use} v \emph{in an expression} \\
-      \>     \> {\tt Mem\_Result\_Err ec}   {\tt ->} \> \emph{use} ec \emph{in an expression}
-\end{tabbing}
-
-% ================================================================
-
-\subsection{Privilege Levels}
-
-RISC-V defines 3 standard privilege levels: Machine, Supervisor and User:
-
-\input{Extracted/Priv_Level}
-
-% ****************************************************************
-
-\section{File GPR\_File.hs (General Purpose Registers)}
-
-\label{sec_gprs}
-
-\verb|GPR_File.hs| implements a file of general-purpose registers.
-
-We represent it using Haskell's \verb|Data_Map.Map| type, which is an
-associative map (like a Python ``dictionary'') that associates
-register names with values).  This representation choice is purely
-internal to this module because in the export list in the module
-header at the top of the file:
-
-\input{Extracted/GPR_File_header}
-
-we mention the type \verb|GPR_File| without exporting its internal
-representation.  If, instead, we had said ``\verb|GPR_File(..)|'',
-we'd expose its internal detail.  Thus, we can freely change the
-representation to something else (and change the API functions
-accordingnly) without affecting any of the rest of the modules.  In
-other words, \verb|GPR_File| is an \emph{abstract type} for the rest
-of the modules.  Here is the representation and constructor:
-
-\input{Extracted/GPR_File}
-
-The \verb|zip| function constructs a listof intial values, associating
-each register name 0..31 with 0 (randomly chosen, since the spec does
-not specify the initial value of any register).
-
-This is followed by the API functions \verb|gpr_read| and
-\verb|gpr_write|.  The latter always writes 0 into GPR 0, so we can
-only ever read 0 from GPR 0.\footnote{In ``{\tt seq~val1~(..)}'' in
-the last line of {\tt gpr\_write}, only the part in parentheses is
-relevant, doing the actual GPR register file update; the rest is a
-wrapper that is merely a Haskell performance optimization for the
-simulator, concerned with Haskell's lazy evaluation regime.}
-
-% ****************************************************************
-
-\section{File Machine\_State.hs: architectural and machine state}
-
-\markboth{Architectural and Machine State}{\copyrightnotice}
-
-\label{sec_machine_state}
-
-[Reminder: this is for the simple, sequential,
-one-instruction-at-a-time interpreter.  The concurrent interpreter has
-a substantially different machine state.]
-
-% ================================================================
-
-\subsection{Handling RV32 and RV64 simultaneously}
-
-Although each hardware implementation will typically be either an RV32
-system or an RV64 system, the spec encompasses implementations that
-can simultaneously support both.  For example, machine-privilege code
-may run in RV64 mode while supervisor- and user-privilege code may run
-in RV32 mode.  There is also a future RV128 being defined.
-
-In Forvis, which covers RV32 and RV64 and their simultaneous use, we
-represent everything using \emph{unbounded} integers (Haskell's
-``\verb|Integer|'' type).  The semantics of each instruction are
-defined to be governed by the current RV setting which is available in
-the architectural state (specifically, MISA.MXL, MSTATUS.SXL,
-MSTATUS.UXL, etc.).  An RV32 setting can render some instructions
-illegal, and limits calculations on values to 32-bit arithmetic.
-
-% ================================================================
-
-\subsection{Machine State}
-
-We define a new type representing a complete ``machine state'', which
-is just a record or struct.  The first few fields represent a RISC-V
-hart's basic architectural state: a Program Counter, general purpose
-registers, floating-point regsiters, control-and-status Registers, and
-the current privilege level at which it is running. This is followed
-by two fields representing memory and memory-mapped I/O devices.
-
-Finally, we have fields that are not semantically relevant, but are
-needed or useful in simulation or formal reasoning, gathering
-statistics, etc., including a list of legal address ranges (memory
-load/store instructions should trap if accessing anything outside this
-range).
-
-\input{Extracted/Machine_State}
-
-This record-with-fields is a purely internal representation choice in
-this module.  Clients of this module only access it via the
-\verb|mstate_|{\it{}function} API that follows.\footnote{Haskell has
-export-import mechanisms to enforce this external invisibility of our
-representation choice, but we have omitted them here to avoid
-clutter.}
-
-The following function is a constructor that returns a new machine state:
-
-\input{Extracted/Machine_State_constructor}
-
-All functions that ``update'' the machine state are written in purely
-functional style: the first argument is typically a machine state, and
-the final result is the new machine state.  This will be evident in
-their type signatures:
-
-\begin{tabbing}\tt
-\hmm {\it somefunction} :: Machine\_State -> {\it ...other arguments...} -> Machine\_State
-\end{tabbing}
-
-What follows is a series of API functions to read or update the
-machine state, such as the following to access and update the PC:
-
-\input{Extracted/PC_access}
-
-The \verb|mstate_pc_write| function just applies the \verb|f_pc| field
-selector to the machine state to extract that field.  The
-\verb|mstate_pc_write| function uses Haskell's ``field update'' notation:
-
-\begin{tabbing}\tt
-\hmm \verb|mstate { f_pc = val }|
-\end{tabbing}
-to construct (and return) a new machine state in which the \verb|f_pc|
-field has the new value.
-
-In many of the API functions, such as those to read and write GPRs,
-FPRs or CSRs, the function merely invokes the appropriate API of the
-corresponding component (GPR file, FPR file or CSR file).
-
-In the API functions for read, write and atomic memory operations,
-such as \verb|mstate_mem_read|, we check if the given address is a
-supported memory address and return an exception if not.  Otherwise,
-we triage the address to determine if it is for actual memory or for a
-memory-mapped I/O device, and direct the request to the appropriate
-component.
-
-The API functions for FENCE, FENCE.I and SFENCE.VMA are currenty
-no-ops in the spec since they only come into play when there is
-concurrency involving multiple paths to memory from one or more harts
-(hardware threads).  The current specs is interpreted in a completely
-sequential, one-instruction-at-a-time manner; there is only one path
-to memory involving instructions and data; and there is only one hart.
-
-The file ends with a number of functions to aid in simulation, to move
-console input and output between the machine state and the console, to
-``tick'' IO devices (which logically run concurrently with the CPU), etc.
-
-% ****************************************************************
-
-\section{File Forvis\_Spec\_Common.hs: Common functions used by all the spec functions}
-
-\label{sec_standard_finish_functions}
-
-All instructions ``finish'' in one of a few common ways, and these are
-captured as functions in this module.  For example: this function
-captures the common finish of all ALU instructions, which:
-\begin{tightlist}
-
-\item write a result value \verb|rd_val| to the GPR \verb|rd|;
-
-\item increment the PC by 4 or 2, depending on boolean \verb|is_C|,
-which indicates whether the current instruction is a regular 32-bit
-instruction or a 16-bit C (compressed) instruction;
-
-\item and increment the MINSTRET (instructions retired) counter.
-
-\end{tightlist}
-
-\input{Extracted/finish_rd_and_pc_incr}
-
-% ****************************************************************
-
-\section{Instruction fetch}
-
-The start of the code for instruction fetch looks like this:
-
-\input{Extracted/instr_fetch}
-
-The \verb|instr_fetch| function takes the current machine state as
-argument, and attempts to read and instruction from memory, returning
-a 2-tuple: a \verb|Fetch Result| and the updated machine state.
-
-The \verb|Fetch_Result| can indicate that there was a fault (such as a
-memory access fault or page fault) during the attempted memory-read,
-or that the instruction is a 16-bit instruction from the 'C' ISA
-extension, or that the instructionis a regular 32-bit instruction.  In
-all cases, there could have been a change in the machine state, and
-hence it returns the updated machine state.
-
-The body of the \verb|instr_fetch| function first checks the 'C' flag
-in CSR MISA to see if compressed instructions are supported.  If not,
-it reads a 4-byte (32-bit) instruction from memory.  If 'C' is
-supported, it first reads 2 bytes from memory, and checks if it
-encodes a possible 'C' instruction. If not, it then reads 2 more bytes
-from memory and returns it as a full 32-bit instruction.  Of course,
-either of these two reads can fault, and this is the reason we read
-two bytes at a time: the first read may succeed with a 'C'
-instruction, in which case we do not want to encounter a fault for
-reading two more bytes which may be unnecessary in the program flow.
-
-% ****************************************************************
-
-\section{Execution specification}
-
-\label{sec_ISA_spec}
-
-\markboth{ISA Spec}{\copyrightnotice}
-
-The execution spec is modularized in the same way as the ISA itself:
-
-\begin{center}
-\begin{tabular}{|l|l|}
-\hline
-Haskell module                  & Description \\
-(append {\tt .hs} for filename) & \\
-\hline
-\hline
-{\tt Forvis\_Spec\_I}        & Base Integer Instruction Set, R32 and RV64 \\
-\hline
-{\tt Forvis\_Spec\_I64}      & Base Integer Instruction Set, RV64 only \\
-\hline
-{\tt Forvis\_Spec\_M}        & Integer Multiply/Divide instructions \\
-\hline
-{\tt Forvis\_Spec\_A}        & Atomic ops \\
-\hline
-{\tt Forvis\_Spec\_C}        & Compressed instructions \\
-\hline
-{\tt Forvis\_Spec\_F}        & Single-precision Floating Point instructions \\
-\hline
-{\tt Forvis\_Spec\_D}        & Double-precision Floating Point instructions \\
-\hline
-{\tt Forvis\_Spec\_Priv}     & Privileged Architecture instructions \\
-\hline
-{\tt Forvis\_Spec\_Zicsr}    & CSR instructions \\
-\hline
-{\tt Forvis\_Spec\_Zifencei} & FENCE.I instruction \\
-\hline
-\hline
-{\tt Forvis\_Spec\_Common}   & Shared functions for above \\
-\hline
-\end{tabular}
-\end{center}
-
-The module for each group X follows a similar plan:
-\begin{itemize}
-
-\item Declaration of a type \verb|data Instr_X|, a data structure for
-the logical fields of instructions in the group X (a Haskell
-``algebraic data type'' ).  These are like ``abstract syntax trees''
-for instructions in the group.
-
-\item Definitions of sub-opcodes for instructions in group X.  These
-are values of fields in the 32-bit instruction that collectively
-specify a particular instruction opcode.
-
-\item A decode function \verb|decode_X| of type: \\
-\hmm \verb|decode_X :: RV -> Instr_32b -> Maybe Instr_X| \\
-that takes a a 32-bit instruction and returns a result that is either:
-  \begin{tightlist}
-
-    \item \verb|Nothing|: this is not an instruction in this group
-
-    \item \verb|Just adt|: this is an instruction in this group, and
-    \verb|adt| is a value of type \verb|Instr_X|, i.e., the logical
-    view of the instruction.
-
-  \end{tightlist}
-  The \verb|RV| argument is because these functions serve for both the
-  RV32 and RV64 base integer instructions, but some instructions are
-  only valid in RV64.
-
-\item An execution-dispatch function \verb|exec_instr_X| that
-dispatches each kind of instruction in the group to a specific
-execution function for that particular kind of instruction.
-
-\item A series of functions \verb|exec_OP1|, \verb|exec_OP2|, ..., one per opcode, describing
-the semantics of that kind of instruction.
-
-\end{itemize}
-
-Since all the modules follow this plan, we will not describe them all in detail here.
-
-% ================================================================
-
-\subsection{File Forvis\_Spec\_I: Spec for Integer Base Instruction Set}
-
-\label{sec_ISA_spec_I}
-
-% ----------------
-
-\subsubsection{Algebraic Data Type for I instructions}
-
-The file begins with a Haskell data type declaration for the type
-\verb|Instr_I|
-
-\input{Extracted/Instr_I}
-
-This should be read as follows: ``A value of type \verb|Instr_I| is
-\begin{tightlist}
-
-\item \emph{either} a \verb|LUI| instruction, in which case it has two
-fields of type \verb|GPR_Addr| and
-\verb|InstrField| (the destination register rd and an immediate value),
-
-\item \emph{or} a \verb|AUIPC| instruction, in which case it has two
-fields of type \verb|GPR_Addr| and \verb|InstrField| (the destination
-register rd and an immediate value),
-
-\item \emph{or} a \verb|JAL| instruction, in which case it has two
-fields of type \verb|GPR_Addr| and \verb|InstrField| (the destination
-register rd and an immediate value),
-
-\item \emph{or} a \verb|JALR| instruction, in which case it has three
-fields of type \verb|GPR_Addr|, \verb|GPR_Addr| and \verb|InstrField|
-(the destination register rd, the source register rs1, and an
-immediate value),
-
-\item ... and so on.''
-
-\end{tightlist}
-
-% ----------------
-
-\subsubsection{Sub-opcodes for I instructions}
-
-The next section defines values of other fields in a 32-bit
-instruction that further refine the group opcode into a specific
-opcode:
-
-\input{Extracted/sub_opcodes_I}
-
-These are values in the 3-bit field in bits [14:12] of a 32-bit instruction.
-
-% ----------------
-
-\subsubsection{Decoder for I instructions}
-
-The next section defines the function \verb|decode_I| whose arguments
-are {\tt rv} (because some I instructions are only valid in RV64 and
-not in RV32) and a 32-bit instruction.  The result is of type
-\verb|Maybe Instr_I|, i.e., it is:
-
-\begin{tightlist}
-
- \item \emph{either} \verb|Nothing|: this is not an I instruction,
-
- \item \emph{or} \verb|Just instr_I|: this is an I instruction, and
- the field \verb|instr_I| is value of type \verb|Instr_I|, the logical
- view of the instruction.
-
-\end{tightlist}
-
-\input{Extracted/decode_I_A}
-
-The first few lines of the function use \verb|bitSlice| to extract
-bit-fields of the instruction.  This is a help-function defined in
-\verb|Bit_Utils.hs|, and {\tt bitSlice~x~[$j$,$k$]} is equivalent to
-the Verilog/SystemVerilog bit-selection {\tt x[$j$,$k$]}.  Note that
-some field-extractions can involve some complex bit-shuffling, such
-as:
-
-\input{Extracted/decode_I_B}
-
-The function finally defines the result \verb|m_instr_I| (of type
-\verb|Maybe Instr_I|) by dispatching on a series of conditions, each
-checking for a particular opcode:
-
-\input{Extracted/decode_I_C}
-
-If none of the conditions match, it returns \verb|Nothing|
-
-
-% ----------------
-
-\subsubsection{Dispatcher for I instructions}
-
-The next function is simply a dispatcher that takes an \verb|Instr_I|
-value and, based on the kind of I instruction it is, dispatches to a
-specific execution function for that kind of of instruction.
-
-\input{Extracted/exec_instr_I}
-
-It uses the Haskell pattern-matching \verb|case| statement to
-determine which kind of instruction it is, and invokes the appropriate
-function.  Note, it has no check for illegal instructions; the fact
-that the argument is of type \verb|Instr_I| means it can only be a
-valid I instruction.
-
-Note that we've defined the type \verb|Spec_Instr_I| to be a
-type-synonym for: \\
-\hm\verb|Bool -> Instr_I -> Machine_State -> Machine_State| \\
-because all our spec functions will have this common type.
-
-The first argument, \verb|is_C| is a boolean indicating whether the
-current instruction is a regular 32-bit instruction or a 16-bit (C,
-compressed) instruction.  In RISC-V, each 16-bit instruction is
-defined as a ``short form'' for a specific corresponding 32-bit
-instruction.  Thus, we define the semantics in one function, but use
-the parameter \verb|is_C| to remember whether we're doing this for a
-32-bit or 16-bit instruction.  For almost all instructions, we either
-update the PC with the address of the next instruction, or we remember
-address of the next instruction (e.g., in JAL and JALR). This
-next-instruction-address may be the current PC +2 or +4, depending on
-\verb|is_C|.
-
-% ----------------
-
-\subsubsection{Execution semantics for each I instruction}
-
-There is one \verb|exec_|\emph{FOO} function for each opcode
-\emph{FOO}.  We examine excerpts of a few of them, for illustration.
-
-The first I instruction, LUI, is very simple:
-
-\input{Extracted/exec_LUI}
-
-It uses the 20-bit immedate to calculate a value \verb|rd_val| to save
-in the destination register \verb|rd|, and calls a standard ``finish''
-function to write the destination register and increment the PC.
-
-The \verb|JALR| instruction is a bit more complex:
-
-\input{Extracted/exec_JALR}
-
-We see that that saved ``return-address'' (\verb|rd_val| is calculated
-as PC+2 or PC+4 depending on \verb|is_C|.  The jump-target PC is
-initially calculated by adding the offset to the \verb|rs1_val|.
-Then, per the spec, we clear its bit [0] to 0.  Then we check if is is
-properly aligned, which decision itself depends on whether MISA.C is
-currently active or not.  Finally, if the target is properly aligned,
-we finish normally (updating rd and incrementing PC), otherwise we
-finish by trapping with exception code
-\verb|exc_code_instr_addr_misaligned|, and storing \verb|new_pc'| in
-the TVAL CSR.
-
-The functions for memory load instructions \verb|exec_LB|,
-\verb|exec_LH|, \verb|exec_LW|, \verb|exec_LD| all funnel back through
-a common \verb|exec_LOAD| help-function.  Let's focus on this excerpt:
-
-\input{Extracted/exec_LOAD}
-
-Its work is done by \verb|mstate_vm_read|, which is in file
-\verb|Virtual_Mem.hs|, which does all memory reads.  By examining
-\verb|mstate|, it can decide whether the address is a virtual or
-physical address, and do the translation if needed.  During
-translation or subsequent memory access, it may encounter a fault.
-The final result is of type \verb|Mem_Result| (described in
-Sec.~\ref{sec_mem_responses}), indicating that it's ok (and contains
-the appropriate payload, or an error (and contains the appropriate
-exception code).
-
-Moving further down, the ADD instruction is handled by the following
-function:
-
-\input{Extracted/exec_ADD_1}
-
-This just dispatches to the function \verb|exec_OP| which is used by
-all the \verb|opcode_OP| functions.  To this common function, we pass
-the function \verb|alu_add| (defined in file \verb|ALU.hs|) to
-indicate the specific function to be performed on the operands.
-
-The \verb|exec_OP| function is simple.  We read the Rs1 and Rs2
-registers, perform the specified \verb|alu_op|, and finish by updating
-the destination register \verb|rd| and incrementing the PC (by 4 or 2,
-respectively, depending boolean \verb|is_C|, which indicates whether
-the current instruction is a regular 32-bit instruction or a 16-bit C
-(compressed) instruction.  The \verb|finish| function will also
-increment MINSTRET (see discussion in
-Sec.~\ref{sec_standard_finish_functions}).
-
-\input{Extracted/exec_ADD_2}
-
-% ================================================================
-
-\subsection{Files ALU.hs and FPU.hs}
-
-The module \verb|ALU| represents the ``pure integer ALU'', i.e., pure
-functions of one or two inputs representing the various interger
-arithmetic, logic and comparison operatinos of interest.  Most of the
-functions are quite straightforward, invoking Haskell primitives to
-perform the actual operations.
-
-All considerations of whether we are dealing with 32-bit or 64-bit
-input and output values, whether they are to be interpreted as signed
-or unsigned values, etc., are confined to this module.  Outside this
-module, all values are ``stored'' as Haskell's \verb|Integer| data
-type.
-
-Analogously, the module \verb|FPU| represents the ``pure floating
-point ALU'', encapsulating all floating-point arithmetic, logic,
-comparision and conversion operations. All considerations of
-single-precision vs. double-precision, conversions between these and
-integers etc., are confined to this module.
-
-% ================================================================
-
-\subsection{File Virtual\_Mem.hs: Virtual Memory}
-
-\label{sec_vm}
-
-Essentially all the code to support virtual memory is in the file
-\verb|Virtual_Mem.hs|.
-
-There are four broad classes of memory access: instruction fetch,
-loads, stores, and AMOs.  The function \verb|fn_vm_is_active| checks
-whether the effective address computed in each kind of memory access
-is a virtual memory address that needs to be translated to a physical
-memory address.  It examines the current privilege level, and the
-value in the ``mode'' field of CSR SATP.  It also takes into account
-that if MSTATUS.MPRV is set, then loads, stores and AMOs should be
-regarded as occurring at the privilege level MSTATUS.MPP instead of
-the current privilege.
-
-\input{Extracted/fn_vm_is_active}
-
-In file \verb|Forvis_Spec.hs|, in the spec functions for the four
-classes of memory access (\verb|instr_fetch|, \verb|spec_LOAD|,
-\verb|spec_STORE| and \verb|spec_AMO|), the code first invokes
-\verb|fn_vm_is_active| to check if virtual-to-physical address
-translation is required.  If so, it then invokes the function
-\verb|vm_translate| to perform the translation.  This function can
-return a memory access fault or page fault, or a successful
-translation with a physical address.  We use the \verb|Memory_Result|
-type to return this range of results.  The \verb|vm_translate|
-function may also modify machine state (``access'' and ``dirty'' bits
-in page tables, internal cache- and TLB-tracking state, etc.), and so
-the machine state is both an argument and a result of the function.
-
-\input{Extracted/vm_translate}
-
-% ================================================================
-
-\subsection{CSR\_File.hs (Control and Status Registers)}
-
-\label{sec_csrs}
-
-\verb|CSR_File.hs| implements a file of Control and Status registers.
-The module begins with definitions of reset values for CSRs at the
-User, Supervisor and Machine levels of privilege.
-
-% ================================================================
-
-\subsubsection{CSR addresses}
-
-The next few sections define the addresses of all the standard CSRs
-(Control and Status Registers), at User, Supervisor and Machine
-Privilege levels.
-
-\input{Extracted/CSR_Addresses}
-
-% ================================================================
-
-\subsubsection{The MISA CSR}
-
-A key CSR is MISA (``Machine ISA Register'').  The 2 most-significant
-bits are called \verb|MXL| and it encodes the current ``native'' width
-of the ISA (width of PC and GPRs), which can be 32, 64 or 128 bits.
-
-\input{Extracted/MISA_fields_A}
-
-The lower 26 bits are named by letters of the alphabet, A-Z, with bit
-0 being A and Bit 25 begin Z.  The function \verb|misa_flag|, when
-given the value in the MISA register and a letter of the alphabet
-(uppercase or lowercase), returns a boolean indicating whether the
-corresponding bit is set or not.
-
-\input{Extracted/MISA_fields_B}
-
-This is followed by symbolic-name definitions for the integer bit
-positions of the 26 alphabets and the MXL field.
-
-\input{Extracted/MISA_fields_C}
-
-% ================================================================
-
-\subsubsection{The MSTATUS CSR}
-
-Another key CSR is MSTATUS (``Machine Mode Status'').  The code starts
-with definitions for the integer bit positions of its fields.
-
-This is followed by two help-functions that are used in defining the
-semantics of exceptions (interrupts and traps) and
-returns-from-exceptions.  The least-significant 8 fields of MSTATUS
-represent a shallow ``stack'' of interrupt-enable and privilege
-bits. On an exception, we push new values on to this stack, and when
-we return-from-exception we pop the stack. The function
-\verb|mstatus_stack_fields| extracts the stack, returning the fields
-as an 8-tuple: \verb|(mpp,spp,mpie,spie,upie,mie,sie,uie)|.  The
-inverse function, \verb|mstatus_upd_stack_fields| takes an MSTATUS
-value and an 8-tuple of new stack values, and returns a new MSTATUS
-with the stack updated.
-
-Not all fields in MSTATUS are used (they may be defined in future
-versions of the spec).  The next few definitions describe ``masks''
-that restrict an MSTATUS value to defined fields so that we do not
-disturb the undefined fields.  Some of the fields of MSTATUS are
-visible as the SSTATUS (Supervisor Status) and USTATUS (User Status)
-at lower privilege levels.  Masks for these views are also defined
-here.
-
-The API functions \verb|csr_read| and \verb|csr_write|.  The main
-subtlety here is that the certain distinct CSR addresses refer to
-``views'' of the same underlying register with various restrictions:
-
-\begin{itemize}
-\item
-\verb|USTATUS| and \verb|SSTATUS| are restricted views of \verb|MSTATUS|
-
-\item
-\verb|UIE| and \verb|SIE| are restricted views of \verb|MIE|
-
-\item
-\verb|UIP| and \verb|SIP| are restricted views of \verb|MIP|
-\end{itemize}
-
-
-The functions \verb|mstatus_stack_fields| and
-\verb|mstatus_upd_stack_fields| encapsulate reading and writing the
-``stack'' in the MSTATUS register containing the ``previous
-privilege'', ``previous interrupt enable'' and ``interrupt enable''
-fields.  This stack is pushed on traps/interrupts, and popped on
-URET/SRET/MRET instructions.
-
-The function \verb|fn_interrupt_pending| was mentioned earlier in
-Sec.~\ref{sec_interrupts}; it analyzes the MSTATUS, MIP, MIE and
-current privilege level to decide whether a machine/supervisor/user
-external/software/timer interrupt is pending, and if so, which one.
-
-% ================================================================
-
-\subsection{Interrupts}
-
-\label{sec_interrupts}
-
-\input{Extracted/take_interrupt}
-
-The \verb|take_interrupt_if_any| function can be applied between any
-two instruction executions. It uses the function
-\verb|fn_interrupt_pending| that examines MSTATUS, MIP, MIE and the
-current privilege level to check if there is an interrupt is pending
-and the hart is ready to handle it.  If so, it applies
-\verb|mstate_upd_on_trap| to update the machine state, which it
-returns along with True.  Otherwise, it returns False and the
-unchanged machine state.
-
-% ****************************************************************
-
-\section{Sequential (one-instruction-at-a-time)  interpretation}
-
-The sequential interpreter has a machine state \verb|M| as described
-in Sec.~\ref{sec_machine_state}, and a list \emph{spec\_fns} of spec
-functions as described in the previous section, i.e., each having the
-type:
-
-\hmmm {\tt Machine\_State -> Instr -> (Bool, Machine\_State)}
-
-The interpreter performs the following, forever:
-
-\hmm \begin{minipage}[t]{5in}
-
-It uses the memory-access API function \verb|mstate_mem_read| to read
-an instruction from \verb|M|.  It then applies each function from
-\emph{spec\_fns}, one by one until one of them returns
-\verb|(True,M')|, i.e., one of them successfully decodes and executes
-the instruction.
-
-\vspace*{1ex}
-
-If all the functions in \emph{spec\_fns} return \verb|(False,...)|,
-the interpreter applies the \verb|finish_trap| function to \verb|M|
-with the \verb|ILLEGAL_INSTRUCTION| exception code to produce the next
-state \verb|M'|.
-
-\end{minipage}
-
-% ****************************************************************
-
-\section{File Forvis\_Spec.hs: the ISA spec}
-
-\markboth{The ISA Spec}{\copyrightnotice}
-
-\label{sec_foobaz}
-
-The entire spec is essentially in this one file.  The major sections
-are:
-\begin{itemize}
-
-\item A function \verb|instr_fetch| expressing instruction-fetch,
-    returning a regular 32-bit instruction, or 'C' compressed 16-bit
-    instruction, or an instruction-fetch fault.
-
-\item A large number of functions named \verb|spec_|{\it{}OPCODE}
-describing the semantics of all RISC-V instructions.
-
-\item A small number of functions name \verb|finish_|{\it{}scheme}
-capturing the few common schemes by which instructions finish (write
-Rd, increment PC, increment MINSTRET, trap, ...)
-
-\item A function \verb|mstate_upd_on_trap| (which is perhaps the most
-intricate) that updates the machine state for a trap.  It computes the
-new privilege level, new PC, new MSTATUS, new MEPC/{\linebreak[0]}SEPC/{\linebreak[0]}UEPC, new
-MCAUSE/{\linebreak[0]}SCAUSE/{\linebreak[0]}UCAUSE, and new MTVAL/{\linebreak[0]}STVAL/{\linebreak[0]}UTVAL based on whether
-it was an interrupt or synchronous trap, the current privilege level,
-the MSTATUS register, MIP and MIE registers, MIDELEG and MEDELEG
-registers, MTVEC/{\linebreak[0]}STVEC/{\linebreak[0]}UTVEC
-
-\item A function \verb|exec_instr| (and it's counterpart
-\verb|exec_instr_C| for 'C' compressed instructions) that uses all the
-\verb|spec_|{\it{}OPCODE} to update the machine state by executing
-exactly one instruction.
-
-\item A function \verb|take_interrupt_if_any| that checks the machine
-state to see if an interrupt is pending and updates the machine state
-if so (to be poised at the trap vector).
-
-\end{itemize}
-
-% ****************************************************************
-
-\section{Other source code files}
-
-\label{sec_misc}
-
-\verb|Bit_Manipulation.hs| contains utilities for bit manipulation,
-including sign- and zero-extension, truncation, conversion, etc. that
-are relevant for these semantics.
-
-Most of the remaining files are not part of ISA semantics, but
-infrastructure for building a ``system'': a boot ROM, a memory, and
-I/O devices such as a timer (MTIME and MTIMECMP), a software-interrupt
-location (MSIP), and a UART for console I/O.
-
-\verb|Main.hs| is a driver program that just dispatches to one of two
-use-cases, \verb|Main_RunProgram.hs| (free-running) or
-\verb|Main_TandemVerifier.hs| (Tandem Verification).
-
-\verb|Main_RunProgram.hs| reads RISC-V binaries (ELF), initializes
-architecture state and memory, and calls \verb|RunProgram| to run the
-loaded program, up to a specified maximum number of instructions.
-
-\verb|Run_Program.hs| contains the FETCH-EXECUTE loop, along with some
-heuristic stopping-conditions (maximum instruction count, detected
-self-loop, detected non-zero write into \verb|tohost| memory location,
-etc.
-
-\verb|Main_TandemVerifier.hs| sets up Forvis to be a slave processs to
-a tandem verifier, receiving commands on stdin and sending responses
-on stdout.  The commands allow a tandem verifier to initialize
-architecture state, execute 1 or more instructions, and query
-archtectural state. Responses include tandem verification packets
-which the verifier can use to check an implementation.
-
-\verb|Addres_Map.hs| specifies the address map for the ``system'': the
-base address and address range for each memory and I/O device.
-
-\verb|Memory.hs| implements a memory model with read, write and AMO
-functions.
-
-\verb|MMIO.hs| implements the memory-mapped I/O system.
-
-\verb|Mem_Ops.hs| defines instruction field values that specify the
-type and size of memory operations.  These are duplicates of defs in
-\verb|Forvis_Spec.hs| where they are in the specs of LOAD, STORE and
-AMO instructions.  They are repeated here because this information is
-also needed in \verb|Memory.hs|, \verb|MMIO.hs| and other places.
-
-\verb|UART.hs| is a model of the popular National Semiconductor
-NS16550A UART.
-
-\verb|Elf.hs| and \verb|Read_Hex_File.hs| are functions for reading
-ELF files and ``Hex Memory'' files, respectively.
-
-% ****************************************************************
-
-\newpage
-
-\markboth{BIBLIOGRAPHY}{\copyrightnotice}
-
-\addcontentsline{toc}{section}{Bibliography}
-
-\bibliographystyle{abbrv}
-\bibliography{forvis_reading_guide}
 
 % ****************************************************************
 

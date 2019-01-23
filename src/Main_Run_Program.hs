@@ -33,7 +33,7 @@ import Read_Hex_File
 import Arch_Defs
 import Machine_State
 import CSR_File
-import Run_Program
+import Run_Program_Sequential
 import Mem_Ops
 import Memory
 import MMIO
