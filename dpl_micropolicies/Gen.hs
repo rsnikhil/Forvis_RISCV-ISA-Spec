@@ -1,6 +1,5 @@
 module Gen where
 
-
 import Arch_Defs
 import GPR_File
 import Forvis_Spec_I

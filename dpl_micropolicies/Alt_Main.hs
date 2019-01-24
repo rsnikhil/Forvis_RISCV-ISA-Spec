@@ -28,6 +28,8 @@ import Machine_State
 import Run_Program_PIPE
 import Generator (genASTFile,genSymbolsFile)
 
+import Gen
+
 main = do
   ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
   putStrLn $ "module name = " ++ (show name)

@@ -26,7 +26,6 @@ cabal.sandbox.config
 *.vo
 Makefile.conf
 .coqdeps.d
-.stack-work/
 cabal.project.local
 .HTF/
 elf_to_hex

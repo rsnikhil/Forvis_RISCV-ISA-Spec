@@ -1,6 +1,8 @@
 module PIPE(PIPE_Policy,
             load_pipe_policy,
             TagSet,
+            P,
+            Color,
             mkTagSet,
             rdTagSet,
             GPR_FileT(..),
@@ -34,9 +36,15 @@ import Forvis_Spec_I
 import GPR_File
 -- import Memory
 
+import Control.Monad.Reader
+
 type PIPE_Policy = E.QPolMod
 
+type P a = Reader PIPE_Policy a
+
 type TagSet = EC.TagValue 
+
+type Color = Int
 
 load_pipe_policy :: String {- policy file name -}
                  -> IO PIPE_Policy

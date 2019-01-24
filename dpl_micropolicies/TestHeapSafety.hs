@@ -4,6 +4,7 @@ import qualified Data.Map.Strict as Data_Map
 import Data.Maybe
 import qualified Data.Set as Data_Set
 import Data.Set (Set)
+import qualified Data.List as Data_List
 
 import Bit_Utils
 import Arch_Defs
@@ -17,6 +18,8 @@ import Memory
 
 -- This might belong elsewhere
 import Test.QuickCheck
+
+import Control.Monad.Reader
 
 --------------------------------------------------------
 -- This belongs in /src!
@@ -62,49 +65,73 @@ import Run_Program_PIPE
         things on its list.
 -}
 
-reachableInOneStep :: MemT -> Set Color -> Set Color
+cellColorOf :: TagSet -> P (Maybe Color)
+cellColorOf t = do
+  ppol <- ask
+  let l = rdTagSet ppol t
+  -- Ughly:
+  case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Cell"] l) of
+    (Just [c,_], _) -> return c
+    (_, Just [c]) -> return c
+    _ -> return Nothing
+
+pointerColorOf :: TagSet -> P (Maybe Color)
+pointerColorOf t = do
+  ppol <- ask
+  let l = rdTagSet ppol t
+  -- Ughly:
+  case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Pointer"] l) of
+    (Just [_,p], _) -> return p
+    (_, Just [p]) -> return p
+    _ -> return Nothing
+
+reachableInOneStep :: MemT -> Set Color -> P (Set Color)
 reachableInOneStep m s =
-  foldr (\t s -> 
-           case t of 
-             MTagM v l -> if Data_Set.member l s then Data_Set.insert v s else s
-             _ -> s)
+  foldM (\s t -> do
+           c <- cellColorOf t
+           p <- pointerColorOf t
+           case (c,p) of
+             (Just c', Just p') | Data_Set.member c' s -> return $ Data_Set.insert p' s
+             _ -> return s)
    s (Data_Map.elems $ unMemT m)
 
-reachableLoop :: MemT -> Set Color -> Set Color
-reachableLoop m s = 
-  let s' = reachableInOneStep m s in
-  if s == s' then s else reachableLoop m s'
+reachableLoop :: MemT -> Set Color -> P (Set Color)
+reachableLoop m s = do
+  s' <- reachableInOneStep m s 
+  if s == s' then return s else reachableLoop m s'
 
-registerColors :: PIPE_State -> Set Color 
+registerColors :: PIPE_State -> P (Set Color)
 registerColors pstate = 
-  foldr (\t s -> case t of 
-                   MTagR c -> Data_Set.insert c s 
-                   _ -> error "Register tag should be an MTagR")
+  foldM (\s t -> do
+            c <- pointerColorOf t
+            case c of
+              Just c' -> return $ Data_Set.insert c' s 
+              _ -> error "Register tag should be a pointer")
     Data_Set.empty (unGPR $ p_gprs pstate) 
 
-reachable :: PIPE_State -> Set Color
+reachable :: PIPE_State -> P (Set Color)
 reachable p = reachableLoop (p_mem p) (registerColors p)
 
-sameReachablePart :: MStatePair -> Bool
-sameReachablePart (M (s1, p1) (s2, p2)) =
-  let r1 = reachable p1
-      r2 = reachable p2
+sameReachablePart :: MStatePair -> P Bool
+sameReachablePart (M (s1, p1) (s2, p2)) = do
+  r1 <- reachable p1
+  r2 <- reachable p2
 
-      filterAux [] _ = []
-      filterAux _ [] = []
+  let filterAux [] _ = return []
+      filterAux _ [] = return []
       filterAux ((i,d):ds) ((j,t):ts)
-        | i == j =
-            case t of
-              MTagM v l | Data_Set.member l r1 -> d : filterAux ds ts
+        | i == j = do
+            c <- cellColorOf t
+            case c of
+              Just c' | Data_Set.member c' r1 -> (d :) <$> filterAux ds ts
               _ -> filterAux ds ts
         | i < j = filterAux ds ((j,t):ts)
         | i > j = filterAux ((i,d):ds) ts
 
-  in
-    r1 == r2
-    && (f_gprs s1 == f_gprs s2)
-    && (filterAux (Data_Map.assocs $ f_dm $ f_mem s1) (Data_Map.assocs $ unMemT $ p_mem p1) ==
-        filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2))
+  f1 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s1) (Data_Map.assocs $ unMemT $ p_mem p1)
+  f2 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2)
+
+  return $ r1 == r2 && (f_gprs s1 == f_gprs s2) && (f1 == f2)
 
 --- If you want reachability information, this needs to be before the prop_noninterference.
 -- Shorthand for (indistinguishable) pairs of m- and p-states 

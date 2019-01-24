@@ -33,6 +33,7 @@ dependencies:
 - transformers
 - lens
 - either
+- mtl
 - policy-tool
 - policy-eval
 # # These are for policy-tool:

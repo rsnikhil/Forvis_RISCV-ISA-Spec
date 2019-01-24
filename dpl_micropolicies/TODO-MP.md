@@ -1,5 +1,9 @@
 TODAY
 
+delete policy-*
+
+___
+
 Falling off the end of memory is not a very interesting behavior -- generate it less often or maybe explicitly look for it and halt execution
 
 Try to write an explicit test that exercises the second mutant
