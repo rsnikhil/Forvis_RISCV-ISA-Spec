@@ -39,7 +39,7 @@ type InstrField = Integer      -- various fields of instructions
 
 type GPR_Addr = Integer        -- 5-bit addrs, 0..31
 type GPR_Val  = Integer        -- 32-bit or 64-bit values
-
+                                                   -- \end_latex{...Instr}
 -- Floating-point registers
 
 type FPR_Addr = Integer        -- 5-bit addrs, 0..31
@@ -47,7 +47,7 @@ type FPR_Addr = Integer        -- 5-bit addrs, 0..31
 -- CSRs
 
 type CSR_Addr = Integer        -- 12-bit addrs, 0..0xFFF
-                                                   -- \end_latex{Instr}
+
 -- ================================================================
 -- Predicate to decide whether the arg may be a 'C' (Compressed)    -- \begin_latex{is_instr_C}
 -- instruction or not ('C' instrs have 2 lsbs not equal to 2'b11)

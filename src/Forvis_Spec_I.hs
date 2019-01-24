@@ -252,11 +252,12 @@ decode_I    rv    instr_32b =
     m_instr_I
 
 -- ================================================================
--- Execution of Instr_I                                                    -- \begin_latex{exec_instr_I}
-
+-- Execution of Instr_I
+                                                                           -- \begin_latex{Spec_Instr_I}
 type Spec_Instr_I = Bool -> Instr_I -> Machine_State -> Machine_State
 --                  is_C    instr_I    mstate           mstate'
-
+                                                                           -- \end_latex{Spec_Instr_I}
+                                                                           -- \begin_latex{exec_instr_I}
 exec_instr_I :: Spec_Instr_I
 exec_instr_I  is_C  instr_I  mstate =
   case instr_I of
@@ -630,7 +631,7 @@ exec_SRA  :: Spec_Instr_I
 exec_SRA   is_C  (SRA    rd  rs1  rs2)  mstate =
   exec_OP  alu_sra   is_C  rd  rs1  rs2  mstate
 
-                                                                    -- \begin_latex{exec_ADD_2}
+                                                                    -- \begin_latex{exec_OP}
 exec_OP :: (Int -> Integer -> Integer -> Integer) ->
            Bool ->
            GPR_Addr ->
@@ -645,8 +646,8 @@ exec_OP    alu_op  is_C  rd  rs1  rs2  mstate =
     rd_val  = alu_op  xlen  rs1_val  rs2_val       -- compute rd_val
     mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
   in
-    mstate1                                                         -- \end_latex{exec_ADD_2}
-
+    mstate1
+                                                                    -- \end_latex{exec_OP}
 -- ================================================================
 -- MISC_MEM: FENCE
 -- This is technically an architectural 'no-op', but it can modify
@@ -662,7 +663,7 @@ exec_FENCE   is_C  (FENCE  fm  pred  succ)  mstate =
 
 -- ================================================================
 -- ECALL
-
+                                                                    -- \begin_latex{exec_ECALL}
 exec_ECALL :: Spec_Instr_I
 exec_ECALL    is_C  (ECALL)  mstate =
   let
@@ -672,11 +673,10 @@ exec_ECALL    is_C  (ECALL)  mstate =
              | priv == u_Priv_Level = exc_code_ECall_from_U
              | True                 = error ("Illegal priv " ++ show (priv))
     tval = 0
-
     mstate1 = finish_trap  mstate  exc_code  tval
   in
     mstate1
-
+                                                                    -- \end_latex{exec_ECALL}
 -- ================================================================
 -- EBREAK
 

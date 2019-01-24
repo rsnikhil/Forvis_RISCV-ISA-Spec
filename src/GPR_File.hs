@@ -30,11 +30,11 @@ import Arch_Defs
 -- will; only the exported API can be used by clients.
 
 -- In particular: Data_Map.lookup is a general facility returning a
--- 'Maybe Integer' which may be 'Just v' if the index is in the map,
+-- 'Maybe GPR_Val' which may be 'Just v' if the index is in the map,
 -- and 'Nothing' otherwise.  Here, we only use indexes that are
 -- present, so we use 'fromMaybe' to extract 'v' from 'Just v'.
                                                                     -- \begin_latex{GPR_File}
-newtype GPR_File = GPR_File  (Data_Map.Map  InstrField  Integer)
+newtype GPR_File = GPR_File  (Data_Map.Map  GPR_Addr  GPR_Val)
 
 mkGPR_File :: GPR_File
 mkGPR_File = GPR_File (Data_Map.fromList (zip
@@ -44,14 +44,14 @@ mkGPR_File = GPR_File (Data_Map.fromList (zip
 
 -- Read a GPR
 
-gpr_read :: GPR_File ->    GPR_Addr -> Integer
+gpr_read :: GPR_File ->    GPR_Addr -> GPR_Val
 gpr_read    (GPR_File dm)  reg = fromMaybe 0 (Data_Map.lookup  reg  dm)
 
 {-# INLINE gpr_read #-}
 
 -- Write a value to a GPR
 
-gpr_write :: GPR_File ->    GPR_Addr -> Integer -> GPR_File
+gpr_write :: GPR_File ->    GPR_Addr -> GPR_Val -> GPR_File
 gpr_write    (GPR_File dm)  reg         val =
   let
     -- Register 0 should always be 0

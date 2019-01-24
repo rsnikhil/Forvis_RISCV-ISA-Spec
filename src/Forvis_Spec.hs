@@ -40,7 +40,7 @@ import Forvis_Spec_D           -- Extension 'D' (double-precision floating point
 -- Privileged Architecture instructions
 import Forvis_Spec_Priv
 
--- ================================================================ \begin_latex{instr_fetch}
+-- ================================================================
 -- Instruction fetch
 -- This function attempts an insruction fetch based on the current PC.
 
@@ -54,14 +54,13 @@ import Forvis_Spec_Priv
 --   - Else we check if it's a 'C' instruction; if so, we're done
 --   - Else we attempt to read the next 2 bytes (remaining 2 bytes of a 32b instr)
 --   -      This fetch-attempt may also trap
-
+                                                                   -- \begin_latex{instr_fetch}
 data Fetch_Result = Fetch_Trap  Exc_Code
                   | Fetch_C     Integer
                   | Fetch       Integer
                   deriving (Show)
-
 instr_fetch :: Machine_State -> (Fetch_Result, Machine_State)
-instr_fetch  mstate =
+instr_fetch    mstate =
   let                                                              -- \end_latex{instr_fetch}
     rv                = mstate_rv_read   mstate
     pc | (rv == RV32) = (mstate_pc_read  mstate .&. 0xFFFFFFFF)
