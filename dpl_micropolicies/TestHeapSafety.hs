@@ -110,7 +110,7 @@ registerColors pstate =
     Data_Set.empty (unGPR $ p_gprs pstate) 
 
 reachable :: PIPE_State -> P (Set Color)
-reachable p = reachableLoop (p_mem p) (registerColors p)
+reachable p = registerColors p >>= reachableLoop (p_mem p) 
 
 sameReachablePart :: MStatePair -> P Bool
 sameReachablePart (M (s1, p1) (s2, p2)) = do
@@ -138,33 +138,33 @@ sameReachablePart (M (s1, p1) (s2, p2)) = do
 data MStatePair =
   M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
 
-instance PP MStatePair where
-  pp (M (m1, p1) (m2, p2)) =
-    P.vcat [ P.text "Reachable Colors:" <+> pretty (reachable p1) (reachable p2)
+prettyMStatePair :: PIPE_Policy -> MStatePair -> Doc
+prettyMStatePair ppol (M (m1, p1) (m2, p2)) =
+    P.vcat [ P.text "Reachable Colors:" <+> pretty (runReader (reachable p1) ppol) (runReader (reachable p2) ppol)
            , P.text "PC:" <+> pretty (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
            , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
            , P.text "Memories:" $$ P.nest 2 (pretty (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
            ]
 
-print_mstatepair :: MStatePair -> IO ()
-print_mstatepair m = putStrLn $ P.render $ pp m
+print_mstatepair :: PIPE_Policy -> MStatePair -> IO ()
+print_mstatepair ppol m = putStrLn $ P.render $ prettyMStatePair ppol m
 
-prop_noninterference :: MStatePair -> Property
-prop_noninterference (M (m1,p1) (m2,p2)) =
-  let (r1,ss1') = run_loop 100 p1 m1
-      (r2,ss2') = run_loop 100 p2 m2
+prop_noninterference :: PIPE_Policy -> MStatePair -> Property
+prop_noninterference ppol (M (m1,p1) (m2,p2)) =
+  let (r1,ss1') = run_loop ppol 100 p1 m1
+      (r2,ss2') = run_loop ppol 100 p2 m2
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
   whenFail (do putStrLn $ "Reachable parts differ after execution!"
                putStrLn $ "Original machines:"
-               print_mstatepair (M (m1,p1) (m2,p2))
+               print_mstatepair ppol (M (m1,p1) (m2,p2))
                putStrLn $ "After execution..."
-               print_mstatepair (M (m1', p1') (m2', p2'))
+               print_mstatepair ppol (M (m1', p1') (m2', p2'))
 --               putStrLn "First One:"
 --               print_coupled m1' p1'
 --               putStrLn "Second One:"
 --               print_coupled m2' p2'
            )
            (collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32)
-             (sameReachablePart (M (m1', p1') (m2', p2'))))
+             (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) ppol))
 
 

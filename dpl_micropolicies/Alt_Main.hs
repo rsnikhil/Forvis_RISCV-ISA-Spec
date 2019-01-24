@@ -28,15 +28,32 @@ import Machine_State
 import Run_Program_PIPE
 import Generator (genASTFile,genSymbolsFile)
 
-import Gen
+import Test.QuickCheck
 
-main = do
+import Gen
+import TestHeapSafety
+import Shrinking
+
+main_example = do
   ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
   putStrLn $ "module name = " ++ (show name)
   genASTFile (Just pol)
   genSymbolsFile symbols
   let x = mkTagSet ppol ["test","CP"] [Just 42,Just 99]
   putStrLn $ show (rdTagSet ppol x)
+
+main_test = do
+  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"  
+  quickCheckWith stdArgs{maxSuccess=1000} $ forAllShrink (genMStatePair ppol) (shrinkMStatePair ppol) $ \m ->
+    prop_noninterference ppol m
+
+main = main_test
+
+instance Show Machine_State where
+  show _ = ""
+
+instance Show MStatePair where
+  show _ = ""
 
 {-main2 = do
   let ((ms,ps),_) = exampleMachines

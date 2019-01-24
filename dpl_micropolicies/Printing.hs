@@ -176,13 +176,15 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
 
     in P.vcat $ pr_aux [] c1 c2
 
-{-
+instance PP Color where
+  -- TODO: Pretty printing of colors?
+  pp n = P.int n
+  
 instance CoupledPP (Set Color) (Set Color) where
   pretty s1 s2 =
     if s1 == s2 then foldl1 (<+>) (map pp $ Data_Set.elems s1)
     else
       P.text "<Discrepancy!>" <+> foldl1 (<+>) (map pp $ Data_Set.elems s1) <||> foldl1 (<+>) (map pp $ Data_Set.elems s2)
--}  
 
 print_coupled :: Machine_State -> PIPE_State -> IO ()
 print_coupled ms ps =
