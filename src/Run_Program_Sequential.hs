@@ -33,7 +33,9 @@ import Arch_Defs
 import Machine_State
 import CSR_File
 
-import Forvis_Spec
+import Forvis_Spec_Instr_Fetch
+import Forvis_Spec_Execute
+import Forvis_Spec_Interrupts
 
 -- ================================================================
 -- The 'run loop's main function is to repeatedly fetch and execute an

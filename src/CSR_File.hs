@@ -931,7 +931,8 @@ csr_interrupt_pending :: Integer ->                    -- MISA
                          Integer ->                    -- MIE
                          Integer ->                    -- MIDELEG
                          Integer ->                    -- SIDELEG
-                         Priv_Level -> Maybe Exc_Code
+                         Priv_Level ->                 -- current privilege level
+                         Maybe  Exc_Code
 csr_interrupt_pending  misa  mstatus  mip  mie  mideleg  sideleg  priv =
   let
     fn_interrupt_i_pending :: Exc_Code -> Bool

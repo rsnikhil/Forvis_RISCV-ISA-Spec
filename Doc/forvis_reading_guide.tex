@@ -1247,55 +1247,88 @@ type.
 
 % ****************************************************************
 
-\section{File {\tt Forvis\_Spec.hs}: Instruction Fetch and Execution Dispatch}
+\section{File {\tt Forvis\_Spec\_Instr\_Fetch.hs}: Instruction Fetch}
 
-% ================================================================
+\label{sec_instr_fetch}
 
-\subsection{Instruction Fetch}
+An instruction-fetch can have three possible outcomes, which are
+expressed in this data type:
 
-An instruction fetch can have three possible outcomes.
-\begin{tightlist}
+\input{Extracted/Fetch_Result}
 
-\item It can trap, due to a misaligned access, or access fault
-
-\item It can return a regular 32-bit instruction
-
-\item If the C (compressed) extension is active (MISA.C bit set), it
-can return a 16-bit C instruction.
-
-\end{tightlist}
-These outcomes are expressed in a type definition, and the header of
-the \verb|instr_fetch| function:
+The instruction-fetch function takes a machine state and returns a
+2-tuple: a \verb|Fetch_Result| and a new machine state:
 
 \input{Extracted/instr_fetch}
 
-The \verb|instr_fetch| function takes the current machine state as
-argument, and attempts to read and instruction from memory, returning
-a 2-tuple: a \verb|Fetch Result| and the updated machine state.  Note,
-while we may think of an instruction-fetch as a pure ``read'', the
-machine state can in general be updated during virtual memory
-translation, and if the machine state models caches for concurrent
-interpretation.
+Note, while we may think of an instruction-fetch as a pure ``read'',
+we return a potentially changed machine state because even a read can
+have side effects.\footnote{For example, a virtual memory access can
+change an 'Accessed' bit in a page table entry; a read may be from an
+I/O device where reads can have side-effects; if we model caches for
+concurrent interpretation, cache state can change; if we model
+performance counters, those could change.}
 
-The body of the \verb|instr_fetch| function first checks the 'C' flag
-in CSR MISA to see if compressed instructions are supported.  If not,
-it reads a 4-byte (32-bit) instruction from memory.  If 'C' is
-supported, it first reads 2 bytes from memory, and checks if it
-encodes a possible 'C' instruction. If not, it then reads 2 more bytes
-from memory and returns it as a full 32-bit instruction.  Of course,
-either of these two reads can fault, and this is the reason we read
-two bytes at a time: the first read may succeed with a 'C'
-instruction, in which case we do not want to encounter a fault for
-reading two more bytes which may be unnecessary in the program flow.
+Instruction-fetch must be done carefully, avoiding spurious
+exceptions.  Consider this scenario: the PC is pointing at the last
+two bytes of a virtual memory page.  We do not know whether (A) those
+two bytes contain a C instruction, or (B) the first two bytes of a
+normal 32-bit instruction, with PC+2 pointing at its remaining two
+bytes.  In case (A), control flow (branches, traps) may never take us
+to PC+2, but a read from PC+2, being on the next page, may raise a
+virtual-memory exception.  Thus, we should fetch the latter two bytes
+\emph{only if necessary}, to avoid this spurious exception.
 
-% ================================================================
+The code for the \verb|instr_fetch| function is structured to handle
+this.  It first checks the 'C' flag in CSR MISA to see if compressed
+instructions are supported.  If not, it reads a 4-byte (32-bit)
+instruction from memory, which may of course return either an
+exception or a 32-bit instruction:
 
-\subsection{Execution Dispatch}
+\input{Extracted/instr_fetch_1}
 
-A function \verb|exec_instr| (and it's counterpart
-\verb|exec_instr_C| for 'C' compressed instructions) that uses all the
-\verb|spec_|{\it{}OPCODE} to update the machine state by executing
-exactly one instruction.
+If 'C' is supported, it first reads 2 bytes from memory and, if that
+is not an exception, checks if it encodes a 'C' instruction:
+
+\input{Extracted/instr_fetch_2}
+
+If it is not a C instruction, then it is the first 2 bytes of a 32-bit
+instruction; it reads 2 more bytes from memory and returns it as a
+full 32-bit instruction.
+
+% ****************************************************************
+
+\section{File {\tt Forvis\_Spec\_Execute.hs}: Top-level execution functions}
+
+\label{sec_execute}
+
+The function \verb|exec_instr_32b| executes exactly one instruction.
+It takes an instruction and machine state and returns the updated
+machine state resulting from executing that instruction (the second
+component of the output 2-tuple, a \verb|String|, is just for printing
+out instruction traces during simulation, and has no semantic
+significance).  It first calls \verb|decode_I| (and similar decode
+functions for other ISA extensions) to decide whether is an I
+instruction and, if so, obtain the abstract version of the instruction
+(of type \verb|Instr_I|).
+
+\input{Extracted/exec_instr_32b}
+
+The long list of nested \verb|case| expressions that follow simply
+dispatch to the appropriate execution function; for example if it is
+an \verb|Instr_I|, it invokes \verb|exec_instr_I|, and so on.
+
+\input{Extracted/exec_instr_32b_2}
+
+At the end of the list of case expressions, i.e., if none of the
+decoders identified the instruction, it raises an illegal instruction
+exception:
+
+\input{Extracted/exec_instr_32b_3}
+
+The rest of the file is straightforward: the function
+\verb|exec_instr_16b| is just like \verb|exec_instr_32b| which we just
+examined, except for 16-bit C (compressed) instructions.
 
 % ****************************************************************
 
@@ -1435,22 +1468,43 @@ the machine state is both an argument and a result of the function.
 
 \input{Extracted/vm_translate}
 
-% ================================================================
+% ****************************************************************
 
-\subsection{Interrupts}
+\section{File {\tt Forvis\_Spec\_Interrupts.hs}: Interrupts}
 
 \label{sec_interrupts}
 
+This module contains two functions related to interrupts.  The
+\verb|take_interrupt_if_any| function can be applied between the
+execution of any two instructions:
+
 \input{Extracted/take_interrupt}
 
-In the file \verb|Forvis_Spec.hs| the \verb|take_interrupt_if_any|
-function can be applied between any two instruction executions. It
-uses the function \verb|fn_interrupt_pending| that examines MSTATUS,
-MIP, MIE and the current privilege level to check if there is an
-interrupt is pending and the hart is ready to handle it.  If so, it
-applies \verb|mstate_upd_on_trap| to update the machine state, which
-it returns along with True.  Otherwise, it returns False and the
-unchanged machine state.
+It first uses the function \verb|csr_interrupt_pending| (in
+\verb|CSR_RegFile.cs|) to determine if the current machine state
+allows taking an interrupt.  That function takes into account whether
+an interrupt is pending (in the CSR MIP), whether interrupts are
+delegated to a lower privilege level (in CSRs MIDELEG and SIDELEG),
+and whether interrupts are enabled at the appropriate level (in CSRs
+MSTATUS/ SSTATUS/ USTATUS and MIE/ SIE/ UIE).
+
+If so, \verb|csr_interrupt_pending| ``takes the interrupt'', i.e., it
+applies \verb|mstate_upd_on_trap| to update the PC so that the next
+instruction fetched will be from the interrupt handler, with CSRs
+holding appropriate values for the handler.
+
+If no interrupt can be taken now, it returns \verb|Nothing| and an
+unchanged machine state.  The second function in the file is:
+
+\input{Extracted/wfi_resume}
+
+which merely delegates to \verb|csr_wfi_resume| which checks if the
+CPU can resume from a WFI (Wait For Interrupt) state.  Note, WFI does
+not take an interrupt, it merely resumes at the next instruction,
+which may take the interrupt. Also, the resumption condition is weaker
+than the condition used by the previous function actually to take an
+interrupt (WFI instructions are inside a loop where, if the interrupt
+is not actually taken, we just wait again at the WFI).
 
 % ****************************************************************
 
