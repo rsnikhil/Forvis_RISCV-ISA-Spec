@@ -123,29 +123,34 @@ csr_permission  (CSR_File dm)  priv  csr_addr =
 csr_read :: RV -> CSR_File -> CSR_Addr -> Integer
 csr_read  rv  (CSR_File dm)  csr_addr =
   let
-    mstatus = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus  dm)
-    mip     = fromMaybe  0  (Data_Map.lookup  csr_addr_mip      dm)
-    mie     = fromMaybe  0  (Data_Map.lookup  csr_addr_mie      dm)
-
+    mstatus      = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus   dm)
     ustatus_mask = if (rv == RV32) then ustatus_mask_RV32 else ustatus_mask_RV64
     sstatus_mask = if (rv == RV32) then sstatus_mask_RV32 else sstatus_mask_RV64
+
+    mip      = fromMaybe  0  (Data_Map.lookup  csr_addr_mip       dm)
+    mie      = fromMaybe  0  (Data_Map.lookup  csr_addr_mie       dm)
+    minstret = fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm)
+    mcycle   = fromMaybe  0  (Data_Map.lookup  csr_addr_mcycle    dm)
+
+    fcsr     = fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr      dm)
+
 
     val | (csr_addr == csr_addr_ustatus)  = (mstatus .&. ustatus_mask)
         | (csr_addr == csr_addr_uip)      = (mip .&. uip_mask)
         | (csr_addr == csr_addr_uie)      = (mie .&. uip_mask)
-        | (csr_addr == csr_addr_cycle)    = fromMaybe  0  (Data_Map.lookup  csr_addr_mcycle    dm)
-        | (csr_addr == csr_addr_cycleh)   = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_mcycle    dm))  32)
-        | (csr_addr == csr_addr_instret)  = fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm)
-        | (csr_addr == csr_addr_instreth) = (shiftR  (fromMaybe  0  (Data_Map.lookup  csr_addr_minstret  dm))  32)
-        | (csr_addr == csr_addr_frm)      = (shiftR  ((fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm)) .&. frm_mask) frm_bitpos)
-        | (csr_addr == csr_addr_fflags)   = fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm) .&. fflags_mask
-        | (csr_addr == csr_addr_fcsr)     = fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm) .&. (fflags_mask .|. frm_mask)
+        | (csr_addr == csr_addr_cycle)    = mcycle
+        | (csr_addr == csr_addr_cycleh)   = (shiftR  mcycle  32)
+        | (csr_addr == csr_addr_instret)  = minstret
+        | (csr_addr == csr_addr_instreth) = (shiftR  minstret  32)
+        | (csr_addr == csr_addr_frm)      = (shiftR  (fcsr .&. frm_mask)  frm_bitpos)
+        | (csr_addr == csr_addr_fflags)   = (fcsr .&. fflags_mask)
+        | (csr_addr == csr_addr_fcsr)     = (fcsr .&. (fflags_mask .|. frm_mask))
 
-        | (csr_addr == csr_addr_sstatus) = (mstatus .&. sstatus_mask)
-        | (csr_addr == csr_addr_sip)     = (mip .&. sip_mask)
-        | (csr_addr == csr_addr_sie)     = (mie .&. sip_mask)
+        | (csr_addr == csr_addr_sstatus)  = (mstatus .&. sstatus_mask)
+        | (csr_addr == csr_addr_sip)      = (mip .&. sip_mask)
+        | (csr_addr == csr_addr_sie)      = (mie .&. sip_mask)
 
-        | True                           = fromMaybe  0  (Data_Map.lookup  csr_addr  dm)
+        | True                            = fromMaybe  0  (Data_Map.lookup  csr_addr  dm)
   in
     val
 
@@ -244,6 +249,34 @@ csr_addr_instreth   = 0xC82 :: CSR_Addr
 
 -- TODO: hpmcounterN, hpmcounterNh
 
+-- ----------------
+-- User-Level CSR reset values
+
+u_csr_reset_values :: [(CSR_Addr, Integer)]
+u_csr_reset_values =
+  [ (csr_addr_utvec,      0),
+
+    (csr_addr_uscratch,   0),
+    (csr_addr_uepc,       0),
+    (csr_addr_ucause,     0),
+    (csr_addr_utval,      0),
+
+    (csr_addr_fflags,     0),
+    (csr_addr_frm,        0),
+    (csr_addr_fcsr,       0),
+
+    (csr_addr_cycle,      0),
+    (csr_addr_time,       0),
+    (csr_addr_instret,    0),
+
+    (csr_addr_cycleh,     0),
+    (csr_addr_timeh,      0),
+    (csr_addr_instreth,   0) ]
+
+-- ----------------
+-- These names are only used for printing instruction traces during
+-- simulation, and have no semantic significance.
+
 -- The following list is in the order printed by print_CSR_File()
 
 u_csr_addrs_and_names :: [(CSR_Addr, String)]
@@ -286,6 +319,27 @@ csr_addr_stval      = 0x143 :: CSR_Addr
 csr_addr_sip        = 0x144 :: CSR_Addr
 
 csr_addr_satp       = 0x180 :: CSR_Addr
+
+-- ----------------
+-- Supervisor-Level CSRs reset values
+
+s_csr_reset_values :: [(CSR_Addr, Integer)]
+s_csr_reset_values =
+  [ (csr_addr_sedeleg,    0),
+    (csr_addr_sideleg,    0),
+    (csr_addr_stvec,      0),
+    (csr_addr_scounteren, 0),
+
+    (csr_addr_sscratch,   0),
+    (csr_addr_sepc,       0),
+    (csr_addr_scause,     0),
+    (csr_addr_stval,      0),
+
+    (csr_addr_satp,       0) ]
+
+-- ----------------
+-- These names are only used for printing instruction traces during
+-- simulation, and have no semantic significance.
 
 -- The following list is in the order printed by print_CSR_File()
 
@@ -349,91 +403,7 @@ csr_addr_dcsr       = 0x7B0 :: CSR_Addr
 csr_addr_dpc        = 0x7B1 :: CSR_Addr
 csr_addr_dscratch   = 0x7B2 :: CSR_Addr
 
--- The following list is in the order printed by print_CSR_File()
-
-m_csr_addrs_and_names :: [(CSR_Addr, String)]
-m_csr_addrs_and_names  =
-  [ (csr_addr_mstatus,    "mstatus"),
-    (csr_addr_mie,        "mie"),
-    (csr_addr_mip,        "mip"),
-    (csr_addr_medeleg,    "medeleg"),
-    (csr_addr_mideleg,    "mideleg"),
-
-    (csr_addr_mtvec,      "mtvec"),
-    (csr_addr_mepc,       "mepc"),
-    (csr_addr_mcause,     "mcause"),
-    (csr_addr_mtval,      "mtval"),
-    (csr_addr_mscratch,   "mscratch"),
-
-    (csr_addr_minstret,   "minstret"),
-    (csr_addr_minstreth,  "minstreth"),
-    (csr_addr_mcycle,     "mcycle"),
-    (csr_addr_mcycleh,    "mcycleh"),
-    (csr_addr_mcounteren, "mcounteren"),
-
-    (csr_addr_mvendorid,  "mvendorid"),
-    (csr_addr_marchid,    "marchid"),
-    (csr_addr_mimpid,     "mimpid"),
-    (csr_addr_mhartid,    "mhartid"),
-    (csr_addr_misa,       "misa"),
-
-    (csr_addr_tselect,    "tselect"),
-    (csr_addr_data1,      "data1"),
-    (csr_addr_data2,      "data2"),
-    (csr_addr_data3,      "data3"),
-    (csr_addr_dcsr,       "dcsr"),
-
-    (csr_addr_dpc,        "dpc"),
-    (csr_addr_dscratch,   "dscratch")
-  ]
-
--- ****************************************************************
--- ****************************************************************
--- ****************************************************************
--- CSR reset values
-
--- ================================================================
--- User-Level CSR reset values
-
-u_csr_reset_values :: [(CSR_Addr, Integer)]
-u_csr_reset_values =
-  [ (csr_addr_utvec,      0),
-
-    (csr_addr_uscratch,   0),
-    (csr_addr_uepc,       0),
-    (csr_addr_ucause,     0),
-    (csr_addr_utval,      0),
-
-    (csr_addr_fflags,     0),
-    (csr_addr_frm,        0),
-    (csr_addr_fcsr,       0),
-
-    (csr_addr_cycle,      0),
-    (csr_addr_time,       0),
-    (csr_addr_instret,    0),
-
-    (csr_addr_cycleh,     0),
-    (csr_addr_timeh,      0),
-    (csr_addr_instreth,   0) ]
-
--- ================================================================
--- Supervisor-Level CSRs reset values
-
-s_csr_reset_values :: [(CSR_Addr, Integer)]
-s_csr_reset_values =
-  [ (csr_addr_sedeleg,    0),
-    (csr_addr_sideleg,    0),
-    (csr_addr_stvec,      0),
-    (csr_addr_scounteren, 0),
-
-    (csr_addr_sscratch,   0),
-    (csr_addr_sepc,       0),
-    (csr_addr_scause,     0),
-    (csr_addr_stval,      0),
-
-    (csr_addr_satp,       0) ]
-
--- ================================================================
+-- ----------------
 -- Machine-Level CSR reset values
 
 m_csr_reset_values :: RV -> Integer -> [(CSR_Addr, Integer)]
@@ -473,6 +443,48 @@ m_csr_reset_values    rv    misa =
     (csr_addr_dcsr,       0),
     (csr_addr_dpc,        0),
     (csr_addr_dscratch,   0)
+  ]
+
+-- ----------------
+-- These names are only used for printing instruction traces during
+-- simulation, and have no semantic significance.
+
+-- The following list is in the order printed by print_CSR_File()
+
+m_csr_addrs_and_names :: [(CSR_Addr, String)]
+m_csr_addrs_and_names  =
+  [ (csr_addr_mstatus,    "mstatus"),
+    (csr_addr_mie,        "mie"),
+    (csr_addr_mip,        "mip"),
+    (csr_addr_medeleg,    "medeleg"),
+    (csr_addr_mideleg,    "mideleg"),
+
+    (csr_addr_mtvec,      "mtvec"),
+    (csr_addr_mepc,       "mepc"),
+    (csr_addr_mcause,     "mcause"),
+    (csr_addr_mtval,      "mtval"),
+    (csr_addr_mscratch,   "mscratch"),
+
+    (csr_addr_minstret,   "minstret"),
+    (csr_addr_minstreth,  "minstreth"),
+    (csr_addr_mcycle,     "mcycle"),
+    (csr_addr_mcycleh,    "mcycleh"),
+    (csr_addr_mcounteren, "mcounteren"),
+
+    (csr_addr_mvendorid,  "mvendorid"),
+    (csr_addr_marchid,    "marchid"),
+    (csr_addr_mimpid,     "mimpid"),
+    (csr_addr_mhartid,    "mhartid"),
+    (csr_addr_misa,       "misa"),
+
+    (csr_addr_tselect,    "tselect"),
+    (csr_addr_data1,      "data1"),
+    (csr_addr_data2,      "data2"),
+    (csr_addr_data3,      "data3"),
+    (csr_addr_dcsr,       "dcsr"),
+
+    (csr_addr_dpc,        "dpc"),
+    (csr_addr_dscratch,   "dscratch")
   ]
 
 -- ****************************************************************
@@ -734,8 +746,6 @@ mstatus_stack_fields  mstatus =
   in
     (mpp, spp, mpie, spie, upie, mie, sie, uie)
 
-{-# INLINE mstatus_stack_fields #-}
-
 -- Update the stack fields in mstatus
 
 mstatus_upd_stack_fields :: Integer ->
@@ -758,6 +768,7 @@ mstatus_upd_stack_fields  mstatus (mpp, spp, mpie, spie, upie, mie, sie, uie) =
   in
     mstatus'
 
+{-# INLINE mstatus_stack_fields #-}
 {-# INLINE mstatus_upd_stack_fields #-}
 
 -- ================================================================
@@ -767,17 +778,16 @@ mstatus_upd_stack_fields  mstatus (mpp, spp, mpie, spie, upie, mie, sie, uie) =
 -- MTVEC, STVEC and UTVEC have the same format
 --     (for Machine, Supervisor, User privilege levels)
 
-tvec_mode :: Integer -> Integer
-tvec_mode  tvec = (tvec .&. 3)
-
-{-# INLINE tvec_mode #-}
-
 tvec_mode_DIRECT   = 0 :: Integer
 tvec_mode_VECTORED = 1 :: Integer
+
+tvec_mode :: Integer -> Integer
+tvec_mode  tvec = (tvec .&. 3)
 
 tvec_base :: Integer -> Integer
 tvec_base  tvec = shiftL (shiftR  tvec  2) 2
 
+{-# INLINE tvec_mode #-}
 {-# INLINE tvec_base #-}
 
 -- ================================================================

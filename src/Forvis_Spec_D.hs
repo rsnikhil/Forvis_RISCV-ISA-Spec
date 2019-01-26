@@ -277,7 +277,7 @@ exec_FLD  is_C  (FLD  rd  rs1  imm12)  mstate =
     xlen = mstate_xlen_read  mstate
 
     -- Compute effective address
-    rs1_val = mstate_gpr_read  mstate  rs1
+    rs1_val = mstate_gpr_read  rs1  mstate
     s_imm12 = sign_extend  12  xlen  imm12
     eaddr1  = alu_add  xlen  rs1_val  s_imm12
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
@@ -290,10 +290,10 @@ exec_FLD  is_C  (FLD  rd  rs1  imm12)  mstate =
     is_n_lt_FLEN = False
     mstate2 = case result1 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  mstate1  exc_code  eaddr2
+                  finish_trap  exc_code  eaddr2  mstate1
 
                 Mem_Result_Ok  d_u64    ->
-                  finish_frd_and_pc_plus_4  mstate1  rd  d_u64  is_n_lt_FLEN
+                  finish_frd_and_pc_plus_4  rd  d_u64  is_n_lt_FLEN  mstate1
   in
     mstate2
 
@@ -306,10 +306,10 @@ exec_FSD  is_C  (FSD  rs1  rs2  imm12)  mstate =
     rv   = mstate_rv_read  mstate
     xlen = mstate_xlen_read  mstate
 
-    rs2_val = mstate_fpr_read  mstate  rs2   -- store value
+    rs2_val = mstate_fpr_read  rs2  mstate   -- store value
 
     -- Compute effective address
-    rs1_val = mstate_gpr_read  mstate  rs1    -- address base
+    rs1_val = mstate_gpr_read  rs1  mstate    -- address base
     s_imm12 = sign_extend  12  xlen  imm12
     eaddr1  = alu_add  xlen  rs1_val  s_imm12
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
@@ -319,8 +319,8 @@ exec_FSD  is_C  (FSD  rs1  rs2  imm12)  mstate =
 
     -- Finish with trap, or finish with fall-through
     mstate2 = case result1 of
-                Mem_Result_Err exc_code -> finish_trap  mstate1  exc_code  eaddr2
-                Mem_Result_Ok  _        -> finish_pc_incr  mstate1  is_C
+                Mem_Result_Err exc_code -> finish_trap  exc_code  eaddr2  mstate1
+                Mem_Result_Ok  _        -> finish_pc_incr  is_C  mstate1
   in
     mstate2
 
@@ -332,13 +332,13 @@ exec_FMADD_D  is_C  (FMADD_D  rd  rs1  rs2  rs3  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
-    rs3_val = mstate_fpr_read  mstate  rs3
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
+    rs3_val = mstate_fpr_read  rs3  mstate
 
     (fflags, rdVal) = fpu_f64MulAdd  rm  rs1_val  rs2_val  rs3_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -350,13 +350,13 @@ exec_FMSUB_D  is_C  (FMSUB_D  rd  rs1  rs2  rs3  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
-    rs3_val = mstate_fpr_read  mstate  rs3
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
+    rs3_val = mstate_fpr_read  rs3  mstate
 
     (fflags, rdVal) = fpu_f64MulAdd  rm  rs1_val  rs2_val  (negateD  rs3_val)
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -368,13 +368,13 @@ exec_FNMSUB_D  is_C  (FNMSUB_D  rd  rs1  rs2  rs3  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
-    rs3_val = mstate_fpr_read  mstate  rs3
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
+    rs3_val = mstate_fpr_read  rs3  mstate
 
     (fflags, rdVal) = fpu_f64MulAdd  rm  (negateD  rs1_val)  rs2_val  rs3_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -386,13 +386,13 @@ exec_FNMADD_D  is_C  (FNMADD_D  rd  rs1  rs2  rs3  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
-    rs3_val = mstate_fpr_read  mstate  rs3
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
+    rs3_val = mstate_fpr_read  rs3  mstate
 
     (fflags, rdVal) = fpu_f64MulAdd  rm  (negateD  rs1_val)  rs2_val  (negateD  rs3_val)
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -404,12 +404,12 @@ exec_FADD_D  is_C  (FADD_D  rd  rs1  rs2  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs1)
-    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs2)
+    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  rs1  mstate)
+    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  rs2  mstate)
 
     (fflags, rd_val) = fpu_f64Add  rm  rs1_val  rs2_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -421,12 +421,12 @@ exec_FSUB_D  is_C  (FSUB_D  rd  rs1  rs2  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs1)
-    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs2)
+    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  rs1  mstate)
+    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  rs2  mstate)
 
     (fflags, rd_val) = fpu_f64Sub  rm  rs1_val  rs2_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -438,12 +438,12 @@ exec_FMUL_D  is_C  (FMUL_D  rd  rs1  rs2  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs1)
-    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs2)
+    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  rs1  mstate)
+    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  rs2  mstate)
 
     (fflags, rd_val) = fpu_f64Mul  rm  rs1_val  rs2_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -455,12 +455,12 @@ exec_FDIV_D  is_C  (FDIV_D  rd  rs1  rs2  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs1)
-    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs2)
+    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  rs1  mstate)
+    rs2_val = cvt_Integer_to_Word64  (mstate_fpr_read  rs2  mstate)
 
     (fflags, rd_val) = fpu_f64Div  rm  rs1_val  rs2_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -472,11 +472,11 @@ exec_FSQRT_D  is_C  (FSQRT_D  rd  rs1  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  mstate  rs1)
+    rs1_val = cvt_Integer_to_Word64  (mstate_fpr_read  rs1  mstate)
 
     (fflags, rd_val) = fpu_f64Sqrt  rm  rs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -488,8 +488,8 @@ exec_FSGNJ_D  is_C  (FSGNJ_D  rd  rs1  rs2)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
 
     -- Extract the components of the source values
     (s1, e1, m1) = disassembleDP  rs1_val
@@ -499,7 +499,7 @@ exec_FSGNJ_D  is_C  (FSGNJ_D  rd  rs1  rs2)  mstate =
 
     -- No exceptions are signalled by this operation
     fflags  = 0
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -511,8 +511,8 @@ exec_FSGNJN_D  is_C  (FSGNJN_D  rd  rs1  rs2)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
 
     -- Extract the components of the source values
     (s1, e1, m1) = disassembleDP  rs1_val
@@ -522,7 +522,7 @@ exec_FSGNJN_D  is_C  (FSGNJN_D  rd  rs1  rs2)  mstate =
 
     -- No exceptions are signalled by this operation
     fflags  = 0
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -534,8 +534,8 @@ exec_FSGNJX_D  is_C  (FSGNJX_D  rd  rs1  rs2)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
 
     -- Extract the components of the source values
     (s1, e1, m1) = disassembleDP  rs1_val
@@ -545,7 +545,7 @@ exec_FSGNJX_D  is_C  (FSGNJX_D  rd  rs1  rs2)  mstate =
 
     -- No exceptions are signalled by this operation
     fflags  = 0
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -557,8 +557,8 @@ exec_FMIN_D  is_C  (FMIN_D  rd  rs1  rs2)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
 
     -- Extract the result of the operation and the flags
     (rs1_lt_rs2, fflags) = fpu_f64LE  rs1_val  rs2_val  True
@@ -589,7 +589,7 @@ exec_FMIN_D  is_C  (FMIN_D  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -601,8 +601,8 @@ exec_FMAX_D  is_C  (FMAX_D  rd  rs1  rs2)  mstate =
   let
     is_n_lt_FLEN = False
 
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
 
     -- Extract the result of the operation and the flags
     (rs2_lt_rs1, fflags) = fpu_f64LE  rs2_val  rs1_val  True
@@ -633,7 +633,7 @@ exec_FMAX_D  is_C  (FMAX_D  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -645,11 +645,11 @@ exec_FCVT_S_D  is_C  (FCVT_S_D  rd  rs1  rm)  mstate =
   let
     is_n_lt_FLEN = True
 
-    frs1_val    = mstate_fpr_read  mstate  rs1
+    frs1_val    = mstate_fpr_read  rs1  mstate
 
     (fflags, rdVal) = fpu_f64ToF32  rm  frs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -661,11 +661,11 @@ exec_FCVT_D_S  is_C  (FCVT_D_S  rd  rs1  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    frs1_val_sp = unboxSP  (mstate_fpr_read  mstate  rs1)
+    frs1_val_sp = unboxSP  (mstate_fpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_f32ToF64   rm  frs1_val_sp
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -675,8 +675,8 @@ exec_FCVT_D_S  is_C  (FCVT_D_S  rd  rs1  rm)  mstate =
 exec_FEQ_D :: Spec_Instr_D
 exec_FEQ_D  is_C  (FEQ_D  rd  rs1  rs2)  mstate =
   let
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
 
     -- Extract the result of the operation and the flags
     (rs1_cmp_rs2, fflags) = fpu_f64EQQ  rs1_val  rs2_val
@@ -695,7 +695,7 @@ exec_FEQ_D  is_C  (FEQ_D  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rd_val  fflags  mstate
   in
     mstate1
 
@@ -705,8 +705,8 @@ exec_FEQ_D  is_C  (FEQ_D  rd  rs1  rs2)  mstate =
 exec_FLT_D :: Spec_Instr_D
 exec_FLT_D  is_C  (FLT_D  rd  rs1  rs2)  mstate =
   let
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
 
     -- Extract the result of the operation and the flags
     (rs1_cmp_rs2, fflags) = fpu_f64LT   rs1_val  rs2_val  False
@@ -725,7 +725,7 @@ exec_FLT_D  is_C  (FLT_D  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rd_val  fflags  mstate
   in
     mstate1
 
@@ -735,8 +735,8 @@ exec_FLT_D  is_C  (FLT_D  rd  rs1  rs2)  mstate =
 exec_FLE_D :: Spec_Instr_D
 exec_FLE_D  is_C  (FLE_D  rd  rs1  rs2)  mstate =
   let
-    rs1_val = mstate_fpr_read  mstate  rs1
-    rs2_val = mstate_fpr_read  mstate  rs2
+    rs1_val = mstate_fpr_read  rs1  mstate
+    rs2_val = mstate_fpr_read  rs2  mstate
 
     -- Extract the result of the operation and the flags
     (rs1_cmp_rs2, fflags) = fpu_f64LE   rs1_val  rs2_val  False
@@ -755,7 +755,7 @@ exec_FLE_D  is_C  (FLE_D  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rd_val  fflags  mstate
   in
     mstate1
 
@@ -765,7 +765,7 @@ exec_FLE_D  is_C  (FLE_D  rd  rs1  rs2)  mstate =
 exec_FCLASS_D :: Spec_Instr_D
 exec_FCLASS_D  is_C  (FCLASS_D  rd  rs1)  mstate =
   let
-    frs1_val = mstate_fpr_read  mstate  rs1
+    frs1_val = mstate_fpr_read  rs1  mstate
     
     -- Classify the frs1_val
     is_NegInf     = fpu_f64IsNegInf        frs1_val
@@ -793,7 +793,7 @@ exec_FCLASS_D  is_C  (FCLASS_D  rd  rs1)  mstate =
             | is_QNaN         = rd_val .|. shiftL  1  fclass_QNaN_bitpos
 
     -- No exceptions are signalled by this operation
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val'  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  rd_val'  is_C  mstate
   in
     mstate1
 
@@ -805,11 +805,11 @@ exec_FCVT_W_D  is_C  (FCVT_W_D  rd  rs1  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    frs1_val    = mstate_fpr_read  mstate  rs1
+    frs1_val    = mstate_fpr_read  rs1  mstate
 
     (fflags, rdVal) = fpu_f64ToI32  rm   frs1_val
 
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rdVal  fflags  mstate
   in
     mstate1
 
@@ -821,11 +821,11 @@ exec_FCVT_WU_D  is_C  (FCVT_WU_D  rd  rs1  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    frs1_val    = mstate_fpr_read  mstate  rs1
+    frs1_val    = mstate_fpr_read  rs1  mstate
 
     (fflags, rdVal) = fpu_f64ToUi32  rm  frs1_val
 
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rdVal  fflags  mstate
   in
     mstate1
 
@@ -838,11 +838,11 @@ exec_FCVT_D_W  is_C  (FCVT_D_W  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = False
     xlen         = mstate_xlen_read  mstate
 
-    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
+    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_i32ToF64  rm  grs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -855,11 +855,11 @@ exec_FCVT_D_WU  is_C  (FCVT_D_WU  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = False
     xlen         = mstate_xlen_read  mstate
 
-    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
+    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_ui32ToF64  rm  grs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -871,11 +871,11 @@ exec_FCVT_L_D  is_C  (FCVT_L_D  rd  rs1  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    frs1_val = mstate_fpr_read  mstate  rs1
+    frs1_val = mstate_fpr_read  rs1  mstate
 
     (fflags, rdVal) = fpu_f64ToI64   rm  frs1_val
 
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rdVal  fflags  mstate
   in
     mstate1
 
@@ -887,11 +887,11 @@ exec_FCVT_LU_D  is_C  (FCVT_LU_D  rd  rs1  rm)  mstate =
   let
     is_n_lt_FLEN = False
 
-    frs1_val = mstate_fpr_read  mstate  rs1
+    frs1_val = mstate_fpr_read  rs1  mstate
 
     (fflags, rdVal) = fpu_f64ToUi64  rm  frs1_val
 
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rdVal  fflags  mstate
   in
     mstate1
 
@@ -901,9 +901,9 @@ exec_FCVT_LU_D  is_C  (FCVT_LU_D  rd  rs1  rm)  mstate =
 exec_FMV_X_D :: Spec_Instr_D
 exec_FMV_X_D  is_C  (FMV_X_D  rd  rs1)  mstate =
   let
-    frs1_val = mstate_fpr_read  mstate  rs1
+    frs1_val = mstate_fpr_read  rs1  mstate
 
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  frs1_val  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  frs1_val  is_C  mstate
   in
     mstate1
 
@@ -916,11 +916,11 @@ exec_FCVT_D_L  is_C  (FCVT_D_L  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = False
     xlen         = mstate_xlen_read  mstate
 
-    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
+    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_i64ToF64  rm  grs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -933,11 +933,11 @@ exec_FCVT_D_LU  is_C  (FCVT_D_LU  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = False
     xlen         = mstate_xlen_read  mstate
 
-    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
+    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_ui64ToF64  rm  grs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -949,9 +949,9 @@ exec_FMV_D_X  is_C  (FMV_D_X  rd  rs1)  mstate =
   let
     is_n_lt_FLEN = False
 
-    grs1_val = mstate_gpr_read  mstate  rs1
+    grs1_val = mstate_gpr_read  rs1  mstate
 
-    mstate1 = finish_frd_and_pc_plus_4  mstate  rd  grs1_val  is_n_lt_FLEN
+    mstate1 = finish_frd_and_pc_plus_4  rd  grs1_val  is_n_lt_FLEN  mstate
   in
     mstate1
 

@@ -120,7 +120,8 @@ def do_regular_file_function (level, dirname, basename, dest_path):
                         state = 1
                         fd.write ("{\\small\n")
                         fd.write ("\\begin{Verbatim}")
-                        fd.write ("[frame=single, label=line {0} {1}]\n".format(linenum, basename1))
+                        fd.write ("[frame=single, label=line {0} {1}]\n"
+                                  .format(linenum, basename1))
                     for j in range (pending_blank_lines):
                         fd.write ("\n")
                     fd.write (line)

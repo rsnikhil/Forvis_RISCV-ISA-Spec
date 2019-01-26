@@ -24,12 +24,12 @@ import Forvis_Spec_Common
 mstate_take_interrupt_if_any :: Machine_State -> (Maybe Exc_Code, Machine_State)
 mstate_take_interrupt_if_any    mstate =
   let                                                              -- \end_latex{...take_interrupt}
-    misa    = mstate_csr_read  mstate  csr_addr_misa
-    mstatus = mstate_csr_read  mstate  csr_addr_mstatus
-    mip     = mstate_csr_read  mstate  csr_addr_mip
-    mie     = mstate_csr_read  mstate  csr_addr_mie
-    mideleg = mstate_csr_read  mstate  csr_addr_mideleg
-    sideleg = mstate_csr_read  mstate  csr_addr_sideleg
+    misa    = mstate_csr_read  csr_addr_misa     mstate
+    mstatus = mstate_csr_read  csr_addr_mstatus  mstate
+    mip     = mstate_csr_read  csr_addr_mip      mstate
+    mie     = mstate_csr_read  csr_addr_mie      mstate
+    mideleg = mstate_csr_read  csr_addr_mideleg  mstate
+    sideleg = mstate_csr_read  csr_addr_sideleg  mstate
     priv    = mstate_priv_read  mstate
 
     intr_pending :: Maybe  Exc_Code
@@ -40,8 +40,8 @@ mstate_take_interrupt_if_any    mstate =
       Just  exc_code ->
         let
           tval    = 0
-          mstate1 = mstate_upd_on_trap  mstate  True  exc_code  tval
-          mstate2 = mstate_run_state_write  mstate1  Run_State_Running
+          mstate1 = mstate_upd_on_trap  True  exc_code  tval  mstate
+          mstate2 = mstate_run_state_write  Run_State_Running  mstate1
         in
           (intr_pending, mstate2)
 
@@ -60,8 +60,8 @@ mstate_take_interrupt_if_any    mstate =
 mstate_wfi_resume :: Machine_State -> Bool
 mstate_wfi_resume    mstate =
   let                                                      -- \end_latex{...wfi_resume}
-    mip = mstate_csr_read  mstate  csr_addr_mip
-    mie = mstate_csr_read  mstate  csr_addr_mie
+    mip = mstate_csr_read  csr_addr_mip  mstate
+    mie = mstate_csr_read  csr_addr_mie  mstate
   in
     csr_wfi_resume  mip  mie
 

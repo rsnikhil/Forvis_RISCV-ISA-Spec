@@ -72,7 +72,7 @@ exec_FENCE_I :: Spec_Instr_Zifencei
 exec_FENCE_I  is_C  (FENCE_I)  mstate =
   let
     mstate1 = mstate_mem_fence_i  mstate
-    mstate2 = finish_pc_incr  mstate1  is_C
+    mstate2 = finish_pc_incr  is_C  mstate1
   in
     mstate2
 

@@ -61,8 +61,8 @@ exec_instr_32b :: Instr_32b -> Machine_State -> (Machine_State, String)
 exec_instr_32b    instr_32b    mstate =
   let
     rv   = mstate_rv_read  mstate
-    misa = mstate_csr_read  mstate  csr_addr_misa
-    frm  = mstate_csr_read  mstate  csr_addr_frm
+    misa = mstate_csr_read  csr_addr_misa  mstate
+    frm  = mstate_csr_read  csr_addr_frm   mstate
     is_C = False
 
     dec_I         = decode_I         rv        instr_32b
@@ -123,9 +123,9 @@ exec_instr_32b    instr_32b    mstate =
                                         -- not decode to any 32b instr
                                         let
                                           tval    = instr_32b
-                                          mstate1 = finish_trap  mstate
-                                                                 exc_code_illegal_instruction
+                                          mstate1 = finish_trap  exc_code_illegal_instruction
                                                                  tval
+                                                                 mstate
                                         in
                                           (mstate1, "Illegal instr 0x" ++
                                                     showHex instr_32b "")
@@ -146,7 +146,7 @@ exec_instr_16b :: Instr_16b -> Machine_State -> (Machine_State, String)
 exec_instr_16b    instr_16b    mstate =
   let
     rv   = mstate_rv_read  mstate
-    misa = mstate_csr_read  mstate  csr_addr_misa
+    misa = mstate_csr_read  csr_addr_misa  mstate
 
     dec_C = decode_C  rv  misa  instr_16b
   in
@@ -157,7 +157,7 @@ exec_instr_16b    instr_16b    mstate =
         -- Illegal instruction trap, since does not decode to any 16b instr
         let
           tval    = instr_16b
-          mstate1 = finish_trap  mstate  exc_code_illegal_instruction  tval
+          mstate1 = finish_trap  exc_code_illegal_instruction  tval  mstate
         in
           (mstate1, "Illegal instr " ++ showHex instr_16b "")
 

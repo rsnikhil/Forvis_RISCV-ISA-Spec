@@ -58,8 +58,8 @@ import Forvis_Spec_Priv
 data Fetch_Result = Fetch       Integer     -- Normal 32-bit instr
                   | Fetch_C     Integer     -- C (compressed) 16-bit instr
                   | Fetch_Trap  Exc_Code    -- e.g., misaligned access, page fault, etc.
-                  deriving (Show)
-                                                                   -- \end_latex{Fetch_Result}
+                  deriving (Show)                                  -- \end_latex{Fetch_Result}
+
                                                                    -- \begin_latex{instr_fetch}
 instr_fetch :: Machine_State -> (Fetch_Result, Machine_State)
 instr_fetch    mstate =                                            -- \end_latex{instr_fetch}
@@ -67,7 +67,7 @@ instr_fetch    mstate =                                            -- \end_latex
     rv                = mstate_rv_read   mstate
     pc | (rv == RV32) = (mstate_pc_read  mstate .&. 0xFFFFFFFF)
        | (rv == RV64) = mstate_pc_read   mstate
-    misa              = mstate_csr_read  mstate  csr_addr_misa
+    misa              = mstate_csr_read  csr_addr_misa  mstate
   in
     if (not  (misa_flag  misa  'C')) then
       -- 32b instructions only.
@@ -81,7 +81,7 @@ instr_fetch    mstate =                                            -- \end_latex
         case result1 of
           Mem_Result_Err  exc_code -> (let
                                           tval    = pc
-                                          mstate2 = finish_trap  mstate1  exc_code  tval
+                                          mstate2 = finish_trap  exc_code  tval  mstate1
                                        in
                                           (Fetch_Trap  exc_code,  mstate2))
           Mem_Result_Ok  u32       -> (Fetch  u32,  mstate1)
@@ -95,7 +95,7 @@ instr_fetch    mstate =                                            -- \end_latex
         case result1 of
           Mem_Result_Err  exc_code -> (let
                                           tval    = pc
-                                          mstate2 = finish_trap  mstate1  exc_code  tval
+                                          mstate2 = finish_trap  exc_code  tval  mstate1
                                        in
                                          (Fetch_Trap  exc_code, mstate2))
 
@@ -113,7 +113,7 @@ instr_fetch    mstate =                                            -- \end_latex
                   case result2 of
                     Mem_Result_Err  exc_code -> (let
                                                     tval = pc + 2
-                                                    mstate3 = finish_trap  mstate2  exc_code  tval
+                                                    mstate3 = finish_trap  exc_code  tval  mstate2
                                                  in
                                                     (Fetch_Trap  exc_code, mstate3))
                     Mem_Result_Ok  u16_hi    -> (let

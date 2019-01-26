@@ -107,7 +107,7 @@ exec_CSRR_W :: Instr_32b ->
 exec_CSRR_W  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
   let
     priv       = mstate_priv_read  mstate
-    permission = mstate_csr_permission  mstate  priv  csr_addr
+    permission = mstate_csr_permission  priv  csr_addr  mstate
     legal2     = (permission == CSR_Permission_RW)
 
     -- Read CSR only if rd is not 0
@@ -122,24 +122,24 @@ exec_CSRR_W  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
                       in
                         mtime
                     else
-                      mstate_csr_read  mstate  csr_addr
+                      mstate_csr_read  csr_addr  mstate
                   else
                     0    -- arbitrary; will be discarded (rd==0)
 
-    rs1_val     = mstate_gpr_read  mstate  rs1
+    rs1_val     = mstate_gpr_read  rs1  mstate
     new_csr_val | (funct3 == funct3_CSRRW)  = rs1_val
                 | (funct3 == funct3_CSRRWI) = rs1
     rd_val      = old_csr_val
 
     mstate1 = if legal2 then
                 let
-                  mstate_a = mstate_csr_write  mstate  csr_addr  new_csr_val
+                  mstate_a = mstate_csr_write  csr_addr  new_csr_val  mstate
                 in
-                  finish_rd_and_pc_incr  mstate_a  rd  rd_val  is_C
+                  finish_rd_and_pc_incr  rd  rd_val  is_C  mstate_a
               else
                 let tval = instr_32b
                 in
-                  finish_trap  mstate  exc_code_illegal_instruction  tval
+                  finish_trap  exc_code_illegal_instruction  tval  mstate
   in
     mstate1
 
@@ -172,15 +172,15 @@ exec_CSRR_S_C :: Instr_32b ->
 exec_CSRR_S_C  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
   let
     priv       = mstate_priv_read  mstate
-    permission = mstate_csr_permission  mstate  priv  csr_addr
+    permission = mstate_csr_permission  priv  csr_addr  mstate
 
     legal2 | (permission == CSR_Permission_None) = False
            | (permission == CSR_Permission_RO)   = (rs1 == 0)
            | (permission == CSR_Permission_RW)   = True
 
     -- TODO: mstate_csr_read can have side effects: should return new state
-    old_csr_val = mstate_csr_read  mstate  csr_addr
-    rs1_val     = mstate_gpr_read  mstate  rs1
+    old_csr_val = mstate_csr_read  csr_addr  mstate
+    rs1_val     = mstate_gpr_read  rs1  mstate
 
     new_csr_val | (funct3 == funct3_CSRRS)  = old_csr_val .|. rs1_val
                 | (funct3 == funct3_CSRRC)  = old_csr_val .&. (complement rs1_val)
@@ -190,14 +190,14 @@ exec_CSRR_S_C  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
 
     mstate1 = if legal2 then
                 -- Write CSR only if rs1/zimm is not 0
-                let mstate_a | (rs1 /= 0) = mstate_csr_write  mstate  csr_addr  new_csr_val
+                let mstate_a | (rs1 /= 0) = mstate_csr_write  csr_addr  new_csr_val  mstate
                              | True       = mstate
                 in
-                  finish_rd_and_pc_incr  mstate_a  rd  rd_val  is_C
+                  finish_rd_and_pc_incr  rd  rd_val  is_C  mstate_a
               else
                 let tval = instr_32b
                 in
-                  finish_trap  mstate  exc_code_illegal_instruction  tval
+                  finish_trap  exc_code_illegal_instruction  tval  mstate
   in
     mstate1
 

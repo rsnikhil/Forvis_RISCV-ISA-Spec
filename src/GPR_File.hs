@@ -1,12 +1,7 @@
 -- Copyright (c) 2018-2019 Rishiyur S. Nikhil
 -- See LICENSE for license details
-                                                -- \begin_latex{GPR_File_header}
-module GPR_File (GPR_File,
-                 mkGPR_File,
-                 gpr_read,
-                 gpr_write,
-                 print_GPR_File) where
-                                                -- \end_latex{GPR_File_header}
+
+module GPR_File where
 
 -- ================================================================
 -- This module defines an abstraction for

@@ -44,12 +44,12 @@ import FPU
 -- ----------------
 -- Update GPR RD, increment PC by 2 or 4, increment INSTRET           \begin_latex{finish_rd_and_pc_incr}
 
-finish_rd_and_pc_incr :: Machine_State -> GPR_Addr -> Integer -> Bool -> Machine_State
-finish_rd_and_pc_incr    mstate           rd          rd_val     is_C =
-  let mstate1 = mstate_gpr_write  mstate  rd  rd_val
+finish_rd_and_pc_incr :: GPR_Addr -> Integer -> Bool -> Machine_State -> Machine_State
+finish_rd_and_pc_incr    rd          rd_val     is_C    mstate =
+  let mstate1 = mstate_gpr_write  rd  rd_val  mstate
       pc      = mstate_pc_read    mstate1
       delta   = if is_C then 2 else 4
-      mstate2 = mstate_pc_write   mstate1  (pc + delta)
+      mstate2 = mstate_pc_write  (pc + delta)   mstate1
       mstate3 = incr_minstret     mstate2
   in
     mstate3
@@ -59,12 +59,12 @@ finish_rd_and_pc_incr    mstate           rd          rd_val     is_C =
 -- ----------------
 -- Update GPR RD, CSR.FFlags, increment PC by 4, increment INSTRET       \begin_latex{finish_grd_fflags_and_pc_plus_4}
 
-finish_grd_fflags_and_pc_plus_4 :: Machine_State -> GPR_Addr -> Integer -> Integer -> Machine_State
-finish_grd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflags  =
+finish_grd_fflags_and_pc_plus_4 :: GPR_Addr -> Integer -> Integer -> Machine_State -> Machine_State
+finish_grd_fflags_and_pc_plus_4    rd          rd_val     fflags     mstate =
   let
-    mstate1 = mstate_csr_update  mstate  csr_addr_fflags  fflags
+    mstate1 = mstate_csr_update  csr_addr_fflags  fflags  mstate
     is_C    = False
-    mstate2 = finish_rd_and_pc_incr  mstate1  rd  rd_val  is_C
+    mstate2 = finish_rd_and_pc_incr  rd  rd_val  is_C  mstate1
   in
     mstate2
                                                                       -- \end_latex{finish_grd_fflags_and_pc_plus_4}
@@ -73,11 +73,11 @@ finish_grd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflag
 -- ----------------
 -- Update GPR RD, update PC to new value, increment INSTRET
 
-finish_rd_and_pc :: Machine_State -> GPR_Addr -> Integer -> Integer -> Machine_State
-finish_rd_and_pc    mstate           rd          rd_val     new_pc =
+finish_rd_and_pc :: GPR_Addr -> Integer -> Integer -> Machine_State -> Machine_State
+finish_rd_and_pc    rd          rd_val     new_pc     mstate =
   let
-    mstate1 = mstate_gpr_write  mstate  rd  rd_val
-    mstate2 = mstate_pc_write  mstate1  new_pc
+    mstate1 = mstate_gpr_write  rd  rd_val  mstate
+    mstate2 = mstate_pc_write  new_pc  mstate1
     mstate3 = incr_minstret  mstate2
   in
     mstate3
@@ -87,12 +87,12 @@ finish_rd_and_pc    mstate           rd          rd_val     new_pc =
 -- ----------------
 -- Increment PC by 2 or 4, increment INSTRET
 
-finish_pc_incr :: Machine_State -> Bool -> Machine_State
-finish_pc_incr    mstate           is_C =
+finish_pc_incr :: Bool -> Machine_State -> Machine_State
+finish_pc_incr    is_C    mstate =
   let
     pc      = mstate_pc_read  mstate
     delta   = if is_C then 2 else 4
-    mstate1 = mstate_pc_write  mstate  (pc + delta)
+    mstate1 = mstate_pc_write  (pc + delta)  mstate
     mstate2 = incr_minstret  mstate1
   in
     mstate2
@@ -102,10 +102,10 @@ finish_pc_incr    mstate           is_C =
 -- ----------------
 -- Update PC to new value
 
-finish_pc :: Machine_State -> Integer -> Machine_State
-finish_pc    mstate           new_pc =
+finish_pc :: Integer -> Machine_State -> Machine_State
+finish_pc    new_pc     mstate =
   let
-    mstate1 = mstate_pc_write  mstate  new_pc
+    mstate1 = mstate_pc_write  new_pc  mstate
     mstate2 = incr_minstret  mstate1
   in
     mstate2
@@ -115,12 +115,12 @@ finish_pc    mstate           new_pc =
 -- ----------------
 -- Trap with given exception code and trap value
 
-finish_trap :: Machine_State -> Exc_Code -> Integer -> Machine_State
-finish_trap    mstate           exc_code    tval =
+finish_trap :: Exc_Code -> Integer -> Machine_State -> Machine_State
+finish_trap    exc_code    tval       mstate =
   let
-    mstate1 = mstate_upd_on_trap  mstate  False  exc_code  tval
+    mstate1 = mstate_upd_on_trap  False  exc_code  tval  mstate
     mstate2 = incr_minstret  mstate1
-    mstate3 = mstate_last_instr_trapped_write  mstate2  True
+    mstate3 = mstate_last_instr_trapped_write  True  mstate2
   in
     mstate3
 
@@ -130,10 +130,10 @@ finish_trap    mstate           exc_code    tval =
 -- Every completed instruction increments minstret
 
 incr_minstret :: Machine_State -> Machine_State
-incr_minstret  mstate =
+incr_minstret    mstate =
   let
-    minstret = mstate_csr_read  mstate  csr_addr_minstret
-    mstate1  = mstate_csr_write  mstate  csr_addr_minstret  (minstret + 1)
+    minstret = mstate_csr_read   csr_addr_minstret  mstate
+    mstate1  = mstate_csr_write  csr_addr_minstret  (minstret + 1)  mstate
   in
     mstate1
 
@@ -144,11 +144,16 @@ incr_minstret  mstate =
 -- ----------------
 -- Update FPU.RD, CSR.FFlags, increment PC by 4, increment INSTRET       \begin_latex{finish_frd_fflags_and_pc_plus_4}
 
-finish_frd_fflags_and_pc_plus_4 :: Machine_State -> FPR_Addr -> Integer -> Integer -> Bool -> Machine_State
-finish_frd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflags     is_n_lt_FLEN =
+finish_frd_fflags_and_pc_plus_4 :: FPR_Addr      ->
+                                   Integer       ->
+                                   Integer       ->
+                                   Bool          ->
+                                   Machine_State ->
+                                   Machine_State
+finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate =
   let
-    mstate1 = mstate_csr_update  mstate  csr_addr_fflags  fflags
-    mstate2 = finish_frd_and_pc_plus_4  mstate1  rd  rd_val  is_n_lt_FLEN
+    mstate1 = mstate_csr_update  csr_addr_fflags  fflags  mstate
+    mstate2 = finish_frd_and_pc_plus_4  rd  rd_val  is_n_lt_FLEN  mstate1
   in
     mstate2
                                                                       -- \end_latex{finish_frd_fflags_and_pc_plus_4}
@@ -157,14 +162,14 @@ finish_frd_fflags_and_pc_plus_4    mstate           rd          rd_val     fflag
 -- ----------------
 -- Update FPU.FRD, increment PC by 4, increment INSTRET           \begin_latex{finish_frd_and_pc_plus_4}
 
-finish_frd_and_pc_plus_4 :: Machine_State -> FPR_Addr -> Integer -> Bool -> Machine_State
-finish_frd_and_pc_plus_4    mstate           rd          rd_val     is_n_lt_FLEN =
+finish_frd_and_pc_plus_4 :: FPR_Addr -> Integer -> Bool ->       Machine_State -> Machine_State
+finish_frd_and_pc_plus_4    rd          rd_val     is_n_lt_FLEN  mstate =
   let mstate1 = if (is_n_lt_FLEN) then 
-                   mstate_fpr_write  mstate  rd  (nanBox rd_val)
+                   mstate_fpr_write  rd  (nanBox rd_val)  mstate
                 else
-                   mstate_fpr_write  mstate  rd  rd_val
+                   mstate_fpr_write  rd  rd_val  mstate
       pc      = mstate_pc_read    mstate1
-      mstate2 = mstate_pc_write   mstate1  (pc + 4)
+      mstate2 = mstate_pc_write  (pc + 4)   mstate1
       mstate3 = incr_minstret     mstate2
   in
     mstate3
@@ -181,8 +186,8 @@ finish_frd_and_pc_plus_4    mstate           rd          rd_val     is_n_lt_FLEN
 --   - Update CSRs xEPC, xCAUSE, xTVAL
 --   - Compute new PC from xTVEC and branch to it
 
-mstate_upd_on_trap :: Machine_State -> Bool ->       Exc_Code -> Integer -> Machine_State
-mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
+mstate_upd_on_trap :: Bool ->       Exc_Code -> Integer -> Machine_State -> Machine_State
+mstate_upd_on_trap    is_interrupt  exc_code    tval       mstate =
   let                                                          -- \end_latex{mstate_upd_on_trap}
     rv      = mstate_rv_read    mstate
     priv    = mstate_priv_read  mstate
@@ -190,14 +195,14 @@ mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
 
     -- Compute new privilege level
     new_priv    = (let
-                      misa         = mstate_csr_read  mstate  csr_addr_misa
+                      misa         = mstate_csr_read  csr_addr_misa  mstate
                       misa_s       = misa_flag  misa  'S'
                       misa_n       = misa_flag  misa  'N'
 
-                      medeleg      = mstate_csr_read  mstate  csr_addr_medeleg
-                      mideleg      = mstate_csr_read  mstate  csr_addr_mideleg
-                      sedeleg      = mstate_csr_read  mstate  csr_addr_sedeleg
-                      sideleg      = mstate_csr_read  mstate  csr_addr_sideleg
+                      medeleg      = mstate_csr_read  csr_addr_medeleg  mstate
+                      mideleg      = mstate_csr_read  csr_addr_mideleg  mstate
+                      sedeleg      = mstate_csr_read  csr_addr_sedeleg  mstate
+                      sideleg      = mstate_csr_read  csr_addr_sideleg  mstate
                       j            = (fromIntegral exc_code) :: Int
                       m_delegating = testBit  (if is_interrupt then mideleg else medeleg)  j
                       s_delegating = testBit  (if is_interrupt then sideleg else sedeleg)  j
@@ -217,7 +222,7 @@ mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
                         m_Priv_Level)
 
     -- Update interrupt-enable stacks in CSR MSTATUS
-    mstatus     = mstate_csr_read  mstate  csr_addr_mstatus
+    mstatus     = mstate_csr_read  csr_addr_mstatus  mstate
     new_mstatus = (let
                       (mpp,spp,mpie,spie,upie,mie,sie,uie) = mstatus_stack_fields  mstatus
 
@@ -241,11 +246,11 @@ mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
                                then (csr_addr_mepc,
                                      csr_addr_mcause,
                                      csr_addr_mtval,
-                                     csr_addr_mtvec,  mstate_csr_read  mstate  csr_addr_mtvec)
+                                     csr_addr_mtvec,  mstate_csr_read  csr_addr_mtvec  mstate)
                                else (csr_addr_sepc,
                                      csr_addr_scause,
                                      csr_addr_stval,
-                                     csr_addr_stvec,  mstate_csr_read  mstate  csr_addr_stvec)
+                                     csr_addr_stvec,  mstate_csr_read  csr_addr_stvec  mstate)
 
     -- Compute new PC from xTVEC
     vector_offset = exc_code * 4
@@ -257,13 +262,13 @@ mstate_upd_on_trap    mstate           is_interrupt  exc_code    tval =
                     else pc1 .&. 0xFFFFFFFF
 
     -- Record new priv, pc (next pc), and CSRs status, epc, cause, tval
-    mstate1 = mstate_priv_write  mstate   new_priv
-    mstate2 = mstate_pc_write    mstate1  pc2
-
-    mstate3 = mstate_csr_write   mstate2  csr_addr_mstatus  new_mstatus
-    mstate4 = mstate_csr_write   mstate3  csr_addr_xepc     pc
-    mstate5 = mstate_csr_write   mstate4  csr_addr_xcause   (mkCause  rv  is_interrupt  exc_code)
-    mstate6 = mstate_csr_write   mstate5  csr_addr_xtval  tval
+    cause = mkCause  rv  is_interrupt  exc_code
+    mstate1 = mstate_priv_write  new_priv  mstate
+    mstate2 = mstate_pc_write    pc2                             mstate1
+    mstate3 = mstate_csr_write   csr_addr_mstatus  new_mstatus   mstate2
+    mstate4 = mstate_csr_write   csr_addr_xepc     pc            mstate3
+    mstate5 = mstate_csr_write   csr_addr_xcause   cause         mstate4
+    mstate6 = mstate_csr_write   csr_addr_xtval    tval          mstate5
   in
     mstate6
 

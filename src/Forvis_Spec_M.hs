@@ -152,10 +152,10 @@ exec_OP_M :: (Int -> Integer -> Integer -> Integer) ->
 exec_OP_M  alu_op  is_C  rd  rs1  rs2  mstate =
   let
     xlen    = mstate_xlen_read  mstate
-    rs1_val = mstate_gpr_read  mstate  rs1
-    rs2_val = mstate_gpr_read  mstate  rs2
+    rs1_val = mstate_gpr_read  rs1  mstate
+    rs2_val = mstate_gpr_read  rs2  mstate
     rd_val  = alu_op  xlen  rs1_val  rs2_val
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  rd_val  is_C  mstate
   in
     mstate1
 
@@ -170,10 +170,10 @@ exec_OP_M_32 :: (Integer -> Integer -> Integer) ->
                 Machine_State -> Machine_State
 exec_OP_M_32  alu_op  is_C  rd  rs1  rs2  mstate =
   let
-    rs1_val = mstate_gpr_read  mstate  rs1
-    rs2_val = mstate_gpr_read  mstate  rs2
+    rs1_val = mstate_gpr_read  rs1  mstate
+    rs2_val = mstate_gpr_read  rs2  mstate
     rd_val  = alu_op  rs1_val  rs2_val
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  rd_val  is_C  mstate
   in
     mstate1
 

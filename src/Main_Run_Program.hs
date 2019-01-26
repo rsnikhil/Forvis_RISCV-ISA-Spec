@@ -218,7 +218,7 @@ run_program_from_files    rv    misa       files       num_instrs  watch_tohost 
   let mstate1        = mkMachine_State  rv  misa  pc_reset_value  addr_ranges  addr_byte_list
 
       -- Set verbosity: 0: quiet (only console out); 1: also instruction trace; 2: also CPU arch state
-      mstate2        = mstate_verbosity_write  mstate1  verbosity
+      mstate2        = mstate_verbosity_write  verbosity  mstate1
 
   -- Run the program that is in memory, and report PASS/FAIL
   putStrLn ("PC reset: 0x" ++ showHex  pc_reset_value "" ++
@@ -309,7 +309,7 @@ read_file filename = do
 dump_mem :: Machine_State -> Integer -> Integer -> IO ()
 dump_mem  mstate  start  end = do
   let f addr = do
-          let (load_result, mstate') = mstate_mem_read  mstate  exc_code_load_access_fault  funct3_LB  addr
+          let (load_result, mstate') = mstate_mem_read  exc_code_load_access_fault  funct3_LB  addr  mstate
               val = case load_result of
                       Mem_Result_Ok  x          ->  showHex x ""
                       Mem_Result_Err trap_cause ->  show trap_cause

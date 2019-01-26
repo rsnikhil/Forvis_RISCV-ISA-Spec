@@ -47,14 +47,13 @@ import CSR_File
 fn_vm_is_active :: Machine_State -> Bool -> Bool
 fn_vm_is_active    mstate           is_instr =
   let                                                     -- \end_latex{fn_vm_is_active}
-    rv      = mstate_rv_read  mstate
-
-    satp              = mstate_csr_read   mstate  csr_addr_satp
+    rv                = mstate_rv_read  mstate
+    satp              = mstate_csr_read  csr_addr_satp   mstate
     (satp_mode, _, _) = satp_fields  rv  satp
 
     -- Compute effective privilege modulo MSTATUS.MPRV
     priv    = mstate_priv_read  mstate
-    mstatus = mstate_csr_read   mstate  csr_addr_mstatus
+    mstatus = mstate_csr_read  csr_addr_mstatus   mstate
     mprv    = testBit  mstatus  mstatus_mprv_bitpos
     mpp     = (shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3
     priv'   = if (mprv && (not  is_instr)) then mpp else priv
@@ -87,7 +86,7 @@ mstate_vm_read  mstate  is_instr  exc_code_access_fault  funct3  eaddr =
     (result2, mstate2) = case result1 of
                            Mem_Result_Err  exc_code -> (result1, mstate1)
                            Mem_Result_Ok   eaddr_pa ->
-                             mstate_mem_read   mstate1  exc_code_access_fault  funct3  eaddr_pa
+                             mstate_mem_read  exc_code_access_fault  funct3  eaddr_pa   mstate1
   in
     (result2, mstate2)
 
@@ -115,7 +114,7 @@ mstate_vm_write  mstate  funct3  eaddr  store_val =
     (result2, mstate2) = case result1 of
                            Mem_Result_Err  exc_code -> (result1, mstate1)
                            Mem_Result_Ok   eaddr_pa ->
-                             mstate_mem_write   mstate1  funct3  eaddr_pa  store_val
+                             mstate_mem_write  funct3  eaddr_pa  store_val   mstate1
   in
     (result2, mstate2)
 
@@ -145,7 +144,7 @@ mstate_vm_amo  mstate  funct3  msbs5  aq  rl  eaddr  store_val =
     (result2, mstate2) = case result1 of
                            Mem_Result_Err  exc_code -> (result1, mstate1)
                            Mem_Result_Ok   eaddr_pa ->
-                             mstate_mem_amo  mstate1  eaddr_pa  funct3  msbs5  aq  rl  store_val
+                             mstate_mem_amo  eaddr_pa  funct3  msbs5  aq  rl  store_val  mstate1
   in
     (result2, mstate2)
 
@@ -167,7 +166,7 @@ vm_translate    mstate           is_instr  is_read  va =
     -- Get relevant architecture state components
     rv      = mstate_rv_read    mstate
     priv    = mstate_priv_read  mstate
-    mstatus = mstate_csr_read   mstate  csr_addr_mstatus
+    mstatus = mstate_csr_read  csr_addr_mstatus   mstate
 
     -- Compute effective privilege modulo MSTATUS.MPRV
     mprv    = testBit  mstatus  mstatus_mprv_bitpos
@@ -190,14 +189,15 @@ vm_translate    mstate           is_instr  is_read  va =
                              | (sv == sv48) = (funct3_LD, 8)
 
     -- Get SATP and its fields from arch state
-    satp                    = mstate_csr_read   mstate  csr_addr_satp
+    satp                    = mstate_csr_read  csr_addr_satp   mstate
     (sv, asid, pt_base_ppn) = satp_fields  rv  satp
     pt_base_addr            = (shiftL  pt_base_ppn  12)
-
+                                                                                -- \begin_latex{vm_ptw}
     -- This function 'ptw' is the recursive Page Table Walk
     -- 'ptn_pa' is the address of a a Page Table Node at given 'level'
     ptw :: Machine_State -> Integer -> Int ->  (Mem_Result, Machine_State)
     ptw    mstate           ptn_pa     level =
+                                                                                -- \end_latex{...vm_ptw}
       let
         -- A PTE is indexed by VPN[J] in the PTN, i.e., PTN [VPN [J]]
         -- Compute byte addr of PTE (PTEs are 4 bytes in SV32, 8 bytes in SV32 and SV48)
@@ -205,7 +205,7 @@ vm_translate    mstate           is_instr  is_read  va =
         pte_pa = ptn_pa + (vpn_J * pte_size_bytes)
 
         -- Load PTE from mem
-        (mem_result, mstate1) = mstate_mem_read  mstate  exc_code_access  funct3  pte_pa
+        (mem_result, mstate1) = mstate_mem_read  exc_code_access  funct3  pte_pa  mstate
       in
         case mem_result of
           Mem_Result_Err  exc_code -> (mem_result, mstate1)
@@ -376,6 +376,12 @@ fn_is_misaligned_pte_ppn    sv         pte        leaf_level =
   else False
 
 -- ================================================================
+-- Given an original virtual address (va) and a PTE at a given level,
+-- construct the actual target physical byte-address by combining the
+-- page's physical base address from the PTE with the offset from the va.
+
+-- Note, ``level'' indicates whether we're pointing at an ordinary
+-- page or a superpage (megapage, gigapage or terapage).
 
 mk_pa_in_page :: Integer -> Integer -> Integer -> Int -> Integer
 mk_pa_in_page    sv         pte        va         level =

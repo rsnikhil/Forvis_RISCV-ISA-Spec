@@ -114,7 +114,7 @@ process_cmd  mstate  ["read_PC"] = do
 process_cmd  mstate  ["write_PC", v_s] = do
   putStrLn ("    Doing write_PC " ++ v_s)
   let v = fromIntegral (read_hex  32  v_s)
-      mstate1 = mstate_pc_write  mstate  v
+      mstate1 = mstate_pc_write  v  mstate
   putStrLn "OK"
   return mstate1
 
@@ -124,7 +124,7 @@ process_cmd  mstate  ["write_PC", v_s] = do
 process_cmd  mstate  ["read_GPR", r_s] = do
   putStrLn ("    Doing read_GPR " ++ r_s)
   let r       = toEnum (fromIntegral (read_hex  5  r_s))
-      gpr_val = mstate_gpr_read  mstate  r
+      gpr_val = mstate_gpr_read  r  mstate
   putStrLn ("OK " ++ show gpr_val)
   return mstate
 
@@ -132,7 +132,7 @@ process_cmd  mstate  ["write_GPR", r_s, v_s] = do
   putStrLn ("    Doing write_GPR " ++ r_s ++ " " ++ v_s)
   let r = toEnum (fromIntegral (read_hex   5  r_s))
       v = fromIntegral (read_hex  32  v_s)
-      mstate1 = mstate_gpr_write  mstate  r  v
+      mstate1 = mstate_gpr_write  r  v  mstate
   putStrLn "OK"
   return mstate1
 
@@ -142,7 +142,7 @@ process_cmd  mstate  ["write_GPR", r_s, v_s] = do
 process_cmd  mstate  ["read_CSR", csr_addr_s] = do
   putStrLn ("    Doing read_CSR " ++ csr_addr_s)
   let csr_addr = fromIntegral (read_hex  12  csr_addr_s)
-      csr_val  = mstate_csr_read  mstate  csr_addr
+      csr_val  = mstate_csr_read  csr_addr  mstate
   putStrLn ("OK " ++ show csr_val)
   return mstate
 
@@ -150,7 +150,7 @@ process_cmd  mstate  ["write_CSR", csr_addr_s, v_s] = do
   putStrLn ("    Doing write_CSR " ++ csr_addr_s ++ " " ++ v_s)
   let csr_addr = fromIntegral (read_hex  12  csr_addr_s)
       v        = fromIntegral (read_hex  32  v_s)
-      mstate1  = mstate_csr_write  mstate  csr_addr  v
+      mstate1  = mstate_csr_write  csr_addr  v  mstate
   putStrLn "OK"
   return mstate1
 
@@ -168,10 +168,10 @@ process_cmd  mstate  ["read_mem_8", n_s, addr_s] = do
                             | True   = do
                                           let addr_j           = fromIntegral (addr + j)
                                               (res_j, mstate') = (mstate_mem_read
-                                                                  mstate
-                                                                  exc_code_load_access_fault
-                                                                  funct3_LB
-                                                                  addr_j)
+                                                                   exc_code_load_access_fault
+                                                                   funct3_LB
+                                                                   addr_j
+                                                                   mstate)
                                           case res_j of
                                             Mem_Result_Err cause ->
                                               do
@@ -200,7 +200,12 @@ process_cmd  mstate  ("write_mem_8": addr_s: val_ss) = do
       write_bytes  mstate  j  (val_s:val_ss) = do
         let addr_j = addr + j
             val_j  = read_hex 32 val_s
-            (st_result, mstate1) = mstate_mem_write  mstate  funct3_SB  (fromIntegral addr_j)  (fromIntegral val_j)
+            (st_result, mstate1) = (mstate_mem_write
+                                     funct3_SB
+                                     (fromIntegral addr_j)
+                                     (fromIntegral val_j)
+                                     mstate)
+
         putStrLn ("(" ++ (showHex addr_j "") ++ "," ++ (showHex val_j "") ++ ")")
         write_bytes  mstate1  (j+1)  val_ss
 
@@ -222,10 +227,11 @@ process_cmd  mstate  ["read_mem_32", n_s, addr_s] = do
                             | True   = do
                                           let addr_j           = fromIntegral (addr + j*4)
                                               (res_j, mstate') = (mstate_mem_read
-                                                                   mstate
                                                                    exc_code_load_access_fault
                                                                    funct3_LW
-                                                                   addr_j)
+                                                                   addr_j
+                                                                   mstate)
+
                                           case res_j of
                                             Mem_Result_Err cause ->
                                               do
@@ -254,7 +260,11 @@ process_cmd  mstate  ("write_mem_32": addr_s: val_ss) = do
       write_words  mstate  j  (val_s:val_ss) = do
         let addr_j = addr + j*4
             val_j  = read_hex 32 val_s
-            (st_result, mstate1) = mstate_mem_write  mstate  funct3_SW  (fromIntegral addr_j)  (fromIntegral val_j)
+            (st_result, mstate1) = (mstate_mem_write
+                                     funct3_SW
+                                     (fromIntegral addr_j)
+                                     (fromIntegral val_j)
+                                     mstate)
         putStrLn ("(" ++ (showHex addr_j "") ++ "," ++ (showHex val_j "") ++ ")")
         write_words  mstate1  (j+1)  val_ss
 
@@ -288,7 +298,7 @@ process_cmd  mstate  ["read_verbosity"] = do
 process_cmd  mstate  ["write_verbosity", v_s] = do
   putStrLn ("    Doing write_verbosity " ++ v_s)
   let verbosity = read_hex  1  v_s
-      mstate1   = mstate_verbosity_write  mstate  (fromIntegral verbosity)
+      mstate1   = mstate_verbosity_write  (fromIntegral verbosity)  mstate
   putStrLn "OK"
   return mstate1
 

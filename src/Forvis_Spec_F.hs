@@ -272,7 +272,7 @@ exec_FLW  is_C  (FLW  rd  rs1  imm12)  mstate =
     xlen = mstate_xlen_read  mstate
 
     -- Compute effective address
-    rs1_val = mstate_gpr_read  mstate  rs1
+    rs1_val = mstate_gpr_read  rs1  mstate
     s_imm12 = sign_extend  12  xlen  imm12
     eaddr1  = alu_add  xlen  rs1_val  s_imm12
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
@@ -285,10 +285,10 @@ exec_FLW  is_C  (FLW  rd  rs1  imm12)  mstate =
     is_n_lt_FLEN = True
     mstate2 = case result1 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  mstate1  exc_code  eaddr2
+                  finish_trap  exc_code  eaddr2  mstate1
 
                 Mem_Result_Ok  d_u64    ->
-                  finish_frd_and_pc_plus_4  mstate1  rd  d_u64  is_n_lt_FLEN
+                  finish_frd_and_pc_plus_4  rd  d_u64  is_n_lt_FLEN  mstate1
   in
     mstate2
 
@@ -301,10 +301,10 @@ exec_FSW  is_C  (FSW  rs1  rs2  imm12)  mstate =
     rv   = mstate_rv_read  mstate
     xlen = mstate_xlen_read  mstate
 
-    rs2_val = mstate_fpr_read  mstate  rs2   -- store value
+    rs2_val = mstate_fpr_read  rs2  mstate   -- store value
 
     -- Compute effective address
-    rs1_val = mstate_gpr_read  mstate  rs1    -- address base
+    rs1_val = mstate_gpr_read  rs1  mstate    -- address base
     s_imm12 = sign_extend  12  xlen  imm12
     eaddr1  = alu_add  xlen  rs1_val  s_imm12
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
@@ -314,8 +314,8 @@ exec_FSW  is_C  (FSW  rs1  rs2  imm12)  mstate =
 
     -- Finish with trap, or finish with fall-through
     mstate2 = case result1 of
-                Mem_Result_Err exc_code -> finish_trap  mstate1  exc_code  eaddr2
-                Mem_Result_Ok  _        -> finish_pc_incr  mstate1  is_C
+                Mem_Result_Err exc_code -> finish_trap  exc_code  eaddr2  mstate1
+                Mem_Result_Ok  _        -> finish_pc_incr  is_C  mstate1
   in
     mstate2
 
@@ -326,13 +326,13 @@ exec_FMADD_S :: Spec_Instr_F
 exec_FMADD_S  is_C  (FMADD_S  rd  rs1  rs2  rs3  rm)  mstate =
   let
     is_n_lt_FLEN = True
-    rs1_val = unboxSP  (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP  (mstate_fpr_read  mstate  rs2)
-    rs3_val = unboxSP  (mstate_fpr_read  mstate  rs3)
+    rs1_val = unboxSP  (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP  (mstate_fpr_read  rs2  mstate)
+    rs3_val = unboxSP  (mstate_fpr_read  rs3  mstate)
 
     (fflags, rdVal) = fpu_f32MulAdd  rm  rs1_val  rs2_val  rs3_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -343,13 +343,13 @@ exec_FMSUB_S :: Spec_Instr_F
 exec_FMSUB_S  is_C  (FMSUB_S  rd  rs1  rs2  rs3  rm)  mstate =
   let
     is_n_lt_FLEN = True
-    rs1_val = unboxSP  (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP  (mstate_fpr_read  mstate  rs2)
-    rs3_val = unboxSP  (mstate_fpr_read  mstate  rs3)
+    rs1_val = unboxSP  (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP  (mstate_fpr_read  rs2  mstate)
+    rs3_val = unboxSP  (mstate_fpr_read  rs3  mstate)
 
     (fflags, rdVal) = fpu_f32MulAdd  rm  rs1_val  rs2_val  (negateS rs3_val)
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -360,13 +360,13 @@ exec_FNMSUB_S :: Spec_Instr_F
 exec_FNMSUB_S  is_C  (FNMSUB_S  rd  rs1  rs2  rs3  rm)  mstate =
   let
     is_n_lt_FLEN = True
-    rs1_val = unboxSP  (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP  (mstate_fpr_read  mstate  rs2)
-    rs3_val = unboxSP  (mstate_fpr_read  mstate  rs3)
+    rs1_val = unboxSP  (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP  (mstate_fpr_read  rs2  mstate)
+    rs3_val = unboxSP  (mstate_fpr_read  rs3  mstate)
 
     (fflags, rdVal) = fpu_f32MulAdd  rm  (negateS rs1_val)  rs2_val  rs3_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -377,13 +377,13 @@ exec_FNMADD_S :: Spec_Instr_F
 exec_FNMADD_S  is_C  (FNMADD_S  rd  rs1  rs2  rs3  rm)  mstate =
   let
     is_n_lt_FLEN = True
-    rs1_val = unboxSP  (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP  (mstate_fpr_read  mstate  rs2)
-    rs3_val = unboxSP  (mstate_fpr_read  mstate  rs3)
+    rs1_val = unboxSP  (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP  (mstate_fpr_read  rs2  mstate)
+    rs3_val = unboxSP  (mstate_fpr_read  rs3  mstate)
 
     (fflags, rdVal) = fpu_f32MulAdd  rm  (negateS rs1_val)  rs2_val  (negateS rs3_val)
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -399,12 +399,12 @@ exec_FADD_S  is_C  (FADD_S  rd  rs1  rs2  rm)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs1))
-    rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs2))
+    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  rs1  mstate))
+    rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  rs2  mstate))
 
     (fflags, rd_val) = fpu_f32Add  rm  rs1_val  rs2_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -420,12 +420,12 @@ exec_FSUB_S  is_C  (FSUB_S  rd  rs1  rs2  rm)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs1))
-    rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs2))
+    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  rs1  mstate))
+    rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  rs2  mstate))
 
     (fflags, rd_val) = fpu_f32Sub  rm  rs1_val  rs2_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -441,12 +441,12 @@ exec_FMUL_S  is_C  (FMUL_S  rd  rs1  rs2  rm)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs1))
-    rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs2))
+    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  rs1  mstate))
+    rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  rs2  mstate))
 
     (fflags, rd_val) = fpu_f32Mul  rm  rs1_val  rs2_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -462,12 +462,12 @@ exec_FDIV_S  is_C  (FDIV_S  rd  rs1  rs2  rm)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs1))
-    rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs2))
+    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  rs1  mstate))
+    rs2_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  rs2  mstate))
 
     (fflags, rd_val) = fpu_f32Div  rm  rs1_val  rs2_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -483,11 +483,11 @@ exec_FSQRT_S  is_C  (FSQRT_S  rd  rs1  rm)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  mstate  rs1))
+    rs1_val = cvt_Integer_to_Word32  (unboxSP  (mstate_fpr_read  rs1  mstate))
 
     (fflags, rd_val) = fpu_f32Sqrt  rm  rs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -503,8 +503,8 @@ exec_FSGNJ_S  is_C  (FSGNJ_S  rd  rs1  rs2)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
+    rs1_val = unboxSP (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP (mstate_fpr_read  rs2  mstate)
 
     -- Extract the components of the source values
     (s1, e1, m1) = disassembleSP  rs1_val
@@ -514,7 +514,7 @@ exec_FSGNJ_S  is_C  (FSGNJ_S  rd  rs1  rs2)  mstate =
 
     -- No exceptions are signalled by this operation
     fflags  = 0
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -530,8 +530,8 @@ exec_FSGNJN_S  is_C  (FSGNJN_S  rd  rs1  rs2)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
+    rs1_val = unboxSP (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP (mstate_fpr_read  rs2  mstate)
 
     -- Extract the components of the source values
     (s1, e1, m1) = disassembleSP  rs1_val
@@ -541,7 +541,7 @@ exec_FSGNJN_S  is_C  (FSGNJN_S  rd  rs1  rs2)  mstate =
 
     -- No exceptions are signalled by this operation
     fflags  = 0
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -557,8 +557,8 @@ exec_FSGNJX_S  is_C  (FSGNJX_S  rd  rs1  rs2)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
+    rs1_val = unboxSP (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP (mstate_fpr_read  rs2  mstate)
 
     -- Extract the components of the source values
     (s1, e1, m1) = disassembleSP  rs1_val
@@ -568,7 +568,7 @@ exec_FSGNJX_S  is_C  (FSGNJX_S  rd  rs1  rs2)  mstate =
 
     -- No exceptions are signalled by this operation
     fflags  = 0
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -583,8 +583,8 @@ exec_FMIN_S  is_C  (FMIN_S  rd  rs1  rs2)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
+    rs1_val = unboxSP (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP (mstate_fpr_read  rs2  mstate)
 
     -- Extract the result of the operation and the flags
     (rs1_lt_rs2, fflags) = fpu_f32LE  rs1_val  rs2_val  True
@@ -615,7 +615,7 @@ exec_FMIN_S  is_C  (FMIN_S  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -631,8 +631,8 @@ exec_FMAX_S  is_C  (FMAX_S  rd  rs1  rs2)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
+    rs1_val = unboxSP (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP (mstate_fpr_read  rs2  mstate)
 
     -- Extract the result of the operation and the flags
     (rs2_lt_rs1, fflags) = fpu_f32LE  rs2_val  rs1_val  True
@@ -663,7 +663,7 @@ exec_FMAX_S  is_C  (FMAX_S  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rd_val  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -676,11 +676,11 @@ exec_FCVT_W_S  is_C  (FCVT_W_S  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = True
     xlen         = mstate_xlen_read  mstate
 
-    frs1_val    = unboxSP  (mstate_fpr_read  mstate  rs1)
+    frs1_val    = unboxSP  (mstate_fpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_f32ToI32  rm   frs1_val
 
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rdVal  fflags  mstate
   in
     mstate1
 
@@ -693,11 +693,11 @@ exec_FCVT_WU_S  is_C  (FCVT_WU_S  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = True
     xlen         = mstate_xlen_read  mstate
 
-    frs1_val    = unboxSP  (mstate_fpr_read  mstate  rs1)
+    frs1_val    = unboxSP  (mstate_fpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_f32ToUi32  rm  frs1_val
 
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rdVal  fflags  mstate
   in
     mstate1
 
@@ -707,12 +707,12 @@ exec_FCVT_WU_S  is_C  (FCVT_WU_S  rd  rs1  rm)  mstate =
 exec_FMV_X_W :: Spec_Instr_F
 exec_FMV_X_W  is_C  (FMV_X_W  rd  rs1)  mstate =
   let
-    frs1_val = mstate_fpr_read  mstate  rs1
+    frs1_val = mstate_fpr_read  rs1  mstate
 
     -- GPR value is sign-extended version of lower 32-bits of FPR contents
     frs1_val' = sign_extend  32  64  (bitSlice frs1_val  31  0)
 
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  frs1_val'  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  frs1_val'  is_C  mstate
   in
     mstate1
 
@@ -726,8 +726,8 @@ exec_FEQ_S  is_C  (FEQ_S  rd  rs1  rs2)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
+    rs1_val = unboxSP (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP (mstate_fpr_read  rs2  mstate)
 
     -- Extract the result of the operation and the flags
     (rs1_cmp_rs2, fflags) = fpu_f32EQQ  rs1_val  rs2_val
@@ -746,7 +746,7 @@ exec_FEQ_S  is_C  (FEQ_S  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rd_val  fflags  mstate
   in
     mstate1
 
@@ -760,8 +760,8 @@ exec_FLT_S  is_C  (FLT_S  rd  rs1  rs2)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
+    rs1_val = unboxSP (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP (mstate_fpr_read  rs2  mstate)
 
     -- Extract the result of the operation and the flags
     (rs1_cmp_rs2, fflags) = fpu_f32LT   rs1_val  rs2_val  False
@@ -780,7 +780,7 @@ exec_FLT_S  is_C  (FLT_S  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rd_val  fflags  mstate
   in
     mstate1
 
@@ -794,8 +794,8 @@ exec_FLE_S  is_C  (FLE_S  rd  rs1  rs2)  mstate =
     -- NaN-boxed, the lower 32-bits will be used as rs1 and rs2 values. If they
     -- are not correctly NaN-boxed, the value will be treated as "32-bit
     -- canonical NaN"
-    rs1_val = unboxSP (mstate_fpr_read  mstate  rs1)
-    rs2_val = unboxSP (mstate_fpr_read  mstate  rs2)
+    rs1_val = unboxSP (mstate_fpr_read  rs1  mstate)
+    rs2_val = unboxSP (mstate_fpr_read  rs2  mstate)
 
     -- Extract the result of the operation and the flags
     (rs1_cmp_rs2, fflags) = fpu_f32LE   rs1_val  rs2_val  False
@@ -814,7 +814,7 @@ exec_FLE_S  is_C  (FLE_S  rd  rs1  rs2)  mstate =
 
     -- Exceptions are signalled by these operations only if one of the arguments
     -- is a SNaN. This is a quiet operation
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rd_val  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rd_val  fflags  mstate
   in
     mstate1
 
@@ -824,7 +824,7 @@ exec_FLE_S  is_C  (FLE_S  rd  rs1  rs2)  mstate =
 exec_FCLASS_S :: Spec_Instr_F
 exec_FCLASS_S  is_C  (FCLASS_S  rd  rs1)  mstate =
   let
-    frs1_val = unboxSP  (mstate_fpr_read  mstate  rs1)
+    frs1_val = unboxSP  (mstate_fpr_read  rs1  mstate)
     
     -- Classify the frs1_val
     is_NegInf     = fpu_f32IsNegInf        frs1_val
@@ -852,7 +852,7 @@ exec_FCLASS_S  is_C  (FCLASS_S  rd  rs1)  mstate =
             | is_QNaN         = rd_val .|. shiftL  1  fclass_QNaN_bitpos
     
     -- No exceptions are signalled by this operation
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val'  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  rd_val'  is_C  mstate
   in
     mstate1
 
@@ -865,11 +865,11 @@ exec_FCVT_S_W  is_C  (FCVT_S_W  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = True
     xlen         = mstate_xlen_read  mstate
 
-    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
+    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_i32ToF32  rm  grs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -882,11 +882,11 @@ exec_FCVT_S_WU  is_C  (FCVT_S_WU  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = True
     xlen         = mstate_xlen_read  mstate
 
-    grs1_val    = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
+    grs1_val    = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_ui32ToF32  rm  grs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -898,9 +898,9 @@ exec_FMV_W_X  is_C  (FMV_W_X  rd  rs1)  mstate =
   let
     is_n_lt_FLEN = True
 
-    grs1_val = mstate_gpr_read  mstate  rs1
+    grs1_val = mstate_gpr_read  rs1  mstate
 
-    mstate1 = finish_frd_and_pc_plus_4  mstate  rd  grs1_val  is_n_lt_FLEN
+    mstate1 = finish_frd_and_pc_plus_4  rd  grs1_val  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -913,11 +913,11 @@ exec_FCVT_L_S  is_C  (FCVT_L_S  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = True
     xlen         = mstate_xlen_read  mstate
 
-    frs1_val    = unboxSP  (mstate_fpr_read  mstate  rs1)
+    frs1_val    = unboxSP  (mstate_fpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_f32ToI64   rm   frs1_val
 
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rdVal  fflags  mstate
   in
     mstate1
 
@@ -930,11 +930,11 @@ exec_FCVT_LU_S  is_C  (FCVT_LU_S  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = True
     xlen         = mstate_xlen_read  mstate
 
-    frs1_val    = unboxSP  (mstate_fpr_read  mstate  rs1)
+    frs1_val    = unboxSP  (mstate_fpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_f32ToUi64  rm  frs1_val
 
-    mstate1 = finish_grd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags
+    mstate1 = finish_grd_fflags_and_pc_plus_4  rd  rdVal  fflags  mstate
   in
     mstate1
 
@@ -947,11 +947,11 @@ exec_FCVT_S_L  is_C  (FCVT_S_L  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = True
     xlen         = mstate_xlen_read  mstate
 
-    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
+    grs1_val = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_i64ToF32  rm  grs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 
@@ -964,11 +964,11 @@ exec_FCVT_S_LU  is_C  (FCVT_S_LU  rd  rs1  rm)  mstate =
     is_n_lt_FLEN = True
     xlen         = mstate_xlen_read  mstate
 
-    grs1_val    = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  mstate  rs1)
+    grs1_val    = cvt_2s_comp_to_Integer  xlen  (mstate_gpr_read  rs1  mstate)
 
     (fflags, rdVal) = fpu_ui64ToF32  rm  grs1_val
 
-    mstate1 = finish_frd_fflags_and_pc_plus_4  mstate  rd  rdVal  fflags  is_n_lt_FLEN
+    mstate1 = finish_frd_fflags_and_pc_plus_4  rd  rdVal  fflags  is_n_lt_FLEN  mstate
   in
     mstate1
 

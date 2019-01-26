@@ -318,7 +318,7 @@ exec_LUI  is_C  (LUI  rd  imm20)  mstate =
   let
     xlen    = mstate_xlen_read  mstate
     rd_val  = sign_extend  32  xlen  (shiftL  imm20  12)
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  rd_val  is_C  mstate
   in
     mstate1
                                                           -- \end_latex{exec_LUI}
@@ -334,7 +334,7 @@ exec_AUIPC  is_C  (AUIPC  rd  imm20)  mstate =
     s_offset = sign_extend  32  xlen  (shiftL  imm20  12)
     rd_val   = alu_add  xlen  pc  s_offset
 
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  rd_val  is_C  mstate
   in
     mstate1
 
@@ -344,7 +344,7 @@ exec_AUIPC  is_C  (AUIPC  rd  imm20)  mstate =
 exec_JAL :: Spec_Instr_I
 exec_JAL  is_C  (JAL  rd  imm21)  mstate =
   let
-    misa     = mstate_csr_read   mstate  csr_addr_misa
+    misa     = mstate_csr_read  csr_addr_misa   mstate
     xlen     = mstate_xlen_read  mstate
     pc       = mstate_pc_read    mstate
     rd_val   = if is_C then pc + 2 else pc + 4
@@ -358,9 +358,9 @@ exec_JAL  is_C  (JAL  rd  imm21)  mstate =
 
     mstate1  = if aligned
                then
-                 finish_rd_and_pc  mstate  rd  rd_val  new_pc
+                 finish_rd_and_pc  rd  rd_val  new_pc  mstate
                else
-                 finish_trap  mstate  exc_code_instr_addr_misaligned  new_pc
+                 finish_trap  exc_code_instr_addr_misaligned  new_pc  mstate
   in
     mstate1
 
@@ -370,14 +370,14 @@ exec_JAL  is_C  (JAL  rd  imm21)  mstate =
 exec_JALR :: Spec_Instr_I
 exec_JALR  is_C  (JALR  rd  rs1  imm12)  mstate =
   let
-    misa   = mstate_csr_read   mstate  csr_addr_misa
+    misa   = mstate_csr_read  csr_addr_misa   mstate
     xlen   = mstate_xlen_read  mstate
     pc     = mstate_pc_read    mstate
     rd_val = if is_C then pc + 2 else pc + 4
 
     s_offset = sign_extend  12  xlen  imm12
 
-    rs1_val = mstate_gpr_read  mstate  rs1
+    rs1_val = mstate_gpr_read  rs1  mstate
 
     new_pc  = alu_add  xlen  rs1_val  s_offset
     new_pc' = clearBit  new_pc  0
@@ -387,9 +387,9 @@ exec_JALR  is_C  (JALR  rd  rs1  imm12)  mstate =
                  ((new_pc' .&. 0x3) == 0)
 
     mstate1 = if aligned then
-                finish_rd_and_pc  mstate  rd  rd_val  new_pc'
+                finish_rd_and_pc  rd  rd_val  new_pc'  mstate
               else
-                finish_trap  mstate  exc_code_instr_addr_misaligned  new_pc'
+                finish_trap  exc_code_instr_addr_misaligned  new_pc'  mstate
   in
     mstate1
                                                                            -- \end_latex{exec_JALR}
@@ -430,8 +430,8 @@ exec_BRANCH :: (Int -> Integer-> Integer-> Bool) ->
 exec_BRANCH  branch_alu_op  is_C  rs1  rs2  imm13  mstate =
   let
     xlen     = mstate_xlen_read  mstate
-    rs1_val  = mstate_gpr_read   mstate  rs1
-    rs2_val  = mstate_gpr_read   mstate  rs2
+    rs1_val  = mstate_gpr_read  rs1   mstate
+    rs2_val  = mstate_gpr_read  rs2   mstate
     taken    = branch_alu_op   xlen  rs1_val  rs2_val
 
     pc       = mstate_pc_read  mstate
@@ -443,14 +443,14 @@ exec_BRANCH  branch_alu_op  is_C  rs1  rs2  imm13  mstate =
                     else         pc + 4
 
     -- new_pc[0] known to be 0, new_pc[1] must be 0 if 'C' is not supported
-    misa     = mstate_csr_read  mstate  csr_addr_misa
+    misa     = mstate_csr_read  csr_addr_misa  mstate
     aligned  = (misa_flag  misa  'C' ||  (new_pc .&. 0x2 == 0))
           
     mstate1 = if aligned
               then
-                finish_pc  mstate  new_pc
+                finish_pc  new_pc  mstate
               else
-                finish_trap  mstate  exc_code_instr_addr_misaligned  new_pc
+                finish_trap  exc_code_instr_addr_misaligned  new_pc  mstate
   in
     mstate1
 
@@ -479,7 +479,7 @@ exec_LOAD    is_C    rd          rs1         imm12         funct3        mstate 
     xlen    = mstate_xlen_read  mstate
 
     -- Compute effective address
-    rs1_val = mstate_gpr_read  mstate  rs1
+    rs1_val = mstate_gpr_read  rs1  mstate
     s_imm12 = sign_extend  12  xlen  imm12
     eaddr1  = alu_add  xlen  rs1_val  s_imm12
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
@@ -496,7 +496,7 @@ exec_LOAD    is_C    rd          rs1         imm12         funct3        mstate 
     -- Finish with trap, or finish with loading Rd with load-value
     mstate2 = case result1 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  mstate1  exc_code  eaddr2
+                  finish_trap  exc_code  eaddr2  mstate1
 
                 Mem_Result_Ok  d    ->
                   let rd_val | (funct3 == funct3_LB) = sign_extend  8   xlen  d
@@ -504,7 +504,7 @@ exec_LOAD    is_C    rd          rs1         imm12         funct3        mstate 
                              | (funct3 == funct3_LW) = sign_extend  32  xlen  d
                              | True  = d
                   in
-                    finish_rd_and_pc_incr  mstate1  rd  rd_val  is_C
+                    finish_rd_and_pc_incr  rd  rd_val  is_C  mstate1
   in
     mstate2
 
@@ -526,10 +526,10 @@ exec_STORE    is_C    rs1         rs2         imm12         funct3        mstate
     rv   = mstate_rv_read    mstate
     xlen = mstate_xlen_read  mstate
 
-    rs2_val  = mstate_gpr_read  mstate  rs2    -- store value
+    rs2_val  = mstate_gpr_read  rs2  mstate    -- store value
 
     -- Compute effective address
-    rs1_val  = mstate_gpr_read  mstate  rs1    -- address base
+    rs1_val  = mstate_gpr_read  rs1  mstate    -- address base
     s_imm12  = sign_extend  12  xlen  imm12
     eaddr1   = alu_add  xlen  rs1_val  s_imm12
     eaddr2   = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
@@ -539,8 +539,8 @@ exec_STORE    is_C    rs1         rs2         imm12         funct3        mstate
 
     --     Finally: finish with trap, or finish with fall-through
     mstate2 = case result1 of
-                Mem_Result_Err exc_code -> finish_trap  mstate1  exc_code  eaddr2
-                Mem_Result_Ok  _        -> finish_pc_incr  mstate1  is_C
+                Mem_Result_Err exc_code -> finish_trap  exc_code  eaddr2  mstate1
+                Mem_Result_Ok  _        -> finish_pc_incr  is_C  mstate1
   in
     mstate2
 
@@ -578,12 +578,12 @@ exec_OP_IMM :: (Int -> Integer -> Integer -> Integer) -> Bool -> GPR_Addr -> GPR
 exec_OP_IMM    alu_op                                    is_C    rd          rs1         imm12         mstate =
   let
     xlen    = mstate_xlen_read  mstate
-    rs1_val = mstate_gpr_read  mstate  rs1
+    rs1_val = mstate_gpr_read  rs1  mstate
 
     s_imm   = sign_extend  12  xlen  imm12
 
     rd_val  = alu_op  xlen  rs1_val  s_imm
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  rd_val  is_C  mstate
   in
     mstate1
 
@@ -632,19 +632,19 @@ exec_SRA   is_C  (SRA    rd  rs1  rs2)  mstate =
   exec_OP  alu_sra   is_C  rd  rs1  rs2  mstate
 
                                                                     -- \begin_latex{exec_OP}
-exec_OP :: (Int -> Integer -> Integer -> Integer) ->
-           Bool ->
-           GPR_Addr ->
-           GPR_Addr ->
-           GPR_Addr ->
+exec_OP :: (Int -> Integer -> Integer -> Integer) ->    -- alu function
+           Bool ->                                      -- is_C
+           GPR_Addr ->                                  -- rd
+           GPR_Addr ->                                  -- rs1
+           GPR_Addr ->                                  -- rs2
            Machine_State -> Machine_State
 exec_OP    alu_op  is_C  rd  rs1  rs2  mstate =
   let
     xlen    = mstate_xlen_read  mstate
-    rs1_val = mstate_gpr_read   mstate  rs1        -- read rs1
-    rs2_val = mstate_gpr_read   mstate  rs2        -- read rs2
+    rs1_val = mstate_gpr_read  rs1   mstate        -- read rs1
+    rs2_val = mstate_gpr_read  rs2   mstate        -- read rs2
     rd_val  = alu_op  xlen  rs1_val  rs2_val       -- compute rd_val
-    mstate1 = finish_rd_and_pc_incr  mstate  rd  rd_val  is_C
+    mstate1 = finish_rd_and_pc_incr  rd  rd_val  is_C  mstate
   in
     mstate1
                                                                     -- \end_latex{exec_OP}
@@ -657,7 +657,7 @@ exec_FENCE  :: Spec_Instr_I
 exec_FENCE   is_C  (FENCE  fm  pred  succ)  mstate =
   let
     mstate1 = mstate_mem_fence  mstate
-    mstate2 = finish_pc_incr  mstate1  is_C
+    mstate2 = finish_pc_incr  is_C  mstate1
   in
     mstate2
 
@@ -673,7 +673,7 @@ exec_ECALL    is_C  (ECALL)  mstate =
              | priv == u_Priv_Level = exc_code_ECall_from_U
              | True                 = error ("Illegal priv " ++ show (priv))
     tval = 0
-    mstate1 = finish_trap  mstate  exc_code  tval
+    mstate1 = finish_trap  exc_code  tval  mstate
   in
     mstate1
                                                                     -- \end_latex{exec_ECALL}
@@ -685,7 +685,7 @@ exec_EBREAK    is_C  (EBREAK)  mstate =
   let
     exc_code = exc_code_breakpoint
     tval     = mstate_pc_read  mstate
-    mstate1  = finish_trap  mstate  exc_code  tval
+    mstate1  = finish_trap  exc_code  tval  mstate
   in
     mstate1
 

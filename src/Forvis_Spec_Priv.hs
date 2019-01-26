@@ -97,17 +97,17 @@ exec_xRET  instr_32b  is_C  instr_Priv  mstate =
                  || (is_SRET && (priv >= s_Priv_Level))
                  || (is_URET && (priv >= u_Priv_Level)))
 
-    mstatus   = mstate_csr_read  mstate  csr_addr_mstatus
+    mstatus   = mstate_csr_read  csr_addr_mstatus  mstate
     tsr_fault = (is_SRET && (priv == s_Priv_Level) && (testBit  mstatus  mstatus_tsr_bitpos))
     (mpp,spp,mpie,spie,upie,mie,sie,uie) = mstatus_stack_fields  mstatus
     rv        = mstate_rv_read   mstate
-    misa      = mstate_csr_read  mstate  csr_addr_misa
+    misa      = mstate_csr_read  csr_addr_misa  mstate
 
     mstate3   = if (tsr_fault)
                 then
                   let tval = instr_32b
                   in
-                    finish_trap  mstate  exc_code_illegal_instruction  tval
+                    finish_trap  exc_code_illegal_instruction  tval  mstate
 
                 else
                   let
@@ -142,17 +142,17 @@ exec_xRET  instr_32b  is_C  instr_Priv  mstate =
                     mstatus' = mstatus_upd_stack_fields  mstatus  (mpp',spp',mpie',spie',upie',mie',sie',uie')
 
                     -- New PC
-                    pc1 | is_MRET = mstate_csr_read  mstate  csr_addr_mepc
-                        | is_SRET = mstate_csr_read  mstate  csr_addr_sepc
-                        | is_URET = mstate_csr_read  mstate  csr_addr_uepc
+                    pc1 | is_MRET = mstate_csr_read  csr_addr_mepc  mstate
+                        | is_SRET = mstate_csr_read  csr_addr_sepc  mstate
+                        | is_URET = mstate_csr_read  csr_addr_uepc  mstate
                     pc2 | (rv == RV32) = (pc1 .&. 0xFFFFFFFF)
                         | True         = pc1
 
                     -- Update arch state
-                    mstate1 = mstate_csr_write   mstate   csr_addr_mstatus  mstatus'
-                    mstate2 = mstate_priv_write  mstate1  priv'
+                    mstate1 = mstate_csr_write   csr_addr_mstatus  mstatus'   mstate
+                    mstate2 = mstate_priv_write  priv'  mstate1
                   in
-                    finish_pc  mstate2  pc2
+                    finish_pc  pc2  mstate2
   in
     mstate3
 
@@ -168,18 +168,18 @@ exec_WFI  instr_32b  is_C  instr_Priv  mstate =
     --     (here, the timeout is 0)
     -- Otherwise it's functionally a no-op
     --     Optionally: pause here in WFI state until interrupt
-    mstatus    = mstate_csr_read   mstate  csr_addr_mstatus
+    mstatus    = mstate_csr_read  csr_addr_mstatus   mstate
     tw_bit_set = testBit  mstatus  mstatus_tw_bitpos
     mstate1    = if (tw_bit_set)
                  then
                    let tval = instr_32b
                    in
-                     finish_trap  mstate  exc_code_illegal_instruction  tval
+                     finish_trap  exc_code_illegal_instruction  tval  mstate
                  else
                    let
-                     mstate' = mstate_run_state_write  mstate  Run_State_WFI
+                     mstate' = mstate_run_state_write  Run_State_WFI  mstate
                    in
-                     finish_pc_incr  mstate'  is_C
+                     finish_pc_incr  is_C  mstate'
   in
     mstate1
 
@@ -194,21 +194,21 @@ exec_SFENCE_VMA  instr_32b  is_C  (SFENCE_VMA  rs1  rs2)  mstate =
     is_legal = (priv >= s_Priv_Level)    -- TODO: allowed in m_Priv_Level?
 
     -- Functionally a no-op, but can change micro-arch state to affect future mem ops
-    rs1_val   = mstate_gpr_read  mstate  rs1
-    rs2_val   = mstate_gpr_read  mstate  rs2
-    mstatus   = mstate_csr_read  mstate  csr_addr_mstatus
+    rs1_val   = mstate_gpr_read  rs1               mstate
+    rs2_val   = mstate_gpr_read  rs2               mstate
+    mstatus   = mstate_csr_read  csr_addr_mstatus  mstate
     tvm_fault = testBit  mstatus  mstatus_tvm_bitpos
 
     mstate2   = if (tvm_fault)
                 then
                   let tval = instr_32b
                   in
-                    finish_trap  mstate  exc_code_illegal_instruction  tval
+                    finish_trap  exc_code_illegal_instruction  tval  mstate
                 else
                   let
                     mstate1 = mstate_mem_sfence_vma  mstate  rs1_val  rs2_val
                   in
-                    finish_pc_incr  mstate1  is_C
+                    finish_pc_incr  is_C  mstate1
   in
     mstate2
 

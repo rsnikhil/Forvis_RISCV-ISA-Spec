@@ -153,10 +153,10 @@ exe_AMO :: InstrField ->
 exe_AMO  funct3  msbs5  is_C  rd  rs1  rs2  aq  rl  mstate =
   let
     rv      = mstate_rv_read  mstate
-    rs2_val = mstate_gpr_read  mstate  rs2
+    rs2_val = mstate_gpr_read  rs2  mstate
 
     -- Compute effective address
-    eaddr1  = mstate_gpr_read  mstate  rs1
+    eaddr1  = mstate_gpr_read  rs1  mstate
     eaddr2  = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
 
     -- Do the AMO op
@@ -165,10 +165,10 @@ exe_AMO  funct3  msbs5  is_C  rd  rs1  rs2  aq  rl  mstate =
     -- Finish with trap, or finish with loading Rd with AMO result
     mstate2 = case result1 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  mstate1  exc_code  eaddr2
+                  finish_trap  exc_code  eaddr2  mstate1
 
                 Mem_Result_Ok  x        ->
-                  finish_rd_and_pc_incr  mstate1  rd  x  is_C
+                  finish_rd_and_pc_incr  rd  x  is_C  mstate1
   in
     mstate2
 

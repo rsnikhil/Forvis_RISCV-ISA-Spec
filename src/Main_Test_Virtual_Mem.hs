@@ -51,7 +51,7 @@ main_test_sv32 = do
       addr_ranges    = [(mem_base, mem_base + mem_size)]
       addr_byte_list = []
       ms1 = mkMachine_State  RV32  misa  initial_PC  addr_ranges  addr_byte_list
-      ms2 = mstate_csr_write  ms1  csr_addr_satp  (mk_satp_rv32  sv32  0  0x80002000)
+      ms2 = mstate_csr_write  csr_addr_satp  (mk_satp_rv32  sv32  0  0x80002000)  ms1
       sample_pt = (mk_sample_page_table  sv32)
       ms3 = load_sample_page_table  ms2  funct3_SW  sample_pt
 
@@ -111,7 +111,7 @@ main_test_sv39 = do
       addr_ranges    = [(mem_base, mem_base + mem_size)]
       addr_byte_list = []
       ms1 = mkMachine_State  RV64  misa  initial_PC  addr_ranges  addr_byte_list
-      ms2 = mstate_csr_write  ms1  csr_addr_satp  (mk_satp_rv64  sv39  0  0x80001000)
+      ms2 = mstate_csr_write  csr_addr_satp  (mk_satp_rv64  sv39  0  0x80001000)  ms1
       sample_pt = (mk_sample_page_table  sv39)
       ms3 = load_sample_page_table  ms2  funct3_SD  sample_pt
 
@@ -182,8 +182,8 @@ do_tests  mstate  sv  (test:tests) = do
   putStr (showHex  (va_offset  va)  ")")
   putStrLn ("")
 
-  let ms_b               = mstate_priv_write  mstate  priv
-      ms_c               = mstate_csr_write  ms_b  csr_addr_mstatus  mstatus
+  let ms_b               = mstate_priv_write  priv  mstate
+      ms_c               = mstate_csr_write  csr_addr_mstatus  mstatus  ms_b
       (mem_result, ms_d) = vm_translate  ms_c  is_instr  is_read  va
   case mem_result of
     Mem_Result_Err  ec -> putStrLn ("Trap " ++ show_trap_exc_code  ec)
@@ -198,7 +198,7 @@ load_sample_page_table :: Machine_State -> InstrField -> [(Integer, Integer)] ->
 load_sample_page_table  mstate  funct3  []          = mstate
 load_sample_page_table  mstate  funct3  ((a,v):avs) =
   let
-    (mem_result, mstate1) = mstate_mem_write  mstate  funct3  a  v
+    (mem_result, mstate1) = mstate_mem_write  funct3  a  v  mstate
   in
     load_sample_page_table  mstate1  funct3  avs
 
