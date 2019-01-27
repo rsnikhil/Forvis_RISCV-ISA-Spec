@@ -17,7 +17,11 @@ policy:
       allocGrp(env == _, code == [+Alloc] -> env = env, res = {(Pointer new)})
     ^ immArithGrp(env == _, op1 == _ -> env = env, res = op1)        
     ^ arithGrp(env == _, op1 == _ -> env = env, res = op1)  
-    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == [+(Cell color)] ->
+// Correct:
+//    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == [+(Cell color)] ->
+//             env = env, res = mem[-(Cell _)])
+// Buggy:
+    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
              env = env, res = mem[-(Cell _)])
     ^ storeGrp(env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] ->
               env = env, mem = val[+(Cell color)])
