@@ -25,10 +25,11 @@ import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
 -- Data structure for instructions in 'I' (base instruction set)
-
+                                                                            -- \begin_latex{Instr_M}
 data Instr_M = MUL     GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
              | MULH    GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
              | MULHSU  GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
+                                                                            -- \end_latex{...Instr_M}
              | MULHU   GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
 
              | DIV     GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
@@ -47,11 +48,12 @@ data Instr_M = MUL     GPR_Addr  GPR_Addr  GPR_Addr      -- rd,  rs1, rs2
 -- Sub-opcodes for 'M' instructions
 -- NOTE: opcode_OP, opcode_OP_32 are defined in module Arch_Defs
 
+                                                                            -- \begin_latex{M_subopcodes}
 -- opcode_OP sub-opcodes
 funct3_MUL       = 0x0   :: InstrField    -- 3'b_000
 funct7_MUL       = 0x01  :: InstrField    -- 7'b_000_0001
 funct3_MULH      = 0x1   :: InstrField    -- 3'b_001
-funct7_MULH      = 0x01  :: InstrField    -- 7'b_000_0001
+funct7_MULH      = 0x01  :: InstrField    -- 7'b_000_0001                   -- \end_latex{...M_subopcodes}
 funct3_MULHSU    = 0x2   :: InstrField    -- 3'b_010
 funct7_MULHSU    = 0x01  :: InstrField    -- 7'b_000_0001
 funct3_MULHU     = 0x3   :: InstrField    -- 3'b_011
@@ -82,9 +84,10 @@ funct7_REMUW    = 0x01   :: InstrField    -- 7'b_000_0001
 -- ================================================================
 -- Decode from 32b representation to Instr_M data structure
 
+                                                                   -- \begin_latex{decode_M}
 decode_M :: RV -> Instr_32b -> Maybe Instr_M
 decode_M    rv    instr_32b =
-  let
+  let                                                              -- \end_latex{...decode_M}
     -- Symbolic names for notable bitfields in the 32b instruction 'instr_32b'
     opcode  = bitSlice  instr_32b   6   0
     rd      = bitSlice  instr_32b  11   7
@@ -116,15 +119,17 @@ decode_M    rv    instr_32b =
 
 -- ================================================================
 -- Execution of Instr_M
-
+                                                                   -- \begin_latex{Spec_Instr_M}
 type Spec_Instr_M = Bool -> Instr_M -> Machine_State -> Machine_State
 --                  is_C    instr_M    mstate           mstate'
-
+                                                                   -- \end_latex{Spec_Instr_M}
+                                                                   -- \begin_latex{exec_instr_M}
 exec_instr_M :: Spec_Instr_M
 exec_instr_M  is_C  instr_M  mstate =
   case instr_M of
     MUL     rd  rs1  rs2 -> exec_OP_M  alu_mul     is_C  rd  rs1  rs2  mstate
     MULH    rd  rs1  rs2 -> exec_OP_M  alu_mulh    is_C  rd  rs1  rs2  mstate
+                                                                   -- \end_latex{...exec_instr_M}
     MULHSU  rd  rs1  rs2 -> exec_OP_M  alu_mulhsu  is_C  rd  rs1  rs2  mstate
     MULHU   rd  rs1  rs2 -> exec_OP_M  alu_mulhu   is_C  rd  rs1  rs2  mstate
     DIV     rd  rs1  rs2 -> exec_OP_M  alu_div     is_C  rd  rs1  rs2  mstate

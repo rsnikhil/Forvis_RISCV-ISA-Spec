@@ -22,24 +22,6 @@ import CSR_File
 import Virtual_Mem
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
--- User-level instructions
-import Forvis_Spec_I           -- 'I'     (Base) instruction set (RV32 and RV64)
-import Forvis_Spec_I64         -- 'I64'   (Base) instruction set (RV64 only)
-import Forvis_Spec_Zicsr       -- 'Zicsr' instruction set
-import Forvis_Spec_Zifencei    -- 'Zicsr' instruction set
-import Forvis_Spec_M           -- Extension 'M' (Integer Multiply/Divide)
-
-import Forvis_Spec_A           -- Extension 'A' (Atomic Memory Ops (AMO))
-import Forvis_Spec_C           -- Extension 'C' (Compressed 16-bit instrs)
-
-#ifdef FLOAT
-import Forvis_Spec_F           -- Extension 'F' (single-precision floating point)
-import Forvis_Spec_D           -- Extension 'D' (double-precision floating point)
-#endif
-
--- Privileged Architecture instructions
-import Forvis_Spec_Priv
-
 -- ================================================================
 -- Instruction fetch
 -- This function attempts an insruction fetch based on the current PC.

@@ -56,7 +56,7 @@ import Forvis_Spec_Priv
 -- supported extensions.  It then dispatches, based on a successful
 -- decode, to that extension's 'exec' function.  If no decode is
 -- successful, it performs an illegal-instruction trap.
-
+                                                                       -- \begin_latex{exec_instr_32b}
 exec_instr_32b :: Instr_32b -> Machine_State -> (Machine_State, String)
 exec_instr_32b    instr_32b    mstate =
   let
@@ -69,7 +69,10 @@ exec_instr_32b    instr_32b    mstate =
     dec_Zifencei  = decode_Zifencei  rv        instr_32b
     dec_Zicsr     = decode_Zicsr     rv        instr_32b
     dec_I64       = decode_I64       rv        instr_32b
+                                                                       -- \end_latex{...exec_instr_32b}
+                                                                       -- \begin_latex{exec_instr_32b_2}
     dec_M         = decode_M         rv        instr_32b
+                                                                       -- \end_latex{exec_instr_32b_2}
     dec_A         = decode_A         rv        instr_32b
     dec_Priv      = decode_Priv      rv        instr_32b
 #ifdef FLOAT
@@ -77,8 +80,7 @@ exec_instr_32b    instr_32b    mstate =
     dec_D         = decode_D   frm   rv        instr_32b
 #endif
   in
-                                                                       -- \end_latex{...exec_instr_32b}
-                                                                       -- \begin_latex{exec_instr_32b_2}
+                                                                       -- \begin_latex{exec_instr_32b_3}
     case dec_I of
       Just  instr_I -> (exec_instr_I  is_C  instr_I  mstate,
                         show  instr_I)
@@ -86,13 +88,13 @@ exec_instr_32b    instr_32b    mstate =
         case dec_I64 of
           Just instr_I64 -> (exec_instr_I64  is_C  instr_I64  mstate,
                              show  instr_I64)
-          Nothing ->
+          Nothing ->                                                   -- \end_latex{...exec_instr_32b_3}
+                                                                       -- \begin_latex{exec_instr_32b_4}
             case dec_M of
               Just instr_M -> (exec_instr_M  is_C  instr_M  mstate,
                                show  instr_M)
-                                                                       -- \end_latex{...exec_instr_32b_2}
               Nothing ->
-                case dec_A of
+                case dec_A of                                           -- \end_latex{...exec_instr_32b_4}
                   Just instr_A -> (exec_instr_A  is_C  instr_A  mstate,
                                    show  instr_A)
                   Nothing ->
@@ -118,7 +120,7 @@ exec_instr_32b    instr_32b    mstate =
                                                        show  instr_D)
                                       Nothing ->
 #endif
-                                                                       -- \begin_latex{exec_instr_32b_3}
+                                                                       -- \begin_latex{exec_instr_32b_5}
                                         -- Illegal instruction trap, since does
                                         -- not decode to any 32b instr
                                         let
@@ -129,7 +131,7 @@ exec_instr_32b    instr_32b    mstate =
                                         in
                                           (mstate1, "Illegal instr 0x" ++
                                                     showHex instr_32b "")
-                                                                       -- \end_latex{exec_instr_32b_3}
+                                                                       -- \end_latex{exec_instr_32b_5}
 
 {-# INLINE exec_instr_32b #-}
 

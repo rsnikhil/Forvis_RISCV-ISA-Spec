@@ -439,15 +439,12 @@ mstate_mem_all_console_output  mstate =
   in
     mmio_all_console_output  mmio
 
--- I/O: Tick
---     incr CSR.MCYCLE
---     incr MMIO.MTIME
-
 -- ----------------------------------------------------------------
 -- Advance IO devices (which ``run'' concurrently with the CPU)
-
+                                                                -- \begin_latex{mstate_io_tick}
 mstate_io_tick :: Machine_State -> Machine_State
 mstate_io_tick  mstate =
+                                                                -- \end_latex{...mstate_io_tick}
   let
     rv    = f_rv    mstate
     csrs  = f_csrs  mstate
@@ -461,7 +458,7 @@ mstate_io_tick  mstate =
                  csrs')
 
     -- Tick memory-mapped location MMIO.MTIME
-    mmio1  = mmio_tick_mtime  mmio
+    mmio1  = mmio_tick  mmio
 
     -- Set MIP.MEIP, MIP.MTIP and MIP.MSIP if these interrupts are present
     mip_old = csr_read   rv  csrs1  csr_addr_mip

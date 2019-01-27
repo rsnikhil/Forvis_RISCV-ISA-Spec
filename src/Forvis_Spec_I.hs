@@ -164,12 +164,12 @@ decode_I    rv    instr_32b =
                .|. (shiftL  (bitSlice  instr_32b  30  25)   5)
                .|. (shiftL  (bitSlice  instr_32b  11   8)   1)
                .|. (shiftL  (bitSlice  instr_32b   7   7)  11))
-                                                                                       -- \begin_latex{decode_I_B}
+                                                                      -- \begin_latex{decode_I_B}
     imm21_J = ((    shiftL  (bitSlice  instr_32b  31  31)  20)
                .|. (shiftL  (bitSlice  instr_32b  30  21)   1)
                .|. (shiftL  (bitSlice  instr_32b  20  20)  11)
                .|. (shiftL  (bitSlice  instr_32b  19  12)  12))
-                                                                                       -- \end_latex{decode_I_B}
+                                                                      -- \end_latex{decode_I_B}
 
     imm20_U = bitSlice  instr_32b  31  12
 
