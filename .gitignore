@@ -29,3 +29,5 @@ Makefile.conf
 cabal.project.local
 .HTF/
 elf_to_hex
+ast.txt
+symbols.txt
