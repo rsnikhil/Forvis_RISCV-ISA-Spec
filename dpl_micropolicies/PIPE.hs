@@ -120,7 +120,7 @@ mkMemT = foldr (\ (a,t) m -> mem_writeT m a t) (MemT Data_Map.empty)
 
 mem_readT :: MemT -> Integer -> TagSet
 mem_readT m a =
-     maybe (error $ "undefined mem_readT" ++ (show a)) id (Data_Map.lookup a (unMemT m))
+     maybe (error $ "undefined mem_readT " ++ (show a)) id (Data_Map.lookup a (unMemT m))
  
 mem_writeT :: MemT -> Integer -> TagSet -> MemT
 mem_writeT m a t = foldr (\a m -> mem_writeT' m a t) m [a0,a0+1,a0+2,a0+3]

@@ -21,10 +21,14 @@ policy:
 //    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == [+(Cell color)] ->
 //             env = env, res = mem[-(Cell _)])
 // Buggy:
+//    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
+//             env = env, res = mem[-(Cell _)])
     ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
-             env = env, res = mem[-(Cell _)])
-    ^ storeGrp(env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] ->
-              env = env, mem = val[+(Cell color)])
+             env = env, res = env)
+    ^ storeGrp(env == _, addr == _, val == _, mem == _ ->
+              env = env )
+//    ^ storeGrp(env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] ->
+//              env = env, mem = val[+(Cell color)])
     ^ jumpGrp(env == _ -> env = env, return = env ) 
 
 require:  // map external names (dotted strings) to tag sets

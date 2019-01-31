@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Gen where
 
 import Arch_Defs
@@ -98,52 +99,107 @@ Load r2 r3 @ default
 
 -- Invariants: r0 is always zero
 
+-- GPR's are hard coded to be [0..31], but we only use a couple of them
+maxReg = 3
+
 -- Generate a random register for source
 -- TODO: add types?
 genSourceReg :: Machine_State -> Gen GPR_Addr
 genSourceReg ms =
-  -- GPR's are hard coded to be [0..31].
-  choose (0, 31)
+  choose (0, maxReg)
 
 -- Generate a target register GPR
 -- For now, just avoid R0
 genTargetReg :: Machine_State -> Gen GPR_Addr
 genTargetReg ms =
-  choose (1, 31)
+  choose (1, maxReg)
 
 -- Generate an immediate up to number
 -- Multiple of 4
 genImm :: Integer -> Gen InstrField
-genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we not generate 0?
+-- genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we never generate 0?
+genImm n = (4*) <$> choose (0, n `div` 4)  
 
 dataMemLow  = 4
-dataMemHigh = 40
+dataMemHigh = 20  -- Was 40, but that seems like a lot! (8 may be too little!)
 instrLow = 1000
 
 -- Generate an instruction that is valid in the current context
 -- For load and store to make sense, we need to go through the register file
 -- and pick "valid" current addresses.
 
--- Picks out valid (data registers + max immediate), (jump registers + min immediate), integer registers
+-- If not only using multiples of 4, add a modulus to data 
+--groupRegisters :: GPR_File -> GPR_FileT ->
+--                  ([(GPR_Addr, Integer, Integer, Integer, Tag)],
+--                   [(GPR_Addr, Integer)],
+--                   [GPR_Addr])
+--groupRegisters (GPR_File rs) (GPR_FileT ts) =
+--  let regs' = Data_Map.assocs rs
+--      regs = take 4 regs'  -- Just use the first four registers!
+--      validData n
+--        | n >= dataMemLow && n <= dataMemHigh =
+--            -- TODO: If we allow non multiple of 4 values this needs to be fixed
+--            let mod = 0 in
+--            Just (n, mod, dataMemHigh - n)
+--        | n == 0 =
+--            -- We can allow a 0 register by adding at least 4
+--            Just (0, 4, 40)
+--        | otherwise = Nothing
+--      validJump n = Just (instrLow - n)
+--      dataRegs    = map (second fromJust) $ filter (isJust . snd) $ map (second validData) regs
+--      dataRegs'   = map (\(i,(content, minimm,maximm)) -> (i, content, minimm, maximm, fromJust $ Data_Map.lookup i ts)) dataRegs
+--      controlRegs = map (second fromJust) $ filter (isJust . snd) $ map (second validJump) regs
+--      arithRegs   = map fst regs
+--  in (dataRegs', controlRegs, arithRegs)       
+
+
+-- Picks out valid (data registers + content + min immediate + max immediate + tag),
+--                 (jump registers + min immediate),
+--                 integer registers
 groupRegisters :: PIPE_Policy -> GPR_File -> GPR_FileT ->
-                  ([(GPR_Addr, Integer)], [(GPR_Addr, Integer)], [GPR_Addr])
+                  ([(GPR_Addr, Integer, Integer, Integer, TagSet)],
+                   [(GPR_Addr, Integer)],
+                   [GPR_Addr])
 groupRegisters ppol (GPR_File rs) (GPR_FileT ts) =
+  -- Assuming that the register files are same length and they have no holes
   let regs = Data_Map.assocs rs
       tags = Data_Map.assocs ts
       rts = zip regs tags
-      validData ((addr,n),(_, tag))
-        | n >= dataMemLow && n <= dataMemHigh && isJust (runReader (pointerColorOf tag) ppol) =
-            (addr, Just (dataMemHigh - n))
-        | otherwise = (addr, Nothing)
-      validJump ((addr,n),(_, tag))
-        | n < instrLow && isJust (runReader (envColorOf tag) ppol) =
-            (addr, Just (instrLow - n))
-        | otherwise = (addr, Nothing)
-      
-      dataRegs    = map (second fromJust) $ filter (isJust . snd) $ map validData rts
-      controlRegs = map (second fromJust) $ filter (isJust . snd) $ map validJump rts
+
+      validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
+        | reg_content >= dataMemLow &&
+          reg_content <= dataMemHigh
+          && isJust (runReader (pointerColorOf reg_tag) ppol) =
+           Just (reg_id, reg_content, 0, dataMemHigh - reg_content, reg_tag)
+        | reg_content == 0 && isJust (runReader (pointerColorOf reg_tag) ppol) =
+        -- We can allow a 0 register by adding at least 4
+           Just (reg_id, 0, dataMemLow, dataMemHigh, reg_tag)
+        | otherwise =
+           Nothing
+        
+      validJump ((reg_id,reg_content),(_, reg_tag))
+        | reg_content < instrLow && isJust (runReader (envColorOf reg_tag) ppol) =
+          Just (reg_id, instrLow - reg_content)
+        | otherwise =
+          Nothing
+
+      dataRegs    = map (fromJust) $ filter (isJust) $ map validData rts
+      controlRegs = map (fromJust) $ filter (isJust) $ map validJump rts
       arithRegs   = map fst regs
   in (dataRegs, controlRegs, arithRegs)
+
+-- All locations that can be accessed using color 'c' between 'lo' and 'hi'
+reachableLocsBetween :: PIPE_Policy -> Mem -> MemT -> Integer -> Integer -> TagSet -> [Integer]
+reachableLocsBetween ppol (Mem m _) (MemT pm) lo hi t =
+  case runReader (pointerColorOf t) ppol of
+    Just c -> 
+      map fst $ filter (\(i,t) ->
+                          case runReader (cellColorOf t) ppol of
+                            Just c' -> c == c' && i >= lo && i <= hi
+                            _ -> False
+                       ) (Data_Map.assocs pm)
+    _ -> []
+
 
 genInstr :: PIPE_Policy -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
 genInstr ppol ms ps =
@@ -155,22 +211,32 @@ genInstr ppol ms ps =
                do -- ADDI
                   rs <- elements arithRegs
                   rd <- genTargetReg ms
-                  imm <- genImm 40
+                  imm <- genImm dataMemHigh
                   -- TODO: Figure out what to do with Malloc
-                  alloc <- frequency [(1, pure $ emptyInstTag ppol), (4, pure $ allocInstTag ppol)]
+                  alloc <- frequency [(2, pure $ emptyInstTag ppol),
+                                      (3, pure $ allocInstTag ppol)]
                   return (ADDI rd rs imm, alloc))
             , (onNonEmpty dataRegs 3,
                do -- LOAD
-                  (rs,max_imm) <- elements dataRegs
+                  (rs,content,min_imm,max_imm,tag) <- elements dataRegs
+                  let locs = --traceShow (content, min_imm, max_imm, tag) $
+                             reachableLocsBetween ppol (f_mem ms) (p_mem ps) (content+min_imm) (content+max_imm) tag
                   rd <- genTargetReg ms
-                  imm <- genImm max_imm
-                  let tag = emptyInstTag ppol
-                  return (LW rd rs imm, tag))
+                  imm <- frequency [ -- Generate a reachable location)
+                                     (--traceShow locs $
+                                       onNonEmpty locs 1,
+                                      do addr <- elements locs
+                                         return $ addr - content)
+                                   , (1, (min_imm+) <$> genImm (max_imm - min_imm))
+                                   ]
+                  let tag = emptyInstTag ppol                         
+                  return (LW rd rs imm, tag)
+              )
             , (onNonEmpty dataRegs 3 * onNonEmpty arithRegs 1,
                do -- STORE
-                  (rd,max_imm) <- elements dataRegs
+                  (rd,content, min_imm,max_imm,tag) <- elements dataRegs
                   rs <- genTargetReg ms
-                  imm <- genImm max_imm
+                  imm <- (min_imm+) <$> genImm (max_imm - min_imm)
                   let tag = emptyInstTag ppol
                   return (SW rd rs imm, tag))
             , (onNonEmpty arithRegs 1,
@@ -225,8 +291,22 @@ randInstr ppol ms =
 -- 
 genColor :: Gen Color
 genColor =
-  frequency [ (9, pure $ 0)
-            , (1, choose (0, 4)) ]
+  frequency [ (1, pure $ 0)
+            , (4, choose (0, 4)) ]
+
+-- Only colors up to 2 (for registers)
+genColorLow :: Gen Color
+genColorLow = frequency [ (1, pure $ 0)
+                        , (2, choose (0,2)) ]
+
+-- Focus on unreachable colors
+genColorHigh :: Gen Color
+genColorHigh =
+  frequency [ (1, pure $ 0)
+            , (1, choose (1,2) )
+            , (3, choose (3,4) )
+            ]
+
 
 genMTagM :: PIPE_Policy -> Gen TagSet
 genMTagM ppol = do
@@ -237,7 +317,7 @@ genMTagM ppol = do
 genDataMemory :: PIPE_Policy -> Gen (Mem, MemT)
 genDataMemory ppol = do
   let idx = [dataMemLow,dataMemLow+4..dataMemHigh]
-  combined <- mapM (\i -> do d <- genImm 4    -- BCP: This always puts 4 in every location!
+  combined <- mapM (\i -> do d <- genImm dataMemHigh    -- BCP: This always puts 4 in every location!
                              t <- genMTagM ppol
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
@@ -274,6 +354,22 @@ genByExec ppol n ms ps instrlocs
         trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n ++ " and error: " ++ show err) $
         return (ms', ps', instrlocs)
 
+updRegs :: GPR_File -> Gen GPR_File
+updRegs (GPR_File rs) = do
+  [d1, d2, d3] <- replicateM 3 $ genImm 40
+  let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
+  return $ GPR_File rs'
+
+mkPointerTagSet ppol c = mkTagSet ppol ["test", "Pointer"] [Just c]
+
+updTags :: PIPE_Policy -> GPR_FileT -> Gen GPR_FileT
+updTags ppol (GPR_FileT rs) = do
+  [c1, c2, c3] <- (map $ mkPointerTagSet ppol) <$> (replicateM 3 genColorLow)
+  
+  let rs' :: Data_Map.Map Integer TagSet = Data_Map.insert 1 c1 $ Data_Map.insert 2 c2 $ Data_Map.insert 3 c3 rs
+  return $ GPR_FileT rs'
+
+maxInstrsToGenerate = 10
 
 genMachine :: PIPE_Policy -> Gen (Machine_State, PIPE_State)
 genMachine ppol = do
@@ -281,10 +377,15 @@ genMachine ppol = do
   (mem,pmem) <- genDataMemory ppol
   let ms = trace "This has to be called..." $ initMachine {f_mem = mem}
       ps = (init_pipe_state (initPC ppol) (initGPR ppol) initNextColor){p_mem = pmem}
-      ms' = setInstrI ms (JAL 0 1000)
-      ps' = setInstrTagI ms ps (emptyInstTag ppol)  -- BCP: Needed??
+      ms2 = setInstrI ms (JAL 0 1000)
+      ps2 = setInstrTagI ms ps (emptyInstTag ppol)  -- BCP: Needed??
 
-  (ms_fin, ps_fin, instrlocs) <- trace "Calling genbyExec" $ genByExec ppol 10 ms' ps' Data_Set.empty
+  rs' <- updRegs $ f_gprs ms2
+  ts' <- updTags ppol $ p_gprs ps2
+  let ms' = ms2 {f_gprs = rs'}
+      ps' = ps2 {p_gprs = ts'}
+  
+  (ms_fin, ps_fin, instrlocs) <- trace "Calling genbyExec" $ genByExec ppol maxInstrsToGenerate ms' ps' Data_Set.empty
 
   let final_mem = f_dm $ f_mem ms_fin
       res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs
