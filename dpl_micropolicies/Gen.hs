@@ -24,6 +24,8 @@ import Control.Arrow (second)
 import Test.QuickCheck
 import TestHeapSafety
 
+import Control.Monad.Reader
+
 import Debug.Trace
 import Run_Program_PIPE
 
@@ -123,22 +125,29 @@ instrLow = 1000
 -- and pick "valid" current addresses.
 
 -- Picks out valid (data registers + max immediate), (jump registers + min immediate), integer registers
-groupRegisters :: GPR_File -> ([(GPR_Addr, Integer)], [(GPR_Addr, Integer)], [GPR_Addr])
-groupRegisters (GPR_File rs) =
+groupRegisters :: PIPE_Policy -> GPR_File -> GPR_FileT ->
+                  ([(GPR_Addr, Integer)], [(GPR_Addr, Integer)], [GPR_Addr])
+groupRegisters ppol (GPR_File rs) (GPR_FileT ts) =
   let regs = Data_Map.assocs rs
-      validData n
-        | n >= dataMemLow && n <= dataMemHigh =
-            Just (dataMemHigh - n)
-        | otherwise = Nothing
-      validJump n = Just (instrLow - n)
-      dataRegs    = map (second fromJust) $ filter (isJust . snd) $ map (second validData) regs
-      controlRegs = map (second fromJust) $ filter (isJust . snd) $ map (second validJump) regs
+      tags = Data_Map.assocs ts
+      rts = zip regs tags
+      validData ((addr,n),(_, tag))
+        | n >= dataMemLow && n <= dataMemHigh && isJust (runReader (pointerColorOf tag) ppol) =
+            (addr, Just (dataMemHigh - n))
+        | otherwise = (addr, Nothing)
+      validJump ((addr,n),(_, tag))
+        | n < instrLow && isJust (runReader (envColorOf tag) ppol) =
+            (addr, Just (instrLow - n))
+        | otherwise = (addr, Nothing)
+      
+      dataRegs    = map (second fromJust) $ filter (isJust . snd) $ map validData rts
+      controlRegs = map (second fromJust) $ filter (isJust . snd) $ map validJump rts
       arithRegs   = map fst regs
   in (dataRegs, controlRegs, arithRegs)
 
-genInstr :: PIPE_Policy -> Machine_State -> Gen (Instr_I, TagSet)
-genInstr ppol ms =
-  let (dataRegs, ctrlRegs, arithRegs) = groupRegisters (f_gprs ms)
+genInstr :: PIPE_Policy -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
+genInstr ppol ms ps =
+  let (dataRegs, ctrlRegs, arithRegs) = groupRegisters ppol (f_gprs ms) (p_gprs ps)
       onNonEmpty [] _= 0
       onNonEmpty _ n = n
   in 
@@ -254,7 +263,7 @@ genByExec ppol n ms ps instrlocs
         trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n ++ " and error: " ++ show err) $
         return (ms, ps, instrlocs)
   | otherwise = do
-    (is, it) <- genInstr ppol ms
+    (is, it) <- genInstr ppol ms ps
     let ms' = setInstrI ms is
         ps' = setInstrTagI ms ps it
     case traceShow ("Instruction generated...", is) $ fetch_and_execute ppol ps' ms' of

@@ -87,6 +87,16 @@ pointerColorOf t = do
     (_, Just [p]) -> return p
     _ -> return Nothing
 
+envColorOf :: TagSet -> P (Maybe Color)
+envColorOf t = do
+  ppol <- ask
+  let l = rdTagSet ppol t
+  -- Ughly:
+  case (Data_List.lookup ["test","Env"] l) of
+    (Just [p]) -> return p
+    _ -> return Nothing
+
+
 reachableInOneStep :: MemT -> Set Color -> P (Set Color)
 reachableInOneStep m s =
   foldM (\s t -> do
@@ -108,7 +118,7 @@ registerColors pstate =
             c <- pointerColorOf t
             case c of
               Just c' -> return $ Data_Set.insert c' s 
-              _ -> error "Register tag should be a pointer")
+              Nothing -> return s)
     Data_Set.empty (unGPR $ p_gprs pstate) 
 
 reachable :: PIPE_State -> P (Set Color)

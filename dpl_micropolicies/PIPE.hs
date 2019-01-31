@@ -210,7 +210,7 @@ exec_pipe' polMod p pc inst maddr =
                     (p_next p)
                     (E.evalPolMod polMod (name, inp0 `M.union` (EC.wrapESKMap inp))) 
             in case r of
-                 Left EC.TFImplicit -> (p,PIPE_Trap "no applicable rule")
+                 Left EC.TFImplicit -> (p,PIPE_Trap $ "no applicable rule" ++ show inp)
                  Left (EC.TFExplicit s) -> (p, PIPE_Trap s)
                  Right out -> 
                            ((outf out) 
