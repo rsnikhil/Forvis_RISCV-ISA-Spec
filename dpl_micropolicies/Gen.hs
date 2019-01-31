@@ -17,6 +17,7 @@ import Data.Set (Set)
 import Data.Maybe (isJust, fromJust)
 import qualified Data.List as Data_List
 
+-- TODO: It would be better to delete all the Reader stuff
 import Control.Monad.Reader
 
 import Machine_State
