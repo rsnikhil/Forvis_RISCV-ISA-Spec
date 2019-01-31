@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections, FlexibleInstances, MultiParamTypeClasses #-}
 module TestHeapSafety where
 
 import qualified Data.Map.Strict as Data_Map
@@ -24,10 +25,11 @@ import Control.Monad.Reader
 --------------------------------------------------------
 -- This belongs in /src!
 
+import Control.Exception.Base (assert)
+
 import Data.Bits
 import Text.PrettyPrint (Doc, (<+>), ($$))
 import qualified Text.PrettyPrint as P
-
 
 import Printing
 import PIPE
@@ -138,6 +140,14 @@ sameReachablePart (M (s1, p1) (s2, p2)) = do
 data MStatePair =
   M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
 
+emptyInstTag :: PIPE_Policy -> TagSet
+emptyInstTag ppol = 
+  mkTagSet ppol ["test","Inst"] [Nothing]
+
+allocInstTag :: PIPE_Policy -> TagSet
+allocInstTag ppol =
+  mkTagSet ppol ["test","AllocInst"] [Nothing, Nothing]
+
 prettyMStatePair :: PIPE_Policy -> MStatePair -> Doc
 prettyMStatePair ppol (M (m1, p1) (m2, p2)) =
     P.vcat [ P.text "Reachable Colors:" <+> pretty (runReader (reachable p1) ppol) (runReader (reachable p2) ppol)
@@ -168,3 +178,152 @@ prop_noninterference ppol (M (m1,p1) (m2,p2)) =
              (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) ppol))
 
 
+
+verboseTracing = False
+
+printTrace ppol tr1 tr2 = putStrLn $ P.render $ prettyTrace ppol tr1 tr2
+
+prettyTrace :: PIPE_Policy -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
+prettyTrace ppol [] [] = P.text ""
+prettyTrace ppol [(p1,m1)] [(p2,m2)] = prettyMStatePair ppol (M (m1,p1) (m2,p2))
+prettyTrace ppol (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
+    prettyMStatePair ppol (M (m1,p1) (m2,p2)) $$ P.text "------------------------------" $$ prettyDiffs ppol tr1 tr2
+
+prettyDiffs :: PIPE_Policy -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
+prettyDiffs ppol ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
+  (if verboseTracing then
+       P.text "----------------------------------------------------------------"
+    $$ P.nest 10 (P.text "Raw Machine 1 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m12)))
+    $$ P.nest 10 (P.text "Raw Machine 1 tags:" $$ P.nest 3 (P.text (show $ p_mem p12)))
+    $$ P.nest 10 (P.text "Raw Machine 2 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m22)))
+    $$ P.nest 10 (P.text "Raw Machine 2 tags:" $$ P.nest 3 (P.text (show $ p_mem p22)))
+    $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
+  else
+    P.empty)
+  $$ pretty (calcDiff ppol (p11,m11) (p12,m12))
+            (calcDiff ppol (p21,m21) (p22,m22))
+  $$ prettyDiffs ppol ((p12,m12):tr1) ((p22,m22):tr2)
+prettyDiffs ppol [(p1,m1)] [(p2,m2)] =
+  P.text "------------------------------" $$
+  P.text "Final machine states:" $$ prettyMStatePair ppol (M (m1,p1) (m2,p2))
+prettyDiffs _ _ _ = P.text ""
+
+data Diff = Diff { d_pc :: (Integer, TagSet)                  -- value and tag of the current PC
+                 , d_instr :: Maybe Instr_I                -- current instruction
+                 , d_reg :: Maybe (GPR_Addr, Integer, TagSet) -- change in registers
+                 , d_mem :: Maybe (Integer, Integer, TagSet)  -- Change in memory
+                 }
+
+-- Generic "find diffs" function: Takes two association lists, both
+-- assumed sorted by their keys and both representing *infinite* maps
+-- with some default value, and returns a list of changes
+--
+-- TODO: Not 100% right: in the cases where we are returniung
+-- something, we should first check whether the thing we are returning
+-- is equal to d!  (And not return it in this case.)
+diff :: (Ord a, Eq b) => [(a, b)] -> [(a, b)] -> b -> [(a, (b,b))]
+diff [] [] d = []
+diff ((x1,y1):l1) [] d = (x1,(y1,d)) : diff l1 [] d
+diff [] ((x2,y2):l2) d = (x2,(d,y2)) : diff [] l2 d
+diff ((x1,y1):l1) ((x2,y2):l2) d
+         | x1 < x2   = (x1,(y1,d)) : diff l1 ((x2,y2):l2) d
+         | x1 > x2   = (x2,(d,y2)) : diff ((x1,y1):l1) l2 d
+         | otherwise = if y1 == y2 then diff l1 l2 d else (x1,(y1,y2)) : diff l1 l2 d
+
+calcDiff :: PIPE_Policy -> (PIPE_State, Machine_State) -> (PIPE_State, Machine_State) -> Diff
+calcDiff ppol (p1,m1) (p2,m2) =
+  Diff {
+    d_pc = (f_pc m1, p_pc p1)
+  , d_instr =
+      case fst $ instr_fetch m1 of
+        Fetch u32 -> decode_I RV32 u32
+        _ -> error "Bad instr fetch in calcDiff"
+  , d_reg =
+      let GPR_File r1 = f_gprs m1
+          GPR_File r2 = f_gprs m2
+          GPR_FileT t1 = p_gprs p1
+          GPR_FileT t2 = p_gprs p2
+          reg_diff =
+            filter (\((i1,d1),(i2,d2)) -> assert (i1 == i2) $ d1 /= d2)
+                   (zip (Data_Map.assocs r1) (Data_Map.assocs r2))
+          tag_diff =
+            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2)
+                   (zip (Data_Map.assocs t1) (Data_Map.assocs t2))
+      in case (reg_diff, tag_diff) of
+           ([], []) -> Nothing
+           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
+           ([((i,_),(_,d))],[]) ->
+             (i,d,) <$> Data_Map.lookup i t2
+           ([],[((i,_),(_,l))]) ->
+             (i,,l) <$> Data_Map.lookup i r2
+           _ -> error $ "More than one diff in register file:" ++
+                        " registers = " ++ show reg_diff ++
+                        " and tags = " ++ show tag_diff
+  , d_mem =
+      let Mem dm1 _ = f_mem m1
+          Mem dm2 _ = f_mem m2
+          MemT pm1 = p_mem p1
+          MemT pm2 = p_mem p2
+          both1 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm1) (Data_Map.assocs pm1)
+          both2 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm2) (Data_Map.assocs pm2)
+          diffs = diff both1 both2 (uninitialized_word, emptyInstTag ppol)
+       in case diffs of
+          [] -> Nothing
+          [(i,(_,(d,t)))] -> Just (i,d,t)
+          _ -> error "More than one memory change!"
+  }
+
+--          data_diff =
+--            filter (\((i1,d1),(i2,d2)) ->
+--                      if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show ("i1", i1, "d1", d1, "i2", i2, "d2", d2, "dm1", dm1, "dm2", dm2))
+----                             assert (i1 == i2) $ d1 /= d2)
+--                   (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
+--          tag_diff =
+--            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
+--      in case (data_diff, tag_diff) of
+--           ([], []) -> Nothing
+--           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
+--           ([((i,_),(_,d))],[]) ->
+--             (i,d,) <$> Data_Map.lookup i pm2
+--           ([],[((i,_),(_,l))]) ->
+--             (i,,l) <$> Data_Map.lookup i dm2
+--           _ -> error $ "More than one diff in memory file:" ++
+--                        " data = " ++ show data_diff ++
+--                        " and tags = " ++ show tag_diff
+
+prettyRegDiff (Just (i,d,l)) (Just (i', d', l'))
+    | i == i', d == d', l == l' =
+        P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l
+    | otherwise =
+      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||>
+      P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
+prettyRegDiff Nothing Nothing = P.text ""
+
+prettyMemDiff (Just (i,d,l)) (Just (i', d', l'))
+    | i == i', d == d', l == l' =
+        P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty d l
+    | otherwise =
+      P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty d l
+      <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty d' l'
+prettyMemDiff Nothing Nothing = P.text ""
+
+instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
+  pretty (Just i1) (Just i2)
+    | i1 == i2  = pp i1
+    | otherwise = pp i1 <||> pp i2
+  pretty Nothing Nothing = P.text "<Bad instr>"
+
+instance CoupledPP Diff Diff where
+  pretty d1 d2 =
+    P.hcat [ pad 6 (pretty (d_pc d1) (d_pc d2))
+           , P.text " "
+           , pad 17 (pretty (d_instr d1) (d_instr d2))
+           , P.text "     "
+           , prettyRegDiff (d_reg d1) (d_reg d2)
+           , prettyMemDiff (d_mem d1) (d_mem d2)
+           ]
+
+-- TODO: The fact that we need this is a sad indication of how confused
+-- everything is about whether pipe or machine states go first...
+flipboth :: ((a,b),(a,b)) -> ((b,a),(b,a))
+flipboth ((a1,b1),(a2,b2)) = ((b1,a1),(b2,a2))

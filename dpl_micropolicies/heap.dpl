@@ -25,6 +25,7 @@ policy:
              env = env, res = mem[-(Cell _)])
     ^ storeGrp(env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] ->
               env = env, mem = val[+(Cell color)])
+    ^ jumpGrp(env == _ -> env = env, return = env ) 
 
 require:  // map external names (dotted strings) to tag sets
     init test.Cell {Cell}

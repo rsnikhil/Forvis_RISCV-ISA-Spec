@@ -136,14 +136,6 @@ groupRegisters (GPR_File rs) =
       arithRegs   = map fst regs
   in (dataRegs, controlRegs, arithRegs)
 
-emptyInstTag :: PIPE_Policy -> TagSet
-emptyInstTag ppol = 
-  mkTagSet ppol ["test","Inst"] [Nothing]
-
-allocInstTag :: PIPE_Policy -> TagSet
-allocInstTag ppol =
-  mkTagSet ppol ["test","AllocInst"] [Nothing, Nothing]
-
 genInstr :: PIPE_Policy -> Machine_State -> Gen (Instr_I, TagSet)
 genInstr ppol ms =
   let (dataRegs, ctrlRegs, arithRegs) = groupRegisters (f_gprs ms)
@@ -255,21 +247,22 @@ genByExec ppol 0 ms ps instrlocs = return (ms, ps, instrlocs)
 genByExec ppol n ms ps instrlocs
   -- Check if an instruction already exists
   | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
-    case fetch_and_execute ppol ps ms of
+    case trace "Is it here?" $ fetch_and_execute ppol ps ms of
       Right (ps'', ms'') ->
         genByExec ppol (n-1) ms'' ps'' instrlocs
-      Left _ ->
-  --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
+      Left err ->
+        trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n ++ " and error: " ++ show err) $
         return (ms, ps, instrlocs)
   | otherwise = do
     (is, it) <- genInstr ppol ms
     let ms' = setInstrI ms is
         ps' = setInstrTagI ms ps it
-    case fetch_and_execute ppol ps' ms' of
+    case traceShow ("Instruction generated...", is) $ fetch_and_execute ppol ps' ms' of
       Right (ps'', ms'') ->
+        trace "Successfull execution" $
         genByExec ppol (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
-      Left _ ->
-  --      trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n) $
+      Left err ->
+        trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n ++ " and error: " ++ show err) $
         return (ms', ps', instrlocs)
 
 
@@ -277,11 +270,12 @@ genMachine :: PIPE_Policy -> Gen (Machine_State, PIPE_State)
 genMachine ppol = do
   -- registers
   (mem,pmem) <- genDataMemory ppol
-  let ms = initMachine {f_mem = mem}
+  let ms = trace "This has to be called..." $ initMachine {f_mem = mem}
       ps = (init_pipe_state (initPC ppol) (initGPR ppol) initNextColor){p_mem = pmem}
       ms' = setInstrI ms (JAL 0 1000)
       ps' = setInstrTagI ms ps (emptyInstTag ppol)  -- BCP: Needed??
-  (ms_fin, ps_fin, instrlocs) <- genByExec ppol 10 ms' ps' Data_Set.empty
+
+  (ms_fin, ps_fin, instrlocs) <- trace "Calling genbyExec" $ genByExec ppol 10 ms' ps' Data_Set.empty
 
   let final_mem = f_dm $ f_mem ms_fin
       res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs

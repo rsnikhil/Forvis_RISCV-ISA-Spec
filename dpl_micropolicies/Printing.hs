@@ -213,15 +213,6 @@ print_mstate  indent  mstate = do
   -- We do not print memory or MMIO
   putStrLn (indent ++ (show run_state))
 
--------------------------------------------------------------
--- BCP: Needs finishing (and probably it should be pretty, not show)
-
-showCurr (p,m) = (show $ f_pc m) ++ "  (Instr)" 
-
-showDiffs s1 s2 = "(Diffs)"
-
-showTrace :: [(PIPE_State,Machine_State)] -> String
-showTrace [] = ""
-showTrace [s] = showCurr s ++ "  Halt"
-showTrace (s1:s2:tr) = showCurr s1 ++ "  " ++ showDiffs s1 s2 ++ "\n" ++ showTrace (s2:tr)
-
+pad :: Int -> Doc -> Doc
+pad i p = let s = show p in
+          P.text (s ++ take (i - (length s)) (repeat ' '))

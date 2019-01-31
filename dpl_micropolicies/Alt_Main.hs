@@ -33,6 +33,9 @@ import Test.QuickCheck
 import Gen
 import TestHeapSafety
 import Shrinking
+import Printing
+
+import Control.Monad
 
 main_example = do
   ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
@@ -43,11 +46,34 @@ main_example = do
   putStrLn $ show (rdTagSet ppol x)
 
 main_test = do
-  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"  
+  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
   quickCheckWith stdArgs{maxSuccess=1000} $ forAllShrink (genMStatePair ppol) (shrinkMStatePair ppol) $ \m ->
     prop_noninterference ppol m
 
-main = main_test
+main_sample = do
+  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
+  states <- sample' (genMStatePair ppol)
+  forM_ states (print_mstatepair ppol)
+
+main_trace = do
+  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
+  (M (ms1,ps1) (ms2,ps2)) <- head <$> sample' (genMStatePair ppol)
+  let (res, tr) = run_loop ppol 10 ps1 ms1
+      (ps', ms') : _ = tr
+  putStrLn ""
+  putStrLn "Initial state:"
+  print_coupled ms1 ps1
+  putStrLn "_______________________________________________________________________"
+  putStrLn "Final state:"
+  print_coupled ms' ps'
+  putStrLn "_______________________________________________________________________"
+  putStrLn "Trace:"
+  let finalTrace = {- map flipboth $ -} reverse $ zip tr tr
+  uncurry (printTrace ppol) (unzip finalTrace)
+--  printTrace ppol (reverse tr)
+  putStrLn (show res)
+
+main = main_trace
 
 instance Show Machine_State where
   show _ = ""
