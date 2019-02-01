@@ -1,5 +1,7 @@
 TODAY
 
+replace Shrinking stuff with updated version
+
 figure out why rdTagSet needs the symbol table -- get some kind of tagset
   printing working
 
