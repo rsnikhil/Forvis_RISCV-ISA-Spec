@@ -25,11 +25,15 @@ import qualified Text.PrettyPrint as P
 import Control.Arrow (second)
 import Data.List.Split(chunksOf)
 
+-- showTagSet t = "{" ++ show (rdTagSet t) ++ "}"
+showTagSet t = "{" ++ show t ++ "}"
+
 class PP a where
   pp :: a -> Doc
 
 instance PP TagSet where
-  pp t = P.text (show t)
+  -- pp t = P.text (show t)
+  pp t = P.text (showTagSet t)
 
 instance PP Integer where
   pp n = P.sizedText 2 $ show n

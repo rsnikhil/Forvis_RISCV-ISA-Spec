@@ -1,6 +1,11 @@
 TODAY
 
-delete policy-*
+figure out why rdTagSet needs the symbol table -- get some kind of tagset
+  printing working
+
+figure out if the "no applicable rule" failure is what we should expect
+
+delete policy-* when finished using them for reference
 
 ___
 
