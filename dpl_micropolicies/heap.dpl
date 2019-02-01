@@ -59,7 +59,7 @@ group:
         lui
         auipc
 
-    jumpGrp( -> RD:return)
+    jumpGrp(RS1:return -> RD:return)
         jal
 
     jumpRegGrp(RS1:target -> RD:return)

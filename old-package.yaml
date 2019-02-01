@@ -1,0 +1,134 @@
+name:                forvis
+version:             0.1.0.0
+github:              "githubuser/forvis"
+license:             BSD3
+author:              "Author name here"
+maintainer:          "example@example.com"
+copyright:           "2019 Author name here"
+
+extra-source-files:
+- README.md
+# - ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/forvis#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+# TODO: Can the rest of these be moved to just apply to micropolicies, etc.?
+- containers
+- bytestring
+- elf
+- QuickCheck
+- pretty
+- split
+# These are for dpl:
+- containers
+- transformers
+- lens
+# These are for policy-tool:
+- array
+- containers
+- directory
+- filepath
+- language-c-quote
+- mainland-pretty
+- megaparsec >= 5.0 && <6.0
+- mtl
+- srcloc
+- text
+- unix
+- unordered-containers
+- yaml
+# - containers
+# - megaparsec
+# - wl-pprint-text
+# - text
+# - hspec
+# - elf
+# - bytestring
+# - yaml
+# - lens
+# - either
+# - transformers
+
+# extra-deps:
+# - megaparsec-5.3.1@sha256:9527bd6a857331fee73702ebcac48ad61a62bc198c3c2360b0b3afa5779d19f5
+
+library:
+  source-dirs: src
+
+# Needed only for DPL?
+# ghc-options:
+#- -Wincomplete-patterns
+#- -Werror
+
+default-extensions:
+  - MultiParamTypeClasses
+  - FunctionalDependencies
+  - GeneralizedNewtypeDeriving
+  - RecordWildCards
+  - FlexibleContexts
+  - PatternSynonyms
+  - TypeApplications
+  - LambdaCase
+  - DeriveFunctor
+  - CPP
+
+executables:
+
+  dpl-exe:
+    main:                Alt_Main.hs
+    source-dirs:
+    - dpl_micropolicies
+    - dpl_micropolicies/policy-tool
+    - dpl_micropolicies/policy-eval
+    - src
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+#    - -cpp
+    dependencies:
+    - forvis
+
+  forvis-exe:
+    main:                Main.hs
+    source-dirs:         src
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+#    - -cpp
+    dependencies:
+    - forvis
+
+  micropolicies-exe:
+    main:                Main_PIPE.hs
+    source-dirs:
+    - micropolicies
+    - src
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+#    - -cpp
+    dependencies:
+    - forvis
+
+# tests:
+#   forvis-test:
+#     main:                Spec.hs
+#     source-dirs:         test
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+#     dependencies:
+#     - forvis
