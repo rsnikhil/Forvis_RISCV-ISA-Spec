@@ -337,7 +337,7 @@ genByExec ppol 0 ms ps instrlocs = return (ms, ps, instrlocs)
 genByExec ppol n ms ps instrlocs
   -- Check if an instruction already exists
   | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
-    case trace "Is it here?" $ fetch_and_execute ppol ps ms of
+    case fetch_and_execute ppol ps ms of
       Right (ps'', ms'') ->
         genByExec ppol (n-1) ms'' ps'' instrlocs
       Left err ->
@@ -349,7 +349,7 @@ genByExec ppol n ms ps instrlocs
         ps' = setInstrTagI ms ps it
     case traceShow ("Instruction generated...", is) $ fetch_and_execute ppol ps' ms' of
       Right (ps'', ms'') ->
-        trace "Successfull execution" $
+        trace "Successful execution" $
         genByExec ppol (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
       Left err ->
         trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n ++ " and error: " ++ show err) $
@@ -376,7 +376,7 @@ genMachine :: PIPE_Policy -> Gen (Machine_State, PIPE_State)
 genMachine ppol = do
   -- registers
   (mem,pmem) <- genDataMemory ppol
-  let ms = trace "This has to be called..." $ initMachine {f_mem = mem}
+  let ms = initMachine {f_mem = mem}
       ps = (init_pipe_state (initPC ppol) (initGPR ppol) initNextColor){p_mem = pmem}
       ms2 = setInstrI ms (JAL 0 1000)
       ps2 = setInstrTagI ms ps (emptyInstTag ppol)  -- BCP: Needed??
@@ -386,7 +386,7 @@ genMachine ppol = do
   let ms' = ms2 {f_gprs = rs'}
       ps' = ps2 {p_gprs = ts'}
   
-  (ms_fin, ps_fin, instrlocs) <- trace "Calling genbyExec" $ genByExec ppol maxInstrsToGenerate ms' ps' Data_Set.empty
+  (ms_fin, ps_fin, instrlocs) <- genByExec ppol maxInstrsToGenerate ms' ps' Data_Set.empty
 
   let final_mem = f_dm $ f_mem ms_fin
       res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs

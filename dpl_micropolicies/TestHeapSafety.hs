@@ -224,21 +224,22 @@ data Diff = Diff { d_pc :: (Integer, TagSet)                  -- value and tag o
                  , d_mem :: Maybe (Integer, Integer, TagSet)  -- Change in memory
                  }
 
--- Generic "find diffs" function: Takes two association lists, both
--- assumed sorted by their keys and both representing *infinite* maps
--- with some default value, and returns a list of changes
+-- Generic "find diffs" function: Takes two association lists l1 and
+-- l2, both assumed sorted by their keys and both representing
+-- *infinite* maps with some default value d (passed as third
+-- parameter), and returns a list of changes
 --
--- TODO: Not 100% right: in the cases where we are returniung
--- something, we should first check whether the thing we are returning
--- is equal to d!  (And not return it in this case.)
+-- N.b. In the cases where we are returniung something, we first have
+-- to check whether the thing we are returning is equal to d!  (And
+-- not return it in this case.)
 diff :: (Ord a, Eq b) => [(a, b)] -> [(a, b)] -> b -> [(a, (b,b))]
 diff [] [] d = []
-diff ((x1,y1):l1) [] d = (x1,(y1,d)) : diff l1 [] d
-diff [] ((x2,y2):l2) d = (x2,(d,y2)) : diff [] l2 d
+diff ((x1,y1):l1) [] d = (if y1==d then [] else [(x1,(y1,d))]) ++ diff l1 [] d
+diff [] ((x2,y2):l2) d = (if y2==d then [] else [(x2,(d,y2))]) ++ diff [] l2 d
 diff ((x1,y1):l1) ((x2,y2):l2) d
-         | x1 < x2   = (x1,(y1,d)) : diff l1 ((x2,y2):l2) d
-         | x1 > x2   = (x2,(d,y2)) : diff ((x1,y1):l1) l2 d
-         | otherwise = if y1 == y2 then diff l1 l2 d else (x1,(y1,y2)) : diff l1 l2 d
+         | x1 < x2   = (if y1==d then [] else [(x1,(y1,d))]) ++ diff l1 ((x2,y2):l2) d
+         | x1 > x2   = (if y2==d then [] else [(x2,(d,y2))]) ++ diff ((x1,y1):l1) l2 d
+         | otherwise = (if y1==y2 then [] else [(x1,(y1,y2))]) ++ diff l1 l2 d 
 
 calcDiff :: PIPE_Policy -> (PIPE_State, Machine_State) -> (PIPE_State, Machine_State) -> Diff
 calcDiff ppol (p1,m1) (p2,m2) =
@@ -280,7 +281,7 @@ calcDiff ppol (p1,m1) (p2,m2) =
        in case diffs of
           [] -> Nothing
           [(i,(_,(d,t)))] -> Just (i,d,t)
-          _ -> error "More than one memory change!"
+          d -> error $ "More than one memory change: " ++ show d
   }
 
 --          data_diff =

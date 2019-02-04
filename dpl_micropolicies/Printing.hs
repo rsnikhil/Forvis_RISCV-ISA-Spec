@@ -32,9 +32,15 @@ showRawTag (s, Nothing) = s
 showRawTag (s, Just i)  = s ++ "(" ++ show i ++ ")"
 
 showRawTagSet :: ([String],[Maybe Int]) -> String
-showRawTagSet (names,colors) =
+-- showRawTagSet (names,colors) =
 --   intercalate "," $ map showRawTag $ zip names colors
-  show (names,colors)
+--
+-- Hardcoding some specific tags (just to get things going)
+showRawTagSet (["test","Env"],     [Nothing])          = "Env" 
+showRawTagSet (["test","Inst"],    [Nothing])          = "Inst" 
+showRawTagSet (["test","Pointer"], [Just c1])          = "Pointer " ++ show c1
+showRawTagSet (["test","CP"],      [Just c1, Just c2]) = "Cell " ++ show c1 ++ ", Pointer " ++ show c2 
+showRawTagSet t = show t
 
 showTagSet :: PIPE_Policy -> TagSet -> String
 showTagSet ppol t =

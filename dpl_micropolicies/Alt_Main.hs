@@ -61,13 +61,13 @@ main_trace = do
   let (res, tr) = run_loop ppol 10 ps1 ms1
       (ps', ms') : _ = tr
   putStrLn ""
-  putStrLn "Initial state:"
-  print_coupled ppol ms1 ps1
-  putStrLn "_______________________________________________________________________"
-  putStrLn "Final state:"
-  print_coupled ppol ms' ps'
-  putStrLn "_______________________________________________________________________"
-  putStrLn "Trace:"
+--  putStrLn "Initial state:"
+--  print_coupled ppol ms1 ps1
+--  putStrLn "_______________________________________________________________________"
+--  putStrLn "Final state:"
+--  print_coupled ppol ms' ps'
+--  putStrLn "_______________________________________________________________________"
+--  putStrLn "Trace:"
   let finalTrace = {- map flipboth $ -} reverse $ zip tr tr
   uncurry (printTrace ppol) (unzip finalTrace)
 --  printTrace ppol (reverse tr)
