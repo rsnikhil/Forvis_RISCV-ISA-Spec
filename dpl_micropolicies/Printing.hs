@@ -23,11 +23,25 @@ import Text.PrettyPrint (Doc, (<+>), ($$))
 import qualified Text.PrettyPrint as P
 
 import Control.Arrow (second)
-import Data.List.Split(chunksOf)
+import Data.List.Split (chunksOf)
+
+import Data.List (intercalate)
+
+showRawTag :: (String,Maybe Int) -> String
+showRawTag (s, Nothing) = s
+showRawTag (s, Just i)  = s ++ "(" ++ show i ++ ")"
+
+showRawTagSet :: ([String],[Maybe Int]) -> String
+showRawTagSet (names,colors) =
+--   intercalate "," $ map showRawTag $ zip names colors
+  show (names,colors)
 
 showTagSet :: PIPE_Policy -> TagSet -> String
-showTagSet ppol t = "{" ++ show (rdTagSet ppol t) ++ "}"
--- showTagSet t = "{" ++ show t ++ "}"
+showTagSet ppol t =
+  case rdTagSet ppol t of
+    [] -> "{" ++ show t ++ " (concretely)}"
+    [t] -> "{" ++ showRawTagSet t ++ "}"
+    (t:_) -> "{" ++ showRawTagSet t ++ " (for example)}"
 
 class PP a where
   pp :: PIPE_Policy -> a -> Doc
@@ -59,12 +73,12 @@ class CoupledPP a b | a -> b where
   pretty :: PIPE_Policy -> a -> b -> Doc
 
 instance CoupledPP Integer TagSet where
-  pretty ppol d t = pp ppol d P.<> P.char '@' P.<> pp ppol t
+  pretty ppol d t = pp ppol d P.<> P.char ' ' P.<> pp ppol t
 
 -- Helpers
 x <|> y = x P.<> P.text "\t|\t" P.<> y
 x <:> y = x P.<> P.text ": " P.<> y
-x <@> y = x P.<> P.text "@" P.<> y
+x <@> y = x P.<> P.text " " P.<> y
 x <||> y = x P.<> P.text "||" P.<> y
 
 pr_register :: InstrField -> Doc

@@ -81,18 +81,13 @@ rdTagSet (_,_,symtabs) ts =
            (\ (Init _ name (ISExact _ ts))  -> (name, map qsym ts))
            (concatMap requires (map snd symtabs))
 
-
-{- Also need an inverse function like this:
-
-rdTagSet :: PIPE_Policy -> TagSet -> [([String],[Maybe Int])]
-
-returns the (zero or more) `requires` names that match a given tag set.
-
-Writing this is difficult, because the ordering of
-the TagSet map entries is unpredictable (though presumably deterministic).
-The best way may be to forward-compute all possible TagSets (with
-Nothing parameter) and then compare them with the argument using a 
-custom equality that ignores the parameter. -}
+{- rdTagSet returns the (zero or more) `requires` names that match a
+   given tag set.  Writing this is difficult, because the ordering of
+   the TagSet map entries is unpredictable (though presumably
+   deterministic).  The best way may be to forward-compute all
+   possible TagSets (with Nothing parameter) and then compare them
+   with the argument using a custom equality that ignores the
+   parameter. -}
 
 ---------------------------------
 
