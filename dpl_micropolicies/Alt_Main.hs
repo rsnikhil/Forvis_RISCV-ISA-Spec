@@ -62,10 +62,10 @@ main_trace = do
       (ps', ms') : _ = tr
   putStrLn ""
   putStrLn "Initial state:"
-  print_coupled ms1 ps1
+  print_coupled ppol ms1 ps1
   putStrLn "_______________________________________________________________________"
   putStrLn "Final state:"
-  print_coupled ms' ps'
+  print_coupled ppol ms' ps'
   putStrLn "_______________________________________________________________________"
   putStrLn "Trace:"
   let finalTrace = {- map flipboth $ -} reverse $ zip tr tr

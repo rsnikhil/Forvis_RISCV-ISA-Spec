@@ -25,40 +25,41 @@ import qualified Text.PrettyPrint as P
 import Control.Arrow (second)
 import Data.List.Split(chunksOf)
 
--- showTagSet t = "{" ++ show (rdTagSet t) ++ "}"
-showTagSet t = "{" ++ show t ++ "}"
+showTagSet :: PIPE_Policy -> TagSet -> String
+showTagSet ppol t = "{" ++ show (rdTagSet ppol t) ++ "}"
+-- showTagSet t = "{" ++ show t ++ "}"
 
 class PP a where
-  pp :: a -> Doc
+  pp :: PIPE_Policy -> a -> Doc
 
 instance PP TagSet where
   -- pp t = P.text (show t)
-  pp t = P.text (showTagSet t)
+  pp ppol t = P.text (showTagSet ppol t)
 
 instance PP Integer where
-  pp n = P.sizedText 2 $ show n
+  pp _ n = P.sizedText 2 $ show n
 
 instance PP GPR_FileT where
-  pp (GPR_FileT m) =
-    P.vcat $ map (\(i,r) -> pp i <+> P.char ':' <+> pp r)
+  pp ppol (GPR_FileT m) =
+    P.vcat $ map (\(i,r) -> pp ppol i <+> P.char ':' <+> pp ppol r)
            $ Data_Map.assocs m
 
 instance PP PIPE_State where
-  pp ps = 
-    P.vcat [ P.text "PC Tag:" <+> pp (p_pc ps)
-           , P.text "Register Tags:" $$ P.nest 2 (pp $ p_gprs ps)
+  pp ppol ps = 
+    P.vcat [ P.text "PC Tag:" <+> pp ppol (p_pc ps)
+           , P.text "Register Tags:" $$ P.nest 2 (pp ppol $ p_gprs ps)
            -- p_mem
            ]
 
-print_pipe :: PIPE_State -> IO ()
-print_pipe ps =
-  putStrLn $ P.render $ pp ps
+print_pipe :: PIPE_Policy -> PIPE_State -> IO ()
+print_pipe ppol ps =
+  putStrLn $ P.render $ pp ppol ps
 
 class CoupledPP a b | a -> b where
-  pretty :: a -> b -> Doc
+  pretty :: PIPE_Policy -> a -> b -> Doc
 
 instance CoupledPP Integer TagSet where
-  pretty d t = pp d P.<> P.char '@' P.<> pp t
+  pretty ppol d t = pp ppol d P.<> P.char '@' P.<> pp ppol t
 
 -- Helpers
 x <|> y = x P.<> P.text "\t|\t" P.<> y
@@ -82,24 +83,24 @@ pr_instr_J_type label rs imm =
   P.text label <+> pr_register rs <+> P.integer imm
 
 instance PP Instr_I where
-  pp (ADD 0 0 0) = P.text "<NOP>"
-  pp (ADDI rd rs imm) = pr_instr_I_type "ADDI" rd rs imm
-  pp (LW rd rs imm) = pr_instr_I_type "LW" rd rs imm
-  pp (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
-  pp (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
-  pp (JAL rs imm) = pr_instr_J_type "JAL" rs imm
-  pp i = error $ show i
+  pp _ (ADD 0 0 0) = P.text "<NOP>"
+  pp _ (ADDI rd rs imm) = pr_instr_I_type "ADDI" rd rs imm
+  pp _ (LW rd rs imm) = pr_instr_I_type "LW" rd rs imm
+  pp _ (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
+  pp _ (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
+  pp _ (JAL rs imm) = pr_instr_J_type "JAL" rs imm
+  pp _ i = error $ show i
 
-pr_imem :: Mem -> Doc
-pr_imem m =
+pr_imem :: Mem -> PIPE_Policy -> Doc
+pr_imem m ppol =
   let contents = Data_Map.assocs $ f_dm m 
       decoded  = filter (isJust . snd) $ map (second $ decode_I RV32) contents
-  in P.vcat $ map (\(i, Just instr) -> P.integer i <:> pp instr) decoded
+  in P.vcat $ map (\(i, Just instr) -> P.integer i <:> pp ppol instr) decoded
 
 -- IDEAS: only show non-trivial registers?
 -- BCP: Yes, please!!
-pr_mem :: Mem -> Doc
-pr_mem m = 
+pr_mem :: Mem -> PIPE_Policy -> Doc
+pr_mem m ppol = 
   let contents = Data_Map.assocs $ f_dm m 
       decoded  = filter (not . isJust . decode_I RV32 . snd) contents
   in P.vcat $ map (\(i, d) -> P.integer i <:> P.integer d) decoded
@@ -107,62 +108,62 @@ pr_mem m =
 -- TODO: Align better, tabs don't work well
 -- BCP: Maybe just put all (the nontrivial ones) on one line?
 instance CoupledPP GPR_File GPR_FileT where
-  pretty (GPR_File m) (GPR_FileT mt) =
+  pretty ppol (GPR_File m) (GPR_FileT mt) =
     P.vcat $ map (foldl1 (<|>))
            $ chunksOf 4
-           $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':' <+> pretty d t)
+           $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':' <+> pretty ppol d t)
            $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
 
 instance CoupledPP Mem MemT where
-  pretty (Mem m _) (MemT pm) =
+  pretty ppol (Mem m _) (MemT pm) =
     let contents = zip (Data_Map.assocs $ m) (Data_Map.assocs pm)
     in P.vcat $ map (\((i,d),(j,t)) ->
                         case decode_I RV32 d of
-                          Just instr -> P.integer i <:> pp instr <@> pp t
-                          Nothing -> P.integer i <:> P.integer d <@> pp t
+                          Just instr -> P.integer i <:> pp ppol instr <@> pp ppol t
+                          Nothing -> P.integer i <:> P.integer d <@> pp ppol t
                     ) contents
 
 instance CoupledPP Machine_State PIPE_State where
-  pretty ms ps =
-    P.vcat [ P.text "PC:" <+> pretty (f_pc ms) (p_pc ps)
-           , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs ms) (p_gprs ps))
-           , P.text "Memories:" $$ pretty (f_mem ms) (p_mem ps)
+  pretty ppol ms ps =
+    P.vcat [ P.text "PC:" <+> pretty ppol (f_pc ms) (p_pc ps)
+           , P.text "Registers:" $$ P.nest 2 (pretty ppol (f_gprs ms) (p_gprs ps))
+           , P.text "Memories:" $$ pretty ppol (f_mem ms) (p_mem ps)
            ]
 
 instance CoupledPP (Integer, TagSet) (Integer, TagSet) where
-  pretty (i1, t1) (i2, t2) =
+  pretty ppol (i1, t1) (i2, t2) =
     if i1 == i2 && t1 == t2 then
-      pretty i1 t1 
+      pretty ppol i1 t1 
     else
-      P.text "<Discrepancy!>" <+> pretty i1 t1 <||> pretty i2 t2
+      P.text "<Discrepancy!>" <+> pretty ppol i1 t1 <||> pretty ppol i2 t2
 
 instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
-  pretty (GPR_File r1, GPR_FileT t1) (GPR_File r2, GPR_FileT t2) =
+  pretty ppol (GPR_File r1, GPR_FileT t1) (GPR_File r2, GPR_FileT t2) =
     if r1 == r2 && t1 == t2 then 
-      pretty (GPR_File r1) (GPR_FileT t1)
+      pretty ppol (GPR_File r1) (GPR_FileT t1)
     else
       P.vcat $ map (foldl1 (<|>))
              $ chunksOf 4
              $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
                 if d1 == d2 && t1 == t2 then 
-                  P.integer i <+> P.char ':' <+> pretty d1 t1
+                  P.integer i <+> P.char ':' <+> pretty ppol d1 t1
                 else
-                  P.integer i <+> P.text "<Discrepancy!>" <+> pretty d1 t1 <||> pretty d2 t2
+                  P.integer i <+> P.text "<Discrepancy!>" <+> pretty ppol d1 t1 <||> pretty ppol d2 t2
                    )
              $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
                    (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
     
 instance CoupledPP (Mem, MemT) (Mem, MemT) where
-  pretty (Mem m1 _, MemT p1) (Mem m2 _, MemT p2) =
+  pretty ppol (Mem m1 _, MemT p1) (Mem m2 _, MemT p2) =
     let c1 = zip (Data_Map.assocs $ m1) (Data_Map.assocs p1)
         c2 = zip (Data_Map.assocs $ m2) (Data_Map.assocs p2)
 
         pr_loc ((i,d),(j,t)) =
           case decode_I RV32 d of
             Just instr
-              | i == 0 || i >= 1000 -> P.integer i <:> pp instr <@> pp t
-              | otherwise -> P.integer i <:> P.integer d <@> pp t
-            Nothing -> P.integer i <:> P.integer d <@> pp t
+              | i == 0 || i >= 1000 -> P.integer i <:> pp ppol instr <@> pp ppol t
+              | otherwise -> P.integer i <:> P.integer d <@> pp ppol t
+            Nothing -> P.integer i <:> P.integer d <@> pp ppol t
           
 
         pr_aux acc [] [] = reverse acc
@@ -182,17 +183,17 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
 
 instance PP Color where
   -- TODO: Pretty printing of colors?
-  pp n = P.int n
+  pp ppol n = P.int n
   
 instance CoupledPP (Set Color) (Set Color) where
-  pretty s1 s2 =
-    if s1 == s2 then foldl1 (<+>) (map pp $ Data_Set.elems s1)
+  pretty ppol s1 s2 =
+    if s1 == s2 then foldl1 (<+>) (map (pp ppol) $ Data_Set.elems s1)
     else
-      P.text "<Discrepancy!>" <+> foldl1 (<+>) (map pp $ Data_Set.elems s1) <||> foldl1 (<+>) (map pp $ Data_Set.elems s2)
+      P.text "<Discrepancy!>" <+> foldl1 (<+>) (map (pp ppol) $ Data_Set.elems s1) <||> foldl1 (<+>) (map (pp ppol) $ Data_Set.elems s2)
 
-print_coupled :: Machine_State -> PIPE_State -> IO ()
-print_coupled ms ps =
-  putStrLn $ P.render $ pretty ms ps
+print_coupled :: PIPE_Policy -> Machine_State -> PIPE_State -> IO ()
+print_coupled ppol ms ps =
+  putStrLn $ P.render $ pretty ppol ms ps
   
 print_mstate :: String -> Machine_State -> IO ()
 print_mstate  indent  mstate = do

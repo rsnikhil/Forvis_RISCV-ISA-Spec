@@ -160,10 +160,10 @@ allocInstTag ppol =
 
 prettyMStatePair :: PIPE_Policy -> MStatePair -> Doc
 prettyMStatePair ppol (M (m1, p1) (m2, p2)) =
-    P.vcat [ P.text "Reachable Colors:" <+> pretty (runReader (reachable p1) ppol) (runReader (reachable p2) ppol)
-           , P.text "PC:" <+> pretty (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
-           , P.text "Registers:" $$ P.nest 2 (pretty (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
-           , P.text "Memories:" $$ P.nest 2 (pretty (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
+    P.vcat [ P.text "Reachable Colors:" <+> pretty ppol (runReader (reachable p1) ppol) (runReader (reachable p2) ppol)
+           , P.text "PC:" <+> pretty ppol (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
+           , P.text "Registers:" $$ P.nest 2 (pretty ppol (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
+           , P.text "Memories:" $$ P.nest 2 (pretty ppol (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
            ]
 
 print_mstatepair :: PIPE_Policy -> MStatePair -> IO ()
@@ -207,11 +207,11 @@ prettyDiffs ppol ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
     $$ P.nest 10 (P.text "Raw Machine 1 tags:" $$ P.nest 3 (P.text (show $ p_mem p12)))
     $$ P.nest 10 (P.text "Raw Machine 2 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m22)))
     $$ P.nest 10 (P.text "Raw Machine 2 tags:" $$ P.nest 3 (P.text (show $ p_mem p22)))
-    $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty m22 p22) )
+    $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty ppol m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty ppol m22 p22) )
   else
     P.empty)
-  $$ pretty (calcDiff ppol (p11,m11) (p12,m12))
-            (calcDiff ppol (p21,m21) (p22,m22))
+  $$ pretty ppol (calcDiff ppol (p11,m11) (p12,m12))
+                 (calcDiff ppol (p21,m21) (p22,m22))
   $$ prettyDiffs ppol ((p12,m12):tr1) ((p22,m22):tr2)
 prettyDiffs ppol [(p1,m1)] [(p2,m2)] =
   P.text "------------------------------" $$
@@ -219,7 +219,7 @@ prettyDiffs ppol [(p1,m1)] [(p2,m2)] =
 prettyDiffs _ _ _ = P.text ""
 
 data Diff = Diff { d_pc :: (Integer, TagSet)                  -- value and tag of the current PC
-                 , d_instr :: Maybe Instr_I                -- current instruction
+                 , d_instr :: Maybe Instr_I                   -- current instruction
                  , d_reg :: Maybe (GPR_Addr, Integer, TagSet) -- change in registers
                  , d_mem :: Maybe (Integer, Integer, TagSet)  -- Change in memory
                  }
@@ -301,36 +301,36 @@ calcDiff ppol (p1,m1) (p2,m2) =
 --                        " data = " ++ show data_diff ++
 --                        " and tags = " ++ show tag_diff
 
-prettyRegDiff (Just (i,d,l)) (Just (i', d', l'))
+prettyRegDiff ppol (Just (i,d,l)) (Just (i', d', l'))
     | i == i', d == d', l == l' =
-        P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l
+        P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l
     | otherwise =
-      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty d l <||>
-      P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty d' l'
-prettyRegDiff Nothing Nothing = P.text ""
+      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l <||>
+      P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty ppol d' l'
+prettyRegDiff _ Nothing Nothing = P.text ""
 
-prettyMemDiff (Just (i,d,l)) (Just (i', d', l'))
+prettyMemDiff ppol (Just (i,d,l)) (Just (i', d', l'))
     | i == i', d == d', l == l' =
-        P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty d l
+        P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l
     | otherwise =
-      P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty d l
-      <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty d' l'
-prettyMemDiff Nothing Nothing = P.text ""
+      P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l
+      <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d' l'
+prettyMemDiff _ Nothing Nothing = P.text ""
 
 instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
-  pretty (Just i1) (Just i2)
-    | i1 == i2  = pp i1
-    | otherwise = pp i1 <||> pp i2
-  pretty Nothing Nothing = P.text "<Bad instr>"
+  pretty ppol (Just i1) (Just i2)
+    | i1 == i2  = pp ppol i1
+    | otherwise = pp ppol i1 <||> pp ppol i2
+  pretty _ Nothing Nothing = P.text "<Bad instr>"
 
 instance CoupledPP Diff Diff where
-  pretty d1 d2 =
-    P.hcat [ pad 6 (pretty (d_pc d1) (d_pc d2))
+  pretty ppol d1 d2 =
+    P.hcat [ pad 6 (pretty ppol (d_pc d1) (d_pc d2))
            , P.text " "
-           , pad 17 (pretty (d_instr d1) (d_instr d2))
+           , pad 17 (pretty ppol (d_instr d1) (d_instr d2))
            , P.text "     "
-           , prettyRegDiff (d_reg d1) (d_reg d2)
-           , prettyMemDiff (d_mem d1) (d_mem d2)
+           , prettyRegDiff ppol (d_reg d1) (d_reg d2)
+           , prettyMemDiff ppol (d_mem d1) (d_mem d2)
            ]
 
 -- TODO: The fact that we need this is a sad indication of how confused
