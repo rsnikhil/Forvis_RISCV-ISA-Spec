@@ -1,24 +1,21 @@
 >----------------------------------------------------------------
 The directory:    `Test_Programs/riscv-tests/isa/`
-contains ELF binaries for all the "ISA Tests" that one
-gets when one follows the directions given at:
+contains ELF binaries for all the "ISA Tests" that from:
 
-        https://riscv.org/software-tools/
+        https://github.com/riscv/riscv-tests
 
-to download riscv-tools from:
+Please consult riscv.org for directions on how to download and build
+the RISC-V toolchain (including the gcc compiler and linker).
 
-        https://github.com/riscv/riscv-tools.git
-
-and build the RISC-V toolchain.
-
-It also contains, for each ELF binary, a corresponding ".dump" file
-showing the disassembly of the ELF binary.
+The directory also contains, for each ELF binary, a corresponding
+".dump" file showing the disassembly of the ELF binary, by applying
+the standard GNU 'objdump' program in the toolchain.
 
 These ISA tests are compiled during the toolchain-build using RISC-V
 gcc.  The original assembly source codes can be found in the
 riscv-tools repo at:
 
-        riscv-tools/riscv-tests/isa/
+        riscv-tests/isa/
 
 >----------------------------------------------------------------
 The directory:    'Test_Programs/MIT'
