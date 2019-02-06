@@ -277,7 +277,7 @@ enough preparation to jump into the code.  The code has copius
 comments and can be read on its own.  In any case, this document is
 just an assist---it should only be read side-by-side with the code
 opened in your favorite code browser.\footnote{All code fragments in
-this document are in fact automatically extracted from the actual spec
+this document are automatically extracted from the actual spec source
 code.}
 
 Appendix~\ref{sec_extending_forvis} is a guide for those who would
@@ -330,7 +330,7 @@ document at all.
 
 \subsection{What is Forvis?}
 
-Forvis cover all these standard RISC-V features and extensions:
+Forvis covers all these standard RISC-V features and extensions:
 
 \begin{center}
 \begin{tabular}{|l|l|}
@@ -358,7 +358,7 @@ Privileged Architecture  & Machine, Supervisor and User privilege levels \\
 \end{tabular}
 \end{center}
 
-The Forvis spec is written in the pure functional programming language
+Forvis is written in the pure functional programming language
 Haskell~\cite{PeytonJones2003} (cf. {\tt haskell.org}) because of its
 clean and precise mathematical semantics.
 
@@ -457,13 +457,14 @@ such as English are often prone to ambiguity, inconsistency and
 incompleteness.  Further, a formal spec can be parsed and processed
 automatically, connecting to other formal analysis and transformation
 tools.  In addition to precision and completeness, Forvis also has
-these goals:
+the following goals:
 
 \begin{itemize}
 
-\item {\bf Readability:} This spec should be readable by people who
-may be completely unfamiliar with Haskell or other formal
-specification languages.  Examples of our target audience:
+\item {\bf Readability:} This is a very high priority.  The spec
+should be readable by people who may be completely unfamiliar with
+Haskell or other formal specification languages, and who may have no
+time to learn them.  Examples of our target audience:
 
   % ----------------
   \begin{tightlist}
@@ -684,7 +685,7 @@ type}.  Here is the representation and constructor:
 
 \input{Extracted/GPR_File}
 
-The \verb|zip| function constructs a listof intial values, associating
+The \verb|zip| function constructs a listof initial values, associating
 each register address (0..31) with 0 (arbitrarily chosen, since the
 spec does not specify the initial value of any register).
 
@@ -774,7 +775,7 @@ interpretation.
 
 \label{sec_machine_state}
 
-[Reminder: this is for the simple, sequential,
+[Reminder: this is only for the simple, sequential,
 one-instruction-at-a-time interpreter.  The concurrent interpreter has
 a substantially different machine state.]
 
@@ -846,7 +847,7 @@ their type signatures:
 For those unfamiliar with functional programming, it is sometimes
 startling to see something as ``large'' as a machine state passed as
 an argument and returned as a result, but rest assured this is fine
-for our spec; these are just like functions in mathematics.
+for our spec; these are just mathematical functions.
 
 What follows in the file is a series of API functions to read or
 update the machine state, such as the following to access and update
@@ -1736,11 +1737,8 @@ confined to this module.
 
 % ----------------
 
-\subsection{\tt Mem\_Ops.hs} defines instruction field values that specify the
-type and size of memory operations.  These are duplicates of defs in
-\verb|Forvis_Spec.hs| where they are in the specs of LOAD, STORE and
-AMO instructions.  They are repeated here because this information is
-also needed in \verb|Memory.hs|, \verb|MMIO.hs| and other places.
+\subsection{\tt Mem\_Ops.hs} defines some help functions to test for
+alignment, and and ALU for the Atomic Memory Operations (AMO).
 
 % ****************************************************************
 
@@ -2022,13 +2020,14 @@ include CSRs with complex bit-field manipulations and multiple views
 via different addresses, such as MSTATUS/ SSTATUS/ USTATUS and MIE/
 SIE/ UIE.
 
-If FOO has other new architectural state, ultimately it must be added
-as a field in the \verb|Machine_State| data type.  Rather than adding
-multiple items to that type, we recommend that you create a new module
-for that state type, say \verb|FOO_state|, by analogy with
-\verb|GPR_File.hs|, \verb|FPR_File.hs|, and \verb|CSR_File.hs|.  I.e.,
-define a data type \verb|FOO_state| to represent the state, and API
-functions to create that state and to read/write the state.
+If FOO has other new architectural state (such as a vector register
+file), ultimately it must be added as a field in the
+\verb|Machine_State| data type.  Rather than adding multiple items to
+that type, we recommend that you create a new module for that state
+type, say \verb|FOO_state|, by analogy with \verb|GPR_File.hs|,
+\verb|FPR_File.hs|, and \verb|CSR_File.hs|.  I.e., define a data type
+\verb|FOO_state| to represent the state, and API functions to create
+that state and to read/write the state.
 
 Then, add a single field \verb|f_foo :: FOO_State| to
 \verb|Machine_State|.  Augment the \verb|mkMachine_State| constructor
@@ -2050,8 +2049,8 @@ similar to the opcodes already defined there:
 \input{Extracted/Major_Opcodes}
 
 Not all extensions need a new major opcode.  For example, the ``M''
-extension uses \verb|opcode_OP| and \verb|opcode_OP_32| from the base
-integer instruction set.
+extension reuses \verb|opcode_OP| and \verb|opcode_OP_32| from the
+base integer instruction set.
 
 % ================================================================
 
@@ -2144,13 +2143,13 @@ Except for these, encapsulate information as locally as possible.
 This section is a guide for those who are not extending the RISC-V
 spec \emph{per se}, but would like to use the Forvis simulation system
 as a basis in which to plug in a formal spec of a new memory-mapped
-I/O device or accelerator.
+I/O device or accelerator (such as an encrypt/decrypt accelerator).
 
 We suggest using \verb|UART.hs| as a template to follow.
 
 % ================================================================
 
-\subsection{Creating a module for FOO}
+\subsection{Create a module for FOO}
 
 For your new I/O device FOO, create a new module \verb|FOO| in file
 \verb|FOO.hs|.
@@ -2232,7 +2231,8 @@ moves data to/from its buffers and console terminal.  An accelerator
 will typically compute something while the CPU busy-waits or does
 something else.
 
-This kind of concurrent activity is driven by periodic calls to:
+This kind of concurrent activity is driven by periodic calls from the
+top-level execute loop to:
 
 \input{Extracted/mstate_io_tick}
 
