@@ -119,7 +119,7 @@
 
 \vspace{1cm}
 
-{\large\bf A Reading Guide}
+{\large\bf A Reading and Extension Guide}
 
 \vspace{2cm}
 
@@ -222,6 +222,8 @@ specs and constituting the ISA Formal Specification Technical Group.
 Specification Technical Group with whom we have wonderful weekly
 discussions on this topic.
 
+\item to reviewers who provided feedback on this document: Greg Sullivan, ...
+
 \end{tightlist}
 
 
@@ -266,17 +268,30 @@ subset of the functional programming language Haskell.  The spec is
 located in the \verb|src/| directory of this GitHub repository: \\
 \hmm \verb|https://github.com/rsnikhil/Forvis_RISCV-ISA-Spec|
 
-This document is merely a set of ``temporary training wheels'' to help
-read the spec (Haskell source code files), for those new to Forvis,
-Haskell, ISAs, or RISC-V.  For many people (especially those familiar
-with Haskell), this document may be unnecessary; just viewing
+Most of this document is merely a set of ``temporary training wheels''
+to help read the spec (Haskell source code files), for those new to
+Forvis, Haskell, ISAs, or RISC-V.  For many people (especially those
+familiar with Haskell), this document may be unnecessary; just viewing
 Fig.~\ref{Fig_Overview} to see how the files are organized may be
 enough preparation to jump into the code.  The code has copius
 comments and can be read on its own.  In any case, this document is
 just an assist---it should only be read side-by-side with the code
-opened in your favorite code browser.\footnote{ All code fragments in
+opened in your favorite code browser.\footnote{All code fragments in
 this document are in fact automatically extracted from the actual spec
 code.}
+
+Appendix~\ref{sec_extending_forvis} is a guide for those who would
+like to extend Forvis with new ISA features (e.g., an ISA extension
+like Vectors, Bit Manipulation, etc.)
+
+Appendix~\ref{sec_accelerators} is a guide for those who are not
+extending the RISC-V spec \emph{per se}, but would like to use Forvis
+simulation as a driver for a new memory-mapped I/O device or
+accelerator.
+
+% ================================================================
+
+\subsection{Code overview}
 
 Fig.~\ref{Fig_Overview} shows an overview of many of the source
 files.\footnote{For every Haskell module {\tt Foo} in the figure,
@@ -306,6 +321,10 @@ understanding them.
 Please skip to Sec.\ref{sec_common_stuff} to dive into the technical
 stuff.  The rest of Sec.~\ref{sec_intro} contains optional detail and
 background context.
+
+If you are familiar with Haskell, this code overview may be sufficient
+for you to read the code on its own; you may not need the rest of this
+document at all.
 
 % ================================================================
 
@@ -573,7 +592,7 @@ its two least-significant bits.
 
 Here, and everywhere in the spec, you can safely ignore the
 \verb|INLINE| annotation.  These are ``pragmas`` or ``directives'' to
-the Haskell compiler when we compiler this spec into a sequential
+the Haskell compiler when we compile this spec into a sequential
 simulator, and are purely meant to improve the performance (speed) of
 the simulator.  In accordance with the their semantic unimportance, we
 write these \verb|INLINE| annotations \emph{below} the corresponding
@@ -591,7 +610,7 @@ instruction set.
 
 Later in the file, we see major-opcode definitions for the ``A''
 (Atomics) extension\footnote{I am grateful to my colleague Joe Stoy
-for the etymology of the word ``atomic''.  It can be read as
+for teaching me the etymology of the word ``atomic''.  It can be read as
 ``a+tom+ic''.  The ``tom'' (as in ``tomography'') means ``cut'', and
 the ``a`` negates it ($\rightarrow$ ``uncuttable'').}, the ``F'' and
 ``D'' extensions (single-precision and double floating point).
@@ -705,7 +724,7 @@ have a field that ``remembers'' the address of the most recent
 Load-Reserved instruction, to be matched against the next
 Store-Conditional instruction.]
 
-The contructor's argument is a list of (address, byte) pairs, and it
+The constructor's argument is a list of (address, byte) pairs, and it
 initializes the data map with those contents.  As a practical
 simulation-speed consideration, we represent memory in 32-bit words
 (even though it is byte-addressable) since most accesses are at 32-bit
@@ -727,7 +746,7 @@ halfword, word or doubleword).  The third argument is the memory
 byte-address and the \verb|mem_write| function has a fourth argument
 which is the store-value.
 
-The internal details are not too interesting other; they're doing some
+The internal details are not too interesting; they're doing some
 bit-manipulation to accommodate the fact that our representation is in
 4-byte words, and the access size may be for 1, 2, 4 or 8 bytes.
 
@@ -1120,8 +1139,8 @@ The \verb|JALR| instruction does a bit more:
 
 \input{Extracted/exec_JALR}
 
-We see that that saved ``return-address'' (\verb|rd_val| is calculated
-as PC+2 or PC+4 depending on \verb|is_C|.  The jump-target PC is
+We calculate the saved ``return-address'' (\verb|rd_val| is calculated
+as PC+2 or PC+4 depending on \verb|is_C|).  The jump-target PC is
 initially calculated by adding the offset to the \verb|rs1_val|.
 Then, per the spec, we clear its bit [0] to 0.  Then we check if is is
 properly aligned. If MISA.C is active, then it cannot be misaligned
@@ -1182,7 +1201,7 @@ and 0 for the ``trap value'' (that goes into the xTVAL register).
 
 The module \verb|ALU| represents the ``pure integer ALU'', i.e., pure
 functions of one or two inputs representing the various integer
-arithmetic, logic and comparison operatinos of interest.  Most of the
+arithmetic, logic and comparison operations of interest.  Most of the
 functions are quite straightforward, invoking Haskell primitives to
 perform the actual operations.
 
@@ -1968,6 +1987,8 @@ x \verb/.|./ y      & x \verb/|/ y  & Bitwise OR operator \\
 
 \newpage
 
+\markboth{}{Forvis Extension Guide \copyrightnotice}
+
 \section{Extending Forvis to model new ISA features}
 
 \label{sec_extending_forvis}
@@ -2120,11 +2141,10 @@ Except for these, encapsulate information as locally as possible.
 
 \label{sec_accelerators}
 
-This is not a technically an extension of Forvis itself, since Forvis
-is only concerned with the CPU (ISA semantics).  Nevertheless, some
-people may want to use Forvis as an environment within which to
-experiment with a formal spec of a new I/O device or accelerator
-which, to Forvis, just looks like memory-mapped I/O (MMIO).
+This section is a guide for those who are not extending the RISC-V
+spec \emph{per se}, but would like to use the Forvis simulation system
+as a basis in which to plug in a formal spec of a new memory-mapped
+I/O device or accelerator.
 
 We suggest using \verb|UART.hs| as a template to follow.
 
@@ -2204,12 +2224,13 @@ accelerators typically do not need this).
 
 \subsection{Running an I/O device concurrently with the CPU}
 
-Some devices are not passive--they may run some ``process''
-concurrently with the CPU.  For example the timer accessed via the
-MTIME address ticks upwards constantly, independent of the CPU.  The
-UART device moves data to/from its buffers and console terminal.  An
-accelerator will typically compute something while the CPU busy-waits
-or does something else.
+Some devices are not passive, i.e., they do not merely respond to MMIO
+read and write requests.  They may run some ``process'' concurrently
+with the CPU.  For example the timer accessed via the MTIME address
+ticks upwards constantly, independent of the CPU.  The UART device
+moves data to/from its buffers and console terminal.  An accelerator
+will typically compute something while the CPU busy-waits or does
+something else.
 
 This kind of concurrent activity is driven by periodic calls to:
 

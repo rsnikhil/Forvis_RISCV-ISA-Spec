@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env  python3
 
 usage_line = "Usage:    {0}    <root-dir-for-Haskell-sources>    <dest_dir>\n"
 
