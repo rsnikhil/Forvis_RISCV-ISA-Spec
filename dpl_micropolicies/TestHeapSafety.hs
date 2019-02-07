@@ -189,8 +189,8 @@ prop_noninterference ppol (M (m1,p1) (m2,p2)) =
 
 
 
--- verboseTracing = False
-verboseTracing = True
+verboseTracing = False
+--verboseTracing = True
 
 printTrace ppol tr1 tr2 = putStrLn $ P.render $ prettyTrace ppol tr1 tr2
 
@@ -302,21 +302,25 @@ calcDiff ppol (p1,m1) (p2,m2) =
 --                        " data = " ++ show data_diff ++
 --                        " and tags = " ++ show tag_diff
 
-prettyRegDiff ppol (Just (i,d,l)) (Just (i', d', l'))
+prettyRegDiff ppol ((i,d,l):r1) ((i', d', l'):r2)
     | i == i', d == d', l == l' =
-        P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l
+        (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l)
+        $$ prettyRegDiff ppol r1 r2
     | otherwise =
-      P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l <||>
-      P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty ppol d' l'
-prettyRegDiff _ Nothing Nothing = P.text ""
+      (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l <||>
+      P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty ppol d' l')
+      $$ prettyRegDiff ppol r1 r2
+prettyRegDiff _ [] [] = P.text ""
 
-prettyMemDiff ppol (Just (i,d,l)) (Just (i', d', l'))
+prettyMemDiff ppol ((i,d,l):m1) ((i', d', l'):m2)
     | i == i', d == d', l == l' =
-        P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l
+        (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l)
+        $$ prettyMemDiff ppol m1 m2
     | otherwise =
-      P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l
-      <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d' l'
-prettyMemDiff _ Nothing Nothing = P.text ""
+      (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l
+      <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d' l')
+      $$ prettyMemDiff ppol m1 m2
+prettyMemDiff _ [] [] = P.text ""
 
 instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
   pretty ppol (Just i1) (Just i2)
