@@ -36,10 +36,12 @@ showRawTagSet :: ([String],[Maybe Int]) -> String
 --   intercalate "," $ map showRawTag $ zip names colors
 --
 -- Hardcoding some specific tags (just to get things going)
+-- TODO: Nuke this horrible stuff!
 showRawTagSet (["test","Env"],       [Nothing])          = "Env" 
 showRawTagSet (["test","Inst"],      [Nothing])          = "Inst" 
 showRawTagSet (["test","AllocInst"], [Nothing])          = "Alloc, Inst" 
 showRawTagSet (["test","Pointer"],   [Just c1])          = "Pointer " ++ show c1
+-- Not sure why we need the next line
 showRawTagSet (["test","CP"],        [Just c1, Just c2]) = "Cell " ++ show c1 ++ ", Pointer " ++ show c2 
 showRawTagSet t = show t
 

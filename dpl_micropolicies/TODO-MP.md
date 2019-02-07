@@ -1,14 +1,10 @@
 * TODAY
 
-debug the "more than one memory change" issue
-
 figure out if the "no applicable rule" failure is what we should expect
 
 replace Shrinking stuff with Leo's updated version
   and get it working
   and remove / hide the old micropolicies directory
-
-get tag printing working in a more generic way
 
 merge in Nikhil's master 
 

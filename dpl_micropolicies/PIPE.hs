@@ -117,6 +117,10 @@ mem_readT :: MemT -> Integer -> TagSet
 mem_readT m a =
      maybe (error $ "undefined mem_readT " ++ (show a)) id (Data_Map.lookup a (unMemT m))
  
+-- TODO: We are not sure this will do the right thing (i.e., something
+-- coherence with what the processor does) on unaligned writes.
+-- Something seems fishy -- should check with the Dover folks to see
+-- what the actual PIPE does about this.
 mem_writeT :: MemT -> Integer -> TagSet -> MemT
 mem_writeT m a t = foldr (\a m -> mem_writeT' m a t) m [a0,a0+1,a0+2,a0+3]
          where a0 = (a `div` 4) * 4
