@@ -7,7 +7,8 @@ packages:
   extra-dep: true
 - location:
     git: 'https://github.com/draperlaboratory/hope-policy-interpreter.git'
-    commit: 83fdc893a759da41273f98af6e1a8723156ef8e1
+    commit: 91d709ee6ca7913664069893840500398eb8d836
+    # was: 83fdc893a759da41273f98af6e1a8723156ef8e1
   extra-dep: true
   subdirs:
     - policy-eval

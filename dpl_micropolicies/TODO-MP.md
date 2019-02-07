@@ -1,44 +1,42 @@
-TODAY
+* TODAY
 
-replace Shrinking stuff with updated version
-
-figure out why rdTagSet needs the symbol table -- get some kind of tagset
-  printing working
+debug the "more than one memory change" issue
 
 figure out if the "no applicable rule" failure is what we should expect
 
-delete policy-* when finished using them for reference
+replace Shrinking stuff with Leo's updated version
+  and get it working
+  and remove / hide the old micropolicies directory
 
-___
+get tag printing working in a more generic way
 
-Falling off the end of memory is not a very interesting behavior -- generate it less often or maybe explicitly look for it and halt execution
+merge in Nikhil's master 
+
+move the Stack stuff into the dpl directory
+
+beautify the code so others can use it
+
+________________________________________________________
+* SOON
+
+Falling off the end of memory is not a very interesting behavior --
+generate it less often or maybe explicitly look for it and halt
+execution
 
 Try to write an explicit test that exercises the second mutant
 
-there are too mamy magic constants saying how many instructions to generate / execute!
+there are too many magic constants saying how many instructions to
+generate / execute!
 
 are we generating too many "interesting" immediate fields?
 
-___________________________________________________________
-BEFORE JANUARY PI MEETING
+delete policy-* when finished using them for reference
 
-replace haskell policy by policy interpreter
-(Andrew)
-
-copy over all the mutants from the Coq version
-(BCP)
-
-get the heap safety policy running using the interpreter
-(All)
-
-________________________
-AFTER PI MEETING
+________________________________________________________
+* LATER
 
 start thinking about stack safety!
   - look at the policy in the draper repo
-
-improve mutation testing (BCP / Leo)
-  - run cpp separately so that we don't recompile everything every time
 
 haskell-mode for emacs!  (on BCP's work laptop)
 

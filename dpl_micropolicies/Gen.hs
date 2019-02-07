@@ -347,9 +347,10 @@ genByExec ppol n ms ps instrlocs
     (is, it) <- genInstr ppol ms ps
     let ms' = setInstrI ms is
         ps' = setInstrTagI ms ps it
-    case traceShow ("Instruction generated...", is) $ fetch_and_execute ppol ps' ms' of
+    case -- traceShow ("Instruction generated...", is) $
+         fetch_and_execute ppol ps' ms' of
       Right (ps'', ms'') ->
-        trace "Successful execution" $
+        -- trace "Successful execution" $
         genByExec ppol (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
       Left err ->
         trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n ++ " and error: " ++ show err) $
