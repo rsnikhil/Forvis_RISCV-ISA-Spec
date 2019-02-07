@@ -26,9 +26,11 @@ import Data.Bits
 
 import Arch_Defs
 import Machine_State
---import CSR_File
+import CSR_File
 
-import Forvis_Spec
+import Forvis_Spec_Instr_Fetch
+import Forvis_Spec_Execute
+import Forvis_Spec_Interrupts
 import Forvis_Spec_I
 
 import PIPE
@@ -49,12 +51,12 @@ run_loop pol maxinstrs pipe_state mstate =
 
 run_loop' :: PIPE_Policy -> Int -> Int -> [(PIPE_State, Machine_State)] -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
 run_loop' pol fuel maxinstrs trace pipe_state mstate =
-  let instret   = mstate_csr_read mstate csr_addr_minstret
+  let instret   = mstate_csr_read csr_addr_minstret mstate 
       run_state = mstate_run_state_read  mstate
 
       -- Tick: regular maintenance (increment cycle count, real-time
       -- timer, propagate interrupts, etc.)
-      mstate1 = mstate_mem_tick  mstate
+      mstate1 = mstate_io_tick  mstate
 
     -- Simulation aid: Stop due to instruction limit
     in if (fuel >= maxinstrs) --fromIntegral maxinstrs)
@@ -97,12 +99,12 @@ run_loop' pol fuel maxinstrs trace pipe_state mstate =
 fetch_and_execute :: PIPE_Policy -> PIPE_State -> Machine_State -> Either String (PIPE_State, Machine_State)
 fetch_and_execute pol pipe_state mstate = 
   let _verbosity               = mstate_verbosity_read  mstate
-      (intr_pending, mstate2) = take_interrupt_if_any  mstate
+      (intr_pending, mstate2)  = mstate_take_interrupt_if_any  mstate
 
   -- Fetch an instruction
       _pc                      = mstate_pc_read  mstate2
-      _instret                 = mstate_csr_read  mstate2  csr_addr_minstret
-      (fetch_result, mstate3) = instr_fetch  mstate2
+      _instret                 = mstate_csr_read  csr_addr_minstret mstate2
+      (fetch_result, mstate3)  = instr_fetch  mstate2
       _priv                    = mstate_priv_read  mstate3
 
   -- Handle fetch-exception of execute
@@ -113,7 +115,7 @@ fetch_and_execute pol pipe_state mstate =
 
     Fetch    u32 ->
 --      traceShow ("Executing...", decode_I RV32 u32, f_pc mstate3) $
-      let (mstate4, _spec_name) = (exec_instr_32b  u32   mstate3)
+      let (mstate4, _spec_name) = (exec_instr_32b u32 mstate3)
           (pipe_state1, trap) = exec_pipe pol pipe_state mstate3 u32 
       in case trap of 
            PIPE_Trap s -> Left s
@@ -127,7 +129,7 @@ mstate_mem_read_tohost :: Machine_State -> Maybe Integer -> (Integer, Machine_St
 mstate_mem_read_tohost  mstate  Nothing            = (0, mstate)
 mstate_mem_read_tohost  mstate  (Just tohost_addr) =
   let
-    (load_result, mstate') = mstate_mem_read  mstate  exc_code_load_access_fault  funct3_LW  tohost_addr
+    (load_result, mstate') = mstate_mem_read exc_code_load_access_fault  funct3_LW  tohost_addr mstate
   in
     case load_result of
       Mem_Result_Err  exc_code -> (  0, mstate')

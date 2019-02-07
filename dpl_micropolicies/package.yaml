@@ -66,7 +66,7 @@ dependencies:
 # - megaparsec-5.3.1@sha256:9527bd6a857331fee73702ebcac48ad61a62bc198c3c2360b0b3afa5779d19f5
 
 library:
-  source-dirs: src
+  source-dirs: ../src
 
 default-extensions:
   - CPP
@@ -98,8 +98,8 @@ executables:
   dpl-exe:
     main:                Alt_Main.hs
     source-dirs:
-    - dpl_micropolicies
-    - src
+    - .
+    - ../src
     ghc-options:
     - -threaded
     - -rtsopts

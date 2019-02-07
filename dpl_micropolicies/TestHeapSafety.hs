@@ -12,8 +12,8 @@ import Arch_Defs
 
 -- Maybe?
 import Machine_State
-import Forvis_Spec
 import Forvis_Spec_I
+import Forvis_Spec_Instr_Fetch
 import GPR_File
 import Memory
 

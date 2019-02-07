@@ -178,14 +178,14 @@ exec_pipe polMod p m u32 =
       -- error $ "exec_pipe cannot decode instruction 0x" ++ (showHex u32 "") ++ " at pc: " ++ (show $ mstate_pc_read m)
     Just inst ->
       let maddr = case inst of 
-                    LB _ rs1 imm -> mstate_gpr_read m rs1 + imm
-                    LH _ rs1 imm -> mstate_gpr_read m rs1 + imm
-                    LW _ rs1 imm -> mstate_gpr_read m rs1 + imm
-                    LBU _ rs1 imm -> mstate_gpr_read m rs1 + imm
-                    LHU _ rs1 imm -> mstate_gpr_read m rs1 + imm
-                    SB rs1 _ imm -> mstate_gpr_read m rs1 + imm
-                    SH rs1 _ imm -> mstate_gpr_read m rs1 + imm
-                    SW rs1 _ imm -> mstate_gpr_read m rs1 + imm
+                    LB _ rs1 imm -> mstate_gpr_read rs1 m + imm
+                    LH _ rs1 imm -> mstate_gpr_read rs1 m + imm
+                    LW _ rs1 imm -> mstate_gpr_read rs1 m + imm
+                    LBU _ rs1 imm -> mstate_gpr_read rs1 m + imm
+                    LHU _ rs1 imm -> mstate_gpr_read rs1 m + imm
+                    SB rs1 _ imm -> mstate_gpr_read rs1 m + imm
+                    SH rs1 _ imm -> mstate_gpr_read rs1 m + imm
+                    SW rs1 _ imm -> mstate_gpr_read rs1 m + imm
                     _ -> error $ "maddr undefined for " ++ (show inst)
       in exec_pipe' polMod p (f_pc m) inst maddr
 
