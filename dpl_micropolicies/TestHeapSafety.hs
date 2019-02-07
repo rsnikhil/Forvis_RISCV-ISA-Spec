@@ -189,7 +189,8 @@ prop_noninterference ppol (M (m1,p1) (m2,p2)) =
 
 
 
-verboseTracing = False
+-- verboseTracing = False
+verboseTracing = True
 
 printTrace ppol tr1 tr2 = putStrLn $ P.render $ prettyTrace ppol tr1 tr2
 
@@ -218,10 +219,10 @@ prettyDiffs ppol [(p1,m1)] [(p2,m2)] =
   P.text "Final machine states:" $$ prettyMStatePair ppol (M (m1,p1) (m2,p2))
 prettyDiffs _ _ _ = P.text ""
 
-data Diff = Diff { d_pc :: (Integer, TagSet)                  -- value and tag of the current PC
-                 , d_instr :: Maybe Instr_I                   -- current instruction
-                 , d_reg :: Maybe (GPR_Addr, Integer, TagSet) -- change in registers
-                 , d_mem :: Maybe (Integer, Integer, TagSet)  -- Change in memory
+data Diff = Diff { d_pc :: (Integer, TagSet)               -- value and tag of the current PC
+                 , d_instr :: Maybe Instr_I                -- current instruction
+                 , d_reg :: [(GPR_Addr, Integer, TagSet)]  -- change in registers
+                 , d_mem :: [(Integer, Integer, TagSet)]   -- Change in memory
                  }
 
 -- Generic "find diffs" function: Takes two association lists l1 and
@@ -229,10 +230,10 @@ data Diff = Diff { d_pc :: (Integer, TagSet)                  -- value and tag o
 -- *infinite* maps with some default value d (passed as third
 -- parameter), and returns a list of changes
 --
--- N.b. In the cases where we are returniung something, we first have
+-- N.b. In the cases where we are returning something, we first have
 -- to check whether the thing we are returning is equal to d!  (And
 -- not return it in this case.)
-diff :: (Ord a, Eq b) => [(a, b)] -> [(a, b)] -> b -> [(a, (b,b))]
+diff :: (Ord a, Eq b) => [(a, b)] -> [(a, b)] -> b -> [(a, (b, b))]
 diff [] [] d = []
 diff ((x1,y1):l1) [] d = (if y1==d then [] else [(x1,(y1,d))]) ++ diff l1 [] d
 diff [] ((x2,y2):l2) d = (if y2==d then [] else [(x2,(d,y2))]) ++ diff [] l2 d
@@ -261,13 +262,14 @@ calcDiff ppol (p1,m1) (p2,m2) =
             filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2)
                    (zip (Data_Map.assocs t1) (Data_Map.assocs t2))
       in case (reg_diff, tag_diff) of
-           ([], []) -> Nothing
-           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
+           ([], []) -> []
+           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> [(i,d,l)]
            ([((i,_),(_,d))],[]) ->
-             (i,d,) <$> Data_Map.lookup i t2
+             catMaybes [(i,d,) <$> Data_Map.lookup i t2]
            ([],[((i,_),(_,l))]) ->
-             (i,,l) <$> Data_Map.lookup i r2
-           _ -> error $ "More than one diff in register file:" ++
+             catMaybes [(i,,l) <$> Data_Map.lookup i r2]
+           _ -> -- TODO!
+                error $ "More than one diff in register file:" ++
                         " registers = " ++ show reg_diff ++
                         " and tags = " ++ show tag_diff
   , d_mem =
@@ -278,10 +280,8 @@ calcDiff ppol (p1,m1) (p2,m2) =
           both1 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm1) (Data_Map.assocs pm1)
           both2 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm2) (Data_Map.assocs pm2)
           diffs = diff both1 both2 (uninitialized_word, emptyInstTag ppol)
-       in case diffs of
-          [] -> Nothing
-          [(i,(_,(d,t)))] -> Just (i,d,t)
-          d -> error $ "More than one memory change: " ++ show d
+          extract (i,(_,(d,t))) = (i,d,t)
+       in map extract diffs 
   }
 
 --          data_diff =
