@@ -32,7 +32,8 @@ import Read_Hex_File
 
 import Arch_Defs
 import Machine_State
-import Run_Program
+import CSR_File
+import Run_Program_Sequential
 import Mem_Ops
 import Memory
 import MMIO
@@ -163,21 +164,28 @@ to_Opt_Num_Instrs s = case (readDec s) of
 to_Opt_Arch :: String -> MyOpt
 to_Opt_Arch s =
   let
+    is_misa_opt :: Char -> Bool
+#ifdef FLOAT
+    is_misa_opt  ch = (('a' <= ch) && (ch <= 'z'))
+#else
+    is_misa_opt  ch = (('a' <= ch) && (ch <= 'z') && (ch /= 'd') && (ch /= 'f'))
+#endif
+
     mk_misa  :: RV -> String -> Integer -> MyOpt
     mk_misa     rv    s         misa =
       case s of
-        []                                    -> (let
-                                                     misa_mxl | rv == RV32 = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
-                                                              | rv == RV64 = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)
-                                                     misa' = (misa_mxl .|. misa)
-                                                   in
-                                                     Opt_Arch  rv  misa')
+        []                          -> (let
+                                           misa_mxl | rv == RV32 = (shiftL  xl_rv32  misa_MXL_bitpos_RV32)
+                                                    | rv == RV64 = (shiftL  xl_rv64  misa_MXL_bitpos_RV64)
+                                           misa' = (misa_mxl .|. misa)
+                                         in
+                                           Opt_Arch  rv  misa')
 
-        (ch:s1)  | ('a' <= ch) && (ch <= 'z') -> (let
-                                                     bit = shiftL  1  ((ord ch) - (ord 'a'))
-                                                     misa' = misa .|. bit
-                                                  in
-                                                     mk_misa  rv  s1  misa')
+        (ch:s1)  | is_misa_opt (ch) -> (let
+                                           bit = shiftL  1  ((ord ch) - (ord 'a'))
+                                           misa' = misa .|. bit
+                                        in
+                                           mk_misa  rv  s1  misa')
 
         _                                     -> Opt_Err  "Illegal --arch command-line arg"
 
@@ -210,7 +218,7 @@ run_program_from_files    rv    misa       files       num_instrs  watch_tohost 
   let mstate1        = mkMachine_State  rv  misa  pc_reset_value  addr_ranges  addr_byte_list
 
       -- Set verbosity: 0: quiet (only console out); 1: also instruction trace; 2: also CPU arch state
-      mstate2        = mstate_verbosity_write  mstate1  verbosity
+      mstate2        = mstate_verbosity_write  verbosity  mstate1
 
   -- Run the program that is in memory, and report PASS/FAIL
   putStrLn ("PC reset: 0x" ++ showHex  pc_reset_value "" ++
@@ -235,10 +243,8 @@ run_program_from_files    rv    misa       files       num_instrs  watch_tohost 
                            putStr   (if (all_console_output == "") then "--none--\n" else all_console_output))
 
   -- Info only: show final mtime
-  let (mem_result, _) = mstate_mem_read  mstate3  exc_code_load_access_fault  funct3_LD  addr_mtime
-  case mem_result of
-    Mem_Result_Ok   t -> putStrLn ("Final value of mtime: " ++ show t)
-    Mem_Result_Err  _ -> return ()
+  let t = mstate_mem_read_mtime  mstate3
+  putStrLn ("Final value of mtime: " ++ show t)
 
   return exit_value
   
@@ -303,7 +309,7 @@ read_file filename = do
 dump_mem :: Machine_State -> Integer -> Integer -> IO ()
 dump_mem  mstate  start  end = do
   let f addr = do
-          let (load_result, mstate') = mstate_mem_read  mstate  exc_code_load_access_fault  funct3_LB  addr
+          let (load_result, mstate') = mstate_mem_read  exc_code_load_access_fault  funct3_LB  addr  mstate
               val = case load_result of
                       Mem_Result_Ok  x          ->  showHex x ""
                       Mem_Result_Err trap_cause ->  show trap_cause

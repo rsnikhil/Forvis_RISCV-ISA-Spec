@@ -29,7 +29,7 @@ import Mem_Ops
 uninitialized_word = 0x00000000 :: Integer
 
 -- ================================================================
--- Memory representation: Data.Map.Map from Integer (address) to Integer (32-bit data)
+-- Memory representation: Data.Map.Map from Integer (address) to Integer (32-bit data)    -- \begin_latex{Memory}
 -- This is a private internal representation that can be changed at
 -- will; only the exported API can be used by clients.
 -- We choose 32-bit data to cover the most common accesses in RV32 and RV64,
@@ -47,7 +47,7 @@ mkMem  addr_byte_list =
   in
     Mem  {f_dm            = Data_Map.fromList  addr_word_list,
           f_reserved_addr = Nothing }
-
+                                                                                          -- \end_latex{Memory}
 -- This function assumes the addr_byte_list is 'well-formed', i.e.,
 -- that all bytes for a 32-b word are provided consecutively
 -- and the first of those bytes is word-aligned.
@@ -98,10 +98,11 @@ addr_byte_list_to_addr_word_list  a_b_s =
 --     We could handle misaligned addrs
 --     We could return Mem_Result_Err on uninitialized locations.
 --     We could return Mem_Result_Err if there are address bounds.
-
+                                                                        -- \begin_latex{mem_read}
 mem_read :: Mem -> InstrField -> Integer -> (Mem_Result, Mem)
-mem_read  mem  funct3  addr =
-  let
+mem_read    mem    funct3        addr =
+  let                                                                   -- \end_latex{...mem_read}
+
     dm = f_dm  mem
 
     -- Get old memory values (omvs)
@@ -124,11 +125,12 @@ mem_read  mem  funct3  addr =
                      |  (funct3 == funct3_LD)                            = (omv_w1, omv_w0)
 
     u64 = bitconcat_u32_u32_to_u64  ldv_w1  ldv_w0
-  in
+  in                                                                -- \begin_latex{mem_read_aligned}
     if (is_LOAD_aligned  funct3  addr) then
       (Mem_Result_Ok  u64, mem)
     else
       (Mem_Result_Err exc_code_load_addr_misaligned,  mem)
+                                                                    -- \end_latex{mem_read_alignmed}
 
 
 -- ================================================================
@@ -136,10 +138,10 @@ mem_read  mem  funct3  addr =
 -- TODO: Currently we return Mem_Result_Err on misaligned
 --     We could handle misaligned addrs
 --     We could return Mem_Result_Err if there are address bounds.
-
+                                                                            -- \begin_latex{mem_write}
 mem_write :: Mem -> InstrField -> Integer -> Integer -> (Mem_Result, Mem)
-mem_write  mem  funct3  addr  stv =
-  let
+mem_write    mem    funct3        addr       stv =
+  let                                                                       -- \end_latex{...mem_write}
     mask32 = 0xFFFFFFFF
     stv_w0 = (stv .&. mask32)
     stv_w1 = ((shiftR  stv  32) .&. mask32)

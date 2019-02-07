@@ -13,7 +13,15 @@ forvis_exe in the top-level directory, then:
 
 For reference:
     The Logs_sample/ directory is a copy of Logs/ from a previous run.
-    make_transcript.txt is a transcript of a previous 'make'
+
+    make_transcript.txt
+    make_nofloat_transcript.txt
+
+        are transcripts of running 'make' on executables built with
+	and without support for the RISC-V F and D extensions (single-
+	and double-precision floating point).  The former shows all
+	tests passing; the latter shows failures on all tests
+	involving F or D.
 
 Note: the regression is run by the Python program 'Run_all_tests.py'
 

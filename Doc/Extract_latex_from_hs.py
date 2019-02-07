@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env  python3
 
 usage_line = "Usage:    {0}    <root-dir-for-Haskell-sources>    <dest_dir>\n"
 
@@ -85,18 +85,22 @@ def do_regular_file_function (level, dirname, basename, dest_path):
     for line in fileinput.input (filename):
         linenum = linenum + 1
         if not extracting:
-            tag = find_tag (filename, linenum, line, "\\begin_latex")
-            if tag != None:
-                fd = open (os.path.join (dest_path, tag + ".tex"), 'w')
-                header = "tag {0} from line {1}, file {2}".format (tag, linenum, basename)
+            tag_begin = find_tag (filename, linenum, line, "\\begin_latex")
+            if tag_begin != None:
+                fd = open (os.path.join (dest_path, tag_begin + ".tex"), 'w')
+                header = "tag {0} from line {1}, file {2}".format (tag_begin, linenum, basename)
                 sys.stdout.write ("Extracting: {0}\n".format (header))
                 fd.write ("% {0}\n".format (header))
                 extracting = True
-                state = 0
-                pending = 0
+                state = 0            # still within leading blank lines
+                pending_blank_lines = 0
         else:
-            tag = find_tag (filename, linenum, line, "\\end_latex")
-            if tag != None:
+            tag_end = find_tag (filename, linenum, line, "\\end_latex")
+            if tag_end != None:
+                if (tag_end != tag_begin):
+                    sys.stdout.write ("WARNING: unmatched begin/end tags: {0} and {1}\n".format (tag_begin, tag_end))
+                if (tag_end.startswith ("...")):
+                    fd.write ("...more...\n")
                 fd.write ("\\end{Verbatim}\n")
                 fd.write ("}\n")
                 fd.close ()
@@ -105,21 +109,23 @@ def do_regular_file_function (level, dirname, basename, dest_path):
                 blank = (line == "") or line.isspace()
                 if blank:
                     if state == 0:
+                        # leading blank line; skip
                         pass
                     else:
-                        # may be in suffix blank lines
-                        pending = pending + 1
+                        # possible trailing blank line
+                        pending_blank_lines = pending_blank_lines + 1
                 else:
                     if state == 0:
                         # First non-blank line
                         state = 1
                         fd.write ("{\\small\n")
                         fd.write ("\\begin{Verbatim}")
-                        fd.write ("[frame=single, label=line {0} {1}]\n".format(linenum, basename1))
-                    for j in range (pending):
+                        fd.write ("[frame=single, label=line {0} {1}]\n"
+                                  .format(linenum, basename1))
+                    for j in range (pending_blank_lines):
                         fd.write ("\n")
                     fd.write (line)
-                    pending = 0
+                    pending_blank_lines = 0
 
     return
 

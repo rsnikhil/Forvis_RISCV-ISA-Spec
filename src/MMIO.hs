@@ -19,7 +19,9 @@ import Bit_Utils
 import Arch_Defs
 import Mem_Ops
 import Address_Map
+                                                                -- \begin_latex{import_UART}
 import UART
+                                                                -- \end_latex{import_UART}
 
 -- ================================================================
 -- IO subsystem representation
@@ -35,9 +37,10 @@ data MMIO = MMIO {
 
   -- Location for generating software interrupts
   f_msip :: Integer,
-
+                                                                -- \begin_latex{MMIO_f_uart}
   -- UART for console I/O
   f_uart :: UART_NS16550A
+                                                                -- \end_latex{MMIO_f_uart}
   }
 
 mkMMIO :: MMIO
@@ -46,16 +49,18 @@ mkMMIO = MMIO { f_mtime         = 1,    -- greater than mtimecmp, to avoid initi
                 f_mtip          = False,
 
                 f_msip          = 0,
-
+                                                                -- \begin_latex{mkMMIO_f_uart}
                 f_uart          = mkUART
+                                                                -- \end_latex{mkMMIO_f_uart}
               }
 
 -- ================================================================
--- Tick mtime.
+-- Tick devices, i.e., ``run'' their concurrent processes
 -- Set mtip field if mtime reaches mtimecmp.
-
-mmio_tick_mtime :: MMIO -> MMIO
-mmio_tick_mtime  mmio =
+                                                                -- \begin_latex{mmio_tick}
+mmio_tick :: MMIO -> MMIO
+mmio_tick  mmio =
+                                                                -- \end_latex{mmio_tick}
   let
     mtime            = f_mtime     mmio
     mtimecmp         = f_mtimecmp  mmio
@@ -71,11 +76,12 @@ mmio_tick_mtime  mmio =
 
 -- ================================================================
 -- Check for interrupts (external, timer, software)
-
+                                                                -- \begin_latex{mmio_has_interrupts}
 mmio_has_interrupts :: MMIO -> (Bool, Bool, Bool)
 mmio_has_interrupts  mmio =
   let
     eip  = uart_has_interrupt  (f_uart  mmio)
+                                                                -- \end_latex{...mmio_has_interrupts}
     tip  = f_mtip  mmio
     sip  = ((f_msip  mmio) /= 0)
   in
@@ -132,6 +138,7 @@ mmio_read  mmio  funct3  addr =
     in
       (Mem_Result_Ok  msip,  mmio)
 
+                                                                -- \begin_latex{mmio_uart_read}
   -- UART
   else if ((addr_base_UART <= addr) && (addr < (addr_base_UART + addr_size_UART))) then
     let
@@ -140,7 +147,7 @@ mmio_read  mmio  funct3  addr =
       mmio'      = mmio { f_uart = uart' }
     in
       (Mem_Result_Ok  v,  mmio')
-
+                                                                -- \end_latex{mmio_uart_read}
   -- UNKNOWN IO ADDR
   else
     (Mem_Result_Err  exc_code_load_access_fault,  mmio)
@@ -188,7 +195,7 @@ mmio_write  mmio  funct3  addr  val =
   -- HTIF CONSOLE OUT
   else if (addr == addr_htif_console_out) then
     mmio_write  mmio  funct3  (addr_base_UART + addr_UART_thr)  val
-
+                                                                -- \begin_latex{mmio_uart_write}
   -- UART
   else if ((addr_base_UART <= addr) && (addr < (addr_base_UART + addr_size_UART))) then
     let
@@ -197,7 +204,7 @@ mmio_write  mmio  funct3  addr  val =
       mmio' = mmio {f_uart = uart'}
     in
       (Mem_Result_Ok  0, mmio')
-
+                                                                -- \end_latex{mmio_uart_write}
   -- UNKNOWN IO ADDR
   else
     (Mem_Result_Err  exc_code_store_AMO_access_fault, mmio)

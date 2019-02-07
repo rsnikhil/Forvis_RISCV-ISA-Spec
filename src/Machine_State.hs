@@ -33,8 +33,8 @@ import Address_Map
 -- ================================================================
 -- Architectural State data structure.
 -- This is a private internal representation that can be changed at
--- will; only the exported API can be used by clients.       \begin_latex{Machine_State}
-
+-- will; only the exported API can be used by clients.
+                                                          -- \begin_latex{Machine_State}
 data Machine_State =
   Machine_State { -- Architectural state
                   f_pc   :: Integer,
@@ -48,7 +48,9 @@ data Machine_State =
                   f_mmio :: MMIO,
 
                   -- Implementation options
-                  f_mem_addr_ranges :: [(Integer, Integer)],    -- list of (addr_start, addr_lim)
+
+                  -- Legal memory addresses: list of (addr_start, addr_lim)
+                  f_mem_addr_ranges :: [(Integer, Integer)],
 
                   -- For convenience and debugging only; no semantic relevance
                   f_rv                 :: RV,   -- redundant copy of info in CSR MISA
@@ -86,8 +88,13 @@ mstate_print  indent  mstate = do
 
                                                               -- \begin_latex{Machine_State_constructor}
 -- Make a Machine_State, given initial PC and memory contents
-mkMachine_State :: RV -> Integer -> Integer  -> [(Integer,Integer)] -> ([(Integer, Integer)]) -> Machine_State
-mkMachine_State    rv    misa       initial_PC  addr_ranges            addr_byte_list =
+mkMachine_State :: RV ->                      -- Initial RV32/RV64
+                   Integer ->                 -- Initial value of misa
+                   Integer ->                 -- Initial value of PC
+                   [(Integer,Integer)] ->     -- List of legal memory addresses
+                   ([(Integer, Integer)]) ->  -- Initial mem contents (addr-&-byte list)
+                   Machine_State              -- result
+mkMachine_State  rv  misa  initial_PC  addr_ranges  addr_byte_list =
   let
     mstate = Machine_State {f_pc   = initial_PC,
                             f_gprs = mkGPR_File,
@@ -107,116 +114,124 @@ mkMachine_State    rv    misa       initial_PC  addr_ranges            addr_byte
   in
     mstate
                                                               -- \end_latex{Machine_State_constructor}
--- ----------------
+-- ================================================================
 -- read/write PC                                                 \begin_latex{PC_access}
 
-{-# INLINE mstate_pc_read #-}
 mstate_pc_read :: Machine_State -> Integer
 mstate_pc_read  mstate = f_pc mstate
 
-mstate_pc_write :: Machine_State -> Integer -> Machine_State
-mstate_pc_write  mstate  val = mstate { f_pc = val }
+mstate_pc_write :: Integer -> Machine_State -> Machine_State
+mstate_pc_write    val        mstate = mstate { f_pc = val }
                                                               -- \end_latex{PC_access}
--- ----------------
+{-# INLINE mstate_pc_read #-}
+{-# INLINE mstate_pc_write #-}
+
+-- read/write current privilege level
+
+mstate_priv_read :: Machine_State -> Priv_Level
+mstate_priv_read    mstate = f_priv  mstate
+
+mstate_priv_write :: Priv_Level -> Machine_State -> Machine_State
+mstate_priv_write    priv          mstate = mstate { f_priv = priv }
+
+{-# INLINE mstate_priv_read #-}
+{-# INLINE mstate_priv_write #-}
+
+-- ================================================================
 -- read/write RV, xlen
 
-{-# INLINE mstate_rv_read #-}
 mstate_rv_read :: Machine_State -> RV
-mstate_rv_read  mstate = f_rv  mstate
+mstate_rv_read    mstate = f_rv  mstate
 
-mstate_rv_write :: Machine_State -> RV -> Machine_State
-mstate_rv_write  mstate  rv = mstate { f_rv = rv }
+mstate_rv_write :: RV -> Machine_State -> Machine_State
+mstate_rv_write    rv    mstate = mstate { f_rv = rv }
 
-{-# INLINE mstate_xlen_read #-}
 mstate_xlen_read :: Machine_State -> Int
 mstate_xlen_read  mstate | (f_rv  mstate == RV32) = 32
                          | (f_rv  mstate == RV64) = 64
 
--- ----------------
+{-# INLINE mstate_rv_read #-}
+{-# INLINE mstate_rv_write #-}
+{-# INLINE mstate_xlen_read #-}
+
+-- ================================================================
 -- read/write GPRs
 
-{-# INLINE mstate_gpr_read #-}
-mstate_gpr_read :: Machine_State -> GPR_Addr -> Integer
-mstate_gpr_read  mstate  reg = gpr_read (f_gprs mstate)  reg
-                                                              -- \begin_latex{mstate_gpr_write}
-{-# INLINE mstate_gpr_write #-}
-mstate_gpr_write :: Machine_State -> GPR_Addr -> Integer -> Machine_State
-mstate_gpr_write  mstate  reg  val =
+mstate_gpr_read :: GPR_Addr -> Machine_State -> Integer
+mstate_gpr_read    reg         mstate = gpr_read (f_gprs mstate)  reg
+
+mstate_gpr_write :: GPR_Addr -> Integer -> Machine_State -> Machine_State
+mstate_gpr_write    reg         val        mstate =
   let
-    rv      = f_rv  mstate
     gprs    = f_gprs  mstate
     gprs'   = gpr_write  gprs  reg  val
     mstate' = mstate { f_gprs = gprs' }
   in
     mstate'
-                                                              -- \end_latex{mstate_gpr_write}
--- ----------------
+
+{-# INLINE mstate_gpr_read #-}
+{-# INLINE mstate_gpr_write #-}
+
+-- ================================================================
 -- read/write FPRs
 
-{-# INLINE mstate_fpr_read #-}
-mstate_fpr_read :: Machine_State -> FPR_Addr -> Integer
-mstate_fpr_read    mstate           reg       = fpr_read (f_fprs mstate)  reg
-                                                              -- \begin_latex{mstate_fpr_write}
-{-# INLINE mstate_fpr_write #-}
-mstate_fpr_write :: Machine_State -> FPR_Addr -> Integer -> Machine_State
-mstate_fpr_write    mstate           reg         val =
+mstate_fpr_read :: FPR_Addr -> Machine_State -> Integer
+mstate_fpr_read    reg         mstate = fpr_read (f_fprs mstate)  reg
+
+mstate_fpr_write :: FPR_Addr -> Integer -> Machine_State -> Machine_State
+mstate_fpr_write    reg         val        mstate =
   let
     fprs    = f_fprs  mstate
     fprs'   = fpr_write  fprs  reg  val
     mstate' = mstate { f_fprs = fprs' }
   in
     mstate'
-                                                              -- \end_latex{mstate_fpr_write}
 
--- ----------------
+{-# INLINE mstate_fpr_read #-}
+{-# INLINE mstate_fpr_write #-}
+
+-- ================================================================
 -- read/write CSRs
 -- Assumes CSR exists and access is legal
 
 -- Checks permissions (None, RO, RW) of a csr_addr at a given privilege level
-{-# INLINE mstate_csr_read_permission #-}
-mstate_csr_read_permission :: Machine_State -> Priv_Level -> CSR_Addr -> CSR_Permission
-mstate_csr_read_permission  mstate  priv  csr_addr =
+
+mstate_csr_permission :: Priv_Level -> CSR_Addr -> Machine_State -> CSR_Permission
+mstate_csr_permission    priv          csr_addr    mstate =
   csr_permission  (f_csrs  mstate)  priv  csr_addr
 
-{-# INLINE mstate_csr_read #-}
-mstate_csr_read :: Machine_State -> CSR_Addr -> Integer
-mstate_csr_read  mstate  csr_addr = csr_read  (f_rv  mstate)  (f_csrs  mstate)  csr_addr
+mstate_csr_read :: CSR_Addr -> Machine_State -> Integer
+mstate_csr_read    csr_addr    mstate = csr_read  (f_rv  mstate)  (f_csrs  mstate)  csr_addr
 
-{-# INLINE mstate_csr_write #-}
-mstate_csr_write :: Machine_State -> CSR_Addr -> Integer -> Machine_State
-mstate_csr_write  mstate  csr_addr  value =
+mstate_csr_write :: CSR_Addr -> Integer -> Machine_State -> Machine_State
+mstate_csr_write    csr_addr    value      mstate =
   let
     csr_file' = csr_write  (f_rv  mstate)  (f_csrs  mstate)  csr_addr  value
     mstate'   = mstate { f_csrs = csr_file' }
   in
     mstate'
 
+{-# INLINE mstate_csr_permission #-}
+{-# INLINE mstate_csr_read #-}
+{-# INLINE mstate_csr_write #-}
+
 -- ----------------
 -- Update the CSR by accruing the new value. Do not owerwrite
 -- This behaviour of accruing results is unique to the FCSR.
-{-# INLINE mstate_csr_update #-}
-mstate_csr_update   :: Machine_State    -> CSR_Addr -> Integer  -> Machine_State
-mstate_csr_update      mstate              csr_addr    new_val  =
+
+mstate_csr_update   :: CSR_Addr -> Integer  -> Machine_State    -> Machine_State
+mstate_csr_update      csr_addr    new_val     mstate =
   let
-    old_val     = mstate_csr_read  mstate  csr_addr
+    old_val     = mstate_csr_read  csr_addr  mstate
 
     -- accrue new value, do not overwrite
     val'        = old_val .|. new_val
 
-    mstate'     = mstate_csr_write  mstate  csr_addr  val'
+    mstate'     = mstate_csr_write  csr_addr  val'  mstate
   in
     mstate'
 
--- ================================================================
--- read/write current privilege level
-
-{-# INLINE mstate_priv_read #-}
-mstate_priv_read :: Machine_State -> Priv_Level
-mstate_priv_read  mstate = f_priv  mstate
-
-{-# INLINE mstate_priv_write #-}
-mstate_priv_write :: Machine_State -> Priv_Level -> Machine_State
-mstate_priv_write  mstate  priv = mstate { f_priv = priv }
+{-# INLINE mstate_csr_update #-}
 
 -- ================================================================
 -- Memory access
@@ -225,11 +240,11 @@ mstate_priv_write  mstate  priv = mstate { f_priv = priv }
 --   - Memory may change state of PTEs, memory-model tracking, cache coherence, ...
 --   - I/O devices may also change device-internal state)
 
--- Check if the address is supported
+-- ----------------------------------------------------------------
+-- Check if the memory address is supported
 
-{-# INLINE is_supported_addr #-}
-is_supported_addr :: Machine_State -> InstrField -> Integer -> Bool
-is_supported_addr  mstate  funct3  addr =
+is_supported_addr :: InstrField -> Integer -> Machine_State -> Bool
+is_supported_addr    funct3        addr       mstate =
   let
     size | (funct3 == funct3_LB)  = 1
          | (funct3 == funct3_LBU) = 1
@@ -248,12 +263,18 @@ is_supported_addr  mstate  funct3  addr =
   in
     check  addr_ranges
 
--- Reads
+{-# INLINE is_supported_addr #-}
 
-{-# INLINE mstate_mem_read #-}
-mstate_mem_read :: Machine_State -> Exc_Code -> InstrField -> Integer -> (Mem_Result, Machine_State)
-mstate_mem_read  mstate  exc_code_access_fault  funct3  addr =
-  if not (is_supported_addr  mstate  funct3  addr)
+-- ----------------------------------------------------------------
+-- Memory and MMIO reads
+
+mstate_mem_read :: Exc_Code      ->        -- instruction or data exception code in case of fault
+                   InstrField    ->        -- funct3 (size of access)
+                   Integer       ->        -- addr
+                   Machine_State ->
+                   (Mem_Result, Machine_State)
+mstate_mem_read  exc_code_access_fault  funct3  addr  mstate =
+  if not (is_supported_addr  funct3  addr  mstate)
   then
     -- Memory access fault
     let
@@ -277,12 +298,18 @@ mstate_mem_read  mstate  exc_code_access_fault  funct3  addr =
     in
       (load_result, (mstate { f_mmio = mmio'}))
 
--- Writes
+{-# INLINE mstate_mem_read #-}
 
-{-# INLINE mstate_mem_write #-}
-mstate_mem_write :: Machine_State -> InstrField -> Integer -> Integer -> (Mem_Result, Machine_State)
-mstate_mem_write  mstate  funct3  addr  val =
-  if not (is_supported_addr  mstate  funct3  addr)
+-- ----------------------------------------------------------------
+-- Memory and MMIO writes
+
+mstate_mem_write :: InstrField    ->        -- funct3
+                    Integer       ->        -- addr
+                    Integer       ->        -- store-value
+                    Machine_State ->
+                    (Mem_Result, Machine_State)
+mstate_mem_write  funct3  addr  val  mstate =
+  if not (is_supported_addr  funct3  addr  mstate)
   then
     -- Memory access fault
     let
@@ -307,19 +334,21 @@ mstate_mem_write  mstate  funct3  addr  val =
     in
       (store_result, mstate1)
 
+{-# INLINE mstate_mem_write #-}
+
+-- ----------------------------------------------------------------
 -- Atomic Memory Ops
 
-{-# INLINE mstate_mem_amo #-}
-mstate_mem_amo :: Machine_State ->
-                     Integer       ->    -- addr
-                     InstrField    ->    -- funct3
-                     InstrField    ->    -- msbs5
-                     InstrField    ->    -- aq
-                     InstrField    ->    -- rl
-                     Integer       ->    -- store-val
-                     (Mem_Result, Machine_State)
-mstate_mem_amo  mstate  addr  funct3  msbs5  aq  rl  st_val =
-  if not (is_supported_addr  mstate  funct3  addr)
+mstate_mem_amo :: Integer       ->        -- addr
+                  InstrField    ->        -- funct3 (size of access)
+                  InstrField    ->        -- msbs5 (which kind of AMO op)
+                  InstrField    ->        -- aq
+                  InstrField    ->        -- rl
+                  Integer       ->        -- store-val
+                  Machine_State ->
+                  (Mem_Result, Machine_State)
+mstate_mem_amo  addr  funct3  msbs5  aq  rl  st_val  mstate =
+  if not (is_supported_addr  funct3  addr  mstate)
   then
     -- Memory access fault
     let
@@ -339,24 +368,31 @@ mstate_mem_amo  mstate  addr  funct3  msbs5  aq  rl  st_val =
     in
       (load_result, (mstate { f_mmio = mmio'}))
 
--- Fences
+{-# INLINE mstate_mem_amo #-}
+
+-- ----------------------------------------------------------------
+-- Memory fences
 -- TODO: currently no-ops; fixup when we handle concurrency
 
-{-# INLINE mstate_mem_fence #-}
 mstate_mem_fence  :: Machine_State -> Machine_State
 mstate_mem_fence  mstate = mstate
 
-{-# INLINE mstate_mem_fence_i #-}
 mstate_mem_fence_i  :: Machine_State -> Machine_State
 mstate_mem_fence_i  mstate = mstate
 
-{-# INLINE mstate_mem_sfence_vm #-}
-mstate_mem_sfence_vm  :: Machine_State -> Integer -> Integer -> Machine_State
-mstate_mem_sfence_vm  mstate  rs1_val  rs2_val = mstate
+mstate_mem_sfence_vma  :: Machine_State -> Integer -> Integer -> Machine_State
+mstate_mem_sfence_vma  mstate  rs1_val  rs2_val = mstate
 
--- I/O: enq (CPU <- MMIO <- UART <- tty) console input
+{-# INLINE mstate_mem_fence #-}
+{-# INLINE mstate_mem_fence_i #-}
+{-# INLINE mstate_mem_sfence_vma #-}
 
-{-# INLINE mstate_mem_enq_console_input #-}
+-- ================================================================
+-- Simulation aids
+
+-- ----------------------------------------------------------------
+-- I/O: enq console input into machine state (CPU <- MMIO <- UART <- tty)
+
 mstate_mem_enq_console_input :: Machine_State -> String -> Machine_State
 mstate_mem_enq_console_input  mstate  s =
   let
@@ -366,9 +402,11 @@ mstate_mem_enq_console_input  mstate  s =
   in
     mstate'
 
--- I/O: deq (CPU -> MMIO -> UART -> tty) console output
+{-# INLINE mstate_mem_enq_console_input #-}
 
-{-# INLINE mstate_mem_deq_console_output #-}
+-- ----------------------------------------------------------------
+-- I/O: deq console output from machine state (CPU -> MMIO -> UART -> tty)
+
 mstate_mem_deq_console_output :: Machine_State -> (String, Machine_State)
 mstate_mem_deq_console_output  mstate =
   let
@@ -379,7 +417,10 @@ mstate_mem_deq_console_output  mstate =
   in
     (console_output, mstate')
 
--- I/O: Read all console input
+{-# INLINE mstate_mem_deq_console_output #-}
+
+-- ----------------------------------------------------------------
+-- I/O: Read all console input (for debugging etc.)
 
 mstate_mem_all_console_input :: Machine_State -> (String, String)
 mstate_mem_all_console_input  mstate =
@@ -388,7 +429,8 @@ mstate_mem_all_console_input  mstate =
   in
     mmio_all_console_input  mmio
 
--- I/O: Read all console output
+-- ----------------------------------------------------------------
+-- I/O: Read all console output (for debugging etc.)
 
 mstate_mem_all_console_output :: Machine_State -> (String, String)
 mstate_mem_all_console_output  mstate =
@@ -397,13 +439,12 @@ mstate_mem_all_console_output  mstate =
   in
     mmio_all_console_output  mmio
 
--- I/O: Tick
---     incr CSR.MCYCLE
---     incr MMIO.MTIME
-
-{-# INLINE mstate_mem_tick #-}
-mstate_mem_tick :: Machine_State -> Machine_State
-mstate_mem_tick  mstate =
+-- ----------------------------------------------------------------
+-- Advance IO devices (which ``run'' concurrently with the CPU)
+                                                                -- \begin_latex{mstate_io_tick}
+mstate_io_tick :: Machine_State -> Machine_State
+mstate_io_tick  mstate =
+                                                                -- \end_latex{...mstate_io_tick}
   let
     rv    = f_rv    mstate
     csrs  = f_csrs  mstate
@@ -417,7 +458,7 @@ mstate_mem_tick  mstate =
                  csrs')
 
     -- Tick memory-mapped location MMIO.MTIME
-    mmio1  = mmio_tick_mtime  mmio
+    mmio1  = mmio_tick  mmio
 
     -- Set MIP.MEIP, MIP.MTIP and MIP.MSIP if these interrupts are present
     mip_old = csr_read   rv  csrs1  csr_addr_mip
@@ -446,12 +487,16 @@ mstate_mem_tick  mstate =
   in
     mstate1
 
--- I/O: convenience function to read mtime
+{-# INLINE mstate_io_tick #-}
+
+-- ----------------------------------------------------------------
+-- I/O: convenience back-door function to read mtime directly
 -- (instead of using mstate_mem_read, which can raise exceptions etc.)
 
-{-# INLINE mstate_mem_read_mtime #-}
 mstate_mem_read_mtime :: Machine_State -> Integer
 mstate_mem_read_mtime  mstate = mmio_read_mtime  (f_mmio  mstate)
+
+{-# INLINE mstate_mem_read_mtime #-}
 
 -- ----------------
 -- For debugging only
@@ -465,43 +510,30 @@ mstate_mem_num_entries  mstate =
     mem_num_entries  mem
 
 -- ================================================================
--- Check if an interrupt is pending to resume from WFI state
-
--- Note: this is a weaker condition than the condition of actually
--- taking an interrupt since it is unaffected by MSTATUS.MIE/SIE/UIE
--- and MIDELEG and MEDELEG.
-
-mstate_wfi_resume :: Machine_State -> Bool
-mstate_wfi_resume    mstate =
-  let
-    mip     = mstate_csr_read  mstate  csr_addr_mip
-    mie     = mstate_csr_read  mstate  csr_addr_mie
-    resume  = ((mip .&. mie) /= 0)
-  in
-    resume
-
--- ================================================================
 -- read/write misc debug convenience
 
-{-# INLINE mstate_run_state_read #-}
 mstate_run_state_read :: Machine_State -> Run_State
 mstate_run_state_read    mstate = f_run_state  mstate
 
-mstate_run_state_write :: Machine_State -> Run_State -> Machine_State
-mstate_run_state_write    mstate           run_state = mstate { f_run_state = run_state }
+{-# INLINE mstate_run_state_read #-}
 
-{-# INLINE mstate_last_instr_trapped_read #-}
+mstate_run_state_write :: Run_State -> Machine_State -> Machine_State
+mstate_run_state_write    run_state    mstate = mstate { f_run_state = run_state }
+
 mstate_last_instr_trapped_read :: Machine_State -> Bool
 mstate_last_instr_trapped_read    mstate = f_last_instr_trapped mstate
 
-mstate_last_instr_trapped_write :: Machine_State -> Bool -> Machine_State
-mstate_last_instr_trapped_write    mstate           trapped = mstate { f_last_instr_trapped = trapped }
+{-# INLINE mstate_last_instr_trapped_read #-}
 
-{-# INLINE mstate_verbosity_read #-}
+mstate_last_instr_trapped_write :: Bool ->  Machine_State -> Machine_State
+mstate_last_instr_trapped_write    trapped  mstate = mstate { f_last_instr_trapped = trapped }
+
 mstate_verbosity_read :: Machine_State -> Int
 mstate_verbosity_read    mstate = f_verbosity mstate
 
-mstate_verbosity_write :: Machine_State -> Int -> Machine_State
-mstate_verbosity_write    mstate           verbosity = mstate { f_verbosity = verbosity }
+{-# INLINE mstate_verbosity_read #-}
+
+mstate_verbosity_write :: Int ->    Machine_State -> Machine_State
+mstate_verbosity_write    verbosity  mstate = mstate { f_verbosity = verbosity }
 
 -- ================================================================

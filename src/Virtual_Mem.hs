@@ -39,6 +39,7 @@ import Bit_Utils
 import Arch_Defs
 import Mem_Ops
 import Machine_State
+import CSR_File
 
 -- ================================================================
 -- Check if Virtual Memory is active or not               -- \begin_latex{fn_vm_is_active}
@@ -46,14 +47,13 @@ import Machine_State
 fn_vm_is_active :: Machine_State -> Bool -> Bool
 fn_vm_is_active    mstate           is_instr =
   let                                                     -- \end_latex{fn_vm_is_active}
-    rv      = mstate_rv_read  mstate
-
-    satp              = mstate_csr_read   mstate  csr_addr_satp
+    rv                = mstate_rv_read  mstate
+    satp              = mstate_csr_read  csr_addr_satp   mstate
     (satp_mode, _, _) = satp_fields  rv  satp
 
     -- Compute effective privilege modulo MSTATUS.MPRV
     priv    = mstate_priv_read  mstate
-    mstatus = mstate_csr_read   mstate  csr_addr_mstatus
+    mstatus = mstate_csr_read  csr_addr_mstatus   mstate
     mprv    = testBit  mstatus  mstatus_mprv_bitpos
     mpp     = (shiftR  mstatus  mstatus_mpp_bitpos)  .&. 0x3
     priv'   = if (mprv && (not  is_instr)) then mpp else priv
@@ -63,16 +63,102 @@ fn_vm_is_active    mstate           is_instr =
   in
     vm_active
 
+{-# INLINE fn_vm_is_active #-}
+
 -- ================================================================
--- This is the main function of this module.
--- It translates a virtual address into a physical address.
+-- Read memory, possibly with Virtual Mem translation
+
+mstate_vm_read :: Machine_State ->
+                  Bool ->                -- is instruction-fetch, not data-load
+                  Exc_Code ->            -- in case of access fault
+                  InstrField ->          -- funct3, providing access size (B, H, W, D)
+                  Integer ->             -- effective address (virtual or physical)
+                  (Mem_Result, Machine_State)
+mstate_vm_read  mstate  is_instr  exc_code_access_fault  funct3  eaddr =
+  let
+    -- If Virtual Mem is active, translate to a physical addr
+    is_read = True
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  eaddr
+                         else
+                           (Mem_Result_Ok  eaddr, mstate)
+    -- If no trap due to Virtual Mem translation, read from memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   eaddr_pa ->
+                             mstate_mem_read  exc_code_access_fault  funct3  eaddr_pa   mstate1
+  in
+    (result2, mstate2)
+
+{-# INLINE mstate_vm_read #-}
+
+-- ================================================================
+-- Write memory, possibly with Virtual Mem translation
+
+mstate_vm_write :: Machine_State ->
+                   InstrField ->          -- funct3, providing access size (B, H, W, D)
+                   Integer ->             -- effective address (virtual or physical)
+                   Integer ->             -- store-value
+                   (Mem_Result, Machine_State)
+mstate_vm_write  mstate  funct3  eaddr  store_val =
+  let
+    -- If Virtual Mem is active, translate to a physical addr
+    is_instr = False
+    is_read  = False
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  eaddr
+                         else
+                           (Mem_Result_Ok  eaddr, mstate)
+
+    -- If no trap due to Virtual Mem translation, store to memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   eaddr_pa ->
+                             mstate_mem_write  funct3  eaddr_pa  store_val   mstate1
+  in
+    (result2, mstate2)
+
+{-# INLINE mstate_vm_write #-}
+
+-- ================================================================
+-- Do AMO op on memory, possibly with Virtual Mem translation
+
+mstate_vm_amo :: Machine_State ->
+                 InstrField ->          -- funct3, providing access size (B, H, W, D)
+                 InstrField ->          -- msbs5
+                 InstrField ->          -- aq
+                 InstrField ->          -- rl
+                 Integer ->             -- effective address (virtual or physical)
+                 Integer ->             -- store-value
+                 (Mem_Result, Machine_State)
+mstate_vm_amo  mstate  funct3  msbs5  aq  rl  eaddr  store_val =
+  let
+    is_instr = False
+    is_read  = False
+    (result1, mstate1) = if (fn_vm_is_active  mstate  is_instr) then
+                           vm_translate  mstate  is_instr  is_read  eaddr
+                         else
+                           (Mem_Result_Ok  eaddr, mstate)
+
+    -- If no trap due to Virtual Mem translation, do AMO op in memory
+    (result2, mstate2) = case result1 of
+                           Mem_Result_Err  exc_code -> (result1, mstate1)
+                           Mem_Result_Ok   eaddr_pa ->
+                             mstate_mem_amo  eaddr_pa  funct3  msbs5  aq  rl  store_val  mstate1
+  in
+    (result2, mstate2)
+
+{-# INLINE mstate_vm_amo #-}
+
+-- ================================================================               -- \begin_latex{vm_translate}
+-- vm_translate    translates a virtual address into a physical address.
 -- Notes:
 --   - 'is_instr' is True if this is for an instruction-fetch as opposed to LOAD/STORE
 --   - 'is_read'  is True for LOAD, False for STORE/AMO
 --   - 1st component of tuple result is 'Mem_Result_Err exc_code' if there was a trap
 --   -     and 'Mem_Result_Ok pa' if it successfully translated to a phys addr
 --   - 2nd component of tuple result is new mem state,  potentially modified
---         (page table A D bits, cache tracking, TLB tracking, ...)               -- \begin_latex{vm_translate}
+--         (page table A D bits, cache tracking, TLB tracking, ...)
 
 vm_translate :: Machine_State -> Bool  ->  Bool  -> Integer -> (Mem_Result, Machine_State)
 vm_translate    mstate           is_instr  is_read  va =
@@ -80,7 +166,7 @@ vm_translate    mstate           is_instr  is_read  va =
     -- Get relevant architecture state components
     rv      = mstate_rv_read    mstate
     priv    = mstate_priv_read  mstate
-    mstatus = mstate_csr_read   mstate  csr_addr_mstatus
+    mstatus = mstate_csr_read  csr_addr_mstatus   mstate
 
     -- Compute effective privilege modulo MSTATUS.MPRV
     mprv    = testBit  mstatus  mstatus_mprv_bitpos
@@ -103,14 +189,15 @@ vm_translate    mstate           is_instr  is_read  va =
                              | (sv == sv48) = (funct3_LD, 8)
 
     -- Get SATP and its fields from arch state
-    satp                    = mstate_csr_read   mstate  csr_addr_satp
+    satp                    = mstate_csr_read  csr_addr_satp   mstate
     (sv, asid, pt_base_ppn) = satp_fields  rv  satp
     pt_base_addr            = (shiftL  pt_base_ppn  12)
-
+                                                                                -- \begin_latex{vm_ptw}
     -- This function 'ptw' is the recursive Page Table Walk
     -- 'ptn_pa' is the address of a a Page Table Node at given 'level'
     ptw :: Machine_State -> Integer -> Int ->  (Mem_Result, Machine_State)
     ptw    mstate           ptn_pa     level =
+                                                                                -- \end_latex{...vm_ptw}
       let
         -- A PTE is indexed by VPN[J] in the PTN, i.e., PTN [VPN [J]]
         -- Compute byte addr of PTE (PTEs are 4 bytes in SV32, 8 bytes in SV32 and SV48)
@@ -118,7 +205,7 @@ vm_translate    mstate           is_instr  is_read  va =
         pte_pa = ptn_pa + (vpn_J * pte_size_bytes)
 
         -- Load PTE from mem
-        (mem_result, mstate1) = mstate_mem_read  mstate  exc_code_access  funct3  pte_pa
+        (mem_result, mstate1) = mstate_mem_read  exc_code_access  funct3  pte_pa  mstate
       in
         case mem_result of
           Mem_Result_Err  exc_code -> (mem_result, mstate1)
@@ -169,6 +256,8 @@ vm_translate    mstate           is_instr  is_read  va =
     (mem_result, mstate1) = ptw  mstate  pt_base_addr  start_level
   in
     (mem_result, mstate1)
+
+{-# INLINE vm_translate #-}
 
 -- ================================================================
 -- Supervisor Mode Virtual Memory modes
@@ -287,6 +376,12 @@ fn_is_misaligned_pte_ppn    sv         pte        leaf_level =
   else False
 
 -- ================================================================
+-- Given an original virtual address (va) and a PTE at a given level,
+-- construct the actual target physical byte-address by combining the
+-- page's physical base address from the PTE with the offset from the va.
+
+-- Note, ``level'' indicates whether we're pointing at an ordinary
+-- page or a superpage (megapage, gigapage or terapage).
 
 mk_pa_in_page :: Integer -> Integer -> Integer -> Int -> Integer
 mk_pa_in_page    sv         pte        va         level =

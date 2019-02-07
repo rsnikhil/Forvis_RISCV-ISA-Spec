@@ -3,10 +3,6 @@
 
 FORVIS_EXE = forvis_exe
 
-# Compiles the Haskell source files in SRC_DIR into the FORVIS_EXE using
-# the ghc Haskell compiler, placing compiler-intermediate files in
-# TMP_DIR.
-
 .PHONY: default
 default:
 	@echo "Usage:"
@@ -29,12 +25,14 @@ default:
 	@echo "    make test_linux_boot    Run $(FORVIS_EXE) as a RISC-V simulator on a pre-built Linux kernel"
 
 # ================================================================
-# Compile Haskell source files from SRC_DIR into Forvis executable
-# using the ghc Haskell compiler.
-# Compiler-intermediate files are placed in TMP_DIR.
+# By default, we exclude the 'F' and 'D' RISC-V extensions (single-
+# and double-precision floating point) because compilation is more
+# complex, involving a git submodule with a Haskell foreign-function
+# interface to C code (Berkeley 'softfloat' library).
 
-SRC_DIR  = ./src
-TMP_DIR  = tmp_haskell
+# The following def of FLOAT should be commented-out to EXCLUDE F and D
+# The following def of FLOAT should be uncommented   to INCLUDE F and D (or define FLOAT=yes on command line)
+# FLOAT := yes
 
 UNAME := $(shell uname)
 
@@ -46,8 +44,6 @@ ifeq ($(UNAME), Darwin)
 SOFTFLOAT_LIBPATH=/usr/local/lib/libsoftfloat.dylib
 endif
 
-# FLOAT := yes
-
 ifneq ($(FLOAT),)
 FLOAT_EXTRAS := -isubmodules/softfloat-hs/src \
 		-Isubmodules/softfloat-hs/include \
@@ -55,6 +51,14 @@ FLOAT_EXTRAS := -isubmodules/softfloat-hs/src \
 		$(SOFTFLOAT_LIBPATH)
 FLOATARG := -DFLOAT
 endif
+
+# ================================================================
+# Compile Haskell source files from SRC_DIR into Forvis executable
+# using the ghc Haskell compiler.
+# Compiler-intermediate files are placed in TMP_DIR.
+
+SRC_DIR  = ./src
+TMP_DIR  = tmp_haskell
 
 .PHONY: exe
 exe:

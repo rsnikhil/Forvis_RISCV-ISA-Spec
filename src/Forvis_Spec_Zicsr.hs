@@ -22,11 +22,6 @@ import CSR_File
 
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
--- ================================================================
--- 'I' Base instruction set
-
--- NOTE: opcode_XXX, funct3_XXX are defined in module Arch_Defs
-
 -- ================================================================
 -- Data structure for instructions in 'Zicsr'
 
@@ -37,6 +32,18 @@ data Instr_Zicsr = CSRRW   GPR_Addr  GPR_Addr  CSR_Addr    -- rd, rs1,  csr_addr
                  | CSRRSI  GPR_Addr  GPR_Addr  CSR_Addr    -- rd, zimm, csr_addr
                  | CSRRCI  GPR_Addr  GPR_Addr  CSR_Addr    -- rd, zimm, csr_addr
   deriving (Eq, Show)
+
+-- ================================================================
+-- Sub-opcodes for 'Zicsr' instructions
+-- NOTE: opcode_SYSTEM is defined in module Arch_Defs
+
+-- opcode_SYSTEM sub-opcodes
+funct3_CSRRW     = 0x1   :: InstrField    -- 3'b_001
+funct3_CSRRWI    = 0x5   :: InstrField    -- 3'b_101
+funct3_CSRRS     = 0x2   :: InstrField    -- 3'b_010
+funct3_CSRRC     = 0x3   :: InstrField    -- 3'b_011
+funct3_CSRRSI    = 0x6   :: InstrField    -- 3'b_110
+funct3_CSRRCI    = 0x7   :: InstrField    -- 3'b_111
 
 -- ================================================================
 -- Decode from 32b representation to Instr_Zicsr data structure
@@ -90,16 +97,17 @@ exec_CSRRWI  instr_32b  is_C  (CSRRWI  rd  zimm  csr_addr)  mstate =
   exec_CSRR_W  instr_32b  funct3_CSRRWI  is_C  rd  zimm  csr_addr  mstate
 
 exec_CSRR_W :: Instr_32b ->
-               InstrField ->
-               Bool ->
+               InstrField ->        -- funct3
+               Bool ->              -- is_C
                CSR_Addr ->
-               InstrField ->
+               InstrField ->        -- rs1
                CSR_Addr ->
-               Machine_State -> Machine_State
+               Machine_State ->
+               Machine_State
 exec_CSRR_W  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
   let
     priv       = mstate_priv_read  mstate
-    permission = mstate_csr_read_permission  mstate  priv  csr_addr
+    permission = mstate_csr_permission  priv  csr_addr  mstate
     legal2     = (permission == CSR_Permission_RW)
 
     -- Read CSR only if rd is not 0
@@ -114,24 +122,24 @@ exec_CSRR_W  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
                       in
                         mtime
                     else
-                      mstate_csr_read  mstate  csr_addr
+                      mstate_csr_read  csr_addr  mstate
                   else
                     0    -- arbitrary; will be discarded (rd==0)
 
-    rs1_val     = mstate_gpr_read  mstate  rs1
+    rs1_val     = mstate_gpr_read  rs1  mstate
     new_csr_val | (funct3 == funct3_CSRRW)  = rs1_val
                 | (funct3 == funct3_CSRRWI) = rs1
     rd_val      = old_csr_val
 
     mstate1 = if legal2 then
                 let
-                  mstate_a = mstate_csr_write  mstate  csr_addr  new_csr_val
+                  mstate_a = mstate_csr_write  csr_addr  new_csr_val  mstate
                 in
-                  finish_rd_and_pc_incr  mstate_a  rd  rd_val  is_C
+                  finish_rd_and_pc_incr  rd  rd_val  is_C  mstate_a
               else
                 let tval = instr_32b
                 in
-                  finish_trap  mstate  exc_code_illegal_instruction  tval
+                  finish_trap  exc_code_illegal_instruction  tval  mstate
   in
     mstate1
 
@@ -164,15 +172,15 @@ exec_CSRR_S_C :: Instr_32b ->
 exec_CSRR_S_C  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
   let
     priv       = mstate_priv_read  mstate
-    permission = mstate_csr_read_permission  mstate  priv  csr_addr
+    permission = mstate_csr_permission  priv  csr_addr  mstate
 
     legal2 | (permission == CSR_Permission_None) = False
            | (permission == CSR_Permission_RO)   = (rs1 == 0)
            | (permission == CSR_Permission_RW)   = True
 
     -- TODO: mstate_csr_read can have side effects: should return new state
-    old_csr_val = mstate_csr_read  mstate  csr_addr
-    rs1_val     = mstate_gpr_read  mstate  rs1
+    old_csr_val = mstate_csr_read  csr_addr  mstate
+    rs1_val     = mstate_gpr_read  rs1  mstate
 
     new_csr_val | (funct3 == funct3_CSRRS)  = old_csr_val .|. rs1_val
                 | (funct3 == funct3_CSRRC)  = old_csr_val .&. (complement rs1_val)
@@ -182,14 +190,14 @@ exec_CSRR_S_C  instr_32b  funct3  is_C  rd  rs1  csr_addr  mstate =
 
     mstate1 = if legal2 then
                 -- Write CSR only if rs1/zimm is not 0
-                let mstate_a | (rs1 /= 0) = mstate_csr_write  mstate  csr_addr  new_csr_val
+                let mstate_a | (rs1 /= 0) = mstate_csr_write  csr_addr  new_csr_val  mstate
                              | True       = mstate
                 in
-                  finish_rd_and_pc_incr  mstate_a  rd  rd_val  is_C
+                  finish_rd_and_pc_incr  rd  rd_val  is_C  mstate_a
               else
                 let tval = instr_32b
                 in
-                  finish_trap  mstate  exc_code_illegal_instruction  tval
+                  finish_trap  exc_code_illegal_instruction  tval  mstate
   in
     mstate1
 

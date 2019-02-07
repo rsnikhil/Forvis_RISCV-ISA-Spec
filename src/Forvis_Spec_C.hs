@@ -28,35 +28,130 @@ import CSR_File
 import Forvis_Spec_I         -- Base RV32/RV64 instr set ('C' is defined in terms of Base)
 import Forvis_Spec_I64       -- Base RV64 instr set      ('C' is defined in terms of Base)
 
+#ifdef FLOAT
+import Forvis_Spec_F           -- Extension 'F' (single-precision floating point)
+import Forvis_Spec_D           -- Extension 'D' (double-precision floating point)
+#endif
+
 import Forvis_Spec_Common    -- Canonical ways for finish an instruction
 
 -- ================================================================
 -- 'C' Extension ("Compressed") major opcodes ('quadrants' 0, 1 and 2)
-
--- NOTE: opcode_XX, funct3_C_XXX, funct2_C_XXX, funct4_C_XXX, funct6_C_XXXX
--- are defined in module Arch_Defs
 
 -- NOTE: the presentation order here (data type, decode, despatch, and
 -- per-instruction semantics) follows the instruction listing for RVC
 -- in Tables 16.5 (quadrant 0), 16.6 (quadrant 1) and 16.7 (quadrant
 -- 2)
 
-             -- Quardant 0 (op = 2'b00)
+-- ================================================================
+-- 'C' Extension ("Compressed") major opcodes ('quadrants' 0, 1 and 2)
+
+opcode_C0 = 0x0 :: InstrField    -- 2'b00
+opcode_C1 = 0x1 :: InstrField    -- 2'b01
+opcode_C2 = 0x2 :: InstrField    -- 2'b10
+
+funct3_C_LWSP     = 0x2 :: InstrField    -- 3'b_010
+funct3_C_LDSP     = 0x3 :: InstrField    -- 3'b_011     RV64 and RV128
+funct3_C_LQSP     = 0x1 :: InstrField    -- 3'b_001     RV128
+
+#ifdef FLOAT
+funct3_C_FLWSP    = 0x3 :: InstrField    -- 3'b_011     RV32FC
+funct3_C_FLDSP    = 0x1 :: InstrField    -- 3'b_001     RV32DC, RV64DC
+#endif
+
+funct3_C_SWSP     = 0x6 :: InstrField    -- 3'b_110
+funct3_C_SQSP     = 0x5 :: InstrField    -- 3'b_101     RV128
+funct3_C_FSDSP    = 0x5 :: InstrField    -- 3'b_101     RV32DC, RV64DC
+
+funct3_C_SDSP     = 0x7 :: InstrField    -- 3'b_111     RV64 and RV128
+funct3_C_FSWSP    = 0x7 :: InstrField    -- 3'b_111     RV32FC
+
+funct3_C_LQ       = 0x1 :: InstrField    -- 3'b_001     RV128
+funct3_C_FLD      = 0x1 :: InstrField    -- 3'b_001     RV32DC, RV64DC
+funct3_C_LW       = 0x2 :: InstrField    -- 3'b_010
+funct3_C_LD       = 0x3 :: InstrField    -- 3'b_011     RV64 and RV128
+funct3_C_FLW      = 0x3 :: InstrField    -- 3'b_011     RV32FC
+
+funct3_C_FSD      = 0x5 :: InstrField    -- 3'b_101     RV32DC, RV64DC
+funct3_C_SQ       = 0x5 :: InstrField    -- 3'b_101     RV128
+funct3_C_SW       = 0x6 :: InstrField    -- 3'b_110
+funct3_C_SD       = 0x7 :: InstrField    -- 3'b_111     RV64 and RV128
+funct3_C_FSW      = 0x7 :: InstrField    -- 3'b_111     RV32FC
+
+funct3_C_JAL      = 0x1 :: InstrField    -- 3'b_001     RV32
+funct3_C_J        = 0x5 :: InstrField    -- 3'b_101
+funct3_C_BEQZ     = 0x6 :: InstrField    -- 3'b_110
+funct3_C_BNEZ     = 0x7 :: InstrField    -- 3'b_111
+
+funct4_C_JR       = 0x8 :: InstrField    -- 4'b_1000
+funct4_C_JALR     = 0x9 :: InstrField    -- 4'b_1001
+
+funct3_C_LI       = 0x2 :: InstrField    -- 3'b_010
+funct3_C_LUI      = 0x3 :: InstrField    -- 3'b_011     RV64 and RV128
+
+funct3_C_NOP      = 0x0 :: InstrField    -- 3'b_000
+funct3_C_ADDI     = 0x0 :: InstrField    -- 3'b_000
+funct3_C_ADDIW    = 0x1 :: InstrField    -- 3'b_001
+funct3_C_ADDI16SP = 0x3 :: InstrField    -- 3'b_011
+funct3_C_ADDI4SPN = 0x0 :: InstrField    -- 3'b_000
+funct3_C_SLLI     = 0x0 :: InstrField    -- 3'b_000
+
+funct3_C_SRLI     = 0x4 :: InstrField    -- 3'b_100
+funct2_C_SRLI     = 0x0 :: InstrField    -- 2'b_00
+
+funct3_C_SRAI     = 0x4 :: InstrField    -- 3'b_100
+funct2_C_SRAI     = 0x1 :: InstrField    -- 2'b_01
+
+funct3_C_ANDI     = 0x4 :: InstrField    -- 3'b_100
+funct2_C_ANDI     = 0x2 :: InstrField    -- 2'b_10
+
+funct4_C_MV       = 0x8 :: InstrField    -- 4'b_1000
+funct4_C_ADD      = 0x9 :: InstrField    -- 4'b_1001
+
+funct6_C_AND      = 0x23 :: InstrField   -- 6'b_100_0_11
+funct2_C_AND      = 0x3 :: InstrField    -- 2'b_11
+
+funct6_C_OR       = 0x23 :: InstrField   -- 6'b_100_0_11
+funct2_C_OR       = 0x2 :: InstrField    -- 2'b_10
+
+funct6_C_XOR      = 0x23 :: InstrField   -- 6'b_100_0_11
+funct2_C_XOR      = 0x1 :: InstrField    -- 2'b_01
+
+funct6_C_SUB      = 0x23 :: InstrField   -- 6'b_100_0_11
+funct2_C_SUB      = 0x0 :: InstrField    -- 2'b_01
+
+funct6_C_ADDW     = 0x27 :: InstrField   -- 6'b_100_1_11
+funct2_C_ADDW     = 0x1 :: InstrField    -- 2'b_01
+
+funct6_C_SUBW     = 0x27 :: InstrField   -- 6'b_100_1_11
+funct2_C_SUBW     = 0x0 :: InstrField    -- 2'b_00
+
+funct4_C_EBREAK   = 0x9 :: InstrField    -- 4'b_1001
+
 -- ================================================================
 -- Data structure for instructions in 'C' (compressed instruction set)
 
 data Instr_C = C_ADDI4SPN  GPR_Addr  InstrField              -- rd       nzuimm10
 
-          -- | C_FLD       GPR_Addr  GPR_Addr  InstrField    -- rd      rs1  uimm8
+             -- Quadrant 0 (op = 2'b00)
+#ifdef FLOAT
+             | C_FLD       GPR_Addr  GPR_Addr  InstrField    -- rd      rs1  uimm8
+#endif
           -- | C_LQ        GPR_Addr  GPR_Addr  InstrField    -- rd      rs1  uimm9
              | C_LW        GPR_Addr  GPR_Addr  InstrField    -- rd      rs1  uimm7
-          -- | C_FLW       GPR_Addr  GPR_Addr  InstrField    -- rd      rs1  uimm7
+#ifdef FLOAT
+             | C_FLW       GPR_Addr  GPR_Addr  InstrField    -- rd      rs1  uimm7
+#endif
              | C_LD        GPR_Addr  GPR_Addr  InstrField    -- rd      rs1  uimm8
 
-          -- | C_FSD       GPR_Addr  GPR_Addr  InstrField    -- rs1     rs2  uimm8
+#ifdef FLOAT
+             | C_FSD       GPR_Addr  GPR_Addr  InstrField    -- rs1     rs2  uimm8
+#endif
           -- | C_SQ        GPR_Addr  GPR_Addr  InstrField    -- rs1     rs2  uimm9
              | C_SW        GPR_Addr  GPR_Addr  InstrField    -- rs1     rs2  uimm7
-          -- | C_FSW       GPR_Addr  GPR_Addr  InstrField    -- rs1     rs2  uimm7
+#ifdef FLOAT
+             | C_FSW       GPR_Addr  GPR_Addr  InstrField    -- rs1     rs2  uimm7
+#endif
              | C_SD        GPR_Addr  GPR_Addr  InstrField    -- rs1     rs2  uimm8
 
              -- Quadrant 1 (op = 2'b01)
@@ -89,10 +184,14 @@ data Instr_C = C_ADDI4SPN  GPR_Addr  InstrField              -- rd       nzuimm1
              -- Quadrant 2 (op = 2'b10)
              | C_SLLI      GPR_Addr            InstrField    -- rd_rs1       shamt6
 
-          -- | C_FLDSP     GPR_Addr            InstrField    -- rd           uimm9
+#ifdef FLOAT
+             | C_FLDSP     GPR_Addr            InstrField    -- rd           uimm9
+#endif
           -- | C_LQSP      GPR_Addr            InstrField    -- rd           uimm10
              | C_LWSP      GPR_Addr            InstrField    -- rd           uimm8
-          -- | C_FLWSP     GPR_Addr            InstrField    -- rd           uimm8
+#ifdef FLOAT
+             | C_FLWSP     GPR_Addr            InstrField    -- rd           uimm8
+#endif
              | C_LDSP      GPR_Addr            InstrField    -- rd           uimm9
 
              | C_JR        GPR_Addr                          -- rs1
@@ -101,10 +200,14 @@ data Instr_C = C_ADDI4SPN  GPR_Addr  InstrField              -- rd       nzuimm1
              | C_JALR      GPR_Addr                          -- rs1
              | C_ADD       GPR_Addr  GPR_Addr                -- rd_rs1  rs2
 
+#ifdef FLOAT
              | C_FSDSP     GPR_Addr            InstrField    -- rs2          uimm9
-             | C_SQSP      GPR_Addr            InstrField    -- rs2          uimm10
+#endif
+          -- | C_SQSP      GPR_Addr            InstrField    -- rs2          uimm10
              | C_SWSP      GPR_Addr            InstrField    -- rs2          uimm8
+#ifdef FLOAT
              | C_FSWSP     GPR_Addr            InstrField    -- rs2          uimm8
+#endif
              | C_SDSP      GPR_Addr            InstrField    -- rs2          uimm9
 
   deriving (Eq, Show)
@@ -140,6 +243,7 @@ instr_16b_fields_CB  instr_16b =
 decode_C :: RV -> Integer -> Instr_16b -> Maybe Instr_C
 decode_C    rv    misa       instr_16b =
   let
+    misa_f       = (misa_flag  misa  'F')
     misa_d       = (misa_flag  misa  'D')
 
     -- Symbolic names for notable bitfields in the 32b instruction 'instr_32b'
@@ -250,16 +354,24 @@ decode_C    rv    misa       instr_16b =
       -- Quadrant 0
       | op==opcode_C0, funct3==funct3_C_ADDI4SPN, nzuimm10_CIW/=0             = Just (C_ADDI4SPN  rd_CIW  nzuimm10_CIW)
 
-   -- | op==opcode_C0, funct3==funct3_C_FLD,      rv/=RV128, misa_d           = Just (C_FLD       rd_CL   rs1_CL  uimm8_CL)
+#ifdef FLOAT
+      | op==opcode_C0, funct3==funct3_C_FLD, ((rv==RV32)||(rv==RV64)), misa_d = Just (C_FLD       rd_CL   rs1_CL  uimm8_CL)
+#endif
    -- | op==opcode_C0, funct3==funct3_C_LQ,       rv==RV128                   = Just (C_LQ        rd_CL   rs1_CL  uimm9_CL)
       | op==opcode_C0, funct3==funct3_C_LW                                    = Just (C_LW        rd_CL   rs1_CL  uimm7_CL)
-   -- | op==opcode_C0, funct3==funct3_C_FLW,      rv==RV32,  misa_f           = Just (C_FLW       rd_CL   rs1_CL  uimm7_CL)
+#ifdef FLOAT
+      | op==opcode_C0, funct3==funct3_C_FLW,      rv==RV32,  misa_f           = Just (C_FLW       rd_CL   rs1_CL  uimm7_CL)
+#endif
       | op==opcode_C0, funct3==funct3_C_LD,       rv/=RV32                    = Just (C_LD        rd_CL   rs1_CL  uimm8_CL)
 
-   -- | op==opcode_C0, funct3==funct3_C_FSD,      rv/=RV128, misa_d           = Just (C_FSD       rs1_CS  rs2_CS  uimm8_CS)
+#ifdef FLOAT
+      | op==opcode_C0, funct3==funct3_C_FSD, ((rv==RV32)||(rv==RV64)), misa_d = Just (C_FSD       rs1_CS  rs2_CS  uimm8_CS)
+#endif
    -- | op==opcode_C0, funct3==funct3_C_SQ,       rv==RV128                   = Just (C_SQ        rs1_CS  rs2_CS  uimm9_CS)
       | op==opcode_C0, funct3==funct3_C_SW                                    = Just (C_SW        rs1_CS  rs2_CS  uimm7_CS)
-   -- | op==opcode_C0, funct3==funct3_C_FSW,      rv==RV32,  misa_f           = Just (C_FSW       rs1_CS  rs2_CS  uimm7_CS)
+#ifdef FLOAT
+      | op==opcode_C0, funct3==funct3_C_FSW,      rv==RV32,  misa_f           = Just (C_FSW       rs1_CS  rs2_CS  uimm7_CS)
+#endif
       | op==opcode_C0, funct3==funct3_C_SD,       rv/=RV32                    = Just (C_SD        rs1_CS  rs2_CS  uimm8_CS)
 
       -- Quadrant 1
@@ -294,10 +406,14 @@ decode_C    rv    misa       instr_16b =
 
       | is_C_SLLI  rv  instr_16b                                                    = Just (C_SLLI  rd_rs1_CI   imm6_CI)
 
-   -- | op==opcode_C2, funct3==funct3_C_FLDSP, ((rv==RV32)||(rv==RV64))             = Just (C_FLDSP  rd_rs1_CI  imm9_CI)
+#ifdef FLOAT
+      | op==opcode_C2, funct3==funct3_C_FLDSP, ((rv==RV32)||(rv==RV64))             = Just (C_FLDSP  rd_rs1_CI  imm9_CI)
+#endif
    -- | op==opcode_C2, funct3==funct3_C_LQSP, rd_rs1_CI/=0, rv/=RV32, rv/=RV64      = Just (C_LQSP   rd_rs1_CI  imm10_CI)
       | op==opcode_C2, funct3==funct3_C_LWSP, rd_rs1_CI/=0                          = Just (C_LWSP   rd_rs1_CI  imm8_CI)
-   -- | op==opcode_C2, funct3==funct3_C_FLWSP, rv==RV32                             = Just (C_FLWSP  rd_rs1_CI  imm8_CI)
+#ifdef FLOAT
+      | op==opcode_C2, funct3==funct3_C_FLWSP, rv==RV32                             = Just (C_FLWSP  rd_rs1_CI  imm8_CI)
+#endif
       | op==opcode_C2, funct3==funct3_C_LDSP, rd_rs1_CI/=0, rv/=RV32                = Just (C_LDSP   rd_rs1_CI  imm9_CI)
 
       | op==opcode_C2, funct4_CR==funct4_C_JR,     rd_rs1_CR/=0, rs2_CR==0          = Just (C_JR     rd_rs1_CR)
@@ -306,10 +422,14 @@ decode_C    rv    misa       instr_16b =
       | op==opcode_C2, funct4_CR==funct4_C_JALR,   rd_rs1_CR/=0, rs2_CR==0          = Just (C_JALR   rd_rs1_CR)
       | op==opcode_C2, funct4_CR==funct4_C_ADD,    rd_rs1_CR/=0, rs2_CR/=0          = Just (C_ADD    rd_rs1_CR  rs2_CR)
 
-   -- | op==opcode_C2, funct3==funct3_C_FSDSP, ((rv==RV32)||(rv==RV64))             = Just (C_FSDSP  rs2_CSS    uimm9_CSS)
+#ifdef FLOAT
+      | op==opcode_C2, funct3==funct3_C_FSDSP, ((rv==RV32)||(rv==RV64))             = Just (C_FSDSP  rs2_CSS    uimm9_CSS)
+#endif
    -- | op==opcode_C2, funct3==funct3_C_SQSP,  rv/=RV32, rv/=RV64                   = Just (C_SQSP   rs2_CSS    uimm10_CSS)
       | op==opcode_C2, funct3==funct3_C_SWSP                                        = Just (C_SWSP   rs2_CSS    uimm8_CSS)
-   -- | op==opcode_C2, funct3==funct3_C_FSWSP, rv==RV32                             = Just (C_FSWSP  rs2_CSS    uimm8_CSS)
+#ifdef FLOAT
+      | op==opcode_C2, funct3==funct3_C_FSWSP, rv==RV32                             = Just (C_FSWSP  rs2_CSS    uimm8_CSS)
+#endif
       | op==opcode_C2, funct3==funct3_C_SDSP,  rv/=RV32                             = Just (C_SDSP   rs2_CSS    uimm9_CSS)
 
       | True = Nothing
@@ -327,16 +447,24 @@ exec_instr_C  instr_C  mstate =
   case instr_C of
     -- Quadrant 0
     C_ADDI4SPN  rd           nzuimm10 -> exec_C_ADDI4SPN  rd           nzuimm10  mstate
- -- C_FLD       rd      rs1  uimm8    -> exec_C_FLD       rd      rs1  uimm8     mstate
+#ifdef FLOAT
+    C_FLD       rd      rs1  uimm8    -> exec_C_FLD       rd      rs1  uimm8     mstate
+#endif
  -- C_LQ        rd      rs1  uimm9    -> exec_C_LQ        rd      rs1  uimm9     mstate
     C_LW        rd      rs1  uimm7    -> exec_C_LW        rd      rs1  uimm7     mstate
- -- C_FLW       rd      rs1  uimm7    -> exec_C_FLW       rd      rs1  uimm7     mstate
+#ifdef FLOAT
+    C_FLW       rd      rs1  uimm7    -> exec_C_FLW       rd      rs1  uimm7     mstate
+#endif
     C_LD        rd      rs1  uimm8    -> exec_C_LD        rd      rs1  uimm8     mstate
 
- -- C_FSD       rs1     rs2  uimm8    -> exec_C_FSD       rs1     rs2  uimm8     mstate
+#ifdef FLOAT
+    C_FSD       rs1     rs2  uimm8    -> exec_C_FSD       rs1     rs2  uimm8     mstate
+#endif
  -- C_SQ        rs1     rs2  uimm9    -> exec_C_SQ        rs1     rs2  uimm9     mstate
     C_SW        rs1     rs2  uimm7    -> exec_C_SW        rs1     rs2  uimm7     mstate
- -- C_FSW       rs1     rs2  uimm7    -> exec_C_FSW       rs1     rs2  uimm7     mstate
+#ifdef FLOAT
+    C_FSW       rs1     rs2  uimm7    -> exec_C_FSW       rs1     rs2  uimm7     mstate
+#endif
     C_SD        rs1     rs2  uimm8    -> exec_C_SW        rs1     rs2  uimm8     mstate
 
     -- Quadrant 1
@@ -368,10 +496,14 @@ exec_instr_C  instr_C  mstate =
     -- Quadrant 2
     C_SLLI      rd_rs1       imm6     -> exec_C_SLLI      rd_rs1       imm6      mstate
 
- -- C_FLDSP     rd_rs1       uimm9    -> exec_C_FLDSP     rd_rs1       uimm9     mstate
+#ifdef FLOAT
+    C_FLDSP     rd_rs1       uimm9    -> exec_C_FLDSP     rd_rs1       uimm9     mstate
+#endif
  -- C_LQSP      rd_rs1       uimm10   -> exec_C_LQSP      rd_rs1       uimm10    mstate
     C_LWSP      rd_rs1       uimm8    -> exec_C_LWSP      rd_rs1       uimm8     mstate
- -- C_FLWSP     rd_rs1       uimm8    -> exec_C_FLWSP     rd_rs1       uimm8     mstate
+#ifdef FLOAT
+    C_FLWSP     rd_rs1       uimm8    -> exec_C_FLWSP     rd_rs1       uimm8     mstate
+#endif
     C_LDSP      rd_rs1       uimm9    -> exec_C_LDSP      rd_rs1       uimm9     mstate
 
     C_JR        rs1                   -> exec_C_JR        rs1                    mstate
@@ -380,10 +512,14 @@ exec_instr_C  instr_C  mstate =
     C_JALR      rs1                   -> exec_C_JALR      rs1                    mstate
     C_ADD       rd      rs2           -> exec_C_ADD       rd    rs2              mstate
 
- -- C_FSDSP             rs2  uimm9    -> exec_C_FSDSP           rs2    uimm9     mstate
+#ifdef FLOAT
+    C_FSDSP             rs2  uimm9    -> exec_C_FSDSP           rs2    uimm9     mstate
+#endif
  -- C_SQSP              rs2  uimm10   -> exec_C_SQSP            rs2    uimm10    mstate
     C_SWSP              rs2  uimm8    -> exec_C_SWSP            rs2    uimm8     mstate
- -- C_FSWSP             rs2  uimm8    -> exec_C_FSWSP           rs2    uimm8     mstate
+#ifdef FLOAT
+    C_FSWSP             rs2  uimm8    -> exec_C_FSWSP           rs2    uimm8     mstate
+#endif
     C_SDSP              rs2  uimm9    -> exec_C_SDSP            rs2    uimm9     mstate
 
 -- ================================================================
@@ -404,7 +540,7 @@ exec_C_ADDI4SPN    rd          nzuimm10      mstate =
 -- ================================================================
 -- C_FLD (expands to FLD)
 
-{- TODO: Uncomment after doing 'D'
+#ifdef FLOAT
 exec_C_FLD :: GPR_Addr -> GPR_Addr -> InstrField -> Machine_State -> Machine_State
 exec_C_FLD    rd          rs1         imm8          mstate =
   let
@@ -414,7 +550,7 @@ exec_C_FLD    rd          rs1         imm8          mstate =
     mstate1      = exec_FLD  is_C  instr_D  mstate
   in
     mstate1
--}
+#endif
 
 -- ================================================================
 -- C_LQ (expands to LQ)
@@ -447,7 +583,7 @@ exec_C_LW    rd          rs1         imm7          mstate =
 -- ================================================================
 -- C_FLW (expands to FLW)
 
-{- TODO: Uncomment after doing 'F'
+#ifdef FLOAT
 exec_C_FLW :: GPR_Addr -> GPR_Addr -> InstrField -> Machine_State -> Machine_State
 exec_C_FLW    rd          rs1         imm7          mstate =
   let
@@ -457,7 +593,7 @@ exec_C_FLW    rd          rs1         imm7          mstate =
     mstate1 = exec_FLW  is_C  instr_F  mstate
   in
     mstate1
--}
+#endif
 
 -- ================================================================
 -- C_LD (expands to LD)
@@ -475,7 +611,7 @@ exec_C_LD    rd          rs1         imm8          mstate =
 -- ================================================================
 -- C_FSD (expands to FSD)
 
-{- TODO: Uncomment when we do 'D' floating point
+#ifdef FLOAT
 exec_C_FSD :: GPR_Addr -> GPR_Addr -> InstrField -> Machine_State -> Machine_State
 exec_C_FSD    rs1         rs2         imm8          mstate =
   let
@@ -485,7 +621,7 @@ exec_C_FSD    rs1         rs2         imm8          mstate =
     mstate1 = exec_FSD  is_C  instr_D  mstate
   in
     mstate1
--}
+#endif
 
 -- ================================================================
 
@@ -517,17 +653,17 @@ exec_C_SW    rs1         rs2         imm7          mstate =
 -- ================================================================
 -- C_FSW: expands to SW
 
-{- TODO: Uncomment when we do 'F' floating point
+#ifdef FLOAT
 exec_C_FSW :: GPR_Addr -> GPR_Addr -> InstrField -> Machine_State -> Machine_State
 exec_C_FSW    rs1         rs2         imm7          mstate =
   let
-    imm12   = imm8      -- zero extended
+    imm12   = imm7      -- zero extended
     instr_F = FSW  rs1  rs2  imm12
     is_C    = True
-    mstate1 = exec_FSW  is_C  instr_D  mstate
+    mstate1 = exec_FSW  is_C  instr_F  mstate
   in
     mstate1
--}
+#endif
 
 -- ================================================================
 -- C_SD: expands to SD
@@ -864,7 +1000,7 @@ exec_C_SLLI    rd_rs1      shamt6        mstate =
 -- ================================================================
 -- C_FLDSP :: expands for FLD
 
-{- TODO: Uncomment after implementing 'D'
+#ifdef FLOAT
 exec_C_FLDSP :: GPR_Addr -> InstrField -> Machine_State -> Machine_State
 exec_C_FLDSP    rd          uimm9         mstate =
   let
@@ -875,7 +1011,7 @@ exec_C_FLDSP    rd          uimm9         mstate =
     mstate1 = exec_FLD  is_C  instr_D  mstate
   in
     mstate1
--}
+#endif
 
 -- ================================================================
 -- C_LQSP: expands to LQ
@@ -910,7 +1046,7 @@ exec_C_LWSP    rd          uimm8         mstate =
 -- ================================================================
 -- C_FLWSP: expands to FLW
 
-{- TODO: Uncomment after implementing 'F'
+#ifdef FLOAT
 exec_C_FLWSP :: GPR_Addr -> InstrField -> Machine_State -> Machine_State
 exec_C_FLWSP    rd          uimm8         mstate =
   let
@@ -921,7 +1057,7 @@ exec_C_FLWSP    rd          uimm8         mstate =
     mstate1 = exec_FLW  is_C  instr_D  mstate
   in
     mstate1
--}
+#endif
 
 -- ================================================================
 -- C_LDSP: expands to LD
@@ -1007,7 +1143,7 @@ exec_C_ADD    rd          rs2         mstate =
 -- ================================================================
 -- C_FSDSP: expands to FSD
 
-{- TODO: Uncomment after implementing 'D'
+#ifdef FLOAT
 exec_C_FSDSP :: GPR_Addr -> InstrField -> Machine_State -> Machine_State
 exec_C_FSDSP    rs2         uimm9         mstate =
   let
@@ -1018,7 +1154,7 @@ exec_C_FSDSP    rs2         uimm9         mstate =
     mstate1 = exec_FSD  is_C  instr_D  mstate
   in
     mstate1
--}
+#endif
 
 -- ================================================================
 -- C_SQSP: expands to SQ
@@ -1053,7 +1189,7 @@ exec_C_SWSP    rs2         uimm8        mstate =
 -- ================================================================
 -- C_FSWSP: expands to FSW
 
-{- TODO: Uncomment after implementing 'F'
+#ifdef FLOAT
 exec_C_FSWSP :: GPR_Addr -> InstrField -> Machine_State -> Machine_State
 exec_C_FSWSP    rs2         uimm8         mstate =
   let
@@ -1064,7 +1200,7 @@ exec_C_FSWSP    rs2         uimm8         mstate =
     mstate1 = exec_FSW  is_C  instr_F  mstate
   in
     mstate1
--}
+#endif
 
 -- ================================================================
 -- C_SDSP: expands to SD

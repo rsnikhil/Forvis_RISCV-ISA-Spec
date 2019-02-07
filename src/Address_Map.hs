@@ -63,10 +63,11 @@ memory_addr_ranges = [(addr_base_boot,  addr_base_boot + addr_size_boot),
 
 -- Berkeley ISA tests use htif_console
 addr_htif_console_out :: Integer;    addr_htif_console_out = 0xfff4
-
+                                                                -- \begin_latex{addr_base_UART}
 -- Other programs and tests use a UART for console I/O
 addr_base_UART = 0xC0000000               :: Integer
 addr_size_UART = 0x80                     :: Integer
+                                                                -- \end_latex{addr_base_UART}
 
 -- Real-time counter
 addr_mtime     = 0x0200BFF8 :: Integer
@@ -77,10 +78,12 @@ addr_mtimecmp  = 0x02004000 :: Integer
 -- Generation of software interrupts
 addr_msip      = 0x02000000 :: Integer
 
+                                                                -- \begin_latex{mmio_addr_ranges}
 -- Supported MMIO address ranges
 mmio_addr_ranges :: [ (Integer, Integer) ]
 mmio_addr_ranges = [ (addr_htif_console_out,  (addr_htif_console_out + 8)),
                      (addr_base_UART,         (addr_base_UART        + addr_size_UART)),
+                                                                -- \end_latex{...mmio_addr_ranges}
                      (addr_mtime,             (addr_mtime            + 8)),
                      (addr_mtimecmp,          (addr_mtimecmp         + 8)),
                      (addr_msip,              (addr_msip             + 8))

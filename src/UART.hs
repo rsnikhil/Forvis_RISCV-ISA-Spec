@@ -88,7 +88,7 @@ uart_lsr_dr    = 0x01 :: Integer    -- Data Ready
 --    All output = thd_a ++ thd_b.
 
 -- We represent each 8-bit UART registers with 'Integer'
-
+                                                                -- \begin_latex{UART_NS16550A}
 data UART_NS16550A = UART_NS16550A {
   f_rbr_a :: String,
   f_rbr_b :: String,    -- 0    Read-only
@@ -97,7 +97,10 @@ data UART_NS16550A = UART_NS16550A {
   f_thr_b :: String,    -- 0    Write-only
 
   f_ier   :: Integer,     -- 1
+                                                                -- \end_latex{...UART_NS16550A}
+
   -- f_iir   :: Integer,  -- 2    Virtual read-only field; computed from other fields on each read
+
   f_lcr   :: Integer,     -- 3
   f_mcr   :: Integer,     -- 4
   f_lsr   :: Integer,     -- 5    Read-only
@@ -114,11 +117,11 @@ data UART_NS16550A = UART_NS16550A {
 
 -- ================================================================
 -- Create a UART
-
+                                                                -- \begin_latex{mkUART}
 mkUART :: UART_NS16550A
 mkUART =  UART_NS16550A { f_rbr_a = "",
                           f_rbr_b = "",
-
+                                                                -- \end_latex{...mkUART}
                           f_thr_a = "",
                           f_thr_b = "",
 
@@ -169,9 +172,10 @@ uart_has_interrupt  uart =
 
 -- ================================================================
 -- Read UART register (from CPU)
-
+                                                                        -- \begin_latex{uart_read}
 uart_read :: UART_NS16550A -> Integer -> (Integer, UART_NS16550A)
 uart_read  uart  addr_offset =
+                                                                        -- \end_latex{...uart_read}
   -- RBR (read-only)
   if ((addr_offset == addr_UART_rbr) && (((f_lcr  uart) .&. uart_lcr_dlab) == 0)) then
     let
@@ -220,8 +224,10 @@ uart_read  uart  addr_offset =
 -- ================================================================
 -- Write UART register (from CPU)
 
+                                                                        -- \begin_latex{uart_write}
 uart_write :: UART_NS16550A -> Integer -> Integer -> UART_NS16550A
 uart_write  uart  addr_offset  val =
+                                                                        -- \end_latex{...uart_write}
   -- THR (write-only)
   if ((addr_offset == addr_UART_thr) && (((f_lcr  uart) .&. uart_lcr_dlab) == 0)) then
     let

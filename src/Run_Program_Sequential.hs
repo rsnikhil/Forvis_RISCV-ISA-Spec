@@ -1,7 +1,7 @@
 -- Copyright (c) 2018-2019 Rishiyur S. Nikhil
 -- See LICENSE for license details
 
-module Run_Program where
+module Run_Program_Sequential where
 
 -- ================================================================
 -- This module has a 'run loop' for a purely sequential execution of a
@@ -33,7 +33,9 @@ import Arch_Defs
 import Machine_State
 import CSR_File
 
-import Forvis_Spec
+import Forvis_Spec_Instr_Fetch
+import Forvis_Spec_Execute
+import Forvis_Spec_Interrupts
 
 -- ================================================================
 -- The 'run loop's main function is to repeatedly fetch and execute an
@@ -44,16 +46,17 @@ import Forvis_Spec
 
 -- Takes an architecture state and returns the new architecture state.
 -- Fetches and executes one instruction; and repeats.
-
+                                                                -- \begin_latex{run_loop}
 run_loop :: Int     -> (Maybe Integer) -> Machine_State -> IO (Int, Machine_State)
 run_loop    maxinstrs  m_tohost_addr      mstate = do
-  let instret   = mstate_csr_read        mstate  csr_addr_minstret
+                                                                -- \end_latex{...run_loop}
+  let instret   = mstate_csr_read  csr_addr_minstret  mstate
       verbosity = mstate_verbosity_read  mstate
       run_state = mstate_run_state_read  mstate
 
-      -- Tick: regular maintenance (increment cycle count, real-time
-      -- timer, propagate interrupts, etc.)
-      mstate1 = mstate_mem_tick  mstate
+      -- Tick: advance independent processes in IO devices
+      -- (increment cycle count, real-time timer, propagate interrupts, etc.)
+      mstate1 = mstate_io_tick  mstate
 
       -- Simulation/testing: read <tohost> location, if any
       (tohost_u64, mstate2) = mstate_mem_read_tohost  mstate1  m_tohost_addr
@@ -101,7 +104,7 @@ run_loop    maxinstrs  m_tohost_addr      mstate = do
                           do
                             let resume    = mstate_wfi_resume  mstate3
                                 mstate3_a = if (resume) then
-                                              mstate_run_state_write  mstate3  Run_State_Running
+                                              mstate_run_state_write  Run_State_Running  mstate3
                                             else
                                               mstate3
                             return mstate3_a
@@ -129,9 +132,9 @@ run_loop    maxinstrs  m_tohost_addr      mstate = do
                         putStrLn ("Stopping due to self-loop at PC " ++ (showHex pc5 "") ++
                                   "; instret = " ++ show instret)
                         return (0, mstate5))
-               else (do
-                        -- Continue run-loop (tail recursive)
+               else (do                                                -- \begin_latex{run_loop_1}
                         run_loop  maxinstrs  m_tohost_addr  mstate5))
+                                                                       -- \end_latex{run_loop_1}
 
 -- ================================================================
 -- Fetch and execute an instruction (RV32 32b instr or RV32C 16b compressed instr)
@@ -142,14 +145,14 @@ run_loop    maxinstrs  m_tohost_addr      mstate = do
 fetch_and_execute :: Machine_State -> IO  Machine_State
 fetch_and_execute    mstate = do
   let verbosity               = mstate_verbosity_read  mstate
-      mstate1                 = mstate_last_instr_trapped_write  mstate  False
-      (intr_pending, mstate2) = take_interrupt_if_any  mstate1
+      mstate1                 = mstate_last_instr_trapped_write  False  mstate
+      (intr_pending, mstate2) = mstate_take_interrupt_if_any  mstate1
 
   -- Debug-print when we take an interrupt
   case intr_pending of
     Nothing       -> return ()
     Just exc_code -> do
-      let instret = mstate_csr_read  mstate2  csr_addr_minstret
+      let instret = mstate_csr_read  csr_addr_minstret  mstate2
       when (verbosity >= 1) (
         putStrLn  ("Taking interrupt; instret = " ++ show instret ++
                    "; exc_code = " ++ (showHex  exc_code  "") ++
@@ -164,7 +167,7 @@ fetch_and_execute    mstate = do
 
   -- Fetch an instruction
   let pc                      = mstate_pc_read  mstate2
-      instret                 = mstate_csr_read  mstate2  csr_addr_minstret
+      instret                 = mstate_csr_read  csr_addr_minstret  mstate2
       (fetch_result, mstate3) = instr_fetch  mstate2
       priv                    = mstate_priv_read  mstate3
 
@@ -206,7 +209,7 @@ mstate_mem_read_tohost :: Machine_State -> Maybe Integer -> (Integer, Machine_St
 mstate_mem_read_tohost  mstate  Nothing            = (0, mstate)
 mstate_mem_read_tohost  mstate  (Just tohost_addr) =
   let
-    (load_result, mstate') = mstate_mem_read  mstate  exc_code_load_access_fault  funct3_LW  tohost_addr
+    (load_result, mstate') = mstate_mem_read  exc_code_load_access_fault  funct3_LW  tohost_addr  mstate
   in
     case load_result of
       Mem_Result_Err  exc_code -> (  0, mstate')
