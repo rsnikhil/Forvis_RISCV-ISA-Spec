@@ -5,6 +5,8 @@ module PIPE(PIPE_Policy,
             Color,
             mkTagSet,
             rdTagSet,
+            fromExt,
+            toExt,
             GPR_FileT(..),
             mkGPR_FileT, gpr_readT, gpr_writeT,
             MemT(..),
@@ -28,6 +30,7 @@ import Arch_Defs
 
 import AST
 import Symbols
+import CommonFn as CF
 import qualified EvalCommon as EC
 import qualified Eval as E
 
@@ -81,14 +84,23 @@ rdTagSet (_,_,symtabs) ts =
            (\ (Init _ name (ISExact _ ts))  -> (name, map qsym ts))
            (concatMap requires (map snd symtabs))
 
-{- rdTagSet returns the (zero or more) `requires` names that match a
-   given tag set.  Writing this is difficult, because the ordering of
-   the TagSet map entries is unpredictable (though presumably
-   deterministic).  The best way may be to forward-compute all
-   possible TagSets (with Nothing parameter) and then compare them
-   with the argument using a custom equality that ignores the
-   parameter. -}
 
+{- A somewhat quick-and-dirty way to build and retrieve tag sets 
+   using just the tag names. The external format is a list
+   of (tagname, optional color) pairs.  The list should always
+   be sorted by tagname. -}
+
+fromExt :: [(String,Maybe Int)] -> TagSet
+fromExt ext = 
+   if sort ext /= ext then
+     error "fromExt on unsorted list"
+   else
+     M.fromList $ map (\ (s,a) -> (QTag $ CF.parseDotName s,a)) ext
+
+toExt :: TagSet -> [(String,Maybe Int)]
+toExt ts =       
+  sort (M.foldrWithKey (\ k a b -> (CF.qualSymStr k,a):b) [] ts)
+  
 ---------------------------------
 
 newtype GPR_FileT = GPR_FileT  { unGPR :: Data_Map.Map  InstrField  TagSet }

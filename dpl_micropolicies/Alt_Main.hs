@@ -44,6 +44,12 @@ main_example = do
   genSymbolsFile symbols
   let x = mkTagSet ppol ["test","CP"] [Just 42,Just 99]
   putStrLn $ show (rdTagSet ppol x)
+  putStrLn $ (show x)
+  putStrLn $ (show $ toExt x)
+  let y = fromExt [("Cell",Just 42),("Env",Nothing),("Pointer",Just 99)] 
+  putStrLn $ show (rdTagSet ppol y)
+  putStrLn $ (show y)
+  putStrLn $ (show $ toExt y)
 
 main_test = do
   ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
@@ -73,7 +79,7 @@ main_trace = do
 --  printTrace ppol (reverse tr)
   putStrLn (show res)
 
-main = main_trace
+main = main_example
 
 instance Show Machine_State where
   show _ = ""
