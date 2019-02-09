@@ -28,7 +28,7 @@ policy:
 // ^ loadGrp(env == _, addr == _, mem == _ ->
 //              env = env, res = env)
     ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
-            env = env, res = mem[-(Cell _)])
+            env = env, res = mem[-(Cell color)])   // APT: At the moment, you can't have wildcards in output positions. 
     ^ storeGrp(env == _, addr == _, val == _, mem == _ ->
               env = env )
 //    ^ storeGrp(env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] ->
@@ -36,12 +36,12 @@ policy:
     ^ jumpGrp(env == _ -> env = env, return = {(Pointer new)} ) 
 
 require:  // map external names (dotted strings) to tag sets
-    init test.Cell {Cell}
-    init test.Pointer {Pointer}
-    init test.Env {Env}
-    init test.Inst {Inst}
-    init test.AllocInst {Alloc,Inst}
-    init test.CP {Cell,Pointer}
+    init test.Cell {heap.Cell}   // Adding these explicit heap.'s is just a workaround pending a proper fix to PIPE.hs
+    init test.Pointer {heap.Pointer}
+    init test.Env {heap.Env}
+    init test.Inst {heap.Inst}
+    init test.AllocInst {heap.Alloc,heap.Inst}
+    init test.CP {heap.Cell,heap.Pointer}
 // BCP: Let's try deleting this (seems superfluous)
 //     init test.PC {Pointer,Cell}
 //
@@ -63,7 +63,8 @@ group:
         lui
         auipc
 
-    jumpGrp(RS1:return -> RD:return)
+//    jumpGrp(RS1:return -> RD:return) APT: This makes no sense given the current semantics of jal in PIPE.hs
+    jumpGrp(-> RD:return)      
         jal
 
     jumpRegGrp(RS1:target -> RD:return)
