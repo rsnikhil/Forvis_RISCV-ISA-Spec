@@ -5,6 +5,7 @@ module PIPE(PIPE_Policy,
             Color,
             mkTagSet,
             rdTagSet,
+            showTagSet,
             fromExt,
             toExt,
             GPR_FileT(..),
@@ -21,10 +22,9 @@ import qualified Data.Map as M -- should clean up to use just one kind of Data.M
 import Data.Maybe
 import qualified Data.Set as Data_Set
 import Data.Set (Set)
-import Data.List (find,sort)
+import Data.List (find,sort,intercalate)
 import Numeric (showHex)
 import Data.Char
-                     
 import Bit_Utils
 import Arch_Defs
 
@@ -46,6 +46,12 @@ type PIPE_Policy = E.QPolMod
 type P a = Reader PIPE_Policy a
 
 type TagSet = EC.TagValue 
+
+showTagSet t = 
+    let f (s, Nothing) = s
+        f (s, Just c) = s ++ " " ++ show c 
+    in
+    "{" ++ intercalate ", " (map f (toExt t)) ++ "}"
 
 type Color = Int
 
@@ -133,9 +139,17 @@ mem_readT m a =
 -- coherence with what the processor does) on unaligned writes.
 -- Something seems fishy -- should check with the Dover folks to see
 -- what the actual PIPE does about this.
+-- 
+-- (Later: Yes, things are fishy.  I'm temporarily going to "fix" this
+-- function to just error out if someone tries a misaligned access,
+-- but I guess the behavior we really want is to generate a pipe
+-- trap?)
 mem_writeT :: MemT -> Integer -> TagSet -> MemT
-mem_writeT m a t = foldr (\a m -> mem_writeT' m a t) m [a0,a0+1,a0+2,a0+3]
-         where a0 = (a `div` 4) * 4
+-- mem_writeT m a t = foldr (\a m -> mem_writeT' m a t) m [a0,a0+1,a0+2,a0+3]
+--          where a0 = (a `div` 4) * 4
+mem_writeT m a t =
+  if (a `mod` 4) == 0 then mem_writeT' m a t
+  else error "Unaligned memory accesses not supported"
 
 {- private -}                
 mem_writeT' :: MemT -> Integer -> TagSet -> MemT
@@ -221,6 +235,11 @@ exec_pipe' polMod p pc inst maddr =
                     (p_next p)
                     (E.evalPolMod polMod (name, inp0 `M.union` (EC.wrapESKMap inp))) 
             in case r of
+                 -- TODO: The trap message on the next line should be
+                 -- displayed using the external representation of
+                 -- tags, not just `show`.  Also, it would be more helpful if it
+                 -- included the PC tag and the opcode (or opgroup?)
+                 -- that we're currently trying to execute
                  Left EC.TFImplicit -> (p,PIPE_Trap $ "no applicable rule for " ++ show inp)
                  Left (EC.TFExplicit s) -> (p, PIPE_Trap s)
                  Right out -> 

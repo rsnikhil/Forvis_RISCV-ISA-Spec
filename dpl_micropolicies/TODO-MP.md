@@ -1,16 +1,20 @@
 * TODAY
 
+fix the issue with misaligned accesses
+
+improve printing
+
 figure out if the "no applicable rule" failure is what we should expect
 
 replace Shrinking stuff with Leo's updated version
   and get it working
   and remove / hide the old micropolicies directory
 
-merge in Nikhil's master 
-
-move the Stack stuff into the dpl directory
+merge in Nikhil's master (as needed)
 
 beautify the code so others can use it
+
+"JAL r0" is probably bad style (we use it in our first instr)
 
 ________________________________________________________
 * SOON

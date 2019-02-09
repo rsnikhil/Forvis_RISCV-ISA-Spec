@@ -27,37 +27,38 @@ import Data.List.Split (chunksOf)
 
 import Data.List (intercalate)
 
-showRawTag :: (String,Maybe Int) -> String
-showRawTag (s, Nothing) = s
-showRawTag (s, Just i)  = s ++ "(" ++ show i ++ ")"
+-- showRawTag :: (String,Maybe Int) -> String
+-- showRawTag (s, Nothing) = s
+-- showRawTag (s, Just i)  = s ++ "(" ++ show i ++ ")"
+-- 
+-- showRawTagSet :: ([String],[Maybe Int]) -> String
+-- -- showRawTagSet (names,colors) =
+-- --   intercalate "," $ map showRawTag $ zip names colors
+-- --
+-- -- Hardcoding some specific tags (just to get things going)
+-- -- TODO: Nuke this horrible stuff!
+-- showRawTagSet (["test","Env"],       [Nothing])          = "Env" 
+-- showRawTagSet (["test","Inst"],      [Nothing])          = "Inst" 
+-- showRawTagSet (["test","AllocInst"], [Nothing])          = "Alloc, Inst" 
+-- showRawTagSet (["test","Pointer"],   [Just c1])          = "Pointer " ++ show c1
+-- -- Not sure why we need the next line
+-- showRawTagSet (["test","CP"],        [Just c1, Just c2]) = "Cell " ++ show c1 ++ ", Pointer " ++ show c2 
+-- showRawTagSet t = show t
 
-showRawTagSet :: ([String],[Maybe Int]) -> String
--- showRawTagSet (names,colors) =
---   intercalate "," $ map showRawTag $ zip names colors
---
--- Hardcoding some specific tags (just to get things going)
--- TODO: Nuke this horrible stuff!
-showRawTagSet (["test","Env"],       [Nothing])          = "Env" 
-showRawTagSet (["test","Inst"],      [Nothing])          = "Inst" 
-showRawTagSet (["test","AllocInst"], [Nothing])          = "Alloc, Inst" 
-showRawTagSet (["test","Pointer"],   [Just c1])          = "Pointer " ++ show c1
--- Not sure why we need the next line
-showRawTagSet (["test","CP"],        [Just c1, Just c2]) = "Cell " ++ show c1 ++ ", Pointer " ++ show c2 
-showRawTagSet t = show t
+-- OLDshowTagSet ppol t =
+--   case rdTagSet ppol t of
+--     [] -> "{" ++ show t ++ " (concretely)}"
+--     [t] -> "{" ++ showRawTagSet t ++ "}"
+--     (t:_) -> "{" ++ showRawTagSet t ++ " (for example)}"
 
-showTagSet :: PIPE_Policy -> TagSet -> String
-showTagSet ppol t =
-  case rdTagSet ppol t of
-    [] -> "{" ++ show t ++ " (concretely)}"
-    [t] -> "{" ++ showRawTagSet t ++ "}"
-    (t:_) -> "{" ++ showRawTagSet t ++ " (for example)}"
-
+-- TODO: This doesn't need ppol any more, so we could remove it from
+-- all the printing stuff!!
 class PP a where
   pp :: PIPE_Policy -> a -> Doc
 
 instance PP TagSet where
   -- pp t = P.text (show t)
-  pp ppol t = P.text (showTagSet ppol t)
+  pp ppol t = P.text (showTagSet t)
 
 instance PP Integer where
   pp _ n = P.sizedText 2 $ show n
@@ -118,7 +119,7 @@ pr_imem :: Mem -> PIPE_Policy -> Doc
 pr_imem m ppol =
   let contents = Data_Map.assocs $ f_dm m 
       decoded  = filter (isJust . snd) $ map (second $ decode_I RV32) contents
-  in P.vcat $ map (\(i, Just instr) -> P.integer i <:> pp ppol instr) decoded
+  in P.vcat $ map (\(i, Just instr) -> pad 4 (P.integer i) <:> pp ppol instr) decoded
 
 -- IDEAS: only show non-trivial registers?
 -- BCP: Yes, please!!

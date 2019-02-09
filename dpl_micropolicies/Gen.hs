@@ -46,6 +46,8 @@ initMachine =
       addr_byte_list = []
   in mkMachine_State  RV32  misa  initial_PC  addr_ranges  addr_byte_list
 
+-- TODO: These should not be hardcoded!  Should at least come from the
+-- testHeapSafety file...
 initPC :: PIPE_Policy -> TagSet
 initPC ppol = mkTagSet ppol ["test", "Env"] [Nothing]
 
@@ -342,7 +344,8 @@ genByExec ppol n ms ps instrlocs
       Right (ps'', ms'') ->
         genByExec ppol (n-1) ms'' ps'' instrlocs
       Left err ->
-        trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n ++ " and error: " ++ show err) $
+        trace ("Warning: Fetch and execute failed with " ++ show n
+               ++ " steps remaining and error: " ++ show err) $
         return (ms, ps, instrlocs)
   | otherwise = do
     (is, it) <- genInstr ppol ms ps

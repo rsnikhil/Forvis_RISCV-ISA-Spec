@@ -187,8 +187,6 @@ prop_noninterference ppol (M (m1,p1) (m2,p2)) =
            (collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32)
              (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) ppol))
 
-
-
 verboseTracing = False
 --verboseTracing = True
 
@@ -216,7 +214,7 @@ prettyDiffs ppol ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
   $$ prettyDiffs ppol ((p12,m12):tr1) ((p22,m22):tr2)
 prettyDiffs ppol [(p1,m1)] [(p2,m2)] =
   P.text "------------------------------" $$
-  P.text "Final machine states:" $$ prettyMStatePair ppol (M (m1,p1) (m2,p2))
+  P.text "FINAL MACHINE STATES:" $$ prettyMStatePair ppol (M (m1,p1) (m2,p2))
 prettyDiffs _ _ _ = P.text ""
 
 data Diff = Diff { d_pc :: (Integer, TagSet)               -- value and tag of the current PC
@@ -330,7 +328,7 @@ instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
 
 instance CoupledPP Diff Diff where
   pretty ppol d1 d2 =
-    P.hcat [ pad 6 (pretty ppol (d_pc d1) (d_pc d2))
+    P.hcat [ pad 15 (pretty ppol (d_pc d1) (d_pc d2))
            , P.text " "
            , pad 17 (pretty ppol (d_instr d1) (d_instr d2))
            , P.text "     "

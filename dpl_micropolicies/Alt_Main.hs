@@ -56,6 +56,7 @@ main_test = do
   quickCheckWith stdArgs{maxSuccess=1000} $ forAllShrink (genMStatePair ppol) (shrinkMStatePair ppol) $ \m ->
     prop_noninterference ppol m
 
+-- Not very useful
 main_sample = do
   ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
   states <- sample' (genMStatePair ppol)
@@ -79,7 +80,7 @@ main_trace = do
 --  printTrace ppol (reverse tr)
   putStrLn (show res)
 
-main = main_example
+main = main_trace
 
 instance Show Machine_State where
   show _ = ""
