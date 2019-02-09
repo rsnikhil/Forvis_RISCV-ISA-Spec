@@ -23,8 +23,12 @@ policy:
 // Buggy:
 //    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
 //             env = env, res = mem[-(Cell _)])
+//
+// Works but not interesting: 
+// ^ loadGrp(env == _, addr == _, mem == _ ->
+//              env = env, res = env)
     ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
-             env = env, res = env)
+            env = env, res = mem[-(Cell _)])
     ^ storeGrp(env == _, addr == _, val == _, mem == _ ->
               env = env )
 //    ^ storeGrp(env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] ->

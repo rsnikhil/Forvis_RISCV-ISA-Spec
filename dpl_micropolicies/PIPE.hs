@@ -237,10 +237,12 @@ exec_pipe' polMod p pc inst maddr =
             in case r of
                  -- TODO: The trap message on the next line should be
                  -- displayed using the external representation of
-                 -- tags, not just `show`.  Also, it would be more helpful if it
-                 -- included the PC tag and the opcode (or opgroup?)
-                 -- that we're currently trying to execute
-                 Left EC.TFImplicit -> (p,PIPE_Trap $ "no applicable rule for " ++ show inp)
+                 -- tags, not just `show`.  Also, it would be more
+                 -- helpful if it included the PC tag and the opcode
+                 -- (or opgroup?)  that we're currently trying to
+                 -- execute (I've tried to add this but it doesn't
+                 -- look good yet)
+                 Left EC.TFImplicit -> (p, PIPE_Trap $ "no applicable rule for " ++ show inp ++ " and instr group " ++ show name)
                  Left (EC.TFExplicit s) -> (p, PIPE_Trap s)
                  Right out -> 
                            ((outf out) 
