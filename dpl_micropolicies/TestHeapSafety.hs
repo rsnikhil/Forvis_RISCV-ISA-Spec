@@ -21,6 +21,7 @@ import Memory
 import Test.QuickCheck
 
 import Control.Monad.Reader
+import Terminal 
 
 --------------------------------------------------------
 -- This belongs in /src!
@@ -174,11 +175,17 @@ prop_noninterference ppol (M (m1,p1) (m2,p2)) =
   let (r1,ss1') = run_loop ppol 100 p1 m1
       (r2,ss2') = run_loop ppol 100 p2 m2
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
-  whenFail (do putStrLn $ "Reachable parts differ after execution!"
-               putStrLn $ "Original machines:"
-               print_mstatepair ppol (M (m1,p1) (m2,p2))
-               putStrLn $ "After execution..."
-               print_mstatepair ppol (M (m1', p1') (m2', p2'))
+  whenFail (do putStrLnRed $ "Reachable parts differ after execution!"
+               putStrLn $ ""
+               -- putStrLnGray $ "Original machines:"
+               -- print_mstatepair ppol (M (m1,p1) (m2,p2))
+               -- putStrLn $ ""
+               -- putStrLnGray $ "After execution..."
+               -- print_mstatepair ppol (M (m1', p1') (m2', p2'))
+               -- putStrLn $ ""
+               -- putStrLnGray $ "Trace..."
+               let finalTrace = {- map flipboth $ -} reverse $ zip ss1' ss2'
+               uncurry (printTrace ppol) (unzip finalTrace)
 --               putStrLn "First One:"
 --               print_coupled m1' p1'
 --               putStrLn "Second One:"
@@ -305,30 +312,33 @@ prettyRegDiff ppol ((i,d,l):r1) ((i', d', l'):r2)
         (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l)
         $$ prettyRegDiff ppol r1 r2
     | otherwise =
-      (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l <||>
-      P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty ppol d' l')
+      (ppStrong (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l <||>
+                 P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty ppol d' l'))
       $$ prettyRegDiff ppol r1 r2
 prettyRegDiff _ [] [] = P.text ""
+-- TODO: This is not supposed to be possible, but I saw it happen...
+prettyRegDiff _ _ _ = P.text "<prettyRegDiff??>"
 
 prettyMemDiff ppol ((i,d,l):m1) ((i', d', l'):m2)
     | i == i', d == d', l == l' =
         (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l)
         $$ prettyMemDiff ppol m1 m2
     | otherwise =
-      (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l
-      <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d' l')
+      (ppStrong (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l
+                 <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d' l'))
       $$ prettyMemDiff ppol m1 m2
 prettyMemDiff _ [] [] = P.text ""
+prettyMemDiff _ _ _ = P.text "<prettyMemDiff??>"
 
 instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
   pretty ppol (Just i1) (Just i2)
     | i1 == i2  = pp ppol i1
-    | otherwise = pp ppol i1 <||> pp ppol i2
+    | otherwise = ppStrong (pp ppol i1 <||> pp ppol i2)
   pretty _ Nothing Nothing = P.text "<Bad instr>"
 
 instance CoupledPP Diff Diff where
   pretty ppol d1 d2 =
-    P.hcat [ pad 15 (pretty ppol (d_pc d1) (d_pc d2))
+    P.hcat [ pad 17 (pretty ppol (d_pc d1) (d_pc d2))
            , P.text " "
            , pad 17 (pretty ppol (d_instr d1) (d_instr d2))
            , P.text "     "

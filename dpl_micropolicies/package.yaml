@@ -28,6 +28,7 @@ dependencies:
 - QuickCheck
 - pretty
 - split
+- ansi-terminal
 # These are for dpl:
 - containers
 - transformers

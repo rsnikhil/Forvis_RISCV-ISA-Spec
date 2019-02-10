@@ -27,6 +27,8 @@ import Data.List.Split (chunksOf)
 
 import Data.List (intercalate)
 
+import Terminal
+
 -- showRawTag :: (String,Maybe Int) -> String
 -- showRawTag (s, Nothing) = s
 -- showRawTag (s, Just i)  = s ++ "(" ++ show i ++ ")"
@@ -89,7 +91,7 @@ instance CoupledPP Integer TagSet where
 x <|> y = x P.<> P.text "\t|\t" P.<> y
 x <:> y = x P.<> P.text ": " P.<> y
 x <@> y = x P.<> P.text " " P.<> y
-x <||> y = x P.<> P.text "||" P.<> y
+x <||> y = x P.<> P.text " || " P.<> y
 
 pr_register :: InstrField -> Doc
 pr_register n = P.char 'r' P.<> P.integer n  
@@ -159,7 +161,7 @@ instance CoupledPP (Integer, TagSet) (Integer, TagSet) where
     if i1 == i2 && t1 == t2 then
       pretty ppol i1 t1 
     else
-      P.text "<Discrepancy!>" <+> pretty ppol i1 t1 <||> pretty ppol i2 t2
+      ppStrong (pretty ppol i1 t1 <||> pretty ppol i2 t2)
 
 instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
   pretty ppol (GPR_File r1, GPR_FileT t1) (GPR_File r2, GPR_FileT t2) =
@@ -172,7 +174,7 @@ instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
                 if d1 == d2 && t1 == t2 then 
                   P.integer i <+> P.char ':' <+> pretty ppol d1 t1
                 else
-                  P.integer i <+> P.text "<Discrepancy!>" <+> pretty ppol d1 t1 <||> pretty ppol d2 t2
+                  P.integer i <+> ppStrong (pretty ppol d1 t1 <||> pretty ppol d2 t2)
                    )
              $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
                    (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
@@ -185,11 +187,10 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
         pr_loc ((i,d),(j,t)) =
           case decode_I RV32 d of
             Just instr
-              | i == 0 || i >= 1000 -> P.integer i <:> pp ppol instr <@> pp ppol t
-              | otherwise -> P.integer i <:> P.integer d <@> pp ppol t
-            Nothing -> P.integer i <:> P.integer d <@> pp ppol t
+              | i == 0 || i >= 1000 -> pad 6 (P.integer i) <+> pp ppol instr <@> pp ppol t
+              | otherwise -> pad 6 (P.integer i) <+> P.integer d <@> pp ppol t
+            Nothing -> pad 6 (P.integer i) <+> P.integer d <@> pp ppol t
           
-
         pr_aux acc [] [] = reverse acc
         pr_aux acc [] (loc:locs) = pr_aux ((P.text "R:" <+> pr_loc loc) : acc) [] locs
         pr_aux acc (loc:locs) [] = pr_aux ((P.text "L:" <+> pr_loc loc) : acc) locs []
@@ -197,7 +198,7 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
           | i1 == i2 && d1 == d2 && t1 == t2 =
             pr_aux (pr_loc ((i1,d1),(i1,t1)) : acc) loc1 loc2
           | i1 == i2 =
-            pr_aux ((P.text "<Discrepancy!>" <+> pr_loc ((i1,d1),(i2,t1)) <||> pr_loc ((i2,d2),(i2,t2)) : acc)) loc1 loc2
+            pr_aux ((ppStrong ((pr_loc ((i1,d1),(i2,t1)) <||> pr_loc ((i2,d2),(i2,t2)))) : acc)) loc1 loc2
           | i1 < i2 =
             pr_aux (P.text "L:" <+> pr_loc ((i1,d1),(i1,t1)) : acc) loc1 (((i2,d2),(i2,t2)):loc2)
           | i1 > i2 = 
@@ -206,14 +207,14 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
     in P.vcat $ pr_aux [] c1 c2
 
 instance PP Color where
-  -- TODO: Pretty printing of colors?
+  -- TODO: Pretty printing of colors according to the policy??
   pp ppol n = P.int n
   
 instance CoupledPP (Set Color) (Set Color) where
   pretty ppol s1 s2 =
     if s1 == s2 then foldl1 (<+>) (map (pp ppol) $ Data_Set.elems s1)
     else
-      P.text "<Discrepancy!>" <+> foldl1 (<+>) (map (pp ppol) $ Data_Set.elems s1) <||> foldl1 (<+>) (map (pp ppol) $ Data_Set.elems s2)
+      ppStrong (foldl1 (<+>) (map (pp ppol) $ Data_Set.elems s1) <||> foldl1 (<+>) (map (pp ppol) $ Data_Set.elems s2))
 
 print_coupled :: PIPE_Policy -> Machine_State -> PIPE_State -> IO ()
 print_coupled ppol ms ps =

@@ -23,10 +23,6 @@ policy:
 // Buggy:
 //    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
 //             env = env, res = mem[-(Cell _)])
-//
-// Works but not interesting: 
-// ^ loadGrp(env == _, addr == _, mem == _ ->
-//              env = env, res = env)
     ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
             env = env, res = mem[-(Cell color)])   // APT: At the moment, you can't have wildcards in output positions. 
     ^ storeGrp(env == _, addr == _, val == _, mem == _ ->

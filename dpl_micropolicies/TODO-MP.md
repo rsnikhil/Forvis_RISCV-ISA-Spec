@@ -1,10 +1,11 @@
 * TODAY
 
-fix the issue with misaligned accesses
+think about JAL
 
-improve printing
+implement mutation testing
 
-figure out if the "no applicable rule" failure is what we should expect
+we should perhaps stop using mkTagSet, since I don’t think you should need it any
+more given the lower-level fromExt function.
 
 replace Shrinking stuff with Leo's updated version
   and get it working
@@ -15,6 +16,14 @@ merge in Nikhil's master (as needed)
 beautify the code so others can use it
 
 "JAL r0" is probably bad style (we use it in our first instr)
+
+more permanent fix for the issue with misaligned accesses
+  we want a PIPE_trap, not a fatal error
+
+Improve printing
+  
+Find a more permanent fix for the JAL issue
+  see the "DPL rules for JAL thread"
 
 ________________________________________________________
 * SOON

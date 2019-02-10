@@ -51,11 +51,6 @@ main_example = do
   putStrLn $ (show y)
   putStrLn $ (show $ toExt y)
 
-main_test = do
-  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
-  quickCheckWith stdArgs{maxSuccess=1000} $ forAllShrink (genMStatePair ppol) (shrinkMStatePair ppol) $ \m ->
-    prop_noninterference ppol m
-
 -- Not very useful
 main_sample = do
   ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
@@ -80,7 +75,13 @@ main_trace = do
 --  printTrace ppol (reverse tr)
   putStrLn (show res)
 
-main = main_trace
+-- The real one
+main_test = do
+  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
+  quickCheckWith stdArgs{maxSuccess=1000} $ forAllShrink (genMStatePair ppol) (shrinkMStatePair ppol) $ \m ->
+    prop_noninterference ppol m
+
+main = main_test
 
 instance Show Machine_State where
   show _ = ""
