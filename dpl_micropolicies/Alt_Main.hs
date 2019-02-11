@@ -62,8 +62,9 @@ main_trace = do
 -- The real one
 main_test = do
   pplus <- load_heap_policy
-  quickCheckWith stdArgs{maxSuccess=1000} $ forAllShrink (genMStatePair pplus) (shrinkMStatePair pplus) $ \m ->
-    prop_noninterference pplus m
+  quickCheckWith stdArgs{maxSuccess=1000}
+    $ forAllShrink (genMStatePair pplus) (shrinkMStatePair pplus)
+    $ \m -> prop_noninterference pplus m
 
 main = main_test
 
