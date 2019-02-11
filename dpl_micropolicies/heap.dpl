@@ -1,7 +1,7 @@
 module heap:
 
 type:
-    data Color = Int (20) // this means max number of colors is 20 (??)
+    data Color = Int (20) // this means max number of colors is 20 (I think!)
 
 metadata:
     Cell Color  // data memory with a color
@@ -17,14 +17,17 @@ policy:
       allocGrp(env == _, code == [+Alloc] -> env = env, res = {(Pointer new)})
     ^ immArithGrp(env == _, op1 == _ -> env = env, res = op1)        
     ^ arithGrp(env == _, op1 == _ -> env = env, res = op1)  
-// Correct:
-//    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == [+(Cell color)] ->
-//             env = env, res = mem[-(Cell _)])
+#ifndef BUG1
+    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == [+(Cell color)] ->
+             env = env, res = mem[-(Cell _)])
+#else
 // Buggy:
 //    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
 //             env = env, res = mem[-(Cell _)])
     ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
-            env = env, res = mem[-(Cell color)])   // APT: At the moment, you can't have wildcards in output positions. 
+            env = env, res = mem[-(Cell color)])   
+            // APT: At the moment, you cannot have wildcards in output positions
+#endif
     ^ storeGrp(env == _, addr == _, val == _, mem == _ ->
               env = env )
 //    ^ storeGrp(env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] ->
@@ -32,23 +35,21 @@ policy:
     ^ jumpGrp(env == _ -> env = env, return = {(Pointer new)} ) 
 
 require:  // map external names (dotted strings) to tag sets
-    init test.Cell {heap.Cell}   // Adding these explicit heap.'s is just a workaround pending a proper fix to PIPE.hs
+    init test.Cell {heap.Cell}   // Adding these explicit "heap."s is just a workaround pending a proper fix to PIPE.hs
     init test.Pointer {heap.Pointer}
     init test.Env {heap.Env}
     init test.Inst {heap.Inst}
     init test.AllocInst {heap.Alloc,heap.Inst}
     init test.CP {heap.Cell,heap.Pointer}
-// BCP: Let's try deleting this (seems superfluous)
-//     init test.PC {Pointer,Cell}
 //
 // Needs to be modified to attach an optional int to the string on the right...
 
 //     init test.Cell1 {Cell(1)}
 // or
 //     init test.Cell() {Cell()}
-// There's code in PIPE.hs to do this, but it needs to be fixed to deal with tags, not tag sets
+// There is code in PIPE.hs to do this, but it needs to be fixed to deal with tags, not tag sets
 // APT: The PIPE code has now been fixed so that whenever you translate an external name
-// you pass a list of (Maybe Int's) representing the optional ints to attach to each tag in the RHS tag set.
+// you pass a list of (Maybe Int) representing the optional ints to attach to each tag in the RHS tag set.
 // E.g. mkTagSet policy ["test","Pointer"] [Just 42]
 //      mkTagSet policy ["test","Env"] [Nothing]
 //      mkTagSet policy ["test","AllocInst"] [Nothing,Nothing]

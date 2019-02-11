@@ -1,11 +1,9 @@
 * TODAY
 
-think about JAL
+make mem_readT return a default tag on an undefined access
 
-implement mutation testing
-
-we should perhaps stop using mkTagSet, since I don’t think you should need it any
-more given the lower-level fromExt function.
+we should perhaps stop using mkTagSet, since I don’t think you should need
+it any more given the lower-level fromExt function.
 
 improve printing 
   replace ppol arguments with our own information (e.g., for defaults)

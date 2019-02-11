@@ -344,8 +344,8 @@ genByExec ppol n ms ps instrlocs
       Right (ps'', ms'') ->
         genByExec ppol (n-1) ms'' ps'' instrlocs
       Left err ->
-        trace ("Warning: Fetch and execute failed with " ++ show n
-               ++ " steps remaining and error: " ++ show err) $
+        -- trace ("Warning: Fetch and execute failed with " ++ show n
+        --        ++ " steps remaining and error: " ++ show err) $
         return (ms, ps, instrlocs)
   | otherwise = do
     (is, it) <- genInstr ppol ms ps
@@ -357,7 +357,8 @@ genByExec ppol n ms ps instrlocs
         -- trace "Successful execution" $
         genByExec ppol (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
       Left err ->
-        trace ("Warning: Fetch and execute failed with steps remaining:" ++ show n ++ " and error: " ++ show err) $
+        -- trace ("Warning: Fetch and execute failed with "
+        --       ++ show n ++ " steps remaining and error: " ++ show err) $
         return (ms', ps', instrlocs)
 
 updRegs :: GPR_File -> Gen GPR_File

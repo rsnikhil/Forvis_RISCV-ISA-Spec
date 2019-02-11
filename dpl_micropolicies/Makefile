@@ -1,63 +1,19 @@
-all:
+all: build mutants unmutated
+
+build:
 	stack build :dpl-exe 
-	stack exec dpl-exe
 
-SRC_DIR  = ../src
-TOOL_DIR = ./policy-tool
-EVAL_DIR = ./policy-eval
-FORVIS_EXE = forvis_exe
-TMP_DIR  = ../tmp_haskell
-
-all-old:
-	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR) -i$(TOOL_DIR) -i$(EVAL_DIR) \
-	   -XLambdaCase \
-	   -package megaparsec-5.3.1 -hide-package language-c-0.6.1 \
-	   -outputdir  $(TMP_DIR)  -rtsopts -cpp \
-	   Alt_Main
-# temporary
-	../forvis_exe
+unmutated:
+	make mutant MUT=NO_MUTATIONS
 
 mutant:
-	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -i$(TOOL_DIR) -i$(EVAL_DIR)\
-	   -XLambdaCase \
-	   -outputdir  $(TMP_DIR)  -rtsopts -cpp -D$(MUT) \
-	   Main_PIPE 
-# temporary
-	time ../forvis_exe
-
-temp:
-	make mutant MUT=M_FRESH_COLOR
+	@echo "[37;41m--------- $(MUT) -----------[0m"
+	@mkdir -p .mutants
+	cpp -D$(MUT) heap.dpl .mutants/heap.dpl
+	sed -i '' '/^#/d' .mutants/heap.dpl
+	(cd .mutants; time stack exec dpl-exe)
 
 mutants:
-	make mutant MUT=M_FRESH_COLOR
-	make mutant MUT=M_LW_NOCHECK
+	make mutant MUT=BUG1
 
-pipe_hello: all
-	$(MAKE) -C .. test_hello
-
-pipe_qc: all
-	../forvis_exe
-
-
-##############################################################################
-# Probably the rest can be deleted:
-
-UNAME := $(shell uname)
-ifeq ($(UNAME), Linux)
-SOFTFLOAT_LIBPATH=/usr/lib/libsoftfloat.so
-endif
-ifeq ($(UNAME), Darwin)
-SOFTFLOAT_LIBPATH=/usr/local/lib/libsoftfloat.dylib
-endif
-
-with-softfloat:
-	mkdir -p  $(TMP_DIR)
-	ghc  -dynamic  -threaded  -o  ../$(FORVIS_EXE)  -O2  -i$(SRC_DIR)  -outputdir  $(TMP_DIR)  -rtsopts \
-		Main_PIPE \
-		-i../submodules/softfloat-hs/src \
-		-I../submodules/softfloat-hs/include \
-		../submodules/softfloat-hs/csrc/softfloat_wrappers.c \
-		$(SOFTFLOAT_LIBPATH)
 
