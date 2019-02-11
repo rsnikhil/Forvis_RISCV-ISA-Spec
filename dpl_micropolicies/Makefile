@@ -14,7 +14,7 @@ mutant:
 	@echo "[0m"
 	@mkdir -p .mutants
 	@cpp -D$(MUT) heap.dpl > .mutants/heap.dpl
-	@sed -i '' '/^#/d' .mutants/heap.dpl
+	@sed -i '/^#/d' .mutants/heap.dpl
 	@(cd .mutants; time stack exec dpl-exe)
 
 mutants:

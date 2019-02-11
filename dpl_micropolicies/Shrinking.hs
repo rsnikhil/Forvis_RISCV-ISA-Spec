@@ -68,61 +68,66 @@ type IndexedTagedInt = ((Integer,Integer),(Integer, TagSet))
 -- We also need the set of reachable things for data memories
 -- INV: Original memories contain identical indices
 shrinkMems :: PolicyPlus -> Set Color -> (Mem, MemT) -> (Mem, MemT) -> [((Mem, MemT), (Mem,MemT))]
-shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) = []
---  let m1' = Data_Map.assocs m1
---      t1' = Data_Map.assocs t1
---      m2' = Data_Map.assocs m2
---      t2' = Data_Map.assocs t2
--- 
---      shrinkMemLoc :: (Integer, Integer, Tag) -> (Integer, Integer, Tag) -> [ (IndexedTagedInt, IndexedTagedInt) ]
---      shrinkMemLoc (j,d1,l1) (_,d2,l2) =
---        case (decode_I RV32 d1, decode_I RV32 d2) of
---          -- Both (identical) instructions
---          (Just i1, Just i2)
---            | i1 == i2 && l1 == l2 ->
---              -- Shrink instruction
---              [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- encode_I RV32 <$> shrinkInstr i1] ++
---              -- Or shrink tag (alloc)
---              [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag l1 ]
---            | otherwise -> error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
---          -- TODO: Shrink data cells
---          (Nothing, Nothing) ->
+shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) = 
+  let m1' = Data_Map.assocs m1
+      t1' = Data_Map.assocs t1
+      m2' = Data_Map.assocs m2
+      t2' = Data_Map.assocs t2
+ 
+      shrinkMemLoc :: (Integer, Integer, TagSet) -> (Integer, Integer, TagSet) ->
+                      [ (IndexedTagedInt, IndexedTagedInt) ]
+      shrinkMemLoc (j,d1,l1) (_,d2,l2) =
+        -- This identifies a memory loc by if it is decode-able to an instruction.
+        -- RETHINK: Is there a better way? Tags? Hardcoded locations?
+        case (decode_I RV32 d1, decode_I RV32 d2) of
+          -- Both (identical) instructions
+          (Just i1, Just i2)
+            | i1 == i2 && l1 == l2 ->
+              -- Shrink instruction
+              [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- encode_I RV32 <$> shrinkInstr i1] ++
+              -- Or shrink tag (alloc)
+              [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag pplus l1 ]
+            | otherwise -> error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
+          -- TODO: Shrink data cells
+          (Nothing, Nothing) ->
+            case (cellColorOf l1, pointerColorOf l1, cellColorOf l2, pointerColorOf l2) of 
 --            case (l1, l2) of
+              (Just loc1, Just v1, Just loc2, Just v2) 
 --              (MTagM v1 loc1, MTagM v2 loc2)
---                -- Both reachable, everything should be identical
---                | Data_Set.member loc1 reachable && Data_Set.member loc2 reachable && l1 == l2 && d1 == d2->
---                  -- shrink the first and copy
---                  -- Shrink data
---                  [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- shrink d1 ]
---                  ++ 
---                  -- TODO: Or shrink tag 
---                  []
---                -- Both unreachable, shrink independently
---                | not (Data_Set.member loc1 reachable) && not (Data_Set.member loc2 reachable) ->
---                  -- Shrink data of one
---                  [ (((j, d1'), (j, l1)), ((j, d2),(j, l2))) | d1' <- shrink d1 ]
---                  ++
---                  -- Shrink data of second
---                  [ (((j, d1), (j, l1)), ((j, d2'),(j, l2))) | d2' <- shrink d2 ]
---                  -- TODO: Shrink labels?
---                | otherwise -> error "Not simultaneously reachable or unreachable?"
---              otherwise -> error "Not MTagM's in data memory?"
---          _ -> error "Invalid memory locs"
--- 
---      shrinkMemAux :: [ IndexedTagedInt ] -> [ IndexedTagedInt] -> [ ([IndexedTagedInt], [IndexedTagedInt]) ]
---      shrinkMemAux [] [] = []
---      shrinkMemAux (((j1,d1),(_,l1)):more1) (((j2,d2),(_,l2)):more2) =
---        -- Shrink Current memory location and rebuild mem
---        [ ((loc1':more1), (loc2':more2)) | (loc1', loc2') <- shrinkMemLoc (j1,d1,l1) (j2,d2,l2) ]
---        ++
---        -- Keep current memory location and shrink something later on
---        [ ( ((j1,d1),(j1,l1)) : more1', ((j2,d2),(j2,l2)) : more2' )
---        | (more1', more2') <- shrinkMemAux more1 more2 ]
--- 
---      indexTagedIntsToMem :: _ -> [IndexedTagedInt] -> (Mem, MemT)
---      indexTagedIntsToMem i itis = ((flip Mem i) . Data_Map.fromList) *** (MemT . Data_Map.fromList) $ unzip itis
---        
---  in map (indexTagedIntsToMem i1 *** indexTagedIntsToMem i2) $ shrinkMemAux (zip m1' t1') (zip m2' t2')
+                -- Both reachable, everything should be identical
+                | Data_Set.member loc1 reachable && Data_Set.member loc2 reachable && l1 == l2 && d1 == d2->
+                  -- shrink the first and copy
+                  -- Shrink data
+                  [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- shrink d1 ]
+                  ++ 
+                  -- TODO: Or shrink tag 
+                  []
+                -- Both unreachable, shrink independently
+                | not (Data_Set.member loc1 reachable) && not (Data_Set.member loc2 reachable) ->
+                  -- Shrink data of one
+                  [ (((j, d1'), (j, l1)), ((j, d2),(j, l2))) | d1' <- shrink d1 ]
+                  ++
+                  -- Shrink data of second
+                  [ (((j, d1), (j, l1)), ((j, d2'),(j, l2))) | d2' <- shrink d2 ]
+                  -- TODO: Shrink labels?
+                | otherwise -> error "Not simultaneously reachable or unreachable?"
+              otherwise -> error "Data memory without cell or pointer color?"
+          _ -> error "Invalid memory locs"
+ 
+      shrinkMemAux :: [ IndexedTagedInt ] -> [ IndexedTagedInt] -> [ ([IndexedTagedInt], [IndexedTagedInt]) ]
+      shrinkMemAux [] [] = []
+      shrinkMemAux (((j1,d1),(_,l1)):more1) (((j2,d2),(_,l2)):more2) =
+        -- Shrink Current memory location and rebuild mem
+        [ ((loc1':more1), (loc2':more2)) | (loc1', loc2') <- shrinkMemLoc (j1,d1,l1) (j2,d2,l2) ]
+        ++
+        -- Keep current memory location and shrink something later on
+        [ ( ((j1,d1),(j1,l1)) : more1', ((j2,d2),(j2,l2)) : more2' )
+        | (more1', more2') <- shrinkMemAux more1 more2 ]
+ 
+      indexTagedIntsToMem :: _ -> [IndexedTagedInt] -> (Mem, MemT)
+      indexTagedIntsToMem i itis = ((flip Mem i) . Data_Map.fromList) *** (MemT . Data_Map.fromList) $ unzip itis
+        
+  in map (indexTagedIntsToMem i1 *** indexTagedIntsToMem i2) $ shrinkMemAux (zip m1' t1') (zip m2' t2')
         
 shrinkMStatePair :: PolicyPlus -> MStatePair -> [MStatePair]
 shrinkMStatePair pplus (M (m1,p1) (m2,p2)) =
