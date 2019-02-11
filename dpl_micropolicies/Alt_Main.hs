@@ -60,7 +60,7 @@ main_sample = do
 main_trace = do
   pplus <- load_heap_policy
   (M (ms1,ps1) (ms2,ps2)) <- head <$> sample' (genMStatePair pplus)
-  let (res, tr) = run_loop (policy pplus) 10 ps1 ms1
+  let (res, tr) = run_loop pplus 10 ps1 ms1
       (ps', ms') : _ = tr
   putStrLn ""
 --  putStrLn "Initial state:"

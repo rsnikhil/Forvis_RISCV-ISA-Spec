@@ -209,8 +209,8 @@ get_mtag p = mem_readT (p_mem p)
 data PIPE_Result = PIPE_Trap String
                  | PIPE_Success
 
-exec_pipe :: E.QPolMod -> PIPE_State -> Machine_State -> Integer -> (PIPE_State, PIPE_Result)
-exec_pipe polMod p m u32 =
+exec_pipe :: PolicyPlus -> PIPE_State -> Machine_State -> Integer -> (PIPE_State, PIPE_Result)
+exec_pipe pplus p m u32 =
   let rv  = mstate_rv_read m in
   case decode_I rv u32 of
     Nothing ->
@@ -228,11 +228,11 @@ exec_pipe polMod p m u32 =
                     SH rs1 _ imm -> mstate_gpr_read rs1 m + imm
                     SW rs1 _ imm -> mstate_gpr_read rs1 m + imm
                     _ -> error $ "maddr undefined for " ++ (show inst)
-      in exec_pipe' polMod p (f_pc m) inst maddr
+      in exec_pipe' pplus p (f_pc m) inst maddr
 
 {- Proceed with only PIPE_State -}
-exec_pipe' :: E.QPolMod -> PIPE_State -> Integer -> Instr_I -> Integer -> (PIPE_State, PIPE_Result)
-exec_pipe' polMod p pc inst maddr =
+exec_pipe' :: PolicyPlus -> PIPE_State -> Integer -> Instr_I -> Integer -> (PIPE_State, PIPE_Result)
+exec_pipe' pplus p pc inst maddr =
   let inp0 :: EC.OperandTags
       inp0 = M.fromList [
               (Right EC.ESKEnv, p_pc p),
@@ -244,7 +244,7 @@ exec_pipe' polMod p pc inst maddr =
             let (r,next') =
                   EC.runTagResult
                     (p_next p)
-                    (E.evalPolMod polMod (name, inp0 `M.union` (EC.wrapESKMap inp))) 
+                    (E.evalPolMod (policy pplus) (name, inp0 `M.union` (EC.wrapESKMap inp))) 
             in case r of
                  -- TODO: The trap message on the next line should be
                  -- displayed using the external representation of

@@ -45,12 +45,12 @@ data Reason = Halted String
             | PIPEError String
             deriving (Show)
 
-run_loop :: PIPE_Policy -> Int -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
-run_loop pol maxinstrs pipe_state mstate =
-  run_loop' pol 0 maxinstrs [(pipe_state, mstate)] pipe_state mstate 
+run_loop :: PolicyPlus -> Int -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
+run_loop pplus maxinstrs pipe_state mstate =
+  run_loop' pplus 0 maxinstrs [(pipe_state, mstate)] pipe_state mstate 
 
-run_loop' :: PIPE_Policy -> Int -> Int -> [(PIPE_State, Machine_State)] -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
-run_loop' pol fuel maxinstrs trace pipe_state mstate =
+run_loop' :: PolicyPlus -> Int -> Int -> [(PIPE_State, Machine_State)] -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
+run_loop' pplus fuel maxinstrs trace pipe_state mstate =
   let instret   = mstate_csr_read csr_addr_minstret mstate 
       run_state = mstate_run_state_read  mstate
 
@@ -72,8 +72,8 @@ run_loop' pol fuel maxinstrs trace pipe_state mstate =
          --  ditto uart output stuff)
          -- If running, fetch-and-execute; if in WFI pause, check resumption
          if (run_state == Run_State_Running) then
-            case fetch_and_execute pol pipe_state mstate1 of
-              Right (ps, ms) -> run_loop' pol (fuel + 1) maxinstrs ((ps, ms) : trace) ps ms
+            case fetch_and_execute pplus pipe_state mstate1 of
+              Right (ps, ms) -> run_loop' pplus (fuel + 1) maxinstrs ((ps, ms) : trace) ps ms
               Left s -> (PIPEError s, trace) -- pipe_state, mstate1)
          else error "Unimplemented WFI stuff"
 {-
@@ -96,8 +96,8 @@ run_loop' pol fuel maxinstrs trace pipe_state mstate =
 --     state to the trap vector (so, the fetched instr will be the
 --     first instruction in the trap vector).
 
-fetch_and_execute :: PIPE_Policy -> PIPE_State -> Machine_State -> Either String (PIPE_State, Machine_State)
-fetch_and_execute pol pipe_state mstate = 
+fetch_and_execute :: PolicyPlus -> PIPE_State -> Machine_State -> Either String (PIPE_State, Machine_State)
+fetch_and_execute pplus pipe_state mstate = 
   let _verbosity               = mstate_verbosity_read  mstate
       (intr_pending, mstate2)  = mstate_take_interrupt_if_any  mstate
 
@@ -116,7 +116,7 @@ fetch_and_execute pol pipe_state mstate =
     Fetch    u32 ->
 --      traceShow ("Executing...", decode_I RV32 u32, f_pc mstate3) $
       let (mstate4, _spec_name) = (exec_instr_32b u32 mstate3)
-          (pipe_state1, trap) = exec_pipe pol pipe_state mstate3 u32 
+          (pipe_state1, trap) = exec_pipe pplus pipe_state mstate3 u32 
       in case trap of 
            PIPE_Trap s -> Left s
            PIPE_Success -> Right (pipe_state1, mstate4)

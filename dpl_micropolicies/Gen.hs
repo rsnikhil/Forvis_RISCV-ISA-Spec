@@ -337,7 +337,7 @@ genByExec pplus 0 ms ps instrlocs = return (ms, ps, instrlocs)
 genByExec pplus n ms ps instrlocs
   -- Check if an instruction already exists
   | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
-    case fetch_and_execute (policy pplus) ps ms of
+    case fetch_and_execute pplus ps ms of
       Right (ps'', ms'') ->
         genByExec pplus (n-1) ms'' ps'' instrlocs
       Left err ->
@@ -349,7 +349,7 @@ genByExec pplus n ms ps instrlocs
     let ms' = setInstrI ms is
         ps' = setInstrTagI ms ps it
     case -- traceShow ("Instruction generated...", is) $
-         fetch_and_execute (policy pplus) ps' ms' of
+         fetch_and_execute pplus ps' ms' of
       Right (ps'', ms'') ->
         -- trace "Successful execution" $
         genByExec pplus (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
@@ -364,11 +364,11 @@ updRegs (GPR_File rs) = do
   let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
   return $ GPR_File rs'
 
-mkPointerTagSet pplus c = mkTagSet (policy pplus) ["test", "Pointer"] [Just c]
+mkPointerTagSet pplus c = mkTagSet pplus ["test", "Pointer"] [Just c]
 
 updTags :: PolicyPlus -> GPR_FileT -> Gen GPR_FileT
 updTags pplus (GPR_FileT rs) = do
-  [c1, c2, c3] <- (map $ mkPointerTagSet pplus) <$> (replicateM 3 genColorLow)
+  [c1, c2, c3] <- (map $ mkPointerTagSet (policy pplus)) <$> (replicateM 3 genColorLow)
   
   let rs' :: Data_Map.Map Integer TagSet = Data_Map.insert 1 c1 $ Data_Map.insert 2 c2 $ Data_Map.insert 3 c3 rs
   return $ GPR_FileT rs'

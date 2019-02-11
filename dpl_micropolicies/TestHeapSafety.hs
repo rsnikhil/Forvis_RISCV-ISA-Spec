@@ -173,9 +173,8 @@ print_mstatepair pplus m = putStrLn $ P.render $ prettyMStatePair pplus m
 
 prop_noninterference :: PolicyPlus -> MStatePair -> Property
 prop_noninterference pplus (M (m1,p1) (m2,p2)) =
-  let ppol = policy pplus in
-  let (r1,ss1') = run_loop ppol 100 p1 m1
-      (r2,ss2') = run_loop ppol 100 p2 m2
+  let (r1,ss1') = run_loop pplus 100 p1 m1
+      (r2,ss2') = run_loop pplus 100 p2 m2
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
   whenFail (do putStrLnRed $ "Reachable parts differ after execution!"
                putStrLn $ ""
