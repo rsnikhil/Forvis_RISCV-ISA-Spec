@@ -48,11 +48,8 @@ initMachine =
 
 -- TODO: These should not be hardcoded!  Should at least come from the
 -- testHeapSafety file...
-initPC :: PIPE_Policy -> TagSet
-initPC ppol = mkTagSet ppol ["test", "Env"] [Nothing]
-
-initGPR :: PIPE_Policy -> TagSet
-initGPR ppol = mkTagSet ppol ["test", "Pointer"] [Just 0]
+initPC :: PolicyPlus -> TagSet
+initPC pplus = mkTagSet (policy pplus) ["test", "Env"] [Nothing]
 
 initNextColor :: Int
 initNextColor = 5
@@ -160,11 +157,11 @@ instrLow = 1000
 -- Picks out valid (data registers + content + min immediate + max immediate + tag),
 --                 (jump registers + min immediate),
 --                 integer registers
-groupRegisters :: PIPE_Policy -> GPR_File -> GPR_FileT ->
+groupRegisters :: PolicyPlus -> GPR_File -> GPR_FileT ->
                   ([(GPR_Addr, Integer, Integer, Integer, TagSet)],
                    [(GPR_Addr, Integer)],
                    [GPR_Addr])
-groupRegisters ppol (GPR_File rs) (GPR_FileT ts) =
+groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
   -- Assuming that the register files are same length and they have no holes
   let regs = Data_Map.assocs rs
       tags = Data_Map.assocs ts
@@ -173,16 +170,16 @@ groupRegisters ppol (GPR_File rs) (GPR_FileT ts) =
       validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
         | reg_content >= dataMemLow &&
           reg_content <= dataMemHigh
-          && isJust (runReader (pointerColorOf reg_tag) ppol) =
+          && isJust (runReader (pointerColorOf reg_tag) pplus) =
            Just (reg_id, reg_content, 0, dataMemHigh - reg_content, reg_tag)
-        | reg_content == 0 && isJust (runReader (pointerColorOf reg_tag) ppol) =
+        | reg_content == 0 && isJust (runReader (pointerColorOf reg_tag) pplus) =
         -- We can allow a 0 register by adding at least 4
            Just (reg_id, 0, dataMemLow, dataMemHigh, reg_tag)
         | otherwise =
            Nothing
         
       validJump ((reg_id,reg_content),(_, reg_tag))
-        | reg_content < instrLow && isJust (runReader (envColorOf reg_tag) ppol) =
+        | reg_content < instrLow && isJust (runReader (envColorOf reg_tag) pplus) =
           Just (reg_id, instrLow - reg_content)
         | otherwise =
           Nothing
@@ -193,21 +190,21 @@ groupRegisters ppol (GPR_File rs) (GPR_FileT ts) =
   in (dataRegs, controlRegs, arithRegs)
 
 -- All locations that can be accessed using color 'c' between 'lo' and 'hi'
-reachableLocsBetween :: PIPE_Policy -> Mem -> MemT -> Integer -> Integer -> TagSet -> [Integer]
-reachableLocsBetween ppol (Mem m _) (MemT pm) lo hi t =
-  case runReader (pointerColorOf t) ppol of
+reachableLocsBetween :: PolicyPlus -> Mem -> MemT -> Integer -> Integer -> TagSet -> [Integer]
+reachableLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
+  case runReader (pointerColorOf t) pplus of
     Just c -> 
       map fst $ filter (\(i,t) ->
-                          case runReader (cellColorOf t) ppol of
+                          case runReader (cellColorOf t) pplus of
                             Just c' -> c == c' && i >= lo && i <= hi
                             _ -> False
                        ) (Data_Map.assocs pm)
     _ -> []
 
 
-genInstr :: PIPE_Policy -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
-genInstr ppol ms ps =
-  let (dataRegs, ctrlRegs, arithRegs) = groupRegisters ppol (f_gprs ms) (p_gprs ps)
+genInstr :: PolicyPlus -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
+genInstr pplus ms ps =
+  let (dataRegs, ctrlRegs, arithRegs) = groupRegisters pplus (f_gprs ms) (p_gprs ps)
       onNonEmpty [] _= 0
       onNonEmpty _ n = n
   in 
@@ -217,14 +214,14 @@ genInstr ppol ms ps =
                   rd <- genTargetReg ms
                   imm <- genImm dataMemHigh
                   -- TODO: Figure out what to do with Malloc
-                  alloc <- frequency [(2, pure $ emptyInstTag ppol),
-                                      (3, pure $ allocInstTag ppol)]
+                  alloc <- frequency [(2, pure $ emptyInstTag pplus),
+                                      (3, pure $ allocInstTag pplus)]
                   return (ADDI rd rs imm, alloc))
             , (onNonEmpty dataRegs 3,
                do -- LOAD
                   (rs,content,min_imm,max_imm,tag) <- elements dataRegs
                   let locs = --traceShow (content, min_imm, max_imm, tag) $
-                             reachableLocsBetween ppol (f_mem ms) (p_mem ps) (content+min_imm) (content+max_imm) tag
+                             reachableLocsBetween pplus (f_mem ms) (p_mem ps) (content+min_imm) (content+max_imm) tag
                   rd <- genTargetReg ms
                   imm <- frequency [ -- Generate a reachable location)
                                      (--traceShow locs $
@@ -233,7 +230,7 @@ genInstr ppol ms ps =
                                          return $ addr - content)
                                    , (1, (min_imm+) <$> genImm (max_imm - min_imm))
                                    ]
-                  let tag = emptyInstTag ppol                         
+                  let tag = emptyInstTag pplus                         
                   return (LW rd rs imm, tag)
               )
             , (onNonEmpty dataRegs 3 * onNonEmpty arithRegs 1,
@@ -241,42 +238,42 @@ genInstr ppol ms ps =
                   (rd,content, min_imm,max_imm,tag) <- elements dataRegs
                   rs <- genTargetReg ms
                   imm <- (min_imm+) <$> genImm (max_imm - min_imm)
-                  let tag = emptyInstTag ppol
+                  let tag = emptyInstTag pplus
                   return (SW rd rs imm, tag))
             , (onNonEmpty arithRegs 1,
                do -- ADD
                   rs1 <- elements arithRegs
                   rs2 <- elements arithRegs
                   rd <- genTargetReg ms
-                  let tag = emptyInstTag ppol
+                  let tag = emptyInstTag pplus
                   return (ADD rd rs1 rs2, tag))
             ]
 
-randInstr :: PIPE_Policy -> Machine_State -> Gen (Instr_I, TagSet)
-randInstr ppol ms =          
+randInstr :: PolicyPlus -> Machine_State -> Gen (Instr_I, TagSet)
+randInstr pplus ms =          
   frequency [ (1, do -- ADDI
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
                   imm <- genImm 4
-                  alloc <- frequency [(1, pure $ emptyInstTag ppol), (4, pure $ allocInstTag ppol)]
+                  alloc <- frequency [(1, pure $ emptyInstTag pplus), (4, pure $ allocInstTag pplus)]
                   return (ADDI rd rs imm, alloc))
             , (1, do -- LOAD
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
                   imm <- genImm 4
-                  let tag = emptyInstTag ppol                  
+                  let tag = emptyInstTag pplus                  
                   return (LW rd rs imm, tag))
             , (1, do -- STORE
                   rs <- genSourceReg ms
                   rd <- genTargetReg ms
                   imm <- genImm 4
-                  let tag = emptyInstTag ppol
+                  let tag = emptyInstTag pplus
                   return (SW rd rs imm, tag))
             , (1, do -- ADD
                   rs1 <- genSourceReg ms
                   rs2 <- genSourceReg ms
                   rd <- genTargetReg ms
-                  let tag = emptyInstTag ppol
+                  let tag = emptyInstTag pplus
                   return (ADD rd rs1 rs2, tag))
             ]
 
@@ -312,17 +309,17 @@ genColorHigh =
             ]
 
 
-genMTagM :: PIPE_Policy -> Gen TagSet
-genMTagM ppol = do
+genMTagM :: PolicyPlus -> Gen TagSet
+genMTagM pplus = do
   c1 <- genColor
   c2 <- genColor
-  return $ mkTagSet ppol ["test","CP"] [Just c1, Just c2]
+  return $ mkTagSet (policy pplus) ["test","CP"] [Just c1, Just c2]
 
-genDataMemory :: PIPE_Policy -> Gen (Mem, MemT)
-genDataMemory ppol = do
+genDataMemory :: PolicyPlus -> Gen (Mem, MemT)
+genDataMemory pplus = do
   let idx = [dataMemLow,dataMemLow+4..dataMemHigh]
   combined <- mapM (\i -> do d <- genImm dataMemHigh    -- BCP: This always puts 4 in every location!
-                             t <- genMTagM ppol
+                             t <- genMTagM pplus
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
   return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
@@ -335,27 +332,27 @@ setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
 setInstrTagI ms ps it =
   ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
 
-genByExec :: PIPE_Policy -> Int -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
-genByExec ppol 0 ms ps instrlocs = return (ms, ps, instrlocs)
-genByExec ppol n ms ps instrlocs
+genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
+genByExec pplus 0 ms ps instrlocs = return (ms, ps, instrlocs)
+genByExec pplus n ms ps instrlocs
   -- Check if an instruction already exists
   | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
-    case fetch_and_execute ppol ps ms of
+    case fetch_and_execute (policy pplus) ps ms of
       Right (ps'', ms'') ->
-        genByExec ppol (n-1) ms'' ps'' instrlocs
+        genByExec pplus (n-1) ms'' ps'' instrlocs
       Left err ->
         -- trace ("Warning: Fetch and execute failed with " ++ show n
         --        ++ " steps remaining and error: " ++ show err) $
         return (ms, ps, instrlocs)
   | otherwise = do
-    (is, it) <- genInstr ppol ms ps
+    (is, it) <- genInstr pplus ms ps
     let ms' = setInstrI ms is
         ps' = setInstrTagI ms ps it
     case -- traceShow ("Instruction generated...", is) $
-         fetch_and_execute ppol ps' ms' of
+         fetch_and_execute (policy pplus) ps' ms' of
       Right (ps'', ms'') ->
         -- trace "Successful execution" $
-        genByExec ppol (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
+        genByExec pplus (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
       Left err ->
         -- trace ("Warning: Fetch and execute failed with "
         --       ++ show n ++ " steps remaining and error: " ++ show err) $
@@ -367,32 +364,32 @@ updRegs (GPR_File rs) = do
   let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
   return $ GPR_File rs'
 
-mkPointerTagSet ppol c = mkTagSet ppol ["test", "Pointer"] [Just c]
+mkPointerTagSet pplus c = mkTagSet (policy pplus) ["test", "Pointer"] [Just c]
 
-updTags :: PIPE_Policy -> GPR_FileT -> Gen GPR_FileT
-updTags ppol (GPR_FileT rs) = do
-  [c1, c2, c3] <- (map $ mkPointerTagSet ppol) <$> (replicateM 3 genColorLow)
+updTags :: PolicyPlus -> GPR_FileT -> Gen GPR_FileT
+updTags pplus (GPR_FileT rs) = do
+  [c1, c2, c3] <- (map $ mkPointerTagSet pplus) <$> (replicateM 3 genColorLow)
   
   let rs' :: Data_Map.Map Integer TagSet = Data_Map.insert 1 c1 $ Data_Map.insert 2 c2 $ Data_Map.insert 3 c3 rs
   return $ GPR_FileT rs'
 
 maxInstrsToGenerate = 10
 
-genMachine :: PIPE_Policy -> Gen (Machine_State, PIPE_State)
-genMachine ppol = do
+genMachine :: PolicyPlus -> Gen (Machine_State, PIPE_State)
+genMachine pplus = do
   -- registers
-  (mem,pmem) <- genDataMemory ppol
+  (mem,pmem) <- genDataMemory pplus
   let ms = initMachine {f_mem = mem}
-      ps = (init_pipe_state (initPC ppol) (initGPR ppol) initNextColor){p_mem = pmem}
+      ps = (init_pipe_state (initPC pplus) (initGPR pplus) initNextColor){p_mem = pmem}
       ms2 = setInstrI ms (JAL 0 1000)
-      ps2 = setInstrTagI ms ps (emptyInstTag ppol)  -- BCP: Needed??
+      ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- BCP: Needed??
 
   rs' <- updRegs $ f_gprs ms2
-  ts' <- updTags ppol $ p_gprs ps2
+  ts' <- updTags pplus $ p_gprs ps2
   let ms' = ms2 {f_gprs = rs'}
       ps' = ps2 {p_gprs = ts'}
   
-  (ms_fin, ps_fin, instrlocs) <- genByExec ppol maxInstrsToGenerate ms' ps' Data_Set.empty
+  (ms_fin, ps_fin, instrlocs) <- genByExec pplus maxInstrsToGenerate ms' ps' Data_Set.empty
 
   let final_mem = f_dm $ f_mem ms_fin
       res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs
@@ -413,12 +410,12 @@ genMachine ppol = do
 --  (is,its) <- unzip <$> vectorOf 20 (genInstr ms)
 --  return (setInstructions ms is, setInstrTags ps its)
 
-varyUnreachableMem :: PIPE_Policy -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
-varyUnreachableMem ppol r (Mem m ra) (MemT pm) = do
+varyUnreachableMem :: PolicyPlus -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
+varyUnreachableMem pplus r (Mem m ra) (MemT pm) = do
   combined <- mapM (\((i,d),(j,t)) -> do
                        -- Inlined here. Need to refactor
-                       let l = rdTagSet ppol t
-                       -- Ughly:
+                       let l = rdTagSet (policy pplus) t
+                       -- TODO: Ughly -- should be fixed with toExt
                        let c = case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Cell"] l) of
                                  (Just [c,_], _) -> c
                                  (_, Just [c]) -> c
@@ -433,15 +430,15 @@ varyUnreachableMem ppol r (Mem m ra) (MemT pm) = do
   let (m', pm') = unzip combined
   return (Mem (Data_Map.fromList m') ra, MemT (Data_Map.fromList pm'))
 
-varyUnreachable :: PIPE_Policy -> (Machine_State, PIPE_State) -> Gen MStatePair
-varyUnreachable ppol (m, p) = do
-  let r = runReader (reachable p) ppol
-  (mem', pmem') <- varyUnreachableMem ppol r (f_mem m) (p_mem p)
+varyUnreachable :: PolicyPlus -> (Machine_State, PIPE_State) -> Gen MStatePair
+varyUnreachable pplus (m, p) = do
+  let r = runReader (reachable p) pplus
+  (mem', pmem') <- varyUnreachableMem pplus r (f_mem m) (p_mem p)
   return $ M (m,p) (m {f_mem = mem'}, p {p_mem = pmem'})
 
-genMStatePair :: PIPE_Policy -> Gen MStatePair
-genMStatePair ppol = 
-  genMachine ppol >>= varyUnreachable ppol
+genMStatePair :: PolicyPlus -> Gen MStatePair
+genMStatePair pplus = 
+  genMachine pplus >>= varyUnreachable pplus
 
 {-
 

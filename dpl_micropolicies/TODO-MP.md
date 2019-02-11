@@ -1,7 +1,11 @@
 * TODAY
 
 make mem_readT return a default tag on an undefined access
-  so we need to put all the PIPE stuff in a monad, I guess
+  (halfway done)
+  we also want to use the P monad uniformly for printing, I guess
+
+put in a flag controlling whether misaligned accesses are allowed
+  and try to discover the bug!
 
 we should perhaps stop using mkTagSet, since I don’t think you should need
 it any more given the lower-level fromExt function.

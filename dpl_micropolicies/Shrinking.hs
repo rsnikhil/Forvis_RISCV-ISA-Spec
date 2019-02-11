@@ -30,15 +30,15 @@ shrinkColor :: Color -> [Color]
 shrinkColor (0) = []
 shrinkColor (_) = [0]
 
-shrinkTag :: PIPE_Policy -> TagSet -> [TagSet]
---shrinkTag ppol (MTagI Alloc) = [MTagI NoAlloc]
---shrinkTag ppol (MTagR c) = [MTagR c' | c' <- shrinkColor c]
---shrinkTag ppol (MTagM c1 c2) = [MTagM c1' c2' | c1' <- shrinkColor c1, c2' <- shrinkColor c2]
-shrinkTag ppol _ = []
+shrinkTag :: PolicyPlus -> TagSet -> [TagSet]
+--shrinkTag pplus (MTagI Alloc) = [MTagI NoAlloc]
+--shrinkTag pplus (MTagR c) = [MTagR c' | c' <- shrinkColor c]
+--shrinkTag pplus (MTagM c1 c2) = [MTagM c1' c2' | c1' <- shrinkColor c1, c2' <- shrinkColor c2]
+shrinkTag pplus _ = []
 
 -- INV: If we're shrinking registers, everything should already be equal.
-shrinkRegister :: PIPE_Policy -> (Integer, TagSet) -> [(Integer, TagSet)]
-shrinkRegister ppol (d,t) = [(d',t') | d' <- shrink d, t' <- shrinkTag ppol t]
+shrinkRegister :: PolicyPlus -> (Integer, TagSet) -> [(Integer, TagSet)]
+shrinkRegister pplus (d,t) = [(d',t') | d' <- shrink d, t' <- shrinkTag pplus t]
 
 -- INV: The register files are also identical
 --shrinkGPR :: (GPR_File, GPR_FileT) -> [(GPR_File, GPR_FileT)]
@@ -61,8 +61,8 @@ type IndexedTagedInt = ((Integer,Integer),(Integer, TagSet))
 -- Have to perform the same thing to both memories at once
 -- We also need the set of reachable things for data memories
 -- INV: Original memories contain identical indices
-shrinkMems :: PIPE_Policy -> Set Color -> (Mem, MemT) -> (Mem, MemT) -> [((Mem, MemT), (Mem,MemT))]
-shrinkMems ppol reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) = []
+shrinkMems :: PolicyPlus -> Set Color -> (Mem, MemT) -> (Mem, MemT) -> [((Mem, MemT), (Mem,MemT))]
+shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) = []
 --  let m1' = Data_Map.assocs m1
 --      t1' = Data_Map.assocs t1
 --      m2' = Data_Map.assocs m2
@@ -118,12 +118,12 @@ shrinkMems ppol reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) = []
 --        
 --  in map (indexTagedIntsToMem i1 *** indexTagedIntsToMem i2) $ shrinkMemAux (zip m1' t1') (zip m2' t2')
         
-shrinkMStatePair :: PIPE_Policy -> MStatePair -> [MStatePair]
-shrinkMStatePair ppol (M (m1,p1) (m2,p2)) =
-  let r = runReader (reachable p1) ppol
+shrinkMStatePair :: PolicyPlus -> MStatePair -> [MStatePair]
+shrinkMStatePair pplus (M (m1,p1) (m2,p2)) =
+  let r = runReader (reachable p1) pplus
       -- Shrink Memories
   in
   [ M (m1{f_mem = mem1},p1{p_mem = pmem1}) (m2{f_mem=mem2}, p2{p_mem=pmem2})
-  | ((mem1, pmem1), (mem2, pmem2)) <- shrinkMems ppol r (f_mem m1, p_mem p1) (f_mem m2, p_mem p2) ]
+  | ((mem1, pmem1), (mem2, pmem2)) <- shrinkMems pplus r (f_mem m1, p_mem p1) (f_mem m2, p_mem p2) ]
 
   

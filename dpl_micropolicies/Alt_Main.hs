@@ -37,52 +37,53 @@ import Printing
 
 import Control.Monad
 
-main_example = do
-  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
-  putStrLn $ "module name = " ++ (show name)
-  genASTFile (Just pol)
-  genSymbolsFile symbols
-  let x = mkTagSet ppol ["test","CP"] [Just 42,Just 99]
-  putStrLn $ show (rdTagSet ppol x)
-  putStrLn $ (show x)
-  putStrLn $ (show $ toExt x)
-  let y = fromExt [("Cell",Just 42),("Env",Nothing),("Pointer",Just 99)] 
-  putStrLn $ show (rdTagSet ppol y)
-  putStrLn $ (show y)
-  putStrLn $ (show $ toExt y)
+--main_example = do
+--  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
+--  putStrLn $ "module name = " ++ (show name)
+--  genASTFile (Just pol)
+--  genSymbolsFile symbols
+--  let x = mkTagSet ppol ["test","CP"] [Just 42,Just 99]
+--  putStrLn $ show (rdTagSet ppol x)
+--  putStrLn $ (show x)
+--  putStrLn $ (show $ toExt x)
+--  let y = fromExt [("Cell",Just 42),("Env",Nothing),("Pointer",Just 99)] 
+--  putStrLn $ show (rdTagSet ppol y)
+--  putStrLn $ (show y)
+--  putStrLn $ (show $ toExt y)
 
 -- Not very useful
 main_sample = do
-  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
-  states <- sample' (genMStatePair ppol)
-  forM_ states (print_mstatepair ppol)
+  pplus <- load_heap_policy
+  states <- sample' (genMStatePair pplus)
+  forM_ states (print_mstatepair pplus)
 
 main_trace = do
-  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
-  (M (ms1,ps1) (ms2,ps2)) <- head <$> sample' (genMStatePair ppol)
-  let (res, tr) = run_loop ppol 10 ps1 ms1
+  pplus <- load_heap_policy
+  (M (ms1,ps1) (ms2,ps2)) <- head <$> sample' (genMStatePair pplus)
+  let (res, tr) = run_loop (policy pplus) 10 ps1 ms1
       (ps', ms') : _ = tr
   putStrLn ""
 --  putStrLn "Initial state:"
---  print_coupled ppol ms1 ps1
+--  print_coupled pplus ms1 ps1
 --  putStrLn "_______________________________________________________________________"
 --  putStrLn "Final state:"
---  print_coupled ppol ms' ps'
+--  print_coupled pplus ms' ps'
 --  putStrLn "_______________________________________________________________________"
 --  putStrLn "Trace:"
   let finalTrace = {- map flipboth $ -} reverse $ zip tr tr
-  uncurry (printTrace ppol) (unzip finalTrace)
---  printTrace ppol (reverse tr)
+  uncurry (printTrace pplus) (unzip finalTrace)
+--  printTrace pplus (reverse tr)
   putStrLn (show res)
 
 -- The real one
 main_test = do
-  ppol@(name,pol,symbols) <- load_pipe_policy "heap.main"
-  quickCheckWith stdArgs{maxSuccess=1000} $ forAllShrink (genMStatePair ppol) (shrinkMStatePair ppol) $ \m ->
-    prop_noninterference ppol m
+  pplus <- load_heap_policy
+  quickCheckWith stdArgs{maxSuccess=1000} $ forAllShrink (genMStatePair pplus) (shrinkMStatePair pplus) $ \m ->
+    prop_noninterference pplus m
 
 main = main_test
 
+-- TODO: This does not belong here!
 instance Show Machine_State where
   show _ = ""
 

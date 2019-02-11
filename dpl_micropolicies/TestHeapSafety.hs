@@ -70,9 +70,9 @@ import Run_Program_PIPE
 
 cellColorOf :: TagSet -> P (Maybe Color)
 cellColorOf t = do
-  ppol <- ask
+  ppol <- askPolicy
   let l = rdTagSet ppol t
-  -- Ughly:
+  -- TODO: Ugh-ly -- can be done better with: toExt!
   case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Cell"] l) of
     (Just [c,_], _) -> return c
     (_, Just [c]) -> return c
@@ -80,7 +80,7 @@ cellColorOf t = do
 
 pointerColorOf :: TagSet -> P (Maybe Color)
 pointerColorOf t = do
-  ppol <- ask
+  ppol <- askPolicy
   let l = rdTagSet ppol t
   -- Ughly:
   case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Pointer"] l) of
@@ -90,7 +90,7 @@ pointerColorOf t = do
 
 envColorOf :: TagSet -> P (Maybe Color)
 envColorOf t = do
-  ppol <- ask
+  ppol <- askPolicy
   let l = rdTagSet ppol t
   -- Ughly:
   case (Data_List.lookup ["test","Env"] l) of
@@ -151,27 +151,29 @@ sameReachablePart (M (s1, p1) (s2, p2)) = do
 data MStatePair =
   M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
 
-emptyInstTag :: PIPE_Policy -> TagSet
-emptyInstTag ppol = 
-  mkTagSet ppol ["test","Inst"] [Nothing]
+emptyInstTag :: PolicyPlus -> TagSet
+emptyInstTag pplus = 
+  mkTagSet (policy pplus) ["test","Inst"] [Nothing]
 
-allocInstTag :: PIPE_Policy -> TagSet
-allocInstTag ppol =
-  mkTagSet ppol ["test","AllocInst"] [Nothing, Nothing]
+allocInstTag :: PolicyPlus -> TagSet
+allocInstTag pplus =
+  mkTagSet (policy pplus) ["test","AllocInst"] [Nothing, Nothing]
 
-prettyMStatePair :: PIPE_Policy -> MStatePair -> Doc
-prettyMStatePair ppol (M (m1, p1) (m2, p2)) =
-    P.vcat [ P.text "Reachable Colors:" <+> pretty ppol (runReader (reachable p1) ppol) (runReader (reachable p2) ppol)
-           , P.text "PC:" <+> pretty ppol (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
-           , P.text "Registers:" $$ P.nest 2 (pretty ppol (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
-           , P.text "Memories:" $$ P.nest 2 (pretty ppol (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
+prettyMStatePair :: PolicyPlus -> MStatePair -> Doc
+prettyMStatePair pplus (M (m1, p1) (m2, p2)) =
+    let ppol = policy pplus in
+    P.vcat [ P.text "Reachable Colors:" <+> pretty pplus (runReader (reachable p1) pplus) (runReader (reachable p2) pplus)
+           , P.text "PC:" <+> pretty pplus (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
+           , P.text "Registers:" $$ P.nest 2 (pretty pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
+           , P.text "Memories:" $$ P.nest 2 (pretty pplus (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
            ]
 
-print_mstatepair :: PIPE_Policy -> MStatePair -> IO ()
-print_mstatepair ppol m = putStrLn $ P.render $ prettyMStatePair ppol m
+print_mstatepair :: PolicyPlus -> MStatePair -> IO ()
+print_mstatepair pplus m = putStrLn $ P.render $ prettyMStatePair pplus m
 
-prop_noninterference :: PIPE_Policy -> MStatePair -> Property
-prop_noninterference ppol (M (m1,p1) (m2,p2)) =
+prop_noninterference :: PolicyPlus -> MStatePair -> Property
+prop_noninterference pplus (M (m1,p1) (m2,p2)) =
+  let ppol = policy pplus in
   let (r1,ss1') = run_loop ppol 100 p1 m1
       (r2,ss2') = run_loop ppol 100 p2 m2
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
@@ -185,43 +187,43 @@ prop_noninterference ppol (M (m1,p1) (m2,p2)) =
                -- putStrLn $ ""
                -- putStrLnGray $ "Trace..."
                let finalTrace = {- map flipboth $ -} reverse $ zip ss1' ss2'
-               uncurry (printTrace ppol) (unzip finalTrace)
+               uncurry (printTrace pplus) (unzip finalTrace)
 --               putStrLn "First One:"
 --               print_coupled m1' p1'
 --               putStrLn "Second One:"
 --               print_coupled m2' p2'
            )
            (collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32)
-             (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) ppol))
+             (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) pplus))
 
 verboseTracing = False
 --verboseTracing = True
 
-printTrace ppol tr1 tr2 = putStrLn $ P.render $ prettyTrace ppol tr1 tr2
+printTrace pplus tr1 tr2 = putStrLn $ P.render $ prettyTrace pplus tr1 tr2
 
-prettyTrace :: PIPE_Policy -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
-prettyTrace ppol [] [] = P.text ""
-prettyTrace ppol [(p1,m1)] [(p2,m2)] = prettyMStatePair ppol (M (m1,p1) (m2,p2))
-prettyTrace ppol (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
-    prettyMStatePair ppol (M (m1,p1) (m2,p2)) $$ P.text "------------------------------" $$ prettyDiffs ppol tr1 tr2
+prettyTrace :: PolicyPlus -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
+prettyTrace pplus [] [] = P.text ""
+prettyTrace pplus [(p1,m1)] [(p2,m2)] = prettyMStatePair pplus (M (m1,p1) (m2,p2))
+prettyTrace pplus (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
+    prettyMStatePair pplus (M (m1,p1) (m2,p2)) $$ P.text "------------------------------" $$ prettyDiffs pplus tr1 tr2
 
-prettyDiffs :: PIPE_Policy -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
-prettyDiffs ppol ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
+prettyDiffs :: PolicyPlus -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
+prettyDiffs pplus ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
   (if verboseTracing then
        P.text "----------------------------------------------------------------"
     $$ P.nest 10 (P.text "Raw Machine 1 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m12)))
     $$ P.nest 10 (P.text "Raw Machine 1 tags:" $$ P.nest 3 (P.text (show $ p_mem p12)))
     $$ P.nest 10 (P.text "Raw Machine 2 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m22)))
     $$ P.nest 10 (P.text "Raw Machine 2 tags:" $$ P.nest 3 (P.text (show $ p_mem p22)))
-    $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty ppol m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty ppol m22 p22) )
+    $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty pplus m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty pplus m22 p22) )
   else
     P.empty)
-  $$ pretty ppol (calcDiff ppol (p11,m11) (p12,m12))
-                 (calcDiff ppol (p21,m21) (p22,m22))
-  $$ prettyDiffs ppol ((p12,m12):tr1) ((p22,m22):tr2)
-prettyDiffs ppol [(p1,m1)] [(p2,m2)] =
+  $$ pretty pplus (calcDiff pplus (p11,m11) (p12,m12))
+                 (calcDiff pplus (p21,m21) (p22,m22))
+  $$ prettyDiffs pplus ((p12,m12):tr1) ((p22,m22):tr2)
+prettyDiffs pplus [(p1,m1)] [(p2,m2)] =
   P.text "------------------------------" $$
-  P.text "FINAL MACHINE STATES:" $$ prettyMStatePair ppol (M (m1,p1) (m2,p2))
+  P.text "FINAL MACHINE STATES:" $$ prettyMStatePair pplus (M (m1,p1) (m2,p2))
 prettyDiffs _ _ _ = P.text ""
 
 data Diff = Diff { d_pc :: (Integer, TagSet)               -- value and tag of the current PC
@@ -247,8 +249,8 @@ diff ((x1,y1):l1) ((x2,y2):l2) d
          | x1 > x2   = (if y2==d then [] else [(x2,(d,y2))]) ++ diff ((x1,y1):l1) l2 d
          | otherwise = (if y1==y2 then [] else [(x1,(y1,y2))]) ++ diff l1 l2 d 
 
-calcDiff :: PIPE_Policy -> (PIPE_State, Machine_State) -> (PIPE_State, Machine_State) -> Diff
-calcDiff ppol (p1,m1) (p2,m2) =
+calcDiff :: PolicyPlus -> (PIPE_State, Machine_State) -> (PIPE_State, Machine_State) -> Diff
+calcDiff pplus (p1,m1) (p2,m2) =
   Diff {
     d_pc = (f_pc m1, p_pc p1)
   , d_instr =
@@ -284,7 +286,7 @@ calcDiff ppol (p1,m1) (p2,m2) =
           MemT pm2 = p_mem p2
           both1 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm1) (Data_Map.assocs pm1)
           both2 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm2) (Data_Map.assocs pm2)
-          diffs = diff both1 both2 (uninitialized_word, emptyInstTag ppol)
+          diffs = diff both1 both2 (uninitialized_word, emptyInstTag pplus)
           extract (i,(_,(d,t))) = (i,d,t)
        in map extract diffs 
   }
@@ -307,46 +309,53 @@ calcDiff ppol (p1,m1) (p2,m2) =
 --                        " data = " ++ show data_diff ++
 --                        " and tags = " ++ show tag_diff
 
-prettyRegDiff ppol ((i,d,l):r1) ((i', d', l'):r2)
+prettyRegDiff pplus ((i,d,l):r1) ((i', d', l'):r2)
     | i == i', d == d', l == l' =
-        (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l)
-        $$ prettyRegDiff ppol r1 r2
+        (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty pplus d l)
+        $$ prettyRegDiff pplus r1 r2
     | otherwise =
-      (ppStrong (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty ppol d l <||>
-                 P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty ppol d' l'))
-      $$ prettyRegDiff ppol r1 r2
+      (ppStrong (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty pplus d l <||>
+                 P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty pplus d' l'))
+      $$ prettyRegDiff pplus r1 r2
 prettyRegDiff _ [] [] = P.text ""
 -- TODO: This is not supposed to be possible, but I saw it happen...
 prettyRegDiff _ _ _ = P.text "<prettyRegDiff??>"
 
-prettyMemDiff ppol ((i,d,l):m1) ((i', d', l'):m2)
+prettyMemDiff pplus ((i,d,l):m1) ((i', d', l'):m2)
     | i == i', d == d', l == l' =
-        (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l)
-        $$ prettyMemDiff ppol m1 m2
+        (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty pplus d l)
+        $$ prettyMemDiff pplus m1 m2
     | otherwise =
-      (ppStrong (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d l
-                 <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty ppol d' l'))
-      $$ prettyMemDiff ppol m1 m2
+      (ppStrong (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty pplus d l
+                 <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty pplus d' l'))
+      $$ prettyMemDiff pplus m1 m2
 prettyMemDiff _ [] [] = P.text ""
 prettyMemDiff _ _ _ = P.text "<prettyMemDiff??>"
 
 instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
-  pretty ppol (Just i1) (Just i2)
-    | i1 == i2  = pp ppol i1
-    | otherwise = ppStrong (pp ppol i1 <||> pp ppol i2)
+  pretty pplus (Just i1) (Just i2)
+    | i1 == i2  = pp pplus i1
+    | otherwise = ppStrong (pp pplus i1 <||> pp pplus i2)
   pretty _ Nothing Nothing = P.text "<Bad instr>"
 
 instance CoupledPP Diff Diff where
-  pretty ppol d1 d2 =
-    P.hcat [ pad 17 (pretty ppol (d_pc d1) (d_pc d2))
+  pretty pplus d1 d2 =
+    P.hcat [ pad 17 (pretty pplus (d_pc d1) (d_pc d2))
            , P.text " "
-           , pad 17 (pretty ppol (d_instr d1) (d_instr d2))
+           , pad 17 (pretty pplus (d_instr d1) (d_instr d2))
            , P.text "     "
-           , prettyRegDiff ppol (d_reg d1) (d_reg d2)
-           , prettyMemDiff ppol (d_mem d1) (d_mem d2)
+           , prettyRegDiff pplus (d_reg d1) (d_reg d2)
+           , prettyMemDiff pplus (d_mem d1) (d_mem d2)
            ]
 
 -- TODO: The fact that we need this is a sad indication of how confused
 -- everything is about whether pipe or machine states go first...
 flipboth :: ((a,b),(a,b)) -> ((b,a),(b,a))
 flipboth ((a1,b1),(a2,b2)) = ((b1,a1),(b2,a2))
+
+load_heap_policy = do
+  ppol <- load_pipe_policy "heap.main"
+  let pplus = PolicyPlus {
+        policy = ppol,
+        initGPR = mkTagSet ppol ["test", "Pointer"] [Just 0] }
+  return pplus

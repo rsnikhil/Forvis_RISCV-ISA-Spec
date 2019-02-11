@@ -1,4 +1,6 @@
-module PIPE(PIPE_Policy,
+module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
+            PolicyPlus(..),
+            askPolicy,
             load_pipe_policy,
             TagSet,
             P,
@@ -43,8 +45,6 @@ import Control.Monad.Reader
 
 type PIPE_Policy = E.QPolMod
 
-type P a = Reader PIPE_Policy a
-
 type TagSet = EC.TagValue 
 
 showTagSet t = 
@@ -54,6 +54,17 @@ showTagSet t =
     "{" ++ intercalate ", " (map f (toExt t)) ++ "}"
 
 type Color = Int
+
+data PolicyPlus = PolicyPlus { policy :: PIPE_Policy
+                             , initGPR :: TagSet 
+                             }
+
+type P a = Reader PolicyPlus a
+
+askPolicy :: P PIPE_Policy
+askPolicy =
+  do ppol_plus <- ask
+     return (policy ppol_plus)
 
 load_pipe_policy :: String {- policy file name -}
                  -> IO PIPE_Policy
