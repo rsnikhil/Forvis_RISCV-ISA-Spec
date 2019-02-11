@@ -57,6 +57,7 @@ type Color = Int
 
 data PolicyPlus = PolicyPlus { policy :: PIPE_Policy
                              , initGPR :: TagSet 
+                             , initMem :: TagSet 
                              }
 
 type P a = Reader PolicyPlus a
@@ -142,9 +143,9 @@ newtype MemT = MemT {unMemT :: Data_Map.Map Integer TagSet}
 mkMemT :: [(Integer,TagSet)] -> MemT 
 mkMemT = foldr (\ (a,t) m -> mem_writeT m a t) (MemT Data_Map.empty)
 
-mem_readT :: MemT -> Integer -> TagSet
-mem_readT m a =
-     maybe (error $ "undefined mem_readT " ++ (show a)) id (Data_Map.lookup a (unMemT m))
+mem_readT :: PolicyPlus -> MemT -> Integer -> TagSet
+mem_readT pplus m a =
+     maybe (initMem pplus) id (Data_Map.lookup a (unMemT m))
  
 -- TODO: We are not sure this will do the right thing (i.e., something
 -- coherence with what the processor does) on unaligned writes.
@@ -201,8 +202,8 @@ get_rtag p = gpr_readT (p_gprs p)
 set_mtag :: PIPE_State -> Integer -> TagSet -> PIPE_State
 set_mtag p a t = p {p_mem = mem_writeT (p_mem p) a t}
 
-get_mtag :: PIPE_State -> Integer -> TagSet
-get_mtag p = mem_readT (p_mem p) 
+get_mtag :: PolicyPlus -> PIPE_State -> Integer -> TagSet
+get_mtag pplus p = mem_readT pplus (p_mem p) 
 
 ---------------------------------
 
@@ -236,7 +237,7 @@ exec_pipe' pplus p pc inst maddr =
   let inp0 :: EC.OperandTags
       inp0 = M.fromList [
               (Right EC.ESKEnv, p_pc p),
-              (Right EC.ESKCode, get_mtag p pc)]
+              (Right EC.ESKCode, get_mtag pplus p pc)]
       {- generate opcode name in usual form for 'group' section -- a bit hacky -}
       name = map toLower $ takeWhile (not . isSpace) $ show inst  
       look k m = maybe (error $ "lookup failure " ++ (show k)) id (M.lookup k m)
@@ -278,10 +279,10 @@ exec_pipe' pplus p pc inst maddr =
         ex (M.fromList [(RS1,get rs1),(RS2,get rs2)])
               (\out -> set rd $ look (Left RD) out)
       r1md1 rs1 rd =
-        ex (M.fromList [(RS1,get rs1),(Mem, get_mtag p maddr)])
+        ex (M.fromList [(RS1,get rs1),(Mem, get_mtag pplus p maddr)])
            (\out -> set rd $ look (Left RD) out)              
       r2md0m rs1 rs2 =
-        ex (M.fromList [(RS1,get rs1),(RS2,get rs2),(Mem, get_mtag p maddr)])
+        ex (M.fromList [(RS1,get rs1),(RS2,get rs2),(Mem, get_mtag pplus p maddr)])
            (\out -> set_mtag p maddr $ look  (Left Mem) out)              
   in case inst of
        LUI rd _ -> r0d1 rd

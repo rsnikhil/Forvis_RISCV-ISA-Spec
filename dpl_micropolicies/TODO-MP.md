@@ -1,12 +1,5 @@
 * TODAY
 
-make mem_readT return a default tag on an undefined access
-  (halfway done)
-  we also want to use the P monad uniformly for printing, I guess
-
-put in a flag controlling whether misaligned accesses are allowed
-  and try to discover the bug!
-
 we should perhaps stop using mkTagSet, since I don’t think you should need
 it any more given the lower-level fromExt function.
 
@@ -17,12 +10,16 @@ replace Shrinking stuff with Leo's updated version
   and get it working
   and remove / hide the old micropolicies directory
 
-merge in Nikhil's master (as needed)
-  and fold our changes back into master pretty soon
+put in a flag controlling whether misaligned accesses are allowed
+  and try to discover the bug!
 
 beautify the code so others can use it
+  use the P monad uniformly for printing, I guess
 
 "JAL r0" is probably bad style (we use it in our first instr)
+
+merge in Nikhil's master (from time to time, as needed)
+  and fold our changes back into master pretty soon
 
 more permanent fix for the issue with misaligned accesses
   we want a PIPE_trap, not a fatal error

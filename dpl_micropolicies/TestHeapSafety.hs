@@ -192,8 +192,8 @@ prop_noninterference pplus (M (m1,p1) (m2,p2)) =
 --               putStrLn "Second One:"
 --               print_coupled m2' p2'
            )
-           (collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32)
-             (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) pplus))
+           -- collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32) $
+             (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) pplus)
 
 verboseTracing = False
 --verboseTracing = True
@@ -354,7 +354,12 @@ flipboth ((a1,b1),(a2,b2)) = ((b1,a1),(b2,a2))
 
 load_heap_policy = do
   ppol <- load_pipe_policy "heap.main"
-  let pplus = PolicyPlus {
-        policy = ppol,
-        initGPR = mkTagSet ppol ["test", "Pointer"] [Just 0] }
+  let pplus = PolicyPlus
+        { policy = ppol
+        , initGPR = mkTagSet ppol ["test", "Pointer"] [Just 0]
+        , initMem =
+            -- TODO: Might be better to make it some separate
+            -- "Uninitialized" tag?
+            mkTagSet (policy pplus) ["test","CP"] [Just 0, Just 0]
+        }
   return pplus
