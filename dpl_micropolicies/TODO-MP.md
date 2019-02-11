@@ -1,6 +1,7 @@
 * TODAY
 
 make mem_readT return a default tag on an undefined access
+  so we need to put all the PIPE stuff in a monad, I guess
 
 we should perhaps stop using mkTagSet, since I don’t think you should need
 it any more given the lower-level fromExt function.

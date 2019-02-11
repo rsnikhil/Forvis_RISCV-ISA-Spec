@@ -19,7 +19,7 @@ policy:
     ^ arithGrp(env == _, op1 == _ -> env = env, res = op1)  
 #ifndef BUG1
     ^ loadGrp(env == _, addr == {(Pointer color)}, mem == [+(Cell color)] ->
-             env = env, res = mem[-(Cell _)])
+             env = env, res = mem[-(Cell color)])
 #else
 // Buggy:
 //    ^ loadGrp(env == _, addr == {(Pointer color)}, mem == _ ->
