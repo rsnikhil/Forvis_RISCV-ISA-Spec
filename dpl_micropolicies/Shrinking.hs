@@ -31,10 +31,16 @@ shrinkColor (0) = []
 shrinkColor (_) = [0]
 
 shrinkTag :: PolicyPlus -> TagSet -> [TagSet]
---shrinkTag pplus (MTagI Alloc) = [MTagI NoAlloc]
---shrinkTag pplus (MTagR c) = [MTagR c' | c' <- shrinkColor c]
---shrinkTag pplus (MTagM c1 c2) = [MTagM c1' c2' | c1' <- shrinkColor c1, c2' <- shrinkColor c2]
-shrinkTag pplus _ = []
+shrinkTag pplus t =
+  case toExt t of
+    [("heap.Alloc", Nothing), ("heap.Instr", Nothing)] ->
+      [fromExt [("heap.Instr", Nothing)]]
+    [("heap.Pointer", Just cp)] ->
+      [fromExt [("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
+    [("heap.Cell", Just cc), ("heap.Pointer", Just cp)] ->
+      [fromExt [("heap.Cell", Just cc'), ("heap.Pointer", Just cp')] |
+          cc' <- shrinkColor cc, cp' <- shrinkColor cp]
+    _ -> []
 
 -- INV: If we're shrinking registers, everything should already be equal.
 shrinkRegister :: PolicyPlus -> (Integer, TagSet) -> [(Integer, TagSet)]

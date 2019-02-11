@@ -171,7 +171,7 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
            Nothing
         
       validJump ((reg_id,reg_content),(_, reg_tag))
-        | reg_content < instrLow && isJust (runReader (envColorOf reg_tag) pplus) =
+        | reg_content < instrLow && isJust (envColorOf reg_tag) =
           Just (reg_id, instrLow - reg_content)
         | otherwise =
           Nothing
@@ -407,14 +407,7 @@ genMachine pplus = do
 varyUnreachableMem :: PolicyPlus -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
 varyUnreachableMem pplus r (Mem m ra) (MemT pm) = do
   combined <- mapM (\((i,d),(j,t)) -> do
-                       -- Inlined here. Need to refactor
-                       let l = rdTagSet (policy pplus) t
-                       -- TODO: Ughly -- should be fixed with toExt
-                       let c = case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Cell"] l) of
-                                 (Just [c,_], _) -> c
-                                 (_, Just [c]) -> c
-                                 _ -> Nothing
-                       case c of
+                       case cellColorOf t of
                          Just c'
                            | Data_Set.member c' r -> return ((i,d),(j,t))
                            | otherwise -> do d' <- genImm 12 -- TODO: This makes no sense

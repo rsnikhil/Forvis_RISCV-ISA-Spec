@@ -6,7 +6,7 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             P,
             Color,
             -- mkTagSet,
-            rdTagSet,
+            -- rdTagSet,
             showTagSet,
             fromExt,
             toExt,
@@ -94,16 +94,15 @@ load_pipe_policy fname =
    (The implementation is fiddly (and inefficient!) because maps are 
    sorted by key, but we must remember the order in which tag bits 
    are listed in the 'requires' clause so as to match up the parameters.) -}
-rdTagSet :: PIPE_Policy -> TagSet -> [([String],[Maybe Int])]
-rdTagSet (_,_,symtabs) ts =  
-  map (\ (name,tbs) -> (name, map ((M.!) ts) tbs)) matching_tss
-   where
-    matching_tss = filter (\ (_,tbs) -> (M.keys ts == sort tbs)) all_tss
-    all_tss =
-          map
-           (\ (Init _ name (ISExact _ ts))  -> (name, map qsym ts))
-           (concatMap requires (map snd symtabs))
-
+-- rdTagSet :: PIPE_Policy -> TagSet -> [([String],[Maybe Int])]
+-- rdTagSet (_,_,symtabs) ts =  
+--   map (\ (name,tbs) -> (name, map ((M.!) ts) tbs)) matching_tss
+--    where
+--     matching_tss = filter (\ (_,tbs) -> (M.keys ts == sort tbs)) all_tss
+--     all_tss =
+--           map
+--            (\ (Init _ name (ISExact _ ts))  -> (name, map qsym ts))
+--            (concatMap requires (map snd symtabs))
 
 {- A somewhat quick-and-dirty way to build and retrieve tag sets 
    using just the tag names. The external format is a list

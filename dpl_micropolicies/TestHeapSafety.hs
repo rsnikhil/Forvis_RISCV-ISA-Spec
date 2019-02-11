@@ -99,15 +99,9 @@ pointerColorOf :: TagSet -> Maybe Color
 pointerColorOf t = 
   join $ Data_List.lookup "heap.Pointer" (toExt t)
 
-envColorOf :: TagSet -> P (Maybe Color)
+envColorOf :: TagSet -> Maybe Color
 envColorOf t = do
-  ppol <- askPolicy
-  let l = rdTagSet ppol t
-  -- Ughly:
-  case (Data_List.lookup ["test","Env"] l) of
-    (Just [p]) -> return p
-    _ -> return Nothing
-
+  join $ Data_List.lookup "heap.Env" (toExt t)
 
 reachableInOneStep :: MemT -> Set Color -> P (Set Color)
 reachableInOneStep m s =
@@ -186,15 +180,15 @@ prop_noninterference pplus (M (m1,p1) (m2,p2)) =
   let (r1,ss1') = run_loop pplus 100 p1 m1
       (r2,ss2') = run_loop pplus 100 p2 m2
       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
-  whenFail (do putStrLnRed $ "Reachable parts differ after execution!"
+  whenFail (do putStrLnUrgent $ "Reachable parts differ after execution!"
                putStrLn $ ""
-               -- putStrLnGray $ "Original machines:"
+               -- putStrLnHighlight $ "Original machines:"
                -- print_mstatepair ppol (M (m1,p1) (m2,p2))
                -- putStrLn $ ""
-               -- putStrLnGray $ "After execution..."
+               -- putStrLnHighlight $ "After execution..."
                -- print_mstatepair ppol (M (m1', p1') (m2', p2'))
                -- putStrLn $ ""
-               -- putStrLnGray $ "Trace..."
+               -- putStrLnHighlight $ "Trace..."
                let finalTrace = {- map flipboth $ -} reverse $ zip ss1' ss2'
                uncurry (printTrace pplus) (unzip finalTrace)
 --               putStrLn "First One:"

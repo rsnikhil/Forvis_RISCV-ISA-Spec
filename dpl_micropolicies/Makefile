@@ -8,7 +8,10 @@ unmutated:
 
 mutant:
 	@echo 
-	@echo "[37;41m--------- $(MUT) -----------[0m"
+	@echo "[37;46m"
+	@echo "                   $(MUT)"
+	@echo 
+	@echo "[0m"
 	@mkdir -p .mutants
 	@cpp -D$(MUT) heap.dpl > .mutants/heap.dpl
 	@sed -i '' '/^#/d' .mutants/heap.dpl

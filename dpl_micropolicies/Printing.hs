@@ -118,7 +118,7 @@ instance CoupledPP GPR_File GPR_FileT where
     fcat $
     map (\((i,d),(i', t)) ->
             P.integer i <+> P.char ':' <+> pretty pplus d t <+> P.text "  ")
-      $ filter (\((_,d),(_,t)) -> (d /= 0) || (t /= initMem pplus))
+      $ filter (\((_,d),(_,t)) -> (d /= 0) || (t /= initGPR pplus))
       $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
 
 instance CoupledPP Mem MemT where
@@ -148,15 +148,16 @@ instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
   pretty pplus (GPR_File r1, GPR_FileT t1) (GPR_File r2, GPR_FileT t2) =
     if r1 == r2 && t1 == t2 then 
       pretty pplus (GPR_File r1) (GPR_FileT t1)
-    else
-      P.vcat $ map (foldl1 (<|>))
-             $ chunksOf 4
-             $ map (\ (((i,d1),(_,t1)),((_,d2),(_,t2))) ->
+    else -- TODO: Fix printing
+      P.fcat $ map (\(((i,d1),(_,t1)),((_,d2),(_,t2))) ->
                 if d1 == d2 && t1 == t2 then 
                   P.integer i <+> P.char ':' <+> pretty pplus d1 t1
                 else
-                  P.integer i <+> ppStrong (pretty pplus d1 t1 <||> pretty pplus d2 t2)
+                  P.integer i <+> P.char ':' <+> ppStrong (pretty pplus d1 t1 <||> pretty pplus d2 t2)
                    )
+             $ filter (\ (((_,d1),(_,t1)),((_,d2),(_,t2))) ->
+                            (d1 /= 0) || (t1 /= initGPR pplus) ||
+                            (d2 /= 0) || (t2 /= initGPR pplus))
              $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
                    (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
     

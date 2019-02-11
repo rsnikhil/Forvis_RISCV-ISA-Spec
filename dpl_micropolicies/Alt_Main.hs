@@ -1,21 +1,5 @@
--- Copyright (c) 2018 Rishiyur S. Nikhil
--- See LICENSE for license details
-
 module Main where
 
--- ================================================================
--- This is the 'main' function of the program, which just dispatches
--- to one of several possible 'main' functions for different use-cases
--- of Forvis.
-
--- ================================================================
--- Standard Haskell imports
-
--- none
-
--- Project imports
-
---
 import Arch_Defs
 import Forvis_Spec_I
 import PIPE

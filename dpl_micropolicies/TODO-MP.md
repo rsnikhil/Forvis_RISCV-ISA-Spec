@@ -1,11 +1,5 @@
 * TODAY
 
-we should stop using mkTagSet -- use fromExt instead
-
-improve printing 
-  replace ppol arguments with our own information (e.g., for defaults)
-  clean up the colors
-
 replace Shrinking stuff with Leo's updated version
   and get it working
   and remove / hide the old micropolicies directory
