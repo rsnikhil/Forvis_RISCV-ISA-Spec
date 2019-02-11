@@ -1,10 +1,10 @@
 * TODAY
 
-we should perhaps stop using mkTagSet, since I don’t think you should need
-it any more given the lower-level fromExt function.
+we should stop using mkTagSet -- use fromExt instead
 
 improve printing 
   replace ppol arguments with our own information (e.g., for defaults)
+  clean up the colors
 
 replace Shrinking stuff with Leo's updated version
   and get it working
@@ -28,6 +28,9 @@ Improve printing
   
 Find a more permanent fix for the JAL issue
   see the "DPL rules for JAL thread"
+
+after we update to Chris C's new parser
+  remove the sed hack in the makefile
 
 ________________________________________________________
 * SOON

@@ -20,6 +20,7 @@ import Memory
 -- This might belong elsewhere
 import Test.QuickCheck
 
+import Debug.Trace
 import Control.Monad.Reader
 import Terminal 
 
@@ -68,25 +69,35 @@ import Run_Program_PIPE
         things on its list.
 -}
 
-cellColorOf :: TagSet -> P (Maybe Color)
-cellColorOf t = do
-  ppol <- askPolicy
-  let l = rdTagSet ppol t
-  -- TODO: Ugh-ly -- can be done better with: toExt!
-  case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Cell"] l) of
-    (Just [c,_], _) -> return c
-    (_, Just [c]) -> return c
-    _ -> return Nothing
+-- cellColorOf :: TagSet -> P (Maybe Color)
+-- cellColorOf t = do
+--   ppol <- askPolicy
+--   let l = rdTagSet ppol t
+--   -- TODO: Ugh-ly -- can be done better with: toExt!
+--   case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Cell"] l) of
+--     (Just [c,_], _) -> return c
+--     (_, Just [c]) -> return c
+--     _ -> return Nothing
 
-pointerColorOf :: TagSet -> P (Maybe Color)
-pointerColorOf t = do
-  ppol <- askPolicy
-  let l = rdTagSet ppol t
-  -- Ughly:
-  case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Pointer"] l) of
-    (Just [_,p], _) -> return p
-    (_, Just [p]) -> return p
-    _ -> return Nothing
+-- The "heap." here is OK, I guess because we're in the heap safety policy... 
+cellColorOf :: TagSet -> Maybe Color
+cellColorOf t = 
+  -- trace ("cellColorOf " ++ show t ++ " i.e. " ++ show (toExt t)) $
+  join $ Data_List.lookup "heap.Cell" (toExt t)
+
+-- pointerColorOf :: TagSet -> P (Maybe Color)
+-- pointerColorOf t = do
+--   ppol <- askPolicy
+--   let l = rdTagSet ppol t
+--   -- Ughly:
+--   case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Pointer"] l) of
+--     (Just [_,p], _) -> return p
+--     (_, Just [p]) -> return p
+--     _ -> return Nothing
+
+pointerColorOf :: TagSet -> Maybe Color
+pointerColorOf t = 
+  join $ Data_List.lookup "heap.Pointer" (toExt t)
 
 envColorOf :: TagSet -> P (Maybe Color)
 envColorOf t = do
@@ -100,9 +111,9 @@ envColorOf t = do
 
 reachableInOneStep :: MemT -> Set Color -> P (Set Color)
 reachableInOneStep m s =
-  foldM (\s t -> do
-           c <- cellColorOf t
-           p <- pointerColorOf t
+  foldM (\s t -> do  -- TODO: do notation not needed here
+           let c = cellColorOf t
+           let p = pointerColorOf t
            case (c,p) of
              (Just c', Just p') | Data_Set.member c' s -> return $ Data_Set.insert p' s
              _ -> return s)
@@ -115,8 +126,8 @@ reachableLoop m s = do
 
 registerColors :: PIPE_State -> P (Set Color)
 registerColors pstate = 
-  foldM (\s t -> do
-            c <- pointerColorOf t
+  foldM (\s t -> do --TODO: Do notation not needed
+            let c = pointerColorOf t
             case c of
               Just c' -> return $ Data_Set.insert c' s 
               Nothing -> return s)
@@ -134,8 +145,7 @@ sameReachablePart (M (s1, p1) (s2, p2)) = do
       filterAux _ [] = return []
       filterAux ((i,d):ds) ((j,t):ts)
         | i == j = do
-            c <- cellColorOf t
-            case c of
+            case cellColorOf t of
               Just c' | Data_Set.member c' r1 -> (d :) <$> filterAux ds ts
               _ -> filterAux ds ts
         | i < j = filterAux ds ((j,t):ts)
@@ -153,11 +163,11 @@ data MStatePair =
 
 emptyInstTag :: PolicyPlus -> TagSet
 emptyInstTag pplus = 
-  mkTagSet (policy pplus) ["test","Inst"] [Nothing]
+  fromExt [("heap.Inst", Nothing)]
 
 allocInstTag :: PolicyPlus -> TagSet
 allocInstTag pplus =
-  mkTagSet (policy pplus) ["test","AllocInst"] [Nothing, Nothing]
+  fromExt [("heap.Alloc", Nothing), ("heap.Inst", Nothing)]
 
 prettyMStatePair :: PolicyPlus -> MStatePair -> Doc
 prettyMStatePair pplus (M (m1, p1) (m2, p2)) =
@@ -197,6 +207,8 @@ prop_noninterference pplus (M (m1,p1) (m2,p2)) =
 
 verboseTracing = False
 --verboseTracing = True
+
+-- TODO: A lot of this printing stuff belongs in Printing.hs, I think
 
 printTrace pplus tr1 tr2 = putStrLn $ P.render $ prettyTrace pplus tr1 tr2
 
@@ -356,10 +368,12 @@ load_heap_policy = do
   ppol <- load_pipe_policy "heap.main"
   let pplus = PolicyPlus
         { policy = ppol
-        , initGPR = mkTagSet ppol ["test", "Pointer"] [Just 0]
+        , initGPR = fromExt [("heap.Pointer", Just 0)]
         , initMem =
             -- TODO: Might be better to make it some separate
             -- "Uninitialized" tag?
-            mkTagSet (policy pplus) ["test","CP"] [Just 0, Just 0]
+            fromExt [("heap.Cell", Just 0), ("heap.Pointer", Just 0)]
+        , initPC = fromExt [("heap.Env", Nothing)]
+        , initNextColor = 5
         }
   return pplus

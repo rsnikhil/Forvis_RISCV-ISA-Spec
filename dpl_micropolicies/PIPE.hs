@@ -5,7 +5,7 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             TagSet,
             P,
             Color,
-            mkTagSet,
+            -- mkTagSet,
             rdTagSet,
             showTagSet,
             fromExt,
@@ -58,6 +58,8 @@ type Color = Int
 data PolicyPlus = PolicyPlus { policy :: PIPE_Policy
                              , initGPR :: TagSet 
                              , initMem :: TagSet 
+                             , initPC :: TagSet 
+                             , initNextColor :: Color
                              }
 
 type P a = Reader PolicyPlus a
@@ -79,13 +81,13 @@ load_pipe_policy fname =
    a dotted string ([String]) to a TagSet.
    Each tag in the tag set is applied to the corresponding (Maybe Int) param,
    which represents an (optional) parameter (e.g. color) to attach to the tag.  -}
-mkTagSet :: PIPE_Policy -> [String] -> [Maybe Int] -> TagSet
-mkTagSet (_,_,symtabs) name params =
-  let Init _ _ (ISExact _ ts) =          
-        maybe (error $ "mkTag cannot find " ++ (show name)) id $
-            find (\ (Init _ name' _) -> name == name')
-                 (concatMap requires (map snd symtabs))
-  in M.fromList (zipWith (\tag param -> (qsym tag,param)) ts params)
+-- mkTagSet :: PIPE_Policy -> [String] -> [Maybe Int] -> TagSet
+-- mkTagSet (_,_,symtabs) name params =
+--   let Init _ _ (ISExact _ ts) =          
+--         maybe (error $ "mkTag cannot find " ++ (show name)) id $
+--             find (\ (Init _ name' _) -> name == name')
+--                  (concatMap requires (map snd symtabs))
+--   in M.fromList (zipWith (\tag param -> (qsym tag,param)) ts params)
     
 {- Inverse of mkTagSet. Returns a list, since zero or more 'requires'
    might match a given TagSet. 
@@ -180,15 +182,13 @@ data PIPE_State = PIPE_State {
 
 {- Build an initial state with default tags. This can then be
    tweaked using the exported gpr and mem functions.  -}
-init_pipe_state :: TagSet {- default PC tag -} ->
-                   TagSet {- default GPR tag -} ->
-                   Int    {- initial generator value -} -> 
+init_pipe_state :: PolicyPlus -> 
                    PIPE_State
-init_pipe_state initPC initGPR initGen = PIPE_State {
-  p_pc = initPC,
-  p_gprs = mkGPR_FileT initGPR,
+init_pipe_state pplus = PIPE_State {
+  p_pc = initPC pplus,
+  p_gprs = mkGPR_FileT (initGPR pplus),
   p_mem = mkMemT [],
-  p_next = initGen
+  p_next = initNextColor pplus
   }
 
 {- These operators are private (for no very strong reason). -}

@@ -46,14 +46,6 @@ initMachine =
       addr_byte_list = []
   in mkMachine_State  RV32  misa  initial_PC  addr_ranges  addr_byte_list
 
--- TODO: These should not be hardcoded!  Should at least come from the
--- testHeapSafety file...
-initPC :: PolicyPlus -> TagSet
-initPC pplus = mkTagSet (policy pplus) ["test", "Env"] [Nothing]
-
-initNextColor :: Int
-initNextColor = 5
-
 {-
 Put heap_base r1 @ default
 Mov r1 r1 @ (fresh color)
@@ -170,9 +162,9 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
       validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
         | reg_content >= dataMemLow &&
           reg_content <= dataMemHigh
-          && isJust (runReader (pointerColorOf reg_tag) pplus) =
+          && isJust (pointerColorOf reg_tag) =
            Just (reg_id, reg_content, 0, dataMemHigh - reg_content, reg_tag)
-        | reg_content == 0 && isJust (runReader (pointerColorOf reg_tag) pplus) =
+        | reg_content == 0 && isJust (pointerColorOf reg_tag) =
         -- We can allow a 0 register by adding at least 4
            Just (reg_id, 0, dataMemLow, dataMemHigh, reg_tag)
         | otherwise =
@@ -192,10 +184,10 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
 -- All locations that can be accessed using color 'c' between 'lo' and 'hi'
 reachableLocsBetween :: PolicyPlus -> Mem -> MemT -> Integer -> Integer -> TagSet -> [Integer]
 reachableLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
-  case runReader (pointerColorOf t) pplus of
+  case pointerColorOf t of
     Just c -> 
       map fst $ filter (\(i,t) ->
-                          case runReader (cellColorOf t) pplus of
+                          case cellColorOf t of
                             Just c' -> c == c' && i >= lo && i <= hi
                             _ -> False
                        ) (Data_Map.assocs pm)
@@ -308,12 +300,14 @@ genColorHigh =
             , (3, choose (3,4) )
             ]
 
-
+-- This function and its friends will need to be parameters to the
+-- generation stuff as soon as we try to support two different
+-- policies!
 genMTagM :: PolicyPlus -> Gen TagSet
 genMTagM pplus = do
   c1 <- genColor
   c2 <- genColor
-  return $ mkTagSet (policy pplus) ["test","CP"] [Just c1, Just c2]
+  return $ fromExt [("heap.Cell", Just c1), ("heap.Pointer", Just c2)]
 
 genDataMemory :: PolicyPlus -> Gen (Mem, MemT)
 genDataMemory pplus = do
@@ -364,7 +358,7 @@ updRegs (GPR_File rs) = do
   let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
   return $ GPR_File rs'
 
-mkPointerTagSet pplus c = mkTagSet pplus ["test", "Pointer"] [Just c]
+mkPointerTagSet pplus c = fromExt [("heap.Pointer", Just c)]
 
 updTags :: PolicyPlus -> GPR_FileT -> Gen GPR_FileT
 updTags pplus (GPR_FileT rs) = do
@@ -380,7 +374,7 @@ genMachine pplus = do
   -- registers
   (mem,pmem) <- genDataMemory pplus
   let ms = initMachine {f_mem = mem}
-      ps = (init_pipe_state (initPC pplus) (initGPR pplus) initNextColor){p_mem = pmem}
+      ps = (init_pipe_state pplus){p_mem = pmem}
       ms2 = setInstrI ms (JAL 0 1000)
       ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- BCP: Needed??
 

@@ -19,7 +19,7 @@ import GPR_File
 import FPR_File
 import CSR_File
 
-import Text.PrettyPrint (Doc, (<+>), ($$))
+import Text.PrettyPrint (Doc, (<+>), ($$), fcat)
 import qualified Text.PrettyPrint as P
 
 import Control.Arrow (second)
@@ -28,30 +28,6 @@ import Data.List.Split (chunksOf)
 import Data.List (intercalate)
 
 import Terminal
-
--- showRawTag :: (String,Maybe Int) -> String
--- showRawTag (s, Nothing) = s
--- showRawTag (s, Just i)  = s ++ "(" ++ show i ++ ")"
--- 
--- showRawTagSet :: ([String],[Maybe Int]) -> String
--- -- showRawTagSet (names,colors) =
--- --   intercalate "," $ map showRawTag $ zip names colors
--- --
--- -- Hardcoding some specific tags (just to get things going)
--- -- TODO: Nuke this horrible stuff!
--- showRawTagSet (["test","Env"],       [Nothing])          = "Env" 
--- showRawTagSet (["test","Inst"],      [Nothing])          = "Inst" 
--- showRawTagSet (["test","AllocInst"], [Nothing])          = "Alloc, Inst" 
--- showRawTagSet (["test","Pointer"],   [Just c1])          = "Pointer " ++ show c1
--- -- Not sure why we need the next line
--- showRawTagSet (["test","CP"],        [Just c1, Just c2]) = "Cell " ++ show c1 ++ ", Pointer " ++ show c2 
--- showRawTagSet t = show t
-
--- OLDshowTagSet pplus t =
---   case rdTagSet pplus t of
---     [] -> "{" ++ show t ++ " (concretely)}"
---     [t] -> "{" ++ showRawTagSet t ++ "}"
---     (t:_) -> "{" ++ showRawTagSet t ++ " (for example)}"
 
 -- TODO: This doesn't need pplus any more, so we could remove it from
 -- all the printing stuff!!
@@ -123,22 +99,27 @@ pr_imem m pplus =
       decoded  = filter (isJust . snd) $ map (second $ decode_I RV32) contents
   in P.vcat $ map (\(i, Just instr) -> pad 4 (P.integer i) <:> pp pplus instr) decoded
 
--- IDEAS: only show non-trivial registers?
--- BCP: Yes, please!!
 pr_mem :: Mem -> PolicyPlus -> Doc
 pr_mem m pplus = 
   let contents = Data_Map.assocs $ f_dm m 
       decoded  = filter (not . isJust . decode_I RV32 . snd) contents
   in P.vcat $ map (\(i, d) -> P.integer i <:> P.integer d) decoded
 
--- TODO: Align better, tabs don't work well
--- BCP: Maybe just put all (the nontrivial ones) on one line?
+-- instance CoupledPP GPR_File GPR_FileT where
+--   pretty pplus (GPR_File m) (GPR_FileT mt) =
+--     P.vcat $ map (foldl1 (<|>))
+--            $ chunksOf 4
+--            $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':'
+--                                       <+> pretty pplus d t)
+--            $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
+
 instance CoupledPP GPR_File GPR_FileT where
   pretty pplus (GPR_File m) (GPR_FileT mt) =
-    P.vcat $ map (foldl1 (<|>))
-           $ chunksOf 4
-           $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':' <+> pretty pplus d t)
-           $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
+    fcat $
+    map (\((i,d),(i', t)) ->
+            P.integer i <+> P.char ':' <+> pretty pplus d t <+> P.text "  ")
+      $ filter (\((_,d),(_,t)) -> (d /= 0) || (t /= initMem pplus))
+      $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
 
 instance CoupledPP Mem MemT where
   pretty pplus (Mem m _) (MemT pm) =
