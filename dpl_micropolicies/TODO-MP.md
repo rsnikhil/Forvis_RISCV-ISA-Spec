@@ -7,11 +7,15 @@ implement mutation testing
 we should perhaps stop using mkTagSet, since I don’t think you should need it any
 more given the lower-level fromExt function.
 
+improve printing 
+  replace ppol arguments with our own information (e.g., for defaults)
+
 replace Shrinking stuff with Leo's updated version
   and get it working
   and remove / hide the old micropolicies directory
 
 merge in Nikhil's master (as needed)
+  and fold our changes back into master pretty soon
 
 beautify the code so others can use it
 
