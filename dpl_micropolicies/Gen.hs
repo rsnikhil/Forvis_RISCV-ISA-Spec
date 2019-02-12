@@ -367,7 +367,6 @@ updTags pplus (GPR_FileT rs) = do
   let rs' :: Data_Map.Map Integer TagSet = Data_Map.insert 1 c1 $ Data_Map.insert 2 c2 $ Data_Map.insert 3 c3 rs
   return $ GPR_FileT rs'
 
-maxInstrsToGenerate = 10
 
 genMachine :: PolicyPlus -> Gen (Machine_State, PIPE_State)
 genMachine pplus = do

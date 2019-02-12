@@ -19,6 +19,7 @@ import Machine_State
 import Control.Arrow (second, (***))
 import Test.QuickCheck
 import TestHeapSafety
+import Gen
 
 import Control.Monad.Reader
 
@@ -73,23 +74,27 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
       t1' = Data_Map.assocs t1
       m2' = Data_Map.assocs m2
       t2' = Data_Map.assocs t2
+
+      isData  i = i >= dataMemLow && i <= dataMemHigh
+      isInstr i = i == 0 || i >= instrLow
  
       shrinkMemLoc :: (Integer, Integer, TagSet) -> (Integer, Integer, TagSet) ->
                       [ (IndexedTagedInt, IndexedTagedInt) ]
-      shrinkMemLoc (j,d1,l1) (_,d2,l2) =
+      shrinkMemLoc (j,d1,l1) (_,d2,l2)
+        | isInstr j =
         -- This identifies a memory loc by if it is decode-able to an instruction.
         -- RETHINK: Is there a better way? Tags? Hardcoded locations?
-        case (decode_I RV32 d1, decode_I RV32 d2) of
-          -- Both (identical) instructions
-          (Just i1, Just i2)
-            | i1 == i2 && l1 == l2 ->
-              -- Shrink instruction
-              [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- encode_I RV32 <$> shrinkInstr i1] ++
-              -- Or shrink tag (alloc)
-              [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag pplus l1 ]
-            | otherwise -> error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
-          -- TODO: Shrink data cells
-          (Nothing, Nothing) ->
+          case (decode_I RV32 d1, decode_I RV32 d2) of
+            -- Both (identical) instructions
+            (Just i1, Just i2)
+              | i1 == i2 && l1 == l2 ->
+                -- Shrink instruction
+                [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- encode_I RV32 <$> shrinkInstr i1] ++
+                -- Or shrink tag (alloc)
+                [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag pplus l1 ]
+              | otherwise -> error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
+            _ -> error "Instructions can't be decoded"
+        | otherwise =
             case (cellColorOf l1, pointerColorOf l1, cellColorOf l2, pointerColorOf l2) of 
 --            case (l1, l2) of
               (Just loc1, Just v1, Just loc2, Just v2) 
@@ -112,7 +117,6 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
                   -- TODO: Shrink labels?
                 | otherwise -> error "Not simultaneously reachable or unreachable?"
               otherwise -> error "Data memory without cell or pointer color?"
-          _ -> error "Invalid memory locs"
  
       shrinkMemAux :: [ IndexedTagedInt ] -> [ IndexedTagedInt] -> [ ([IndexedTagedInt], [IndexedTagedInt]) ]
       shrinkMemAux [] [] = []

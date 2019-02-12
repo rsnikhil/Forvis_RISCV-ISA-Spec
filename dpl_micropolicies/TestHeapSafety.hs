@@ -390,7 +390,7 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
                       let finalTrace = map flipboth $ reverse $ 
                                        ((m1r,p1r), (m2r, p2r)) : trace'
                       uncurry (printTrace pplus) (unzip finalTrace)) $
-           property $ sameReachablePart (M (m1r,p1r) (m2r, p2r)))
+           property $ (runReader (sameReachablePart (M (m1r,p1r) (m2r, p2r))) pplus))
         .&&. 
         prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
       (Left s1, Left s2) ->
@@ -400,7 +400,8 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
       (_, Left s2) ->
          label ("Pipe trap " ++ s2) $ property True
 
-maxInstrsToGenerate = 60
+maxInstrsToGenerate :: Int
+maxInstrsToGenerate = 10
 
 prop_noninterference :: PolicyPlus -> MStatePair -> Property
 prop_noninterference pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms
