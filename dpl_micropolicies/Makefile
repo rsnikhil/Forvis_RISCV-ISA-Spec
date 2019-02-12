@@ -6,6 +6,12 @@ build:
 unmutated:
 	@make mutant MUT=NO_MUTATIONS
 
+ifeq ($(shell uname),Darwin)
+  SED = sed -i '' '/^\#/d' 
+else
+  SED = sed -i '/^\#/d' 
+endif
+
 mutant:
 	@echo 
 	@echo "[37;46m"
@@ -14,7 +20,7 @@ mutant:
 	@echo "[0m"
 	@mkdir -p .mutants
 	@cpp -D$(MUT) heap.dpl > .mutants/heap.dpl
-	@sed -i '/^#/d' .mutants/heap.dpl
+	@$(SED) .mutants/heap.dpl
 	@(cd .mutants; time stack exec dpl-exe)
 
 mutants:

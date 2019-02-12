@@ -55,7 +55,7 @@ run_loop'  fuel maxinstrs trace pipe_state mstate =
 
       -- Tick: regular maintenance (increment cycle count, real-time
       -- timer, propagate interrupts, etc.)
-      mstate1 = mstate_mem_tick  mstate
+      mstate1 = mstate_io_tick  mstate
 
     -- Simulation aid: Stop due to instruction limit
     in if (fuel >= maxinstrs) --fromIntegral maxinstrs)
