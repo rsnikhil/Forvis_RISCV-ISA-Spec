@@ -23,7 +23,8 @@ Improve printing
 Find a more permanent fix for the JAL issue
   see the "DPL rules for JAL thread"
 
-after we update to Chris C's new parser
+switch to Chris's new syntax for the policy tool when Andrew is ready
+  and then
   remove the sed hack in the makefile
 
 ________________________________________________________
