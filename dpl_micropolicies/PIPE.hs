@@ -253,7 +253,11 @@ exec_pipe' pplus p pc inst maddr =
                  -- (or opgroup?)  that we're currently trying to
                  -- execute (I've tried to add this but it doesn't
                  -- look good yet)
-                 Left EC.TFImplicit -> (p, PIPE_Trap $ "no applicable rule for " ++ show inp ++ " and instr group " ++ show name)
+                 Left EC.TFImplicit ->
+                   let tags = map (\(k,t) -> show k ++ "=" ++ showTagSet t) (M.assocs inp) in
+                   let i = "[" ++ intercalate ", " tags ++ "]" in
+                   (p, PIPE_Trap $ "no applicable rule for " ++ i
+                                    ++ " and instr group " ++ show name)
                  Left (EC.TFExplicit s) -> (p, PIPE_Trap s)
                  Right out -> 
                            ((outf out) 
