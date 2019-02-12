@@ -52,8 +52,7 @@ endColor =
   setSGRCode [ Reset ]
 
 ppStrong p =
-  (P.text $ setSGRCode [ SetConsoleIntensity BoldIntensity, 
-                         SetColor Foreground Dull Blue ])
+  (P.text $ setSGRCode [ SetColor Foreground Dull Blue ])
   P.<>
   p
   P.<>

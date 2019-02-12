@@ -31,3 +31,4 @@ cabal.project.local
 elf_to_hex
 ast.txt
 symbols.txt
+.mutants
