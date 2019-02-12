@@ -183,7 +183,7 @@ verboseTracing = False
 printTrace pplus tr1 tr2 = putStrLn $ P.render $ prettyTrace pplus tr1 tr2
 
 prettyTrace :: PolicyPlus -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
-prettyTrace pplus [] [] = P.text ""
+prettyTrace pplus [] [] = P.empty
 prettyTrace pplus [(p1,m1)] [(p2,m2)] = prettyMStatePair pplus (M (m1,p1) (m2,p2))
 prettyTrace pplus (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
     prettyMStatePair pplus (M (m1,p1) (m2,p2)) $$ P.text ""
@@ -206,7 +206,7 @@ prettyDiffs pplus ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
   $$ prettyDiffs pplus ((p12,m12):tr1) ((p22,m22):tr2)
 prettyDiffs pplus [(p1,m1)] [(p2,m2)] =
   P.text "" $$ P.text "Final:" $$ prettyMStatePair pplus (M (m1,p1) (m2,p2))
-prettyDiffs _ _ _ = P.text ""
+prettyDiffs _ _ _ = P.empty
 
 data Diff = Diff { d_pc :: (Integer, TagSet)               -- value and tag of the current PC
                  , d_instr :: Maybe Instr_I                -- current instruction
@@ -299,7 +299,7 @@ prettyRegDiff pplus ((i,d,l):r1) ((i', d', l'):r2)
       (ppStrong (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty pplus d l <||>
                  P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty pplus d' l'))
       $$ prettyRegDiff pplus r1 r2
-prettyRegDiff _ [] [] = P.text ""
+prettyRegDiff _ [] [] = P.empty
 -- TODO: This is not supposed to be possible, but I saw it happen...
 prettyRegDiff _ _ _ = P.text "<prettyRegDiff??>"
 
@@ -311,7 +311,7 @@ prettyMemDiff pplus ((i,d,l):m1) ((i', d', l'):m2)
       (ppStrong (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty pplus d l
                  <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty pplus d' l'))
       $$ prettyMemDiff pplus m1 m2
-prettyMemDiff _ [] [] = P.text ""
+prettyMemDiff _ [] [] = P.empty
 prettyMemDiff _ _ _ = P.text "<prettyMemDiff??>"
 
 instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
