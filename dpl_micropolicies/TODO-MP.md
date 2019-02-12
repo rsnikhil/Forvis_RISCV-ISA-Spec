@@ -1,25 +1,27 @@
 * TODAY
 
-replace Shrinking stuff with Leo's updated version
-  and get it working
-  and remove / hide the old micropolicies directory
+more mutants
+
+get Shrinking fully working
 
 put in a flag controlling whether misaligned accesses are allowed
   and try to discover the bug!
+
+fold our changes back into master after 2/16
+  (to give Nikhil a chance to comment)
 
 beautify the code so others can use it
   use the P monad uniformly for printing, I guess
 
 "JAL r0" is probably bad style (we use it in our first instr)
 
-merge in Nikhil's master (from time to time, as needed)
-  and fold our changes back into master pretty soon
-
 more permanent fix for the issue with misaligned accesses
   we want a PIPE_trap, not a fatal error
 
 Improve printing
   
+remove / hide the old micropolicies directory
+
 Find a more permanent fix for the JAL issue
   see the "DPL rules for JAL thread"
 

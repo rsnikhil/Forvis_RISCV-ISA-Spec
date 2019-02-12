@@ -24,6 +24,7 @@ mutant:
 	@(cd .mutants; time stack exec dpl-exe)
 
 mutants:
-	@make mutant MUT=BUG1
+	@make mutant MUT=OMIT_CHECKS_ON_LOAD
+	@make mutant MUT=OMIT_TAGGING_ON_STORE
 
 

@@ -166,7 +166,7 @@ allocInstTag pplus =
 prettyMStatePair :: PolicyPlus -> MStatePair -> Doc
 prettyMStatePair pplus (M (m1, p1) (m2, p2)) =
     let ppol = policy pplus in
-    P.vcat [ P.text "Reachable Colors:" <+> pretty pplus (runReader (reachable p1) pplus) (runReader (reachable p2) pplus)
+    P.vcat [ P.text "Reachable:" <+> pretty pplus (runReader (reachable p1) pplus) (runReader (reachable p2) pplus)
            , P.text "PC:" <+> pretty pplus (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
            , P.text "Registers:" $$ P.nest 2 (pretty pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
            , P.text "Memories:" $$ P.nest 2 (pretty pplus (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
@@ -186,7 +186,8 @@ prettyTrace :: PolicyPlus -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Mach
 prettyTrace pplus [] [] = P.empty
 prettyTrace pplus [(p1,m1)] [(p2,m2)] = prettyMStatePair pplus (M (m1,p1) (m2,p2))
 prettyTrace pplus (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
-    prettyMStatePair pplus (M (m1,p1) (m2,p2)) $$ P.text "------------------------------" $$ prettyDiffs pplus tr1 tr2
+    prettyMStatePair pplus (M (m1,p1) (m2,p2)) $$ P.text ""
+      $$ P.text "Trace:" $$ prettyDiffs pplus tr1 tr2
 
 prettyDiffs :: PolicyPlus -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
 prettyDiffs pplus ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
@@ -196,15 +197,15 @@ prettyDiffs pplus ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
     $$ P.nest 10 (P.text "Raw Machine 1 tags:" $$ P.nest 3 (P.text (show $ p_mem p12)))
     $$ P.nest 10 (P.text "Raw Machine 2 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m22)))
     $$ P.nest 10 (P.text "Raw Machine 2 tags:" $$ P.nest 3 (P.text (show $ p_mem p22)))
-    $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty pplus m12 p12) $$ P.text "Machine 2" $$ P.nest 3 (pretty pplus m22 p22) )
+    $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty pplus m12 p12) $$
+                  P.text "Machine 2" $$ P.nest 3 (pretty pplus m22 p22) )
   else
     P.empty)
   $$ pretty pplus (calcDiff pplus (p11,m11) (p12,m12))
                  (calcDiff pplus (p21,m21) (p22,m22))
   $$ prettyDiffs pplus ((p12,m12):tr1) ((p22,m22):tr2)
 prettyDiffs pplus [(p1,m1)] [(p2,m2)] =
-  P.text "------------------------------" $$
-  P.text "FINAL MACHINE STATES:" $$ prettyMStatePair pplus (M (m1,p1) (m2,p2))
+  P.text "" $$ P.text "Final:" $$ prettyMStatePair pplus (M (m1,p1) (m2,p2))
 prettyDiffs _ _ _ = P.empty
 
 data Diff = Diff { d_pc :: (Integer, TagSet)               -- value and tag of the current PC
