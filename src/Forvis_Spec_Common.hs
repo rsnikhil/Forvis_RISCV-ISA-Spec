@@ -173,8 +173,10 @@ finish_frd_and_pc_plus_4    rd          rd_val     is_n_lt_FLEN  mstate =
       mstate3 = incr_minstret     mstate2
   in
     mstate3
-#endif
                                                                -- \end_latex{finish_frd_and_pc_plus_4}
+{-# INLINE finish_frd_and_pc_plus_4 #-}
+
+#endif
 
 -- ================================================================
 -- Trap actions:                                               -- \begin_latex{mstate_upd_on_trap}
