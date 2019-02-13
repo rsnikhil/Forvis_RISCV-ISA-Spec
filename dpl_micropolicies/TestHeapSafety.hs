@@ -384,7 +384,7 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
   -- BCP: Check for traps too
   else if run_state1 /= Run_State_Running || run_state2 /= Run_State_Running then 
     label (let (s1,s2) = (show run_state1, show run_state2) in
-           if s1==s2 then s1 else s1 ++ " / " ++ show run_state2) 
+           if s1==s2 then s1 else (s1 ++ " / " ++ s2))
        $ property True
   else
     case (fetch_and_execute pplus p1 m1', fetch_and_execute pplus p2 m2') of
