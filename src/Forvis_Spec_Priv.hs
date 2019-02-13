@@ -86,8 +86,11 @@ exec_instr_Priv  instr_32b  is_C  instr_Priv  mstate =
 -- ================================================================
 -- MRET/SRET/URET
 
+-- type Spec_Instr_Priv = Bool -> Instr_Priv -> Machine_State -> Machine_State
+-- --                     is_C    instr_Priv    mstate           mstate'
+-- 
 exec_xRET :: Instr_32b -> Spec_Instr_Priv
-exec_xRET  instr_32b  is_C  instr_Priv  mstate =
+exec_xRET    instr_32b    is_C  instr_Priv  mstate =
   let
     is_MRET  = (instr_Priv == MRET)
     is_SRET  = (instr_Priv == SRET)

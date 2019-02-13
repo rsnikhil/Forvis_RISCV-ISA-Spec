@@ -12,7 +12,6 @@ module Arch_Defs where
 -- Standard Haskell imports
 
 import Data.Bits
-import Control.Exception (assert)
 
 -- Project imports
 

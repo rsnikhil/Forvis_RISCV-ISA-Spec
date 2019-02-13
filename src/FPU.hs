@@ -3,6 +3,8 @@
 
 module FPU where
 
+#ifdef FLOAT
+
 -- ================================================================
 -- This module defines various RISC-V FPU functions.
 
@@ -1229,3 +1231,4 @@ fpu_f64ToI64       frmVal          rs1Val   =
 
 
 -- ================================================================
+#endif
