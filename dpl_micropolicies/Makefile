@@ -15,7 +15,7 @@ endif
 mutant:
 	@echo 
 	@echo "[37;46m"
-	@echo "                   $(MUT)"
+	@echo "                                  $(MUT)"
 	@echo 
 	@echo "[0m"
 	@mkdir -p .mutants
