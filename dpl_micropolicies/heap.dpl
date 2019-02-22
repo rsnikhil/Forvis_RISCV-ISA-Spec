@@ -45,13 +45,12 @@ allocGrp(
 ^ loadGrp(
     env == _, addr == {(Pointer color)}, mem == [+(Cell color)] 
     ->
-    env = env, res = mem[-(Cell color)])
+    env = env, res = mem[-(Cell _)])
 #else
 ^ loadGrp(
     env == _, addr == {(Pointer color)}, mem == _ 
     ->
-    env = env, res = mem[-(Cell color)])   
-// APT: At the moment, you cannot have wildcards in output positions
+    env = env, res = mem[-(Cell _)])   
 #endif
 
 // ------------------------------------------------------------------------------

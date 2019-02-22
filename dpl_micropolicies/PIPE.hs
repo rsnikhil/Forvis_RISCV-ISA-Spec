@@ -5,6 +5,9 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             TagSet,
             P,
             Color,
+            -- APT: These might be useful one day (even if not for autotesting)
+            -- Should wait until integrating Chris's new parser, which supports int fields in tags.
+            -- Still need to fix to translate tags to fully qualified form.
             -- mkTagSet,
             -- rdTagSet,
             showTagSet,
