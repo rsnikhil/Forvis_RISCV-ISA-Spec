@@ -1,4 +1,8 @@
-* TODAY
+* URGENT
+
+fold our changes back into master after 2/16
+
+* NOW
 
 more mutants
 
@@ -6,9 +10,6 @@ get Shrinking fully working
 
 put in a flag controlling whether misaligned accesses are allowed
   and try to discover the bug!
-
-fold our changes back into master after 2/16
-  (to give Nikhil a chance to comment)
 
 beautify the code so others can use it
   use the P monad uniformly for printing, I guess
@@ -42,8 +43,6 @@ there are too many magic constants saying how many instructions to
 generate / execute!
 
 are we generating too many "interesting" immediate fields?
-
-delete policy-* when finished using them for reference
 
 ________________________________________________________
 * LATER
