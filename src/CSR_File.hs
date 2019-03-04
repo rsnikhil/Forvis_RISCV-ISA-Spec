@@ -416,7 +416,11 @@ m_csr_reset_values    rv    misa =
     (csr_addr_mstatus,    if (rv == RV32)
                           then 0
                           else ((    shiftL  xl_rv64  mstatus_sxl_bitpos)
-                                .|. (shiftL  xl_rv64  mstatus_uxl_bitpos))),
+                                .|. (shiftL  xl_rv64  mstatus_uxl_bitpos)
+#ifdef FLOAT
+                                .|. (shiftL  1        mstatus_fs_bitpos)
+#endif
+                               )),
     (csr_addr_misa,       misa),
     (csr_addr_medeleg,    0),
     (csr_addr_mideleg,    0),
@@ -587,8 +591,8 @@ mstatus_mxr_bitpos     = 19 :: Int
 mstatus_sum_bitpos     = 18 :: Int
 mstatus_mprv_bitpos    = 17 :: Int
 
-mstatus_fs_bitpos      = 15 :: Int
-mstatus_xs_bitpos      = 13 :: Int
+mstatus_xs_bitpos      = 15 :: Int
+mstatus_fs_bitpos      = 13 :: Int
 
 mstatus_mpp_bitpos     = 11 :: Int
 mstatus_spp_bitpos     =  8 :: Int

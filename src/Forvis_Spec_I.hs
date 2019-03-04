@@ -493,10 +493,13 @@ exec_LOAD    is_C    rd          rs1         imm12         funct3        mstate 
                                          eaddr2
                                                                                 -- \end_latex{exec_LOAD}
 
+    -- Record eaddr and wdata for Tandem Verification
+    mstate2 = mstate_eaddr_write  eaddr2   mstate1
+
     -- Finish with trap, or finish with loading Rd with load-value
-    mstate2 = case result1 of
+    mstate3 = case result1 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  exc_code  eaddr2  mstate1
+                  finish_trap  exc_code  eaddr2  mstate2
 
                 Mem_Result_Ok  d    ->
                   let rd_val | (funct3 == funct3_LB) = sign_extend  8   xlen  d
@@ -504,9 +507,9 @@ exec_LOAD    is_C    rd          rs1         imm12         funct3        mstate 
                              | (funct3 == funct3_LW) = sign_extend  32  xlen  d
                              | True  = d
                   in
-                    finish_rd_and_pc_incr  rd  rd_val  is_C  mstate1
+                    finish_rd_and_pc_incr  rd  rd_val  is_C  mstate2
   in
-    mstate2
+    mstate3
 
 -- ================================================================
 -- STORE: SB, SH, SW
@@ -537,12 +540,16 @@ exec_STORE    is_C    rs1         rs2         imm12         funct3        mstate
     -- Write mem, possibly with virtual mem translation
     (result1, mstate1) = mstate_vm_write  mstate  funct3  eaddr2  rs2_val
 
-    --     Finally: finish with trap, or finish with fall-through
-    mstate2 = case result1 of
-                Mem_Result_Err exc_code -> finish_trap  exc_code  eaddr2  mstate1
-                Mem_Result_Ok  _        -> finish_pc_incr  is_C  mstate1
+    -- Record eaddr and wdata for Tandem Verification
+    mstate2 = mstate_eaddr_write  eaddr2   mstate1
+    mstate3 = mstate_wdata_write  rs2_val  mstate2
+
+    -- Finally: finish with trap, or finish with fall-through
+    mstate4 = case result1 of
+                Mem_Result_Err exc_code -> finish_trap  exc_code  eaddr2  mstate3
+                Mem_Result_Ok  _        -> finish_pc_incr  is_C  mstate3
   in
-    mstate2
+    mstate4
 
 -- ================================================================
 -- OP_IMM: ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI

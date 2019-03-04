@@ -162,14 +162,18 @@ exe_AMO  funct3  msbs5  is_C  rd  rs1  rs2  aq  rl  mstate =
     -- Do the AMO op
     (result1, mstate1) = mstate_vm_amo  mstate  funct3  msbs5  aq  rl  eaddr2  rs2_val
 
+    -- Record eaddr and wdata for Tandem Verification
+    mstate2 = mstate_eaddr_write  eaddr2   mstate1
+    mstate3 = mstate_wdata_write  rs2_val  mstate2
+
     -- Finish with trap, or finish with loading Rd with AMO result
-    mstate2 = case result1 of
+    mstate4 = case result1 of
                 Mem_Result_Err exc_code ->
-                  finish_trap  exc_code  eaddr2  mstate1
+                  finish_trap  exc_code  eaddr2  mstate3
 
                 Mem_Result_Ok  x        ->
-                  finish_rd_and_pc_incr  rd  x  is_C  mstate1
+                  finish_rd_and_pc_incr  rd  x  is_C  mstate3
   in
-    mstate2
+    mstate4
 
 -- ================================================================

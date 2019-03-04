@@ -134,10 +134,12 @@ test_v2: $(FORVIS_EXE)
 # ================================================================
 # Running sample C programs compiled by gcc to ELF files
 
+VERBOSITY = 0
+
 # Standard C program that prints "Hello World!\n"
 .PHONY: test_hello
 test_hello: $(FORVIS_EXE)
-	./$(FORVIS_EXE)  --arch RV64AIMSU  --tohost  \
+	./$(FORVIS_EXE)  --arch RV64AIMSU  --tohost  --verbosity $(VERBOSITY) \
 		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
 		$(TEST_PROGRAMS)/MIT/rv64-hello
 
@@ -190,3 +192,14 @@ full_clean:
 	rm  -r -f  *~  $(SRC_DIR)/*~  $(TMP_DIR)  *.hi *.o  $(FORVIS_EXE)
 
 # ================================================================
+
+C_PROGS_DIR = ./Test_Programs/C_programs_RV32
+
+# Standard C program that prints "Hello World!\n"
+.PHONY: test_hello2
+test_hello2: $(FORVIS_EXE)
+	./$(FORVIS_EXE)  --arch RV32AIMU  --tohost  --n 5000000  --verbosity $(VERBOSITY) \
+		$(TEST_PROGRAMS)/boot_ROM_RV64.hex32 \
+		$(C_PROGS_DIR)/intOpsTest/intOpsTest
+#		$(C_PROGS_DIR)/hello/hello
+#		$(C_PROGS_DIR)/filters/filters

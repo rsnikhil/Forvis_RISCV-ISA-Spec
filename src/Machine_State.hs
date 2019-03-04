@@ -47,6 +47,10 @@ data Machine_State =
                   f_mem  :: Mem,
                   f_mmio :: MMIO,
 
+                  -- For Tandem Verification
+                  f_eaddr :: Integer,
+                  f_wdata :: Integer,
+
                   -- Implementation options
 
                   -- Legal memory addresses: list of (addr_start, addr_lim)
@@ -102,8 +106,12 @@ mkMachine_State  rv  misa  initial_PC  addr_ranges  addr_byte_list =
                             f_csrs = mkCSR_File  rv  misa,
                             f_priv = m_Priv_Level,
 
-                            f_mem             = mkMem  addr_byte_list,
-                            f_mmio            = mkMMIO,
+                            f_mem  = mkMem  addr_byte_list,
+                            f_mmio = mkMMIO,
+
+                            f_eaddr = 0,
+                            f_wdata = 0,
+
                             f_mem_addr_ranges = addr_ranges,
 
                             f_rv                 = rv,
@@ -386,6 +394,21 @@ mstate_mem_sfence_vma  mstate  rs1_val  rs2_val = mstate
 {-# INLINE mstate_mem_fence #-}
 {-# INLINE mstate_mem_fence_i #-}
 {-# INLINE mstate_mem_sfence_vma #-}
+
+-- ================================================================
+-- For Tandem Verification 
+
+mstate_eaddr_read :: Machine_State -> Integer
+mstate_eaddr_read  mstate = f_eaddr mstate
+
+mstate_eaddr_write :: Integer -> Machine_State -> Machine_State
+mstate_eaddr_write    val        mstate = mstate { f_eaddr = val }
+
+mstate_wdata_read :: Machine_State -> Integer
+mstate_wdata_read  mstate = f_wdata mstate
+
+mstate_wdata_write :: Integer -> Machine_State -> Machine_State
+mstate_wdata_write    val        mstate = mstate { f_wdata = val }
 
 -- ================================================================
 -- Simulation aids
