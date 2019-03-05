@@ -17,6 +17,7 @@ import RegNames
 
 import Machine_State
 import Arch_Defs
+import Forvis_Spec_Instr_Fetch
 
 -- ================================================================
 
@@ -33,7 +34,7 @@ verify_instr    mstate1          mstate2          item =
     TI_Addl_State    addl_state            -> verify_addl_state  mstate1  mstate2  addl_state
     TI_Mem_Req       addr  op  size  wdata -> verify_TBD "verify_instr: TI_Mem_Req not yet handled"
     TI_Mem_Rsp       size  result  rdata   -> verify_TBD "verify_instr: TI_Mem_Rsp not yet handled"
-    TI_Hart_Reset                          -> return True
+    TI_Hart_Reset                          -> return True    -- TODO: reset mstate?
     TI_State_Init                          -> return True
     TI_Instr16       instr16               -> verify_instr16  mstate1  mstate2  instr16
     TI_Instr32       instr32               -> verify_instr32  mstate1  mstate2  instr32
@@ -178,43 +179,65 @@ verify_reg_write    mstate1          mstate2          reg       val = do
 
 verify_instr32 :: Machine_State -> Machine_State -> Word64 -> IO Bool
 verify_instr32    mstate1          mstate2          instr32 = do
-  let pc                     = mstate_pc_read  mstate1
-      (load_result, mstate') = mstate_mem_read  exc_code_load_access_fault  funct3_LW  pc  mstate1
-  case load_result of
-    Mem_Result_Ok  instr32_a  -> if (fromIntegral instr32 == instr32_a) then
-                                   return True
-                                 else
-                                   do
-                                     putStrLn  ("verify_instr32: mismatch")
-                                     putStrLn  ("    Forvis instr32: " ++ showHex instr32_a "")
-                                     putStrLn  ("    DUT    instr32: " ++ showHex instr32   "")
-                                     return False
+  let (fetch_result, mstate') = instr_fetch  mstate1
+  case fetch_result of
+    Fetch       instr32_a  -> if (fromIntegral instr32 == instr32_a) then
+                                return True
+                              else
+                                do
+                                  putStrLn  ("verify_instr32: mismatch")
+                                  putStrLn  ("    Forvis instr32: " ++ showHex instr32_a "")
+                                  putStrLn  ("    DUT    instr32: " ++ showHex instr32   "")
+                                  return False
 
-    Mem_Result_Err trap_cause -> (do
-                                     putStrLn ("verify_instr32: memory read trap " ++ show trap_cause)
-                                     putStrLn  ("    DUT    instr32: " ++ showHex instr32   "")
-                                     return False)
-  
+    Fetch_C     instr16_a  -> (do
+                                  putStrLn  ("verify_instr32: mismatch:")
+                                  putStrLn  ("    Forvis instr16 (compressed): " ++ showHex instr16_a "")
+                                  putStrLn  ("    DUT    instr32             : " ++ showHex instr32   "")
+                                  return False)
+
+    Fetch_Trap  trap_cause -> (do
+                                  putStrLn ("verify_instr32: " ++ show_trap_exc_code trap_cause)
+                                  putStrLn  ("    DUT    instr32: " ++ showHex instr32   "")
+                                  return False)
+
 
 verify_instr16 :: Machine_State -> Machine_State -> Word64 -> IO Bool
 verify_instr16    mstate1          mstate2          instr16 = do
-  let pc                     = mstate_pc_read  mstate1
-      (load_result, mstate') = mstate_mem_read  exc_code_load_access_fault  funct3_LW  pc  mstate1
+  let (load_result, mstate') = instr_fetch  mstate1
   case load_result of
-    Mem_Result_Ok  instr16_a  -> if (fromIntegral instr16 == instr16_a) then
-                                   return True
-                                 else
-                                   do
-                                     putStrLn  ("verify_instr16: mismatch")
-                                     putStrLn  ("    Forvis instr16: " ++ showHex instr16_a "")
-                                     putStrLn  ("    DUT    instr16: " ++ showHex instr16   "")
-                                     return False
+    Fetch_C  instr16_a    -> if (fromIntegral instr16 == instr16_a) then
+                               return True
+                             else
+                               do
+                                 putStrLn  ("verify_instr16: mismatch")
+                                 putStrLn  ("    Forvis instr16: " ++ showHex instr16_a "")
+                                 putStrLn  ("    DUT    instr16: " ++ showHex instr16   "")
+                                 return False
 
-    Mem_Result_Err trap_cause -> (do
-                                     putStrLn ("verify_instr16: memory read trap " ++ show trap_cause)
-                                     putStrLn  ("    DUT    instr16: " ++ showHex instr16   "")
-                                     return False)
+    Fetch  instr32_a      -> (do
+                                  putStrLn  ("verify_instr16: mismatch:")
+                                  putStrLn  ("    Forvis instr32             : " ++ showHex instr32_a "")
+                                  putStrLn  ("    DUT    instr16 (compressed): " ++ showHex instr16   "")
+                                  return False)
+
+    Fetch_Trap trap_cause -> (do
+                                 putStrLn ("verify_instr16: memory read trap " ++ show trap_cause)
+                                 putStrLn  ("    DUT    instr16: " ++ showHex instr16   "")
+                                 return False)
   
+
+-- ================================================================
+
+report_states :: Machine_State -> Machine_State -> IO ()
+report_states    mstate1          mstate2 = do
+  putStrLn  ">================================================================"
+  putStrLn  "State before instruction"
+  mstate_print  ""  mstate1
+  putStrLn  ">================================================================"
+  putStrLn  "State after instruction"
+  mstate_print  ""  mstate2
+  putStrLn  ">================================================================"
 
 -- ================================================================
 

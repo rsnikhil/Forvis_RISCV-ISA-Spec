@@ -20,7 +20,7 @@ default:
 
 # The following def of FLOAT should be commented-out to EXCLUDE F and D
 # The following def of FLOAT should be uncommented   to INCLUDE F and D (or define FLOAT=yes on command line)
-FLOAT := yes
+# FLOAT := yes
 
 UNAME := $(shell uname)
 
@@ -41,7 +41,7 @@ FLOATARG := -DFLOAT
 endif
 
 # ================================================================
-# Compile Haskell source files from SRC_DIR into Forvis executable
+# Compile Haskell source files from SRC_DIRs into $(EXE) executable
 # using the ghc Haskell compiler.
 # Compiler-intermediate files are placed in TMP_DIR.
 
@@ -49,7 +49,8 @@ SRC_DIR1  = ./src
 SRC_DIR2  = ../src
 TMP_DIR  = tmp_haskell
 
-$(EXE): src/Main.hs  src/Parse_Trace_Data.hs  src/RegNames.hs  src/Verify.hs
+.PHONY: exe
+exe: src/Main.hs  src/Parse_Trace_Data.hs  src/RegNames.hs  src/Verify.hs
 	mkdir -p  $(TMP_DIR)
 	ghc  -dynamic  -threaded  -o  $(EXE)  -O2  -i$(SRC_DIR1)  -i$(SRC_DIR2) \
 	        -outputdir  $(TMP_DIR)  -rtsopts \
@@ -58,7 +59,19 @@ $(EXE): src/Main.hs  src/Parse_Trace_Data.hs  src/RegNames.hs  src/Verify.hs
 		$(FLOAT_EXTRAS)
 
 # ================================================================
-# Test
+# TV an ISA for RV64AIMSU
+
+VERBOSITY    ?= 0
+TEST         ?= rv64ui-p-add
+ISA_TESTS_DIR = ~/GitHub/Flute/Tests/isa
+TRACE_FILE    = ~/Projects/RISCV/Devel/Builds_Non_Std/RV64AIMSU_Flute_bluesim_tv/trace_out.dat
+
+.PHONY: tv_isa
+tv_isa:
+	./$(EXE)  --verbosity  $(VERBOSITY)  --arch RV64AIMSU  $(BOOT_ROM_RV64)  $(ISA_TESTS_DIR)/$(TEST)  $(TRACE_FILE)
+
+# ================================================================
+# TV an ISA
 
 TEST_PROGRAMS ?= ../Test_Programs
 BOOT_ROM_RV32 = $(TEST_PROGRAMS)/boot_ROM_RV32.hex32
@@ -68,11 +81,12 @@ ELF_FILE1        = $(TEST_PROGRAMS)/riscv-tests/isa/rv32ui-p-add
 TRACE_DATA_FILE1 = ~/Projects/RISCV/Devel/Builds_Non_Std/RV32ACIMU_Flute_bluesim_tv/trace_out.dat
 ARGS1            = --arch RV32ACIMU  $(BOOT_ROM_RV32)  $(ELF_FILE1)  $(TRACE_DATA_FILE1)
 
-VERBOSITY ?= 0
-
 .PHONY: test1
 test1:
 	./$(EXE)  $(VERBOSITY)  $(ARGS1)
+
+# ================================================================
+# Test
 
 ELF_FILE2        = $(TEST_PROGRAMS)/riscv-tests/isa/rv64ui-p-add
 TRACE_DATA_FILE2 = ~/Projects/RISCV/Devel/Builds_Non_Std/RV64ACDFIMSU_Flute_bluesim_tv/trace_out.dat

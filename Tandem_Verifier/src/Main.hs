@@ -305,28 +305,29 @@ parse_trace_file    state    filename = do
 -- Verify items in trace file
 
 verify_loop :: Int ->     Int -> [Trace_Item] -> Machine_State -> IO Int
-verify_loop    verbosity  inum   []              mstate = (do
+verify_loop    verbosity  inum   []              mstate1 = (do
                                                               putStrLn ("verify_loop exit: " ++
                                                                         show inum ++ " instrs")
                                                               return 0)
-verify_loop    verbosity  inum   (item:items)    mstate =
-  if (not (item_has_instruction  item))
+verify_loop    verbosity  inum   (item:items)    mstate1 = do
+  if (item_is_reset  item)
   then do
+    -- TODO: reset mstate?
     when (verbosity > 0) (putStrLn ("    TV: inum:" ++ show inum ++
-                                    " " ++ show  item ++ "; Ignoring (no instruction)"))
-    verify_loop  verbosity  inum  items  mstate
+                                    " " ++ show  item ++ "; Ignoring (reset)"))
+    verify_loop  verbosity  inum  items  mstate1
   else do
-    mstate1 <- fetch_and_execute  mstate
-    ok <- verify_instr  mstate  mstate1  item
+    mstate2 <- fetch_and_execute  mstate1
+    ok <- verify_instr  mstate1  mstate2  item
     if (not ok) then
       do
-        putStrLn ("    TV: inum:" ++ show inum ++ " " ++ show  item ++ "; TV failure")
+        putStrLn ("TV FAIL: inum:" ++ show inum ++ " " ++ show  item)
+        report_states  mstate1  mstate2
         return 1
       else
       do
-        when (verbosity > 0) (putStrLn ("    TV: inum:" ++ show inum ++
-                                        " " ++ show  item ++ "; OK"))
-        verify_loop  verbosity  (inum+1)  items  mstate1
+        when (verbosity > 0) (putStrLn ("TV OK: inum:" ++ show inum ++ " " ++ show  item))
+        verify_loop  verbosity  (inum+1)  items  mstate2
 
 -- ================================================================
 -- Run RISC-V program specified in the ELF/Hex file arguments

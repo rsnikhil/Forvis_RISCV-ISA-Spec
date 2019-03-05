@@ -440,6 +440,11 @@ item_has_instruction    (TI_Instr32  _)  = True
 item_has_instruction    (TI_Group items) = any  item_has_instruction  items
 item_has_instruction    _                = False
 
+item_is_reset :: Trace_Item -> Bool
+item_is_reset    TI_Hart_Reset   = True
+item_is_reset   (TI_Group items) = all  item_is_reset  items
+item_is_reset    _               = False
+
 -- ================================================================
 -- Utilities
 

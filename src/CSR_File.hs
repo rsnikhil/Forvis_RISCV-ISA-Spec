@@ -58,10 +58,11 @@ print_CSR_File  indent  rv  csr_file = do
 
   let print_csr  (csr_addr, csr_name) = (do
                                             let csr_val = csr_read  rv  csr_file  csr_addr
-                                            putStr (indent ++ csr_name ++ ":" ++ showHex csr_val ""))
+                                            putStr ("  " ++ csr_name ++ ":" ++ showHex csr_val ""))
   -- Print n CSRs per line
   let print_n_csrs  [] = return ()
       print_n_csrs  xs = do
+        putStr  indent
         mapM_  print_csr  xs
         putStrLn ""
 
@@ -79,8 +80,8 @@ print_CSR_File  indent  rv  csr_file = do
 data  CSR_Permission = CSR_Permission_None | CSR_Permission_RO | CSR_Permission_RW
   deriving (Eq, Show)
 
-csr_permission :: CSR_File -> Priv_Level -> CSR_Addr -> CSR_Permission
-csr_permission  (CSR_File dm)  priv  csr_addr =
+csr_permission :: CSR_File ->    Priv_Level -> CSR_Addr -> CSR_Permission
+csr_permission    (CSR_File dm)  priv          csr_addr =
   let
     exists     = ((   csr_addr == csr_addr_sstatus)
                   || (csr_addr == csr_addr_ustatus)
@@ -94,8 +95,9 @@ csr_permission  (CSR_File dm)  priv  csr_addr =
     priv_ok    = priv >= addr_9_8
 
     -- TVM fault: cannot access SATP if MSTATUS.TVM is set
-    mstatus    = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus  dm)
-    tvm_fault  = ((csr_addr == csr_addr_satp) && (testBit  mstatus  mstatus_tvm_bitpos))
+    rv        = RV64    -- using RV64 because it's don't care: only matters for mstatus.sd
+    mstatus   = csr_mstatus_read  rv  (CSR_File dm)
+    tvm_fault = ((csr_addr == csr_addr_satp) && (testBit  mstatus  mstatus_tvm_bitpos))
 
     -- TODO: MxDELEG fault: MIDELEG and MEDELEG do not exist in
     -- systems with only m_Priv and systems with m_Priv and u_Priv but
@@ -123,9 +125,10 @@ csr_permission  (CSR_File dm)  priv  csr_addr =
 csr_read :: RV -> CSR_File -> CSR_Addr -> Integer
 csr_read  rv  (CSR_File dm)  csr_addr =
   let
-    mstatus      = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus   dm)
-    ustatus_mask = if (rv == RV32) then ustatus_mask_RV32 else ustatus_mask_RV64
-    sstatus_mask = if (rv == RV32) then sstatus_mask_RV32 else sstatus_mask_RV64
+    mstatus      = csr_mstatus_read  rv  (CSR_File dm)
+    ustatus_mask = if (rv == RV32) then ustatus_read_mask_RV32 else ustatus_read_mask_RV64
+    sstatus_mask = if (rv == RV32) then sstatus_read_mask_RV32 else sstatus_read_mask_RV64
+    mstatus_mask = if (rv == RV32) then mstatus_read_mask_RV32 else mstatus_read_mask_RV64
 
     mip      = fromMaybe  0  (Data_Map.lookup  csr_addr_mip       dm)
     mie      = fromMaybe  0  (Data_Map.lookup  csr_addr_mie       dm)
@@ -150,6 +153,7 @@ csr_read  rv  (CSR_File dm)  csr_addr =
         | (csr_addr == csr_addr_sip)      = (mip .&. sip_mask)
         | (csr_addr == csr_addr_sie)      = (mie .&. sip_mask)
 
+        | (csr_addr == csr_addr_mstatus)  = (mstatus .&. mstatus_mask)
         | True                            = fromMaybe  0  (Data_Map.lookup  csr_addr  dm)
   in
     val
@@ -172,14 +176,14 @@ csr_read  rv  (CSR_File dm)  csr_addr =
 csr_write :: RV -> CSR_File    -> CSR_Addr -> Integer -> CSR_File
 csr_write    rv    (CSR_File dm)  csr_addr    value =
   let
-    mstatus = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus  dm)
+    mstatus = csr_mstatus_read  rv  (CSR_File dm)
     mip     = fromMaybe  0  (Data_Map.lookup  csr_addr_mip      dm)
     mie     = fromMaybe  0  (Data_Map.lookup  csr_addr_mie      dm)
     fcsr    = fromMaybe  0  (Data_Map.lookup  csr_addr_fcsr     dm)
 
-    mstatus_mask = if (rv == RV32) then mstatus_mask_RV32 else mstatus_mask_RV64
-    sstatus_mask = if (rv == RV32) then sstatus_mask_RV32 else sstatus_mask_RV64
-    ustatus_mask = if (rv == RV32) then ustatus_mask_RV32 else ustatus_mask_RV64
+    mstatus_mask = if (rv == RV32) then mstatus_write_mask_RV32 else mstatus_write_mask_RV64
+    sstatus_mask = if (rv == RV32) then sstatus_write_mask_RV32 else sstatus_write_mask_RV64
+    ustatus_mask = if (rv == RV32) then ustatus_write_mask_RV32 else ustatus_write_mask_RV64
 
     (csr_addr', value')
       | (csr_addr == csr_addr_mstatus) = (csr_addr_mstatus, ((mstatus .&. (complement  mstatus_mask))
@@ -608,128 +612,260 @@ mstatus_uie_bitpos     =  0 :: Int
 -- ================================================================
 -- These masks specify which fields are observed/updated in MSTATUS
 
-mstatus_mask_RV32 :: Integer
-mstatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
+mstatus_read_mask_RV32 :: Integer
+mstatus_read_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
-                     .|. (shiftL  1  mstatus_tsr_bitpos)
-                     .|. (shiftL  1  mstatus_tw_bitpos)
-                     .|. (shiftL  1  mstatus_tvm_bitpos)
+                          .|. (shiftL  1  mstatus_tsr_bitpos)
+                          .|. (shiftL  1  mstatus_tw_bitpos)
+                          .|. (shiftL  1  mstatus_tvm_bitpos)
 
-                     .|. (shiftL  1  mstatus_mxr_bitpos)
-                     .|. (shiftL  1  mstatus_sum_bitpos)
-                     .|. (shiftL  1  mstatus_mprv_bitpos)
+                          .|. (shiftL  1  mstatus_mxr_bitpos)
+                          .|. (shiftL  1  mstatus_sum_bitpos)
+                          .|. (shiftL  1  mstatus_mprv_bitpos)
 
-                     .|. (shiftL  3  mstatus_xs_bitpos)
-                     .|. (shiftL  3  mstatus_fs_bitpos)
+                          .|. (shiftL  3  mstatus_xs_bitpos)
+                          .|. (shiftL  3  mstatus_fs_bitpos)
 
-                     .|. (shiftL  3  mstatus_mpp_bitpos)
-                     .|. (shiftL  1  mstatus_spp_bitpos)
+                          .|. (shiftL  3  mstatus_mpp_bitpos)
+                          .|. (shiftL  1  mstatus_spp_bitpos)
 
-                     .|. (shiftL  1  mstatus_mpie_bitpos)
-                     .|. (shiftL  1  mstatus_spie_bitpos)
-                     .|. (shiftL  1  mstatus_upie_bitpos)
+                          .|. (shiftL  1  mstatus_mpie_bitpos)
+                          .|. (shiftL  1  mstatus_spie_bitpos)
+                          .|. (shiftL  1  mstatus_upie_bitpos)
 
-                     .|. (shiftL  1  mstatus_mie_bitpos)
-                     .|. (shiftL  1  mstatus_sie_bitpos)
-                     .|. (shiftL  1  mstatus_uie_bitpos))
+                          .|. (shiftL  1  mstatus_mie_bitpos)
+                          .|. (shiftL  1  mstatus_sie_bitpos)
+                          .|. (shiftL  1  mstatus_uie_bitpos))
 
-mstatus_mask_RV64 :: Integer
-mstatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
+mstatus_write_mask_RV32 :: Integer
+mstatus_write_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
-                     -- .|. (shiftL  3  mstatus_sxl_bitpos)    -- TODO: this is not-writable implementation choice
-                     -- .|. (shiftL  3  mstatus_uxl_bitpos)    -- TODO: this is not-writable implementation choice
+                           .|. (shiftL  1  mstatus_tsr_bitpos)
+                           .|. (shiftL  1  mstatus_tw_bitpos)
+                           .|. (shiftL  1  mstatus_tvm_bitpos)
 
-                     .|. (shiftL  1  mstatus_tsr_bitpos)
-                     .|. (shiftL  1  mstatus_tw_bitpos)
-                     .|. (shiftL  1  mstatus_tvm_bitpos)
+                           .|. (shiftL  1  mstatus_mxr_bitpos)
+                           .|. (shiftL  1  mstatus_sum_bitpos)
+                           .|. (shiftL  1  mstatus_mprv_bitpos)
 
-                     .|. (shiftL  1  mstatus_mxr_bitpos)
-                     .|. (shiftL  1  mstatus_sum_bitpos)
-                     .|. (shiftL  1  mstatus_mprv_bitpos)
+                           .|. (shiftL  3  mstatus_xs_bitpos)
+                           .|. (shiftL  3  mstatus_fs_bitpos)
 
-                     .|. (shiftL  3  mstatus_xs_bitpos)
-                     .|. (shiftL  3  mstatus_fs_bitpos)
+                           .|. (shiftL  3  mstatus_mpp_bitpos)
+                           .|. (shiftL  1  mstatus_spp_bitpos)
 
-                     .|. (shiftL  3  mstatus_mpp_bitpos)
-                     .|. (shiftL  1  mstatus_spp_bitpos)
+                           .|. (shiftL  1  mstatus_mpie_bitpos)
+                           .|. (shiftL  1  mstatus_spie_bitpos)
+                           .|. (shiftL  1  mstatus_upie_bitpos)
 
-                     .|. (shiftL  1  mstatus_mpie_bitpos)
-                     .|. (shiftL  1  mstatus_spie_bitpos)
-                     .|. (shiftL  1  mstatus_upie_bitpos)
+                           .|. (shiftL  1  mstatus_mie_bitpos)
+                           .|. (shiftL  1  mstatus_sie_bitpos)
+                           .|. (shiftL  1  mstatus_uie_bitpos))
 
-                     .|. (shiftL  1  mstatus_mie_bitpos)
-                     .|. (shiftL  1  mstatus_sie_bitpos)
-                     .|. (shiftL  1  mstatus_uie_bitpos))
+mstatus_read_mask_RV64 :: Integer
+mstatus_read_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
+
+                          .|. (shiftL  3  mstatus_sxl_bitpos)
+                          .|. (shiftL  3  mstatus_uxl_bitpos)
+
+                          .|. (shiftL  1  mstatus_tsr_bitpos)
+                          .|. (shiftL  1  mstatus_tw_bitpos)
+                          .|. (shiftL  1  mstatus_tvm_bitpos)
+
+                          .|. (shiftL  1  mstatus_mxr_bitpos)
+                          .|. (shiftL  1  mstatus_sum_bitpos)
+                          .|. (shiftL  1  mstatus_mprv_bitpos)
+
+                          .|. (shiftL  3  mstatus_xs_bitpos)
+                          .|. (shiftL  3  mstatus_fs_bitpos)
+
+                          .|. (shiftL  3  mstatus_mpp_bitpos)
+                          .|. (shiftL  1  mstatus_spp_bitpos)
+
+                          .|. (shiftL  1  mstatus_mpie_bitpos)
+                          .|. (shiftL  1  mstatus_spie_bitpos)
+                          .|. (shiftL  1  mstatus_upie_bitpos)
+
+                          .|. (shiftL  1  mstatus_mie_bitpos)
+                          .|. (shiftL  1  mstatus_sie_bitpos)
+                          .|. (shiftL  1  mstatus_uie_bitpos))
+
+mstatus_write_mask_RV64 :: Integer
+mstatus_write_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
+
+                          -- .|. (shiftL  3  mstatus_sxl_bitpos)    -- TODO: this is not-writable implementation choice
+                          -- .|. (shiftL  3  mstatus_uxl_bitpos)    -- TODO: this is not-writable implementation choice
+
+                           .|. (shiftL  1  mstatus_tsr_bitpos)
+                           .|. (shiftL  1  mstatus_tw_bitpos)
+                           .|. (shiftL  1  mstatus_tvm_bitpos)
+
+                           .|. (shiftL  1  mstatus_mxr_bitpos)
+                           .|. (shiftL  1  mstatus_sum_bitpos)
+                           .|. (shiftL  1  mstatus_mprv_bitpos)
+
+                          -- .|. (shiftL  3  mstatus_xs_bitpos)    -- TODO: this is not-writable implementation choice
+                           .|. (shiftL  3  mstatus_fs_bitpos)
+
+                           .|. (shiftL  3  mstatus_mpp_bitpos)
+                           .|. (shiftL  1  mstatus_spp_bitpos)
+
+                           .|. (shiftL  1  mstatus_mpie_bitpos)
+                           .|. (shiftL  1  mstatus_spie_bitpos)
+                           .|. (shiftL  1  mstatus_upie_bitpos)
+
+                           .|. (shiftL  1  mstatus_mie_bitpos)
+                           .|. (shiftL  1  mstatus_sie_bitpos)
+                           .|. (shiftL  1  mstatus_uie_bitpos))
 
 
 -- SSTATUS is a ``view'' of MSTATUS, masking in/out certain fields
 
-sstatus_mask_RV32 :: Integer
-sstatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
+sstatus_read_mask_RV32 :: Integer
+sstatus_read_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
-                     .|. (shiftL  1  mstatus_mxr_bitpos)
-                     .|. (shiftL  1  mstatus_sum_bitpos)
+                          .|. (shiftL  1  mstatus_mxr_bitpos)
+                          .|. (shiftL  1  mstatus_sum_bitpos)
 
-                     .|. (shiftL  3  mstatus_xs_bitpos)
-                     .|. (shiftL  3  mstatus_fs_bitpos)
+                          .|. (shiftL  3  mstatus_xs_bitpos)
+                          .|. (shiftL  3  mstatus_fs_bitpos)
 
-                     .|. (shiftL  1  mstatus_spp_bitpos)
+                          .|. (shiftL  1  mstatus_spp_bitpos)
 
-                     .|. (shiftL  1  mstatus_spie_bitpos)
-                     .|. (shiftL  1  mstatus_upie_bitpos)
+                          .|. (shiftL  1  mstatus_spie_bitpos)
+                          .|. (shiftL  1  mstatus_upie_bitpos)
 
-                     .|. (shiftL  1  mstatus_sie_bitpos)
-                     .|. (shiftL  1  mstatus_uie_bitpos))
+                          .|. (shiftL  1  mstatus_sie_bitpos)
+                          .|. (shiftL  1  mstatus_uie_bitpos))
 
-sstatus_mask_RV64 :: Integer
-sstatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
+sstatus_write_mask_RV32 :: Integer
+sstatus_write_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
-                     .|. (shiftL  3  mstatus_uxl_bitpos)
+                           .|. (shiftL  1  mstatus_mxr_bitpos)
+                           .|. (shiftL  1  mstatus_sum_bitpos)
 
-                     .|. (shiftL  1  mstatus_mxr_bitpos)
-                     .|. (shiftL  1  mstatus_sum_bitpos)
+                           .|. (shiftL  3  mstatus_xs_bitpos)
+                           .|. (shiftL  3  mstatus_fs_bitpos)
 
-                     .|. (shiftL  3  mstatus_xs_bitpos)
-                     .|. (shiftL  3  mstatus_fs_bitpos)
+                           .|. (shiftL  1  mstatus_spp_bitpos)
 
-                     .|. (shiftL  1  mstatus_spp_bitpos)
+                           .|. (shiftL  1  mstatus_spie_bitpos)
+                           .|. (shiftL  1  mstatus_upie_bitpos)
 
-                     .|. (shiftL  1  mstatus_spie_bitpos)
-                     .|. (shiftL  1  mstatus_upie_bitpos)
+                           .|. (shiftL  1  mstatus_sie_bitpos)
+                           .|. (shiftL  1  mstatus_uie_bitpos))
 
-                     .|. (shiftL  1  mstatus_sie_bitpos)
-                     .|. (shiftL  1  mstatus_uie_bitpos))
+sstatus_read_mask_RV64 :: Integer
+sstatus_read_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
+
+                          .|. (shiftL  3  mstatus_uxl_bitpos)
+
+                          .|. (shiftL  1  mstatus_mxr_bitpos)
+                          .|. (shiftL  1  mstatus_sum_bitpos)
+
+                          .|. (shiftL  3  mstatus_xs_bitpos)
+                          .|. (shiftL  3  mstatus_fs_bitpos)
+
+                          .|. (shiftL  1  mstatus_spp_bitpos)
+
+                          .|. (shiftL  1  mstatus_spie_bitpos)
+                          .|. (shiftL  1  mstatus_upie_bitpos)
+
+                          .|. (shiftL  1  mstatus_sie_bitpos)
+                          .|. (shiftL  1  mstatus_uie_bitpos))
+
+sstatus_write_mask_RV64 :: Integer
+sstatus_write_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
+
+                           -- .|. (shiftL  3  mstatus_uxl_bitpos)    -- TODO: this is not-writable implementation choice
+
+                           .|. (shiftL  1  mstatus_mxr_bitpos)
+                           .|. (shiftL  1  mstatus_sum_bitpos)
+
+                           -- .|. (shiftL  3  mstatus_xs_bitpos)    -- TODO: this is not-writable implementation choice
+                           .|. (shiftL  3  mstatus_fs_bitpos)
+
+                           .|. (shiftL  1  mstatus_spp_bitpos)
+
+                           .|. (shiftL  1  mstatus_spie_bitpos)
+                           .|. (shiftL  1  mstatus_upie_bitpos)
+
+                           .|. (shiftL  1  mstatus_sie_bitpos)
+                           .|. (shiftL  1  mstatus_uie_bitpos))
 
 -- USTATUS is a ``view'' of MSTATUS, masking in/out certain fields
 -- TODO: find out what should be in ustatus (the v1.10 spec doc does not specify)
 
-ustatus_mask_RV32 :: Integer
-ustatus_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
+ustatus_read_mask_RV32 :: Integer
+ustatus_read_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
-                     .|. (shiftL  1  mstatus_mxr_bitpos)
-                     .|. (shiftL  1  mstatus_sum_bitpos)
+                          .|. (shiftL  1  mstatus_mxr_bitpos)
+                          .|. (shiftL  1  mstatus_sum_bitpos)
 
-                     .|. (shiftL  3  mstatus_xs_bitpos)
-                     .|. (shiftL  3  mstatus_fs_bitpos)
+                          .|. (shiftL  3  mstatus_xs_bitpos)
+                          .|. (shiftL  3  mstatus_fs_bitpos)
 
-                     .|. (shiftL  1  mstatus_upie_bitpos)
+                          .|. (shiftL  1  mstatus_upie_bitpos)
 
-                     .|. (shiftL  1  mstatus_uie_bitpos))
+                          .|. (shiftL  1  mstatus_uie_bitpos))
 
-ustatus_mask_RV64 :: Integer
-ustatus_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
+ustatus_write_mask_RV32 :: Integer
+ustatus_write_mask_RV32 = ((    shiftL  1  mstatus_sd_bitpos_RV32)
 
-                     .|. (shiftL  3  mstatus_uxl_bitpos)
+                           .|. (shiftL  1  mstatus_mxr_bitpos)
+                           .|. (shiftL  1  mstatus_sum_bitpos)
 
-                     .|. (shiftL  1  mstatus_mxr_bitpos)
-                     .|. (shiftL  1  mstatus_sum_bitpos)
+                           -- .|. (shiftL  3  mstatus_xs_bitpos)    -- TODO: this is not-writable implementation choice
+                           .|. (shiftL  3  mstatus_fs_bitpos)
 
-                     .|. (shiftL  3  mstatus_xs_bitpos)
-                     .|. (shiftL  3  mstatus_fs_bitpos)
+                           .|. (shiftL  1  mstatus_upie_bitpos)
 
-                     .|. (shiftL  1  mstatus_upie_bitpos)
+                           .|. (shiftL  1  mstatus_uie_bitpos))
 
-                     .|. (shiftL  1  mstatus_uie_bitpos))
+ustatus_read_mask_RV64 :: Integer
+ustatus_read_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
+
+                          .|. (shiftL  3  mstatus_uxl_bitpos)
+
+                          .|. (shiftL  1  mstatus_mxr_bitpos)
+                          .|. (shiftL  1  mstatus_sum_bitpos)
+
+                          .|. (shiftL  3  mstatus_xs_bitpos)
+                          .|. (shiftL  3  mstatus_fs_bitpos)
+
+                          .|. (shiftL  1  mstatus_upie_bitpos)
+
+                          .|. (shiftL  1  mstatus_uie_bitpos))
+
+ustatus_write_mask_RV64 :: Integer
+ustatus_write_mask_RV64 = ((    shiftL  1  mstatus_sd_bitpos_RV64)
+
+                           .|. (shiftL  3  mstatus_uxl_bitpos)
+
+                           .|. (shiftL  1  mstatus_mxr_bitpos)
+                           .|. (shiftL  1  mstatus_sum_bitpos)
+
+                           -- .|. (shiftL  3  mstatus_xs_bitpos)    -- TODO: this is not-writable implementation choice
+                           .|. (shiftL  3  mstatus_fs_bitpos)
+
+                           .|. (shiftL  1  mstatus_upie_bitpos)
+
+                           .|. (shiftL  1  mstatus_uie_bitpos))
+
+-- ----------------
+-- Read MSTATUS, filling in the virtual field MSTATUS.SD
+
+csr_mstatus_read :: RV -> CSR_File -> Integer
+csr_mstatus_read    rv    (CSR_File dm) =
+  let
+    mstatus      = fromMaybe  0  (Data_Map.lookup  csr_addr_mstatus   dm)
+    fs_is_dirty  = (((shiftR  mstatus  mstatus_fs_bitpos) .&. 3) == 3)
+    xs_is_dirty  = (((shiftR  mstatus  mstatus_xs_bitpos) .&. 3) == 3)
+    sd_shift_amt = if (rv == RV32) then mstatus_sd_bitpos_RV32 else mstatus_sd_bitpos_RV64
+    sd           = if (fs_is_dirty || xs_is_dirty) then (shiftL 1 sd_shift_amt)
+                   else 0
+  in
+    (mstatus .|. sd)
 
 -- ================================================================
 -- MSTATUS contains a ``stack'' of ``previous-privilege'' and ``interrupt-enable'' bits
