@@ -3,6 +3,10 @@
 
 FORVIS_EXE = forvis_exe
 
+# Compiles the Haskell source files in SRC_DIR into the FORVIS_EXE using
+# the ghc Haskell compiler, placing compiler-intermediate files in
+# TMP_DIR.
+
 .PHONY: default
 default:
 	@echo "Usage:"
