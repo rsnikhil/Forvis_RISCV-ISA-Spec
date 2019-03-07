@@ -2,6 +2,7 @@
 module Shrinking where
 
 import Arch_Defs
+import GPR_File
 import Forvis_Spec_I
 import Memory
 
@@ -13,6 +14,8 @@ import PIPE
 import qualified Data.Map.Strict as Data_Map
 import qualified Data.Set as Data_Set
 import Data.Set (Set)
+
+import Data.List (zip4,unzip4)
 
 import Machine_State
 
@@ -29,7 +32,8 @@ import Control.Monad.Reader
 -- arbitrarily.
 shrinkColor :: Color -> [Color]
 shrinkColor (0) = []
-shrinkColor (_) = [0]
+shrinkColor (1) = [0]
+shrinkColor (n) = [0,n-1]
 
 shrinkTag :: PolicyPlus -> TagSet -> [TagSet]
 shrinkTag pplus t =
@@ -39,22 +43,34 @@ shrinkTag pplus t =
     [("heap.Pointer", Just cp)] ->
       [fromExt [("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
     [("heap.Cell", Just cc), ("heap.Pointer", Just cp)] ->
-      [fromExt [("heap.Cell", Just cc'), ("heap.Pointer", Just cp')] |
-          cc' <- shrinkColor cc, cp' <- shrinkColor cp]
+         [fromExt [("heap.Cell", Just cc'), ("heap.Pointer", Just cp )] | cc' <- shrinkColor cc]
+      ++ [fromExt [("heap.Cell", Just cc),  ("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
     _ -> []
 
 -- INV: If we're shrinking registers, everything should already be equal.
 shrinkRegister :: PolicyPlus -> (Integer, TagSet) -> [(Integer, TagSet)]
 shrinkRegister pplus (d,t) = [(d',t') | d' <- shrink d, t' <- shrinkTag pplus t]
 
+shrinkVector :: (a -> [a]) -> [a] -> [[a]]
+shrinkVector f []    = []
+shrinkVector f (h:t) = map (:t) (f h) ++ map (h:) (shrinkVector f t)
+
 -- INV: The register files are also identical
---shrinkGPR :: (GPR_File, GPR_FileT) -> [(GPR_File, GPR_FileT)]
---shrinkGPR (d,t) =
---  let combined = zip (Data_Map.elems d) (Data_Map.elems t)
---      shrunk  = map shrinkRegister combined
---      indexed = zipWith ( [0..] shrunk 
---  [(Data_Map.fromList d', Data_Map.fromList t')
---  | dt' <- map shrinkRegister $ zip (Data_Map.assocs d) (Data_Map.elems t)
+shrinkGPRs :: PolicyPlus -> (GPR_File, GPR_FileT) -> (GPR_File, GPR_FileT)
+                -> [((GPR_File, GPR_FileT),(GPR_File, GPR_FileT))]
+shrinkGPRs pplus (GPR_File d1, GPR_FileT t1) (GPR_File d2, GPR_FileT t2) =
+  -- assert (d1==d2 && t1 == t2) $
+  let combined :: [((GPR_Addr, GPR_Val), (InstrField, TagSet), (GPR_Addr, GPR_Val), (InstrField, TagSet))]
+      combined = zip4 (Data_Map.assocs d1) (Data_Map.assocs t1) (Data_Map.assocs d2) (Data_Map.assocs t2) in
+  [ ((GPR_File $ Data_Map.fromList d1', GPR_FileT $ Data_Map.fromList t1'), 
+     (GPR_File $ Data_Map.fromList d2', GPR_FileT $ Data_Map.fromList t2'))
+  | (d1',t1',d2',t2') <- map unzip4 $ shrinkVector shrinkR combined
+  ]
+  where shrinkR :: ((GPR_Addr, GPR_Val), (InstrField, TagSet), (GPR_Addr, GPR_Val), (InstrField, TagSet))
+               -> [((GPR_Addr, GPR_Val), (InstrField, TagSet), (GPR_Addr, GPR_Val), (InstrField, TagSet))]
+        shrinkR ((i1,v1),(j1,l1),(i2,v2),(j2,l2)) =
+             [ ((i1,v'),(j1,l1),(i2,v'),(j2,l2)) | v' <- shrink v1 ]
+          ++ [ ((i1,v1),(j1,l'),(i2,v2),(j2,l')) | l' <- shrinkTag pplus l1 ]
 
 -- To shrink an instruction, try converting it to a noop (ADD 0 0 0)
 shrinkInstr :: Instr_I -> [Instr_I]
@@ -105,8 +121,8 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
                   -- Shrink data
                   [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- shrink d1 ]
                   ++ 
-                  -- TODO: Or shrink tag 
-                  []
+                  -- Or shrink tag 
+                  [ (((j, d1), (j, l')), ((j, d2),(j, l'))) | l' <- shrinkTag pplus l1 ]
                 -- Both unreachable, shrink independently
                 | not (Data_Set.member loc1 reachable) && not (Data_Set.member loc2 reachable) ->
                   -- Shrink data of one
@@ -138,7 +154,9 @@ shrinkMStatePair pplus (M (m1,p1) (m2,p2)) =
   let r = runReader (reachable p1) pplus
       -- Shrink Memories
   in
-  [ M (m1{f_mem = mem1},p1{p_mem = pmem1}) (m2{f_mem=mem2}, p2{p_mem=pmem2})
-  | ((mem1, pmem1), (mem2, pmem2)) <- shrinkMems pplus r (f_mem m1, p_mem p1) (f_mem m2, p_mem p2) ]
+     [ M (m1{f_mem = mem1},p1{p_mem = pmem1}) (m2{f_mem=mem2}, p2{p_mem=pmem2})
+     | ((mem1, pmem1), (mem2, pmem2)) <- shrinkMems pplus r (f_mem m1, p_mem p1) (f_mem m2, p_mem p2) ]
+  ++ [ M (m1{f_gprs = gpr1},p1{p_gprs = pgpr1}) (m2{f_gprs=gpr2}, p2{p_gprs=pgpr2})
+     | ((gpr1, pgpr1), (gpr2, pgpr2)) <- shrinkGPRs pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2) ]
 
   

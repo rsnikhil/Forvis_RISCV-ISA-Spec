@@ -63,7 +63,9 @@ main_trace = do
 main_test = do
   pplus <- load_heap_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genMStatePair pplus) (shrinkMStatePair pplus)
+    $ forAllShrink (genMStatePair pplus)
+           (\mp -> shrinkMStatePair pplus mp 
+                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \m -> prop_noninterference pplus m
 
 main = main_test

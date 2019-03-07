@@ -19,12 +19,10 @@ beautify the code so others can use it
 more permanent fix for the issue with misaligned accesses
   we want a PIPE_trap, not a fatal error
 
-Improve printing
-  
 remove / hide the old micropolicies directory
 
 Find a more permanent fix for the JAL issue
-  see the "DPL rules for JAL thread"
+  see the "DPL rules for JAL" thread
 
 switch to Chris's new syntax for the policy tool when Andrew is ready
   and then
