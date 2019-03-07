@@ -25,6 +25,8 @@ mutant:
 
 mutants:
 	@make mutant MUT=OMIT_CHECKS_ON_LOAD
-	@make mutant MUT=OMIT_TAGGING_ON_STORE
+
+# Not a bug, in the simple heap safety policy
+#	@make mutant MUT=OMIT_TAGGING_ON_STORE
 
 

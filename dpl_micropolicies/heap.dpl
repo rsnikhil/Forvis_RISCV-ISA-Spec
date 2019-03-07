@@ -25,6 +25,9 @@ allocGrp(
   -> 
   env = env, res = {(Pointer new)})
 
+// Another potential mutant, if the policy language can express it:
+//   Allocate a previously-used color (e.g., constant 1)
+
 // ------------------------------------------------------------------------------
 // ARITHMETIC
 
@@ -62,7 +65,9 @@ allocGrp(
     ->
     env = env, mem = val[+(Cell color)])
 #else
-// BCP: This variant is not actually wrong, apparently...(!)
+// BCP: This variant is not actually wrong, in the simple heap safety policy, because we
+// will always be writing the same value in both runs!  (With a stack safety policy, it
+// should be wrong because the stack safety property includes an integrity claim.)
 ^ storeGrp(
     env == _, addr == _, val == _, mem == _ 
     ->

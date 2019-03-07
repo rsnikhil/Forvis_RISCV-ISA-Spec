@@ -6,8 +6,6 @@ fold our changes back into master after 2/16
 
 more mutants
 
-get Shrinking fully working
-
 put in a flag controlling whether misaligned accesses are allowed
   and try to discover the bug!
 
