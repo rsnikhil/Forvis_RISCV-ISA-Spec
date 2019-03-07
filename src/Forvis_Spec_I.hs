@@ -493,7 +493,7 @@ exec_LOAD    is_C    rd          rs1         imm12         funct3        mstate 
                                          eaddr2
                                                                                 -- \end_latex{exec_LOAD}
 
-    -- Record eaddr and wdata for Tandem Verification
+    -- Record eaddr for Tandem Verification
     mstate2 = mstate_eaddr_write  eaddr2   mstate1
 
     -- Finish with trap, or finish with loading Rd with load-value
@@ -542,7 +542,11 @@ exec_STORE    is_C    rs1         rs2         imm12         funct3        mstate
 
     -- Record eaddr and wdata for Tandem Verification
     mstate2 = mstate_eaddr_write  eaddr2   mstate1
-    mstate3 = mstate_wdata_write  rs2_val  mstate2
+    wdata   = if      (funct3 == funct3_SB) then (rs2_val .&. 0xFF)
+              else if (funct3 == funct3_SB) then (rs2_val .&. 0xFFFF)
+              else if (funct3 == funct3_SW) then (rs2_val .&. 0xffffFFFF)
+              else rs2_val
+    mstate3 = mstate_wdata_write  wdata  mstate2
 
     -- Finally: finish with trap, or finish with fall-through
     mstate4 = case result1 of

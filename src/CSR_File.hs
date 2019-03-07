@@ -66,7 +66,7 @@ print_CSR_File  indent  rv  csr_file = do
         mapM_  print_csr  xs
         putStrLn ""
 
-      n = 5
+      n = 8
 
   mapM_  print_n_csrs  (unflatten  n  m_csr_addrs_and_names)
   mapM_  print_n_csrs  (unflatten  n  s_csr_addrs_and_names)
