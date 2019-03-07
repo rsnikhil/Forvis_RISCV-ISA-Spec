@@ -300,8 +300,8 @@ prettyRegDiff pplus ((i,d,l):r1) ((i', d', l'):r2)
                  P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty pplus d' l'))
       $$ prettyRegDiff pplus r1 r2
 prettyRegDiff _ [] [] = P.empty
--- TODO: This is not supposed to be possible, but I saw it happen...
-prettyRegDiff _ _ _ = P.text "<prettyRegDiff??>"
+-- TODO: This can happen a lot now...
+prettyRegDiff _ r1 r2 = P.text $ "<prettyRegDiff??> " ++ show (r1,r2)
 
 prettyMemDiff pplus ((i,d,l):m1) ((i', d', l'):m2)
     | i == i', d == d', l == l' =

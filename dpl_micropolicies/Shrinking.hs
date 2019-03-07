@@ -16,6 +16,7 @@ import qualified Data.Set as Data_Set
 import Data.Set (Set)
 
 import Data.List (zip4,unzip4)
+import Data.Maybe (fromJust)
 
 import Machine_State
 
@@ -98,8 +99,6 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
                       [ (IndexedTagedInt, IndexedTagedInt) ]
       shrinkMemLoc (j,d1,l1) (_,d2,l2)
         | isInstr j =
-        -- This identifies a memory loc by if it is decode-able to an instruction.
-        -- RETHINK: Is there a better way? Tags? Hardcoded locations?
           case (decode_I RV32 d1, decode_I RV32 d2) of
             -- Both (identical) instructions
             (Just i1, Just i2)
@@ -109,7 +108,7 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
                 -- Or shrink tag (alloc)
                 [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag pplus l1 ]
               | otherwise -> error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
-            _ -> error "Instructions can't be decoded"
+            _ -> error "Instructions can't be decoded while shrinking"
         | otherwise =
             case (cellColorOf l1, pointerColorOf l1, cellColorOf l2, pointerColorOf l2) of 
 --            case (l1, l2) of
@@ -125,13 +124,26 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
                   [ (((j, d1), (j, l')), ((j, d2),(j, l'))) | l' <- shrinkTag pplus l1 ]
                 -- Both unreachable, shrink independently
                 | not (Data_Set.member loc1 reachable) && not (Data_Set.member loc2 reachable) ->
-                  -- Shrink data of one
+                  -- Shrink first data value 
                   [ (((j, d1'), (j, l1)), ((j, d2),(j, l2))) | d1' <- shrink d1 ]
                   ++
-                  -- Shrink data of second
+                  -- Shrink first tag to something unreachable 
+                  [ (((j, d1), (j, l1')), ((j, d2),(j, l2))) | l1' <- shrinkTag pplus l1,
+                                                               not $ Data_Set.member (fromJust $ cellColorOf l1') reachable ]
+                  ++
+                  -- Shrink first tag to something reachable (and make sure first and second components are the same!)
+                  [ (((j, d1), (j, l1')), ((j, d1),(j, l1'))) | l1' <- shrinkTag pplus l1,
+                                                                Data_Set.member (fromJust $ cellColorOf l1') reachable ]
+                  ++
+                  -- ... same for second register state
                   [ (((j, d1), (j, l1)), ((j, d2'),(j, l2))) | d2' <- shrink d2 ]
-                  -- TODO: Shrink labels?
-                | otherwise -> error "Not simultaneously reachable or unreachable?"
+                  ++
+                  [ (((j, d1), (j, l1)), ((j, d2),(j, l2'))) | l2' <- shrinkTag pplus l2,
+                                                               not $ Data_Set.member (fromJust $ cellColorOf l2') reachable ]
+                  ++
+                  [ (((j, d1), (j, l2')), ((j, d1),(j, l2'))) | l2' <- shrinkTag pplus l2,
+                                                                Data_Set.member (fromJust $ cellColorOf l2') reachable ]
+                | otherwise -> error $ "Not simultaneously reachable or unreachable?" ++ show (d1,l1,d2,l2)
               otherwise -> error "Data memory without cell or pointer color?"
  
       shrinkMemAux :: [ IndexedTagedInt ] -> [ IndexedTagedInt] -> [ ([IndexedTagedInt], [IndexedTagedInt]) ]
