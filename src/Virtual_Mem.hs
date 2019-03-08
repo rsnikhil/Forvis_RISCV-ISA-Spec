@@ -115,8 +115,19 @@ mstate_vm_write  mstate  funct3  eaddr  store_val =
                            Mem_Result_Err  exc_code -> (result1, mstate1)
                            Mem_Result_Ok   eaddr_pa ->
                              mstate_mem_write  funct3  eaddr_pa  store_val   mstate1
+
+    -- Record eaddr for Tandem Verification
+    mstate3 = mstate_eaddr_write  eaddr   mstate2
+
+    -- Record wdata for Tandem Verification
+    wdata   = if      (funct3 == funct3_SB) then (store_val .&. 0xFF)
+              else if (funct3 == funct3_SH) then (store_val .&. 0xFFFF)
+              else if (funct3 == funct3_SW) then (store_val .&. 0xffffFFFF)
+              else if (funct3 == funct3_SD) then  store_val
+              else error ("mstate_vm_write: unknown funct3 " ++ show funct3)
+    mstate4 = mstate_wdata_write  wdata  mstate3
   in
-    (result2, mstate2)
+    (result2, mstate4)
 
 {-# INLINE mstate_vm_write #-}
 
@@ -145,8 +156,17 @@ mstate_vm_amo  mstate  funct3  msbs5  aq  rl  eaddr  store_val =
                            Mem_Result_Err  exc_code -> (result1, mstate1)
                            Mem_Result_Ok   eaddr_pa ->
                              mstate_mem_amo  eaddr_pa  funct3  msbs5  aq  rl  store_val  mstate1
+
+    -- Record eaddr for Tandem Verification
+    mstate3 = mstate_eaddr_write  eaddr   mstate2
+
+    -- Record wdata for Tandem Verification
+    wdata   = if      (funct3 == funct3_AMO_W) then (store_val .&. 0x00000000ffffFFFF)
+              else if (funct3 == funct3_AMO_D) then  store_val
+              else error ("mstate_vm_amo: unknown funct3 " ++ show funct3)
+    mstate4 = mstate_wdata_write  wdata  mstate3
   in
-    (result2, mstate2)
+    (result2, mstate4)
 
 {-# INLINE mstate_vm_amo #-}
 

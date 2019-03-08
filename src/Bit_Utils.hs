@@ -54,7 +54,7 @@ cvt_Integer_to_2s_comp  nbits  x =
   in
     if x < 0 then
       -- Negative
-      x + mask + 1
+      (((complement (negate x)) + 1) .&. mask)
     else
       -- Positive
       x .&. mask

@@ -540,20 +540,12 @@ exec_STORE    is_C    rs1         rs2         imm12         funct3        mstate
     -- Write mem, possibly with virtual mem translation
     (result1, mstate1) = mstate_vm_write  mstate  funct3  eaddr2  rs2_val
 
-    -- Record eaddr and wdata for Tandem Verification
-    mstate2 = mstate_eaddr_write  eaddr2   mstate1
-    wdata   = if      (funct3 == funct3_SB) then (rs2_val .&. 0xFF)
-              else if (funct3 == funct3_SB) then (rs2_val .&. 0xFFFF)
-              else if (funct3 == funct3_SW) then (rs2_val .&. 0xffffFFFF)
-              else rs2_val
-    mstate3 = mstate_wdata_write  wdata  mstate2
-
-    -- Finally: finish with trap, or finish with fall-through
-    mstate4 = case result1 of
-                Mem_Result_Err exc_code -> finish_trap  exc_code  eaddr2  mstate3
-                Mem_Result_Ok  _        -> finish_pc_incr  is_C  mstate3
+    -- Finish with trap, or finish with fall-through
+    mstate2 = case result1 of
+                Mem_Result_Err exc_code -> finish_trap  exc_code  eaddr2  mstate1
+                Mem_Result_Ok  _        -> finish_pc_incr  is_C  mstate1
   in
-    mstate4
+    mstate2
 
 -- ================================================================
 -- OP_IMM: ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
