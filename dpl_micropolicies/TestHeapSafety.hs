@@ -69,16 +69,6 @@ import Run_Program_PIPE
         things on its list.
 -}
 
--- cellColorOf :: TagSet -> P (Maybe Color)
--- cellColorOf t = do
---   ppol <- askPolicy
---   let l = rdTagSet ppol t
---   -- TODO: Ugh-ly -- can be done better with: toExt!
---   case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Cell"] l) of
---     (Just [c,_], _) -> return c
---     (_, Just [c]) -> return c
---     _ -> return Nothing
-
 -- The "heap." here is OK, I guess because we're in the heap safety policy... 
 cellColorOf :: TagSet -> Maybe Color
 cellColorOf t = 
@@ -105,7 +95,7 @@ envColorOf t = do
 
 reachableInOneStep :: MemT -> Set Color -> P (Set Color)
 reachableInOneStep m s =
-  foldM (\s t -> do  -- TODO: do notation not needed here
+  foldM (\s t -> do  --  do notation not actually needed here
            let c = cellColorOf t
            let p = pointerColorOf t
            case (c,p) of
@@ -120,7 +110,7 @@ reachableLoop m s = do
 
 registerColors :: PIPE_State -> P (Set Color)
 registerColors pstate = 
-  foldM (\s t -> do --TODO: Do notation not needed
+  foldM (\s t -> do -- Do notation not actually needed
             let c = pointerColorOf t
             case c of
               Just c' -> return $ Data_Set.insert c' s 
@@ -257,7 +247,7 @@ calcDiff pplus (p1,m1) (p2,m2) =
              catMaybes [(i,d,) <$> Data_Map.lookup i t2]
            ([],[((i,_),(_,l))]) ->
              catMaybes [(i,,l) <$> Data_Map.lookup i r2]
-           _ -> -- TODO!
+           _ -> -- TODO (Leo!)
                 error $ "More than one diff in register file:" ++
                         " registers = " ++ show reg_diff ++
                         " and tags = " ++ show tag_diff
@@ -300,7 +290,7 @@ prettyRegDiff pplus ((i,d,l):r1) ((i', d', l'):r2)
                  P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty pplus d' l'))
       $$ prettyRegDiff pplus r1 r2
 prettyRegDiff _ [] [] = P.empty
--- TODO: This can happen a lot now...
+-- TODO (Leo): This can happen a lot now...
 prettyRegDiff _ r1 r2 = P.text $ "<prettyRegDiff??> " ++ show (r1,r2)
 
 prettyMemDiff pplus ((i,d,l):m1) ((i', d', l'):m2)
@@ -381,7 +371,7 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
       trace' = ((m1,p1),(m2,p2)) : trace  in
   if count >= maxcount then 
     label "Out of gas" $ property True 
-  -- BCP: Check for traps too
+  -- TODO: Check for traps too
   else if run_state1 /= Run_State_Running || run_state2 /= Run_State_Running then 
     label (let (s1,s2) = (show run_state1, show run_state2) in
            if s1==s2 then s1 else (s1 ++ " / " ++ s2))

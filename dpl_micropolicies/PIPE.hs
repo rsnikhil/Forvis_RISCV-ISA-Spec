@@ -151,14 +151,14 @@ mem_readT :: PolicyPlus -> MemT -> Integer -> TagSet
 mem_readT pplus m a =
      maybe (initMem pplus) id (Data_Map.lookup a (unMemT m))
  
--- TODO: We are not sure this will do the right thing (i.e., something
--- coherence with what the processor does) on unaligned writes.
+-- LATER: We are not sure this will do the right thing (i.e., something
+-- coherent with what the processor does) on unaligned writes.
 -- Something seems fishy -- should check with the Dover folks to see
 -- what the actual PIPE does about this.
 -- 
--- (Later: Yes, things are fishy.  I'm temporarily going to "fix" this
+-- (Later: Yes, things are fishy.  We're temporarily going to "fix" this
 -- function to just error out if someone tries a misaligned access,
--- but I guess the behavior we really want is to generate a pipe
+-- but we guess the behavior we really want is to generate a pipe
 -- trap?)
 mem_writeT :: MemT -> Integer -> TagSet -> MemT
 -- mem_writeT m a t = foldr (\a m -> mem_writeT' m a t) m [a0,a0+1,a0+2,a0+3]
@@ -249,11 +249,11 @@ exec_pipe' pplus p pc inst maddr =
                     (p_next p)
                     (E.evalPolMod (policy pplus) (name, inp0 `M.union` (EC.wrapESKMap inp))) 
             in case r of
-                 -- TODO: The trap message on the next line should be
+                 -- LATER: The trap message on the next line should be
                  -- displayed using the external representation of
                  -- tags, not just `show`.  Also, it would be more
                  -- helpful if it included the PC tag and the opcode
-                 -- (or opgroup?)  that we're currently trying to
+                 -- (or opgroup?) that we're currently trying to
                  -- execute (I've tried to add this but it doesn't
                  -- look good yet)
                  Left EC.TFImplicit ->

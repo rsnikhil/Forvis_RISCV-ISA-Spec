@@ -189,7 +189,7 @@ instance CoupledPP (Mem, MemT) (Mem, MemT) where
     in P.vcat $ pr_aux [] c1 c2
 
 instance PP Color where
-  -- TODO: Pretty printing of colors according to the policy??
+  -- LATER: Pretty printing of colors according to the policy??
   pp pplus n = P.int n
   
 instance CoupledPP (Set Color) (Set Color) where

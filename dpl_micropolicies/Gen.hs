@@ -18,7 +18,7 @@ import Data.Set (Set)
 import Data.Maybe (isJust, fromJust)
 import qualified Data.List as Data_List
 
--- TODO: It would be better to delete all the Reader stuff
+-- TODO: Maybe it would be better to delete all the Reader stuff??
 import Control.Monad.Reader
 
 import Machine_State
@@ -59,7 +59,7 @@ Put heap_base r2 @ default
 Load r2 r3 @ default
 -}
 
--- TODO : Fix example machine tags
+-- TO DO: Need to Fix example machine tags
 --exampleMachines =
 --  let ms = initMachine
 --      heap_base = 100
@@ -96,7 +96,6 @@ Load r2 r3 @ default
 maxReg = 3
 
 -- Generate a random register for source
--- TODO: add types?
 genSourceReg :: Machine_State -> Gen GPR_Addr
 genSourceReg ms =
   choose (0, maxReg)
@@ -110,7 +109,8 @@ genTargetReg ms =
 -- Generate an immediate up to number
 -- Multiple of 4
 genImm :: Integer -> Gen InstrField
--- genImm n = (4*) <$> choose (1, n `div` 4)   -- BCP: Why do we never generate 0?
+-- -- (Hmm - Why did we never generate 0 at some point?)
+-- genImm n = (4*) <$> choose (1, n `div` 4)   
 genImm n = (4*) <$> choose (0, n `div` 4)  
 
 dataMemLow  = 4
@@ -131,7 +131,7 @@ instrLow = 1000
 --      regs = take 4 regs'  -- Just use the first four registers!
 --      validData n
 --        | n >= dataMemLow && n <= dataMemHigh =
---            -- TODO: If we allow non multiple of 4 values this needs to be fixed
+--            -- (If we allow non multiple of 4 values this needs to be fixed)
 --            let mod = 0 in
 --            Just (n, mod, dataMemHigh - n)
 --        | n == 0 =
@@ -205,7 +205,7 @@ genInstr pplus ms ps =
                   rs <- elements arithRegs
                   rd <- genTargetReg ms
                   imm <- genImm dataMemHigh
-                  -- TODO: Figure out what to do with Malloc
+                  -- (Old comment? "Need to figure out what to do with Malloc")
                   alloc <- frequency [(2, pure $ emptyInstTag pplus),
                                       (3, pure $ allocInstTag pplus)]
                   return (ADDI rd rs imm, alloc))
@@ -375,7 +375,7 @@ genMachine pplus = do
   let ms = initMachine {f_mem = mem}
       ps = (init_pipe_state pplus){p_mem = pmem}
       ms2 = setInstrI ms (JAL 0 1000)
-      ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- BCP: Needed??
+      ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- Needed??
 
   rs' <- updRegs $ f_gprs ms2
   ts' <- updTags pplus $ p_gprs ps2

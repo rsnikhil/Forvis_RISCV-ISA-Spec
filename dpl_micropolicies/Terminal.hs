@@ -4,7 +4,7 @@ import Text.PrettyPrint (Doc, (<+>), ($$))
 import qualified Text.PrettyPrint as P
 import System.Console.ANSI
 
--- TODO: This file and its interface to the world are a mess!
+-- TODO NOW: This file and its interface to the world are a total mess!
 
 set_terminal_urgent :: IO ()
 set_terminal_urgent = do
