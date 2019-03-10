@@ -45,12 +45,12 @@ data Reason = Halted String
             | PIPEError String
             deriving (Show)
 
-run_loop :: PolicyPlus -> Int -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
+run_loop :: PolicyPlus -> Int -> PIPE_State -> Machine_State -> (Reason, [(Machine_State, PIPE_State)])
 run_loop pplus maxinstrs pipe_state mstate =
-  run_loop' pplus 0 maxinstrs [(pipe_state, mstate)] pipe_state mstate 
+  run_loop' pplus 0 maxinstrs [(mstate, pipe_state)] mstate pipe_state
 
-run_loop' :: PolicyPlus -> Int -> Int -> [(PIPE_State, Machine_State)] -> PIPE_State -> Machine_State -> (Reason, [(PIPE_State, Machine_State)])
-run_loop' pplus fuel maxinstrs trace pipe_state mstate =
+run_loop' :: PolicyPlus -> Int -> Int -> [(Machine_State, PIPE_State)] -> Machine_State -> PIPE_State -> (Reason, [(Machine_State, PIPE_State)])
+run_loop' pplus fuel maxinstrs trace mstate pipe_state =
   let instret   = mstate_csr_read csr_addr_minstret mstate 
       run_state = mstate_run_state_read  mstate
 
@@ -72,8 +72,8 @@ run_loop' pplus fuel maxinstrs trace pipe_state mstate =
          --  ditto uart output stuff)
          -- If running, fetch-and-execute; if in WFI pause, check resumption
          if (run_state == Run_State_Running) then
-            case fetch_and_execute pplus pipe_state mstate1 of
-              Right (ps, ms) -> run_loop' pplus (fuel + 1) maxinstrs ((ps, ms) : trace) ps ms
+            case fetch_and_execute pplus mstate1 pipe_state of
+              Right (ms, ps) -> run_loop' pplus (fuel + 1) maxinstrs ((ms, ps) : trace) ms ps
               Left s -> (PIPEError s, trace) -- pipe_state, mstate1)
          else error "Unimplemented WFI stuff"
 {-
@@ -87,7 +87,7 @@ run_loop' pplus fuel maxinstrs trace pipe_state mstate =
                                               mstate3
                             return (pipe_state, mstate3_a)   -- WRONG!
  
-                        run_loop  maxinstrs  m_tohost_addr  pipe_state1 mstate5))
+                        run_loop  maxinstrs  m_tohost_addr  mstate5 pipe_state1))
 -}
 
 -- ================================================================
@@ -96,8 +96,8 @@ run_loop' pplus fuel maxinstrs trace pipe_state mstate =
 --     state to the trap vector (so, the fetched instr will be the
 --     first instruction in the trap vector).
 
-fetch_and_execute :: PolicyPlus -> PIPE_State -> Machine_State -> Either String (PIPE_State, Machine_State)
-fetch_and_execute pplus pipe_state mstate = 
+fetch_and_execute :: PolicyPlus -> Machine_State -> PIPE_State -> Either String (Machine_State, PIPE_State)
+fetch_and_execute pplus mstate pipe_state = 
   let _verbosity               = mstate_verbosity_read  mstate
       (intr_pending, mstate2)  = mstate_take_interrupt_if_any  mstate
 
@@ -109,17 +109,17 @@ fetch_and_execute pplus pipe_state mstate =
 
   -- Handle fetch-exception of execute
   in case fetch_result of
-    Fetch_Trap  _ec -> Right (pipe_state, mstate3)  -- WRONG?
+    Fetch_Trap  _ec -> Right (mstate3, pipe_state)  -- WRONG?
     Fetch_C  u16 -> let (mstate4, _spec_name) = (exec_instr_16b u16 mstate3)
-                    in Right (pipe_state, mstate4)  --WRONG?
+                    in Right (mstate4, pipe_state)  --WRONG?
 
     Fetch    u32 ->
 --      traceShow ("Executing...", decode_I RV32 u32, f_pc mstate3) $
       let (mstate4, _spec_name) = (exec_instr_32b u32 mstate3)
-          (pipe_state1, trap) = exec_pipe pplus pipe_state mstate3 u32 
+          (pipe_state1, trap) = exec_pipe pplus mstate3 pipe_state u32 
       in case trap of 
            PIPE_Trap s -> Left s
-           PIPE_Success -> Right (pipe_state1, mstate4)
+           PIPE_Success -> Right (mstate4, pipe_state1)
 
 -- ================================================================
 -- Read the word in mem [tohost_addr], if such an addr is given,

@@ -172,15 +172,15 @@ verboseTracing = False
 
 printTrace pplus tr1 tr2 = putStrLn $ P.render $ prettyTrace pplus tr1 tr2
 
-prettyTrace :: PolicyPlus -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
+prettyTrace :: PolicyPlus -> [(Machine_State, PIPE_State)] -> [(Machine_State, PIPE_State)] -> Doc
 prettyTrace pplus [] [] = P.empty
-prettyTrace pplus [(p1,m1)] [(p2,m2)] = prettyMStatePair pplus (M (m1,p1) (m2,p2))
-prettyTrace pplus (tr1@((p1,m1):_)) (tr2@((p2,m2):_)) =
+prettyTrace pplus [(m1,p1)] [(m2,p2)] = prettyMStatePair pplus (M (m1,p1) (m2,p2))
+prettyTrace pplus (tr1@((m1,p1):_)) (tr2@((m2,p2):_)) =
     prettyMStatePair pplus (M (m1,p1) (m2,p2)) $$ P.text ""
       $$ P.text "Trace:" $$ prettyDiffs pplus tr1 tr2
 
-prettyDiffs :: PolicyPlus -> [(PIPE_State, Machine_State)] -> [(PIPE_State, Machine_State)] -> Doc
-prettyDiffs pplus ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
+prettyDiffs :: PolicyPlus -> [(Machine_State, PIPE_State)] -> [(Machine_State, PIPE_State)] -> Doc
+prettyDiffs pplus ((m11,p11):(m12,p12):tr1) ((m21,p21):(m22,p22):tr2) =
   (if verboseTracing then
        P.text "----------------------------------------------------------------"
     $$ P.nest 10 (P.text "Raw Machine 1 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m12)))
@@ -191,10 +191,10 @@ prettyDiffs pplus ((p11,m11):(p12,m12):tr1) ((p21,m21):(p22,m22):tr2) =
                   P.text "Machine 2" $$ P.nest 3 (pretty pplus m22 p22) )
   else
     P.empty)
-  $$ pretty pplus (calcDiff pplus (p11,m11) (p12,m12))
-                 (calcDiff pplus (p21,m21) (p22,m22))
-  $$ prettyDiffs pplus ((p12,m12):tr1) ((p22,m22):tr2)
-prettyDiffs pplus [(p1,m1)] [(p2,m2)] =
+  $$ pretty pplus (calcDiff pplus (m11,p11) (m12,p12))
+                  (calcDiff pplus (m21,p21) (m22,p22))
+  $$ prettyDiffs pplus ((m12,p12):tr1) ((m22,p22):tr2)
+prettyDiffs pplus [(m1,p1)] [(m2,p2)] =
   P.text "" $$ P.text "Final:" $$ prettyMStatePair pplus (M (m1,p1) (m2,p2))
 prettyDiffs _ _ _ = P.empty
 
@@ -221,8 +221,8 @@ diff ((x1,y1):l1) ((x2,y2):l2) d
          | x1 > x2   = (if y2==d then [] else [(x2,(d,y2))]) ++ diff ((x1,y1):l1) l2 d
          | otherwise = (if y1==y2 then [] else [(x1,(y1,y2))]) ++ diff l1 l2 d 
 
-calcDiff :: PolicyPlus -> (PIPE_State, Machine_State) -> (PIPE_State, Machine_State) -> Diff
-calcDiff pplus (p1,m1) (p2,m2) =
+calcDiff :: PolicyPlus -> (Machine_State, PIPE_State) -> (Machine_State, PIPE_State) -> Diff
+calcDiff pplus (m1,p1) (m2,p2) =
   Diff {
     d_pc = (f_pc m1, p_pc p1)
   , d_instr =
@@ -377,11 +377,10 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
            if s1==s2 then s1 else (s1 ++ " / " ++ s2))
        $ property True
   else
-    case (fetch_and_execute pplus p1 m1', fetch_and_execute pplus p2 m2') of
-      (Right (p1r,m1r), Right (p2r, m2r)) ->
+    case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
+      (Right (m1r,p1r), Right (m2r, p2r)) ->
         (whenFail (do putStrLn $ "Reachable parts differ after execution!"
-                      let finalTrace = map flipboth $ reverse $ 
-                                       ((m1r,p1r), (m2r, p2r)) : trace'
+                      let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
                       uncurry (printTrace pplus) (unzip finalTrace)) $
            property $ (runReader (sameReachablePart (M (m1r,p1r) (m2r, p2r))) pplus))
         .&&. 

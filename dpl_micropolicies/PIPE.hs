@@ -212,8 +212,8 @@ get_mtag pplus p = mem_readT pplus (p_mem p)
 data PIPE_Result = PIPE_Trap String
                  | PIPE_Success
 
-exec_pipe :: PolicyPlus -> PIPE_State -> Machine_State -> Integer -> (PIPE_State, PIPE_Result)
-exec_pipe pplus p m u32 =
+exec_pipe :: PolicyPlus -> Machine_State -> PIPE_State -> Integer -> (PIPE_State, PIPE_Result)
+exec_pipe pplus m p u32 =
   let rv  = mstate_rv_read m in
   case decode_I rv u32 of
     Nothing ->

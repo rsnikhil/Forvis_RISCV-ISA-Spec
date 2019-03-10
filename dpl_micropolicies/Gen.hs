@@ -331,8 +331,8 @@ genByExec pplus 0 ms ps instrlocs = return (ms, ps, instrlocs)
 genByExec pplus n ms ps instrlocs
   -- Check if an instruction already exists
   | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
-    case fetch_and_execute pplus ps ms of
-      Right (ps'', ms'') ->
+    case fetch_and_execute pplus ms ps of
+      Right (ms'', ps'') ->
         genByExec pplus (n-1) ms'' ps'' instrlocs
       Left err ->
         -- trace ("Warning: Fetch and execute failed with " ++ show n
@@ -343,8 +343,8 @@ genByExec pplus n ms ps instrlocs
     let ms' = setInstrI ms is
         ps' = setInstrTagI ms ps it
     case -- traceShow ("Instruction generated...", is) $
-         fetch_and_execute pplus ps' ms' of
-      Right (ps'', ms'') ->
+         fetch_and_execute pplus ms' ps' of
+      Right (ms'', ps'') ->
         -- trace "Successful execution" $
         genByExec pplus (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
       Left err ->

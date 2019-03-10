@@ -7,7 +7,6 @@ fold our changes back into master when Nikhil says it's time
 * NOW
 
 beautify the code so others can use it
-  remove flipboth
   move a lot of printing support from TestHeapSafety to Printing
   use the P monad uniformly for printing, I guess
   tidy Terminal.hs
