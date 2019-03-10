@@ -140,26 +140,94 @@ sameReachablePart (M (s1, p1) (s2, p2)) = do
 
   return $ r1 == r2 && (f_gprs s1 == f_gprs s2) && (f1 == f2)
 
---- If you want reachability information, this needs to be before the prop_noninterference.
--- Shorthand for (indistinguishable) pairs of m- and p-states 
-data MStatePair =
-  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
+load_heap_policy = do
+  ppol <- load_pipe_policy "heap.main"
+  let pplus = PolicyPlus
+        { policy = ppol
+        , initGPR = fromExt [("heap.Pointer", Just 0)]
+        , initMem =
+            -- TODO: Might be better to make it some separate
+            -- "Uninitialized" tag?
+            fromExt [("heap.Cell", Just 0), ("heap.Pointer", Just 0)]
+        , initPC = fromExt [("heap.Env", Nothing)]
+        , initNextColor = 5
+        , emptyInstTag = fromExt [("heap.Inst", Nothing)]
+        , compareMachines = \pplus (M (m1,p1) (m2,p2)) -> 
+            P.text "Reachable:"
+              <+> pretty pplus (runReader (reachable p1) pplus) 
+                               (runReader (reachable p2) pplus)
+        }
+  return pplus
 
-emptyInstTag :: PolicyPlus -> TagSet
-emptyInstTag pplus = 
-  fromExt [("heap.Inst", Nothing)]
+-- prop_noninterference :: PolicyPlus -> MStatePair -> Property
+-- prop_noninterference pplus (M (m1,p1) (m2,p2)) =
+--   let (r1,ss1') = run_loop pplus 100 p1 m1
+--       (r2,ss2') = run_loop pplus 100 p2 m2
+--       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
+--   whenFail (do putStrLnUrgent $ "Reachable parts differ after execution!"
+--                putStrLn $ ""
+--                -- putStrLnHighlight $ "Original machines:"
+--                -- print_mstatepair ppol (M (m1,p1) (m2,p2))
+--                -- putStrLn $ ""
+--                -- putStrLnHighlight $ "After execution..."
+--                -- print_mstatepair ppol (M (m1', p1') (m2', p2'))
+--                -- putStrLn $ ""
+--                -- putStrLnHighlight $ "Trace..."
+--                let finalTrace = {- map flipboth $ -} reverse $ zip ss1' ss2'
+--                uncurry (printTrace pplus) (unzip finalTrace)
+-- --               putStrLn "First One:"
+-- --               print_coupled m1' p1'
+-- --               putStrLn "Second One:"
+-- --               print_coupled m2' p2'
+--            )
+--            -- collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32) $
+--              (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) pplus)
 
-allocInstTag :: PolicyPlus -> TagSet
-allocInstTag pplus =
-  fromExt [("heap.Alloc", Nothing), ("heap.Inst", Nothing)]
+prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
+  let run_state1 = mstate_run_state_read m1
+      run_state2 = mstate_run_state_read m2
+      m1' = mstate_io_tick m1
+      m2' = mstate_io_tick m2 
+      trace' = ((m1,p1),(m2,p2)) : trace  in
+  if count >= maxcount then 
+    label "Out of gas" $ property True 
+  -- TODO: Check for traps too
+  else if run_state1 /= Run_State_Running || run_state2 /= Run_State_Running then 
+    label (let (s1,s2) = (show run_state1, show run_state2) in
+           if s1==s2 then s1 else (s1 ++ " / " ++ s2))
+       $ property True
+  else
+    case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
+      (Right (m1r,p1r), Right (m2r, p2r)) ->
+        (whenFail (do putStrLn $ "Reachable parts differ after execution!"
+                      let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
+                      uncurry (printTrace pplus) (unzip finalTrace)) $
+           property $ (runReader (sameReachablePart (M (m1r,p1r) (m2r, p2r))) pplus))
+        .&&. 
+        prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
+      (Left s1, Left s2) ->
+         label ("Pipe trap " ++ s1 ++ " / " ++ s2) $ property True
+      (Left s1, _) ->
+         label ("Pipe trap " ++ s1) $ property True
+      (_, Left s2) ->
+         label ("Pipe trap " ++ s2) $ property True
+
+maxInstrsToGenerate :: Int
+maxInstrsToGenerate = 10
+
+prop_noninterference :: PolicyPlus -> MStatePair -> Property
+prop_noninterference pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms
+
+-------------------------------------------------------------------------------------
+-- Printing for Heap Safety policy (but quite a bit should be generic!)
 
 prettyMStatePair :: PolicyPlus -> MStatePair -> Doc
 prettyMStatePair pplus (M (m1, p1) (m2, p2)) =
     let ppol = policy pplus in
-    P.vcat [ P.text "Reachable:" <+> pretty pplus (runReader (reachable p1) pplus) (runReader (reachable p2) pplus)
-           , P.text "PC:" <+> pretty pplus (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
+    P.vcat [ P.text "PC:" <+> pretty pplus (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
            , P.text "Registers:" $$ P.nest 2 (pretty pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
            , P.text "Memories:" $$ P.nest 2 (pretty pplus (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
+           , (compareMachines pplus) pplus $ M (m1,p1) (m2,p2)
            ]
 
 print_mstatepair :: PolicyPlus -> MStatePair -> IO ()
@@ -167,8 +235,6 @@ print_mstatepair pplus m = putStrLn $ P.render $ prettyMStatePair pplus m
 
 verboseTracing = False
 --verboseTracing = True
-
--- TODO: A lot of this printing stuff belongs in Printing.hs, I think
 
 printTrace pplus tr1 tr2 = putStrLn $ P.render $ prettyTrace pplus tr1 tr2
 
@@ -319,81 +385,3 @@ instance CoupledPP Diff Diff where
            , prettyRegDiff pplus (d_reg d1) (d_reg d2)
            , prettyMemDiff pplus (d_mem d1) (d_mem d2)
            ]
-
--- TODO: The fact that we need this is a sad indication of how confused
--- everything is about whether pipe or machine states go first...
-flipboth :: ((a,b),(a,b)) -> ((b,a),(b,a))
-flipboth ((a1,b1),(a2,b2)) = ((b1,a1),(b2,a2))
-
-load_heap_policy = do
-  ppol <- load_pipe_policy "heap.main"
-  let pplus = PolicyPlus
-        { policy = ppol
-        , initGPR = fromExt [("heap.Pointer", Just 0)]
-        , initMem =
-            -- TODO: Might be better to make it some separate
-            -- "Uninitialized" tag?
-            fromExt [("heap.Cell", Just 0), ("heap.Pointer", Just 0)]
-        , initPC = fromExt [("heap.Env", Nothing)]
-        , initNextColor = 5
-        }
-  return pplus
-
--- prop_noninterference :: PolicyPlus -> MStatePair -> Property
--- prop_noninterference pplus (M (m1,p1) (m2,p2)) =
---   let (r1,ss1') = run_loop pplus 100 p1 m1
---       (r2,ss2') = run_loop pplus 100 p2 m2
---       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
---   whenFail (do putStrLnUrgent $ "Reachable parts differ after execution!"
---                putStrLn $ ""
---                -- putStrLnHighlight $ "Original machines:"
---                -- print_mstatepair ppol (M (m1,p1) (m2,p2))
---                -- putStrLn $ ""
---                -- putStrLnHighlight $ "After execution..."
---                -- print_mstatepair ppol (M (m1', p1') (m2', p2'))
---                -- putStrLn $ ""
---                -- putStrLnHighlight $ "Trace..."
---                let finalTrace = {- map flipboth $ -} reverse $ zip ss1' ss2'
---                uncurry (printTrace pplus) (unzip finalTrace)
--- --               putStrLn "First One:"
--- --               print_coupled m1' p1'
--- --               putStrLn "Second One:"
--- --               print_coupled m2' p2'
---            )
---            -- collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32) $
---              (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) pplus)
-
-prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
-  let run_state1 = mstate_run_state_read m1
-      run_state2 = mstate_run_state_read m2
-      m1' = mstate_io_tick m1
-      m2' = mstate_io_tick m2 
-      trace' = ((m1,p1),(m2,p2)) : trace  in
-  if count >= maxcount then 
-    label "Out of gas" $ property True 
-  -- TODO: Check for traps too
-  else if run_state1 /= Run_State_Running || run_state2 /= Run_State_Running then 
-    label (let (s1,s2) = (show run_state1, show run_state2) in
-           if s1==s2 then s1 else (s1 ++ " / " ++ s2))
-       $ property True
-  else
-    case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
-      (Right (m1r,p1r), Right (m2r, p2r)) ->
-        (whenFail (do putStrLn $ "Reachable parts differ after execution!"
-                      let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
-                      uncurry (printTrace pplus) (unzip finalTrace)) $
-           property $ (runReader (sameReachablePart (M (m1r,p1r) (m2r, p2r))) pplus))
-        .&&. 
-        prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
-      (Left s1, Left s2) ->
-         label ("Pipe trap " ++ s1 ++ " / " ++ s2) $ property True
-      (Left s1, _) ->
-         label ("Pipe trap " ++ s1) $ property True
-      (_, Left s2) ->
-         label ("Pipe trap " ++ s2) $ property True
-
-maxInstrsToGenerate :: Int
-maxInstrsToGenerate = 10
-
-prop_noninterference :: PolicyPlus -> MStatePair -> Property
-prop_noninterference pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms

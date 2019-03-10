@@ -4,10 +4,17 @@ fold our changes back into master when Nikhil says it's time
 
 (Leo) improve the printing of diffs in registers (calcDiff)
 
+* IDEAS FOR WORKING WITH MULTIPLE POLICIES
+
+- First try:
+    - make a Policy typeclass with members
+        - Tag -- a type that isn't actually used for anything except to
+          control which 
+
 * NOW
 
 beautify the code so others can use it
-  move a lot of printing support from TestHeapSafety to Printing
+  move some printing support from TestHeapSafety to Printing
   use the P monad uniformly for printing, I guess
   tidy Terminal.hs
 

@@ -19,6 +19,7 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             mkMemT, mem_readT, mem_writeT,
             PIPE_State(..),
             init_pipe_state,
+            MStatePair(..),
             PIPE_Result(..),
             exec_pipe) where
 
@@ -46,6 +47,9 @@ import GPR_File
 
 import Control.Monad.Reader
 
+import Text.PrettyPrint (Doc, (<+>), ($$))
+
+-----------------------------------------------------------------
 type PIPE_Policy = E.QPolMod
 
 type TagSet = EC.TagValue 
@@ -58,12 +62,19 @@ showTagSet t =
 
 type Color = Int
 
-data PolicyPlus = PolicyPlus { policy :: PIPE_Policy
-                             , initGPR :: TagSet 
-                             , initMem :: TagSet 
-                             , initPC :: TagSet 
-                             , initNextColor :: Color
-                             }
+data PolicyPlus =
+  PolicyPlus {
+    -- The policy itself
+    policy :: PIPE_Policy
+    -- Features for generation
+  , initGPR :: TagSet 
+  , initMem :: TagSet 
+  , initPC :: TagSet 
+  , initNextColor :: Color
+  , emptyInstTag :: TagSet
+  -- Features for printing
+  , compareMachines :: PolicyPlus -> MStatePair -> Doc
+  }
 
 type P a = Reader PolicyPlus a
 
@@ -206,6 +217,9 @@ set_mtag p a t = p {p_mem = mem_writeT (p_mem p) a t}
 
 get_mtag :: PolicyPlus -> PIPE_State -> Integer -> TagSet
 get_mtag pplus p = mem_readT pplus (p_mem p) 
+
+data MStatePair =
+  M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
 
 ---------------------------------
 

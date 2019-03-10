@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# LANGUAGE TupleSections, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
 module Printing where
 
 import Arch_Defs
@@ -18,6 +18,7 @@ import Numeric (showHex, readHex)
 import GPR_File
 import FPR_File
 import CSR_File
+import Forvis_Spec_Instr_Fetch
 
 import Text.PrettyPrint (Doc, (<+>), ($$), fcat)
 import qualified Text.PrettyPrint as P
@@ -228,3 +229,4 @@ print_mstate  indent  mstate = do
 pad :: Int -> Doc -> Doc
 pad i p = let s = show p in
           P.text (s ++ take (i - (length s)) (repeat ' '))
+

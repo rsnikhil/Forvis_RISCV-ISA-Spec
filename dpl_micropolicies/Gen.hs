@@ -193,6 +193,9 @@ reachableLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
                        ) (Data_Map.assocs pm)
     _ -> []
 
+allocInstTag :: PolicyPlus -> TagSet
+allocInstTag pplus =
+  fromExt [("heap.Alloc", Nothing), ("heap.Inst", Nothing)]
 
 genInstr :: PolicyPlus -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
 genInstr pplus ms ps =
