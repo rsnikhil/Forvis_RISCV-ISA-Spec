@@ -27,27 +27,6 @@ import Gen
 
 import Control.Monad.Reader
 
--- Tag shrinking basically amounts to shrinking the colors
--- of things to C 0. Assuming that C 0 is always reachable.
--- We can't change the Tag type. We can't change the Color
--- arbitrarily.
-shrinkColor :: Color -> [Color]
-shrinkColor (0) = []
-shrinkColor (1) = [0]
-shrinkColor (n) = [0,n-1]
-
-shrinkTag :: PolicyPlus -> TagSet -> [TagSet]
-shrinkTag pplus t =
-  case toExt t of
-    [("heap.Alloc", Nothing), ("heap.Instr", Nothing)] ->
-      [fromExt [("heap.Instr", Nothing)]]
-    [("heap.Pointer", Just cp)] ->
-      [fromExt [("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
-    [("heap.Cell", Just cc), ("heap.Pointer", Just cp)] ->
-         [fromExt [("heap.Cell", Just cc'), ("heap.Pointer", Just cp )] | cc' <- shrinkColor cc]
-      ++ [fromExt [("heap.Cell", Just cc),  ("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
-    _ -> []
-
 -- INV: If we're shrinking registers, everything should already be equal.
 shrinkRegister :: PolicyPlus -> (Integer, TagSet) -> [(Integer, TagSet)]
 shrinkRegister pplus (d,t) = [(d',t') | d' <- shrink d, t' <- shrinkTag pplus t]

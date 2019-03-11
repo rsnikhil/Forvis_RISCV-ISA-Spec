@@ -72,8 +72,10 @@ data PolicyPlus =
   , initPC :: TagSet 
   , initNextColor :: Color
   , emptyInstTag :: TagSet
+  -- Features for shrinking
+  , shrinkTag :: TagSet -> [TagSet]
   -- Features for printing
-  , compareMachines :: PolicyPlus -> MStatePair -> Doc
+  , compareMachines :: PolicyPlus -> MStatePair -> Doc  -- needs a better name!
   }
 
 type P a = Reader PolicyPlus a

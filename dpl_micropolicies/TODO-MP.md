@@ -4,19 +4,14 @@ fold our changes back into master when Nikhil says it's time
 
 (Leo) improve the printing of diffs in registers (calcDiff)
 
-* IDEAS FOR WORKING WITH MULTIPLE POLICIES
-
-- First try:
-    - make a Policy typeclass with members
-        - Tag -- a type that isn't actually used for anything except to
-          control which 
-
 * NOW
 
-beautify the code so others can use it
-  move some printing support from TestHeapSafety to Printing
+move Gen into TestHeapSafety
+
+make a second policy
+
+beautify the code some more
   use the P monad uniformly for printing, I guess
-  tidy Terminal.hs
 
 Find a more permanent fix for the JAL issue
   see the "DPL rules for JAL" email thread

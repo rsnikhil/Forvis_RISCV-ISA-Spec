@@ -140,6 +140,27 @@ sameReachablePart (M (s1, p1) (s2, p2)) = do
 
   return $ r1 == r2 && (f_gprs s1 == f_gprs s2) && (f1 == f2)
 
+-- Tag shrinking basically amounts to shrinking the colors
+-- of things to C 0. Assuming that C 0 is always reachable.
+-- We can't change the Tag type. We can't change the Color
+-- arbitrarily.
+shrinkColor :: Color -> [Color]
+shrinkColor (0) = []
+shrinkColor (1) = [0]
+shrinkColor (n) = [0,n-1]
+
+shrinkTag_ :: TagSet -> [TagSet]
+shrinkTag_ t =
+  case toExt t of
+    [("heap.Alloc", Nothing), ("heap.Instr", Nothing)] ->
+      [fromExt [("heap.Instr", Nothing)]]
+    [("heap.Pointer", Just cp)] ->
+      [fromExt [("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
+    [("heap.Cell", Just cc), ("heap.Pointer", Just cp)] ->
+         [fromExt [("heap.Cell", Just cc'), ("heap.Pointer", Just cp )] | cc' <- shrinkColor cc]
+      ++ [fromExt [("heap.Cell", Just cc),  ("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
+    _ -> []
+
 load_heap_policy = do
   ppol <- load_pipe_policy "heap.main"
   let pplus = PolicyPlus
@@ -156,6 +177,7 @@ load_heap_policy = do
             P.text "Reachable:"
               <+> pretty pplus (runReader (reachable p1) pplus) 
                                (runReader (reachable p2) pplus)
+        , shrinkTag = shrinkTag_
         }
   return pplus
 
