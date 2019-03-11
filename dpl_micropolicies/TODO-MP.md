@@ -7,8 +7,8 @@ fold our changes back into master when Nikhil says it's time
 * NOW
 
 reorganization
-  the type Color should be defined within the heap safety policy code, not in PIPE.hs
   see if TestHeapSafety can be removed from imports in Shrinking.hs 
+     otherwise merge the two
 
 make a second policy (a trivial one at first)
 

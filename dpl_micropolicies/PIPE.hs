@@ -6,7 +6,7 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             P,
             Color,
             -- APT: These might be useful one day (even if not for autotesting)
-            -- Should wait until integrating Chris's new parser, which supports int fields in tags.
+            -- Should wait until integrating Chris's new parser, which supports int fields in tags. 
             -- Still need to fix to translate tags to fully qualified form.
             -- mkTagSet,
             -- rdTagSet,
@@ -60,6 +60,10 @@ showTagSet t =
     in
     "{" ++ intercalate ", " (map f (toExt t)) ++ "}"
 
+-- This type is defined here rather than within specific policies /
+-- properties because that's how the DPL interpreter does it.  (And
+-- because, similarly, the initNextColor field becomes an argument to
+-- the policy interpreter.)
 type Color = Int
 
 data PolicyPlus =
