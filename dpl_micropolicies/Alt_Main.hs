@@ -14,7 +14,6 @@ import Generator (genASTFile,genSymbolsFile)
 
 import Test.QuickCheck
 
-import Gen
 import TestHeapSafety
 import Shrinking
 import Printing

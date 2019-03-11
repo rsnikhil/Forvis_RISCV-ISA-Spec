@@ -22,10 +22,11 @@ import Machine_State
 
 import Control.Arrow (second, (***))
 import Test.QuickCheck
-import TestHeapSafety
-import Gen
 
 import Control.Monad.Reader
+
+-- This is wrong and should be eliminated!!
+import TestHeapSafety  
 
 -- INV: If we're shrinking registers, everything should already be equal.
 shrinkRegister :: PolicyPlus -> (Integer, TagSet) -> [(Integer, TagSet)]
@@ -71,8 +72,8 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
       m2' = Data_Map.assocs m2
       t2' = Data_Map.assocs t2
 
-      isData  i = i >= dataMemLow && i <= dataMemHigh
-      isInstr i = i == 0 || i >= instrLow
+      isData  i = i >= dataMemLow pplus && i <= dataMemHigh pplus
+      isInstr i = i == 0 || i >= instrLow pplus
  
       shrinkMemLoc :: (Integer, Integer, TagSet) -> (Integer, Integer, TagSet) ->
                       [ (IndexedTagedInt, IndexedTagedInt) ]

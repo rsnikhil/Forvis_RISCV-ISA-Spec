@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables, TupleSections, FlexibleInstances, MultiParamTypeClasses #-}
 module TestHeapSafety where
 
 import qualified Data.Map.Strict as Data_Map
@@ -17,15 +17,11 @@ import Forvis_Spec_Instr_Fetch
 import GPR_File
 import Memory
 
--- This might belong elsewhere
 import Test.QuickCheck
 
 import Debug.Trace
 import Control.Monad.Reader
 import Terminal 
-
---------------------------------------------------------
--- This belongs in /src!
 
 import Control.Exception.Base (assert)
 
@@ -36,6 +32,39 @@ import qualified Text.PrettyPrint as P
 import Printing
 import PIPE
 import Run_Program_PIPE
+
+-- Trim redundant imports!
+
+import Arch_Defs
+import GPR_File
+import CSR_File
+import Forvis_Spec_I
+import Memory
+
+import Data.Bits
+
+import Encoder
+import PIPE
+
+import qualified Data.Map.Strict as Data_Map
+import qualified Data.Set as Data_Set
+import Data.Set (Set)
+import Data.Maybe (isJust, fromJust)
+import qualified Data.List as Data_List
+
+-- TODO: Maybe it would be better to delete all the Reader stuff??
+import Control.Monad.Reader
+
+import Machine_State
+
+import Control.Arrow (second)
+import Test.QuickCheck
+
+import Control.Monad.Reader
+
+import Debug.Trace
+import Run_Program_PIPE
+
 
 ------------------------------------------------------------------------
 -- Testing
@@ -57,8 +86,8 @@ import Run_Program_PIPE
    To get a pragmatically more useful property, something like "sealed
    capabilities" (aka closures) or a protected stack is needed. -}
 
-----------------------------------------
--- Reachability. Where should this live?
+------------------------------------------------------------------------------------
+-- Reachability
 
 {- A stupid n^2 reachability algorithm for now.  If we find it is too
    slow as memories get larger, we could improve it like this:
@@ -69,7 +98,6 @@ import Run_Program_PIPE
         things on its list.
 -}
 
--- The "heap." here is OK, I guess because we're in the heap safety policy... 
 cellColorOf :: TagSet -> Maybe Color
 cellColorOf t = 
   -- trace ("cellColorOf " ++ show t ++ " i.e. " ++ show (toExt t)) $
@@ -140,6 +168,306 @@ sameReachablePart (M (s1, p1) (s2, p2)) = do
 
   return $ r1 == r2 && (f_gprs s1 == f_gprs s2) && (f1 == f2)
 
+------------------------------------------------------------------------------------------
+-- Generation
+
+initMachine = 
+  let initial_PC     = 0
+      misa           = ((    shiftL  1  misa_A_bitpos)
+                        .|. (shiftL  1  misa_I_bitpos)
+                        .|. (shiftL  1  misa_M_bitpos)
+                        .|. (shiftL  1  misa_S_bitpos)
+                        .|. (shiftL  1  misa_U_bitpos)
+                        .|. (shiftL  xl_rv32  misa_MXL_bitpos_RV32))
+      mem_base       = 0
+      mem_size       = 0xFFFFFFFFFFFFFFFF
+      addr_ranges    = [(mem_base, mem_base + mem_size)]
+      addr_byte_list = []
+  in mkMachine_State  RV32  misa  initial_PC  addr_ranges  addr_byte_list
+
+-- GPR's are hard coded to be [0..31], but we only use a couple of them
+maxReg = 3
+
+-- Generate a random register for source
+genSourceReg :: Machine_State -> Gen GPR_Addr
+genSourceReg ms =
+  choose (0, maxReg)
+
+-- Generate a target register GPR
+-- For now, just avoid R0
+genTargetReg :: Machine_State -> Gen GPR_Addr
+genTargetReg ms =
+  choose (1, maxReg)
+
+-- Generate an immediate up to number
+-- Multiple of 4
+genImm :: Integer -> Gen InstrField
+-- -- (Hmm - Why did we never generate 0 at some point?)
+-- genImm n = (4*) <$> choose (1, n `div` 4)   
+genImm n = (4*) <$> choose (0, n `div` 4)  
+
+-- Picks out valid (data registers + content + min immediate + max immediate + tag),
+--                 (jump registers + min immediate),
+--                 integer registers
+groupRegisters :: PolicyPlus -> GPR_File -> GPR_FileT ->
+                  ([(GPR_Addr, Integer, Integer, Integer, TagSet)],
+                   [(GPR_Addr, Integer)],
+                   [GPR_Addr])
+groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
+  -- Assuming that the register files are same length and they have no holes
+  let regs = Data_Map.assocs rs
+      tags = Data_Map.assocs ts
+      rts = zip regs tags
+
+      validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
+        | reg_content >= dataMemLow pplus &&
+          reg_content <= dataMemHigh pplus
+          && isJust (pointerColorOf reg_tag) =
+           Just (reg_id, reg_content, 0, dataMemHigh pplus - reg_content, reg_tag)
+        | reg_content == 0 && isJust (pointerColorOf reg_tag) =
+        -- We can allow a 0 register by adding at least 4
+           Just (reg_id, 0, dataMemLow pplus, dataMemHigh pplus, reg_tag)
+        | otherwise =
+           Nothing
+        
+      validJump ((reg_id,reg_content),(_, reg_tag))
+        | reg_content < instrLow pplus && isJust (envColorOf reg_tag) =
+          Just (reg_id, instrLow pplus - reg_content)
+        | otherwise =
+          Nothing
+
+      dataRegs    = map (fromJust) $ filter (isJust) $ map validData rts
+      controlRegs = map (fromJust) $ filter (isJust) $ map validJump rts
+      arithRegs   = map fst regs
+  in (dataRegs, controlRegs, arithRegs)
+
+-- All locations that can be accessed using color 'c' between 'lo' and 'hi'
+reachableLocsBetween :: PolicyPlus -> Mem -> MemT -> Integer -> Integer -> TagSet -> [Integer]
+reachableLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
+  case pointerColorOf t of
+    Just c -> 
+      map fst $ filter (\(i,t) ->
+                          case cellColorOf t of
+                            Just c' -> c == c' && i >= lo && i <= hi
+                            _ -> False
+                       ) (Data_Map.assocs pm)
+    _ -> []
+
+allocInstTag :: PolicyPlus -> TagSet
+allocInstTag pplus =
+  fromExt [("heap.Alloc", Nothing), ("heap.Inst", Nothing)]
+
+genInstr :: PolicyPlus -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
+genInstr pplus ms ps =
+  let (dataRegs, ctrlRegs, arithRegs) = groupRegisters pplus (f_gprs ms) (p_gprs ps)
+      onNonEmpty [] _= 0
+      onNonEmpty _ n = n
+  in 
+  frequency [ (onNonEmpty arithRegs 1,
+               do -- ADDI
+                  rs <- elements arithRegs
+                  rd <- genTargetReg ms
+                  imm <- genImm (dataMemHigh pplus)
+                  -- (Old comment? "Need to figure out what to do with Malloc")
+                  alloc <- frequency [(2, pure $ emptyInstTag pplus),
+                                      (3, pure $ allocInstTag pplus)]
+                  return (ADDI rd rs imm, alloc))
+            , (onNonEmpty dataRegs 3,
+               do -- LOAD
+                  (rs,content,min_imm,max_imm,tag) <- elements dataRegs
+                  let locs = --traceShow (content, min_imm, max_imm, tag) $
+                             reachableLocsBetween pplus (f_mem ms) (p_mem ps) (content+min_imm) (content+max_imm) tag
+                  rd <- genTargetReg ms
+                  imm <- frequency [ -- Generate a reachable location)
+                                     (--traceShow locs $
+                                       onNonEmpty locs 1,
+                                      do addr <- elements locs
+                                         return $ addr - content)
+                                   , (1, (min_imm+) <$> genImm (max_imm - min_imm))
+                                   ]
+                  let tag = emptyInstTag pplus                         
+                  return (LW rd rs imm, tag)
+              )
+            , (onNonEmpty dataRegs 3 * onNonEmpty arithRegs 1,
+               do -- STORE
+                  (rd,content, min_imm,max_imm,tag) <- elements dataRegs
+                  rs <- genTargetReg ms
+                  imm <- (min_imm+) <$> genImm (max_imm - min_imm)
+                  let tag = emptyInstTag pplus
+                  return (SW rd rs imm, tag))
+            , (onNonEmpty arithRegs 1,
+               do -- ADD
+                  rs1 <- elements arithRegs
+                  rs2 <- elements arithRegs
+                  rd <- genTargetReg ms
+                  let tag = emptyInstTag pplus
+                  return (ADD rd rs1 rs2, tag))
+            ]
+
+randInstr :: PolicyPlus -> Machine_State -> Gen (Instr_I, TagSet)
+randInstr pplus ms =          
+  frequency [ (1, do -- ADDI
+                  rs <- genSourceReg ms
+                  rd <- genTargetReg ms
+                  imm <- genImm 4
+                  alloc <- frequency [(1, pure $ emptyInstTag pplus), (4, pure $ allocInstTag pplus)]
+                  return (ADDI rd rs imm, alloc))
+            , (1, do -- LOAD
+                  rs <- genSourceReg ms
+                  rd <- genTargetReg ms
+                  imm <- genImm 4
+                  let tag = emptyInstTag pplus                  
+                  return (LW rd rs imm, tag))
+            , (1, do -- STORE
+                  rs <- genSourceReg ms
+                  rd <- genTargetReg ms
+                  imm <- genImm 4
+                  let tag = emptyInstTag pplus
+                  return (SW rd rs imm, tag))
+            , (1, do -- ADD
+                  rs1 <- genSourceReg ms
+                  rs2 <- genSourceReg ms
+                  rd <- genTargetReg ms
+                  let tag = emptyInstTag pplus
+                  return (ADD rd rs1 rs2, tag))
+            ]
+
+genColor :: Gen Color
+genColor =
+  frequency [ (1, pure $ 0)
+            , (4, choose (0, 4)) ]
+
+-- Only colors up to 2 (for registers)
+genColorLow :: Gen Color
+genColorLow = frequency [ (1, pure $ 0)
+                        , (2, choose (0,2)) ]
+
+-- Focus on unreachable colors
+genColorHigh :: Gen Color
+genColorHigh =
+  frequency [ (1, pure $ 0)
+            , (1, choose (1,2) )
+            , (3, choose (3,4) )
+            ]
+
+genMTagM :: PolicyPlus -> Gen TagSet
+genMTagM pplus = do
+  c1 <- genColor
+  c2 <- genColor
+  return $ fromExt [("heap.Cell", Just c1), ("heap.Pointer", Just c2)]
+
+genDataMemory :: PolicyPlus -> Gen (Mem, MemT)
+genDataMemory pplus = do
+  let idx = [dataMemLow pplus, (dataMemLow pplus)+4..(dataMemHigh pplus)]
+  combined <- mapM (\i -> do d <- genImm $ dataMemHigh pplus    -- BCP: This always puts 4 in every location!
+                             t <- genMTagM pplus
+                             return ((i, d),(i,t))) idx
+  let (m,pm) = unzip combined
+  return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
+
+setInstrI :: Machine_State -> Instr_I -> Machine_State
+setInstrI ms i =
+  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
+
+setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
+setInstrTagI ms ps it =
+  ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
+
+genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
+genByExec pplus 0 ms ps instrlocs = return (ms, ps, instrlocs)
+genByExec pplus n ms ps instrlocs
+  -- Check if an instruction already exists
+  | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
+    case fetch_and_execute pplus ms ps of
+      Right (ms'', ps'') ->
+        genByExec pplus (n-1) ms'' ps'' instrlocs
+      Left err ->
+        -- trace ("Warning: Fetch and execute failed with " ++ show n
+        --        ++ " steps remaining and error: " ++ show err) $
+        return (ms, ps, instrlocs)
+  | otherwise = do
+    (is, it) <- genInstr pplus ms ps
+    let ms' = setInstrI ms is
+        ps' = setInstrTagI ms ps it
+    case -- traceShow ("Instruction generated...", is) $
+         fetch_and_execute pplus ms' ps' of
+      Right (ms'', ps'') ->
+        -- trace "Successful execution" $
+        genByExec pplus (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
+      Left err ->
+        -- trace ("Warning: Fetch and execute failed with "
+        --       ++ show n ++ " steps remaining and error: " ++ show err) $
+        return (ms', ps', instrlocs)
+
+updRegs :: GPR_File -> Gen GPR_File
+updRegs (GPR_File rs) = do
+  [d1, d2, d3] <- replicateM 3 $ genImm 40
+  let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
+  return $ GPR_File rs'
+
+mkPointerTagSet pplus c = fromExt [("heap.Pointer", Just c)]
+
+updTags :: PolicyPlus -> GPR_FileT -> Gen GPR_FileT
+updTags pplus (GPR_FileT rs) = do
+  [c1, c2, c3] <- (map $ mkPointerTagSet (policy pplus)) <$> (replicateM 3 genColorLow)
+  
+  let rs' :: Data_Map.Map Integer TagSet = Data_Map.insert 1 c1 $ Data_Map.insert 2 c2 $ Data_Map.insert 3 c3 rs
+  return $ GPR_FileT rs'
+
+genMachine :: PolicyPlus -> Gen (Machine_State, PIPE_State)
+genMachine pplus = do
+  -- registers
+  (mem,pmem) <- genDataMemory pplus
+  let ms = initMachine {f_mem = mem}
+      ps = (init_pipe_state pplus){p_mem = pmem}
+      ms2 = setInstrI ms (JAL 0 1000)
+      ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- Needed??
+
+  rs' <- updRegs $ f_gprs ms2
+  ts' <- updTags pplus $ p_gprs ps2
+  let ms' = ms2 {f_gprs = rs'}
+      ps' = ps2 {p_gprs = ts'}
+  
+  (ms_fin, ps_fin, instrlocs) <- genByExec pplus maxInstrsToGenerate ms' ps' Data_Set.empty
+
+  let final_mem = f_dm $ f_mem ms_fin
+      res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs
+      ms_fin' = 
+        ms' {f_mem = (f_mem ms') { f_dm = res_mem } }  
+
+      final_pmem = unMemT $ p_mem ps_fin
+      res_pmem = foldr (\a pmem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_pmem) pmem) (unMemT $ p_mem ps') instrlocs
+      ps_fin' =
+        ps' {p_mem = MemT res_pmem}
+
+  return (ms_fin', ps_fin')
+
+varyUnreachableMem :: PolicyPlus -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
+varyUnreachableMem pplus r (Mem m ra) (MemT pm) = do
+  combined <- mapM (\((i,d),(j,t)) -> do
+                       case cellColorOf t of
+                         Just c'
+                           | Data_Set.member c' r -> return ((i,d),(j,t))
+                           | otherwise -> do d' <- genImm 12 -- TODO: This makes no sense
+                                             return ((i,d'),(j,t)) -- TODO: Here we could scramble v
+                         _ -> return ((i,d),(j,t))
+                    ) $ zip (Data_Map.assocs m) (Data_Map.assocs pm)
+  let (m', pm') = unzip combined
+  return (Mem (Data_Map.fromList m') ra, MemT (Data_Map.fromList pm'))
+
+varyUnreachable :: PolicyPlus -> (Machine_State, PIPE_State) -> Gen MStatePair
+varyUnreachable pplus (m, p) = do
+  let r = runReader (reachable p) pplus
+  (mem', pmem') <- varyUnreachableMem pplus r (f_mem m) (p_mem p)
+  return $ M (m,p) (m {f_mem = mem'}, p {p_mem = pmem'})
+
+genMStatePair :: PolicyPlus -> Gen MStatePair
+genMStatePair pplus = 
+  genMachine pplus >>= varyUnreachable pplus
+
+------------------------------------------------------------------------------------------
+-- Shrinking
+
 -- Tag shrinking basically amounts to shrinking the colors
 -- of things to C 0. Assuming that C 0 is always reachable.
 -- We can't change the Tag type. We can't change the Color
@@ -161,50 +489,9 @@ shrinkTag_ t =
       ++ [fromExt [("heap.Cell", Just cc),  ("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
     _ -> []
 
-load_heap_policy = do
-  ppol <- load_pipe_policy "heap.main"
-  let pplus = PolicyPlus
-        { policy = ppol
-        , initGPR = fromExt [("heap.Pointer", Just 0)]
-        , initMem =
-            -- TODO: Might be better to make it some separate
-            -- "Uninitialized" tag?
-            fromExt [("heap.Cell", Just 0), ("heap.Pointer", Just 0)]
-        , initPC = fromExt [("heap.Env", Nothing)]
-        , initNextColor = 5
-        , emptyInstTag = fromExt [("heap.Inst", Nothing)]
-        , compareMachines = \pplus (M (m1,p1) (m2,p2)) -> 
-            P.text "Reachable:"
-              <+> pretty pplus (runReader (reachable p1) pplus) 
-                               (runReader (reachable p2) pplus)
-        , shrinkTag = shrinkTag_
-        }
-  return pplus
-
--- prop_noninterference :: PolicyPlus -> MStatePair -> Property
--- prop_noninterference pplus (M (m1,p1) (m2,p2)) =
---   let (r1,ss1') = run_loop pplus 100 p1 m1
---       (r2,ss2') = run_loop pplus 100 p2 m2
---       ((p1',m1'),(p2', m2')) = head $ reverse $ zip (reverse ss1') (reverse ss2') in
---   whenFail (do putStrLnUrgent $ "Reachable parts differ after execution!"
---                putStrLn $ ""
---                -- putStrLnHighlight $ "Original machines:"
---                -- print_mstatepair ppol (M (m1,p1) (m2,p2))
---                -- putStrLn $ ""
---                -- putStrLnHighlight $ "After execution..."
---                -- print_mstatepair ppol (M (m1', p1') (m2', p2'))
---                -- putStrLn $ ""
---                -- putStrLnHighlight $ "Trace..."
---                let finalTrace = {- map flipboth $ -} reverse $ zip ss1' ss2'
---                uncurry (printTrace pplus) (unzip finalTrace)
--- --               putStrLn "First One:"
--- --               print_coupled m1' p1'
--- --               putStrLn "Second One:"
--- --               print_coupled m2' p2'
---            )
---            -- collect (case fst $ instr_fetch m1' of Fetch u32 -> decode_I RV32 u32) $
---              (runReader (sameReachablePart (M (m1', p1') (m2', p2'))) pplus)
-
+------------------------------------------------------------------------------------------
+-- Top-level non-interference policy
+  
 prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
   let run_state1 = mstate_run_state_read m1
       run_state2 = mstate_run_state_read m2
@@ -239,4 +526,30 @@ maxInstrsToGenerate = 10
 
 prop_noninterference :: PolicyPlus -> MStatePair -> Property
 prop_noninterference pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms
+
+------------------------------------------------------------------------------------------
+-- The heap-safety policy
+  
+load_heap_policy = do
+  ppol <- load_pipe_policy "heap.main"
+  let pplus = PolicyPlus
+        { policy = ppol
+        , initGPR = fromExt [("heap.Pointer", Just 0)]
+        , initMem =
+            -- TODO: Might be better to make it some separate
+            -- "Uninitialized" tag?
+            fromExt [("heap.Cell", Just 0), ("heap.Pointer", Just 0)]
+        , initPC = fromExt [("heap.Env", Nothing)]
+        , initNextColor = 5
+        , emptyInstTag = fromExt [("heap.Inst", Nothing)]
+        , dataMemLow = 4
+        , dataMemHigh = 20  -- Was 40, but that seems like a lot! (8 may be too little!)
+        , instrLow = 1000
+        , compareMachines = \pplus (M (m1,p1) (m2,p2)) -> 
+            P.text "Reachable:"
+              <+> pretty pplus (runReader (reachable p1) pplus) 
+                               (runReader (reachable p2) pplus)
+        , shrinkTag = shrinkTag_
+        }
+  return pplus
 

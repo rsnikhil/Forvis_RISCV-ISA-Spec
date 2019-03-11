@@ -72,6 +72,10 @@ data PolicyPlus =
   , initPC :: TagSet 
   , initNextColor :: Color
   , emptyInstTag :: TagSet
+      -- (The next three are arguably policy-local things and should be removed from here)
+  , dataMemLow :: Integer
+  , dataMemHigh :: Integer
+  , instrLow :: Integer
   -- Features for shrinking
   , shrinkTag :: TagSet -> [TagSet]
   -- Features for printing
