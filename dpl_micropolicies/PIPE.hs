@@ -81,7 +81,7 @@ data PolicyPlus =
   , dataMemHigh :: Integer
   , instrLow :: Integer
   -- Features for shrinking
-  , shrinkTag :: TagSet -> [TagSet]
+  , shrinkMStatePair :: PolicyPlus -> MStatePair -> [MStatePair]
   -- Features for printing
   , compareMachines :: PolicyPlus -> MStatePair -> Doc  -- needs a better name!
   }

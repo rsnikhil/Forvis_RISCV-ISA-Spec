@@ -15,7 +15,6 @@ import Generator (genASTFile,genSymbolsFile)
 import Test.QuickCheck
 
 import TestHeapSafety
-import Shrinking
 import Printing
 
 import Control.Monad
@@ -63,8 +62,8 @@ main_test = do
   pplus <- load_heap_policy
   quickCheckWith stdArgs{maxSuccess=1000}
     $ forAllShrink (genMStatePair pplus)
-           (\mp -> shrinkMStatePair pplus mp 
-                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
+           (\mp -> (shrinkMStatePair pplus) pplus mp 
+                   ++ concatMap (shrinkMStatePair pplus pplus) (shrinkMStatePair pplus pplus mp))
     $ \m -> prop_noninterference pplus m
 
 main = main_test
