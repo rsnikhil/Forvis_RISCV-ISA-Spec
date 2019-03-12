@@ -485,8 +485,8 @@ varyUnreachable pplus (m, p) = do
   (mem', pmem') <- varyUnreachableMem pplus r (f_mem m) (p_mem p)
   return $ M (m,p) (m {f_mem = mem'}, p {p_mem = pmem'})
 
-genMStatePair :: PolicyPlus -> Gen MStatePair
-genMStatePair pplus = 
+genMStatePair_ :: PolicyPlus -> Gen MStatePair
+genMStatePair_ pplus = 
   genMachine pplus >>= varyUnreachable pplus
 
 ------------------------------------------------------------------------------------------
@@ -677,13 +677,13 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
 maxInstrsToGenerate :: Int
 maxInstrsToGenerate = 10
 
-prop_noninterference :: PolicyPlus -> MStatePair -> Property
-prop_noninterference pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms
+prop_ :: PolicyPlus -> MStatePair -> Property
+prop_ pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms
 
 ------------------------------------------------------------------------------------------
 -- The heap-safety policy
   
-load_heap_policy = do
+load_policy = do
   ppol <- load_pipe_policy "heap.main"
   let pplus = PolicyPlus
         { policy = ppol
@@ -703,6 +703,8 @@ load_heap_policy = do
               <+> pretty pplus (runReader (reachable p1) pplus) 
                                (runReader (reachable p2) pplus)
         , shrinkMStatePair = shrinkMStatePair_
+        , genMStatePair = genMStatePair_
+        , prop = prop_
         }
   return pplus
 

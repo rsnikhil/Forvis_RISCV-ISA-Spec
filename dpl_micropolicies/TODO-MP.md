@@ -6,10 +6,6 @@ fold our changes back into master when Nikhil says it's time
 
 * NOW
 
-reorganization
-  see if TestHeapSafety can be removed from imports in Shrinking.hs 
-     otherwise merge the two
-
 make a second policy (a trivial one at first)
 
 beautify the code some more

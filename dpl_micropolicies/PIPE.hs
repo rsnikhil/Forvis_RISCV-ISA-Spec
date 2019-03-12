@@ -45,6 +45,7 @@ import Forvis_Spec_I
 import GPR_File
 -- import Memory
 
+import Test.QuickCheck
 import Control.Monad.Reader
 
 import Text.PrettyPrint (Doc, (<+>), ($$))
@@ -71,6 +72,7 @@ data PolicyPlus =
     -- The policy itself
     policy :: PIPE_Policy
     -- Features for generation
+  , genMStatePair :: PolicyPlus -> Gen MStatePair
   , initGPR :: TagSet 
   , initMem :: TagSet 
   , initPC :: TagSet 
@@ -84,6 +86,8 @@ data PolicyPlus =
   , shrinkMStatePair :: PolicyPlus -> MStatePair -> [MStatePair]
   -- Features for printing
   , compareMachines :: PolicyPlus -> MStatePair -> Doc  -- needs a better name!
+  -- Features for testing
+  , prop :: PolicyPlus -> MStatePair -> Property
   }
 
 type P a = Reader PolicyPlus a
