@@ -1,6 +1,32 @@
+{-
+
+The main idea of the stack property:
+  - We are always comparing one "main run" to a stack of "variant states" *
+    <PC of JAL instructions>.
+  - In the inefficient version, each execution step steps the main state and
+    ALL the variant states
+  - When the machines (all together) execute a call (whatever that exactly
+    means), we add to the variant stack a scrambled version of the main
+    state in which every inaccessible location is replaced by an arbitrary
+    number, paired with the current PC
+  - when we return (whatever that exactly means!), we throw away the top
+    variant state and check that the current PC is now one more than the
+    saved PC
+  - the invariant we expect is that
+      - the accessible region of the main machine is the same as the
+        accessible regions of all the variant machines after each step
+      - the inaccessible region of each variant machine is unchanged by each
+        step
+  - a CALL is when the machine executes a JAL preceded by the rest of the
+    header sequence  (we had some questions about this!)
+  - a RETURN is when the machine executes an indirect jump to the saved
+    PC+1 preceded by the rest of the return sequence  (and this!)
+
+-}
+
 {-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables, TupleSections, FlexibleInstances, MultiParamTypeClasses #-}
 
-module TestHeapSafety where
+module TestStackSafety where
 
 -- From Haskell libraries
 import Control.Arrow (second, (***))
@@ -40,87 +66,33 @@ import PIPE
 import Printing
 import Terminal 
 
-------------------------------------------------------------------------------------
--- Reachability
+----------------------------------------------------------------------------------------
+-- Accessibility
 
-{- A stupid n^2 reachability algorithm for now.  If we find it is too
-   slow as memories get larger, we could improve it like this:
-      - As we go along, maintain a set of "reachable colors" plus a
-        map from "unreachable colors" to the addresses tagged with
-        each of them.  If an unreachable color ever becomes reachable,
-        then add it to the reachable set and recursively traverse the
-        things on its list.
--}
-
-cellColorOf :: TagSet -> Maybe Color
-cellColorOf t = 
+depthOf :: TagSet -> Maybe Color
+depthOf t = 
   -- trace ("cellColorOf " ++ show t ++ " i.e. " ++ show (toExt t)) $
-  join $ Data_List.lookup "heap.Cell" (toExt t)
+  join $ Data_List.lookup "stack.Depth" (toExt t)
 
--- pointerColorOf :: TagSet -> P (Maybe Color)
--- pointerColorOf t = do
---   ppol <- askPolicy
---   let l = rdTagSet ppol t
---   -- Ughly:
---   case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Pointer"] l) of
---     (Just [_,p], _) -> return p
---     (_, Just [p]) -> return p
---     _ -> return Nothing
-
-pointerColorOf :: TagSet -> Maybe Color
-pointerColorOf t = 
-  join $ Data_List.lookup "heap.Pointer" (toExt t)
-
-envColorOf :: TagSet -> Maybe Color
-envColorOf t = do
-  join $ Data_List.lookup "heap.Env" (toExt t)
-
-reachableInOneStep :: MemT -> Set Color -> P (Set Color)
-reachableInOneStep m s =
-  foldM (\s t -> do  --  do notation not actually needed here
-           let c = cellColorOf t
-           let p = pointerColorOf t
-           case (c,p) of
-             (Just c', Just p') | Data_Set.member c' s -> return $ Data_Set.insert p' s
-             _ -> return s)
-   s (Data_Map.elems $ unMemT m)
-
-reachableLoop :: MemT -> Set Color -> P (Set Color)
-reachableLoop m s = do
-  s' <- reachableInOneStep m s 
-  if s == s' then return s else reachableLoop m s'
-
-registerColors :: PIPE_State -> P (Set Color)
-registerColors pstate = 
-  foldM (\s t -> do -- Do notation not actually needed
-            let c = pointerColorOf t
-            case c of
-              Just c' -> return $ Data_Set.insert c' s 
-              Nothing -> return s)
-    Data_Set.empty (unGPR $ p_gprs pstate) 
-
-reachable :: PIPE_State -> P (Set Color)
-reachable p = registerColors p >>= reachableLoop (p_mem p) 
-
-sameReachablePart :: MStatePair -> P Bool
-sameReachablePart (M (s1, p1) (s2, p2)) = do
-  r1 <- reachable p1
-  r2 <- reachable p2
+sameAccessiblePart :: MStatePair -> P Bool
+sameAccessiblePart (M (s1, p1) (s2, p2)) = do
+  pcd1 <- getPCDepth p1
+  pcd2 <- getPCDepth p2
 
   let filterAux [] _ = return []
       filterAux _ [] = return []
       filterAux ((i,d):ds) ((j,t):ts)
         | i == j = do
-            case cellColorOf t of
-              Just c' | Data_Set.member c' r1 -> (d :) <$> filterAux ds ts
+            case depthOf t of
+              Just c' | c' >= pcd1 -> (d :) <$> filterAux ds ts
               _ -> filterAux ds ts
-        | i < j = filterAux ds ((j,t):ts)
-        | i > j = filterAux ((i,d):ds) ts
+        | i < j = error "Tag and data memory have different domains <" -- filterAux ds ((j,t):ts)
+        | i > j = error "Tag and data memory have different domains >" -- filterAux ((i,d):ds) ts
 
   f1 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s1) (Data_Map.assocs $ unMemT $ p_mem p1)
   f2 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2)
 
-  return $ r1 == r2 && (f_gprs s1 == f_gprs s2) && (f1 == f2)
+  return $ (pcd1 == pcd2) && (f_gprs s1 == f_gprs s2) && (f1 == f2)
 
 ------------------------------------------------------------------------------------------
 -- Generation
@@ -139,21 +111,24 @@ genTargetReg :: Machine_State -> Gen GPR_Addr
 genTargetReg ms =
   choose (1, maxReg)
 
+-- Figure out how to set this properly
+maxImm = 40
+
 -- Generate an immediate up to number
 -- Multiple of 4
 genImm :: Integer -> Gen InstrField
--- -- (Hmm - Why did we never generate 0 at some point?)
--- genImm n = (4*) <$> choose (1, n `div` 4)   
+-- genImm n = (4*) <$> choose (0, n `div` 4)
 genImm n = (4*) <$> choose (0, n `div` 4)  
 
+{-
 -- Picks out valid (data registers + content + min immediate + max immediate + tag),
 --                 (jump registers + min immediate),
 --                 integer registers
-groupRegisters :: PolicyPlus -> GPR_File -> GPR_FileT ->
+groupRegisters :: PolicyPlus -> GPR_File -> GPR_FileT -> PIPE_State ->
                   ([(GPR_Addr, Integer, Integer, Integer, TagSet)],
                    [(GPR_Addr, Integer)],
                    [GPR_Addr])
-groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
+groupRegisters pplus (GPR_File rs) (GPR_FileT ts) ps =
   -- Assuming that the register files are same length and they have no holes
   let regs = Data_Map.assocs rs
       tags = Data_Map.assocs ts
@@ -161,10 +136,10 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
 
       validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
         | reg_content >= dataMemLow pplus &&
-          reg_content <= dataMemHigh pplus
-          && isJust (pointerColorOf reg_tag) =
+          reg_content <= dataMemHigh pplus =
+          -- && depthOf <target memory> >= depthOf <pc>
            Just (reg_id, reg_content, 0, dataMemHigh pplus - reg_content, reg_tag)
-        | reg_content == 0 && isJust (pointerColorOf reg_tag) =
+        | reg_content == 0  =  -- && isJust (pointerColorOf reg_tag)
         -- We can allow a 0 register by adding at least 4
            Just (reg_id, 0, dataMemLow pplus, dataMemHigh pplus, reg_tag)
         | otherwise =
@@ -182,8 +157,8 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
   in (dataRegs, controlRegs, arithRegs)
 
 -- All locations that can be accessed using color 'c' between 'lo' and 'hi'
-reachableLocsBetween :: PolicyPlus -> Mem -> MemT -> Integer -> Integer -> TagSet -> [Integer]
-reachableLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
+accessibleLocsBetween :: PolicyPlus -> Mem -> MemT -> Integer -> Integer -> TagSet -> [Integer]
+accessibleLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
   case pointerColorOf t of
     Just c -> 
       map fst $ filter (\(i,t) ->
@@ -192,79 +167,36 @@ reachableLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
                             _ -> False
                        ) (Data_Map.assocs pm)
     _ -> []
+-}
 
-allocInstTag :: PolicyPlus -> TagSet
-allocInstTag pplus =
-  fromExt [("heap.Alloc", Nothing), ("heap.Inst", Nothing)]
+defaultInstrTag = fromExt [("stack.plainInst", Nothing)]
 
 genInstr :: PolicyPlus -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
 genInstr pplus ms ps =
-  let (dataRegs, ctrlRegs, arithRegs) = groupRegisters pplus (f_gprs ms) (p_gprs ps)
-      onNonEmpty [] _= 0
-      onNonEmpty _ n = n
-  in 
-  frequency [ (onNonEmpty arithRegs 1,
+  frequency [ (1,
                do -- ADDI
-                  rs <- elements arithRegs
+                  rs <- genSourceReg ms
                   rd <- genTargetReg ms
-                  imm <- genImm (dataMemHigh pplus)
-                  -- (Old comment? "Need to figure out what to do with Malloc")
-                  alloc <- frequency [(2, pure $ emptyInstTag pplus),
-                                      (3, pure $ allocInstTag pplus)]
-                  return (ADDI rd rs imm, alloc))
-            , (onNonEmpty dataRegs 3,
+                  imm <- genImm maxImm
+                  let tag = emptyInstTag pplus                         
+                  return (ADDI rd rs imm, tag))
+            , (1,
                do -- LOAD
-                  (rs,content,min_imm,max_imm,tag) <- elements dataRegs
-                  let locs = --traceShow (content, min_imm, max_imm, tag) $
-                             reachableLocsBetween pplus (f_mem ms) (p_mem ps) (content+min_imm) (content+max_imm) tag
+                  rs <- genSourceReg ms
                   rd <- genTargetReg ms
-                  imm <- frequency [ -- Generate a reachable location)
-                                     (--traceShow locs $
-                                       onNonEmpty locs 1,
-                                      do addr <- elements locs
-                                         return $ addr - content)
-                                   , (1, (min_imm+) <$> genImm (max_imm - min_imm))
-                                   ]
+                  imm <- genImm maxImm
                   let tag = emptyInstTag pplus                         
                   return (LW rd rs imm, tag)
               )
             , (onNonEmpty dataRegs 3 * onNonEmpty arithRegs 1,
                do -- STORE
-                  (rd,content, min_imm,max_imm,tag) <- elements dataRegs
-                  rs <- genTargetReg ms
-                  imm <- (min_imm+) <$> genImm (max_imm - min_imm)
-                  let tag = emptyInstTag pplus
+                  rs <- genSourceReg ms
+                  rd <- genSourceReg ms
+                  imm <- genImm maxImm
+                  let tag = emptyInstTag pplus                         
                   return (SW rd rs imm, tag))
             , (onNonEmpty arithRegs 1,
                do -- ADD
-                  rs1 <- elements arithRegs
-                  rs2 <- elements arithRegs
-                  rd <- genTargetReg ms
-                  let tag = emptyInstTag pplus
-                  return (ADD rd rs1 rs2, tag))
-            ]
-
-randInstr :: PolicyPlus -> Machine_State -> Gen (Instr_I, TagSet)
-randInstr pplus ms =          
-  frequency [ (1, do -- ADDI
-                  rs <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  imm <- genImm 4
-                  alloc <- frequency [(1, pure $ emptyInstTag pplus), (4, pure $ allocInstTag pplus)]
-                  return (ADDI rd rs imm, alloc))
-            , (1, do -- LOAD
-                  rs <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  imm <- genImm 4
-                  let tag = emptyInstTag pplus                  
-                  return (LW rd rs imm, tag))
-            , (1, do -- STORE
-                  rs <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  imm <- genImm 4
-                  let tag = emptyInstTag pplus
-                  return (SW rd rs imm, tag))
-            , (1, do -- ADD
                   rs1 <- genSourceReg ms
                   rs2 <- genSourceReg ms
                   rd <- genTargetReg ms
@@ -272,6 +204,10 @@ randInstr pplus ms =
                   return (ADD rd rs1 rs2, tag))
             ]
 
+--------------------------------------------------
+-- STOPPED HERE
+
+{-
 genColor :: Gen Color
 genColor =
   frequency [ (1, pure $ 0)
@@ -282,7 +218,7 @@ genColorLow :: Gen Color
 genColorLow = frequency [ (1, pure $ 0)
                         , (2, choose (0,2)) ]
 
--- Focus on unreachable colors
+-- Focus on unaccessible colors
 genColorHigh :: Gen Color
 genColorHigh =
   frequency [ (1, pure $ 0)
@@ -382,8 +318,8 @@ genMachine pplus = do
 
   return (ms_fin', ps_fin')
 
-varyUnreachableMem :: PolicyPlus -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
-varyUnreachableMem pplus r (Mem m ra) (MemT pm) = do
+varyUnaccessibleMem :: PolicyPlus -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
+varyUnaccessibleMem pplus r (Mem m ra) (MemT pm) = do
   combined <- mapM (\((i,d),(j,t)) -> do
                        case cellColorOf t of
                          Just c'
@@ -395,21 +331,21 @@ varyUnreachableMem pplus r (Mem m ra) (MemT pm) = do
   let (m', pm') = unzip combined
   return (Mem (Data_Map.fromList m') ra, MemT (Data_Map.fromList pm'))
 
-varyUnreachable :: PolicyPlus -> (Machine_State, PIPE_State) -> Gen MStatePair
-varyUnreachable pplus (m, p) = do
-  let r = runReader (reachable p) pplus
-  (mem', pmem') <- varyUnreachableMem pplus r (f_mem m) (p_mem p)
+varyUnaccessible :: PolicyPlus -> (Machine_State, PIPE_State) -> Gen MStatePair
+varyUnaccessible pplus (m, p) = do
+  let r = runReader (accessible p) pplus
+  (mem', pmem') <- varyUnaccessibleMem pplus r (f_mem m) (p_mem p)
   return $ M (m,p) (m {f_mem = mem'}, p {p_mem = pmem'})
 
 genMStatePair_ :: PolicyPlus -> Gen MStatePair
 genMStatePair_ pplus = 
-  genMachine pplus >>= varyUnreachable pplus
+  genMachine pplus >>= varyUnaccessible pplus
 
 ------------------------------------------------------------------------------------------
 -- Shrinking
 
 -- Tag shrinking basically amounts to shrinking the colors
--- of things to C 0. Assuming that C 0 is always reachable.
+-- of things to C 0. Assuming that C 0 is always accessible.
 -- We can't change the Tag type. We can't change the Color
 -- arbitrarily.
 shrinkColor :: Color -> [Color]
@@ -465,10 +401,10 @@ shrinkInstr _ = [ADD 0 0 0]
 type IndexedTaggedInt = ((Integer,Integer), (Integer,TagSet))
 
 -- Have to perform the same thing to both memories at once
--- We also need the set of reachable things for data memories
+-- We also need the set of accessible things for data memories
 -- INV: Original memories contain identical indices
 shrinkMems :: PolicyPlus -> Set Color -> (Mem, MemT) -> (Mem, MemT) -> [((Mem, MemT), (Mem,MemT))]
-shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) = 
+shrinkMems pplus accessible (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) = 
   let m1' = Data_Map.assocs m1
       t1' = Data_Map.assocs t1
       m2' = Data_Map.assocs m2
@@ -496,40 +432,40 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
 --            case (l1, l2) of
               (Just loc1, Just _, Just loc2, Just _) 
 --              (MTagM v1 loc1, MTagM v2 loc2)
-                -- Both reachable, everything should be identical
-                | Data_Set.member loc1 reachable && Data_Set.member loc2 reachable && l1 == l2 && d1 == d2->
+                -- Both accessible, everything should be identical
+                | Data_Set.member loc1 accessible && Data_Set.member loc2 accessible && l1 == l2 && d1 == d2->
                   -- shrink the first and copy
                   -- Shrink data
                   [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- shrink d1 ]
                   ++ 
                   -- Or shrink tag 
                   [ (((j, d1), (j, l')), ((j, d2),(j, l'))) | l' <- shrinkTag l1 ]
-                -- Both unreachable, shrink independently
-                | not (Data_Set.member loc1 reachable) && not (Data_Set.member loc2 reachable) ->
+                -- Both unaccessible, shrink independently
+                | not (Data_Set.member loc1 accessible) && not (Data_Set.member loc2 accessible) ->
                   -- Shrink first data value 
                   [ (((j, d1'), (j, l1)), ((j, d2),(j, l2))) | d1' <- shrink d1 ]
                   ++
-                  -- Shrink first tag to something unreachable 
+                  -- Shrink first tag to something unaccessible 
                   [ (((j, d1), (j, l1')), ((j, d2),(j, l2)))
                   | l1' <- shrinkTag l1,
-                    not $ Data_Set.member (fromJust $ cellColorOf l1') reachable ]
+                    not $ Data_Set.member (fromJust $ cellColorOf l1') accessible ]
                   ++
-                  -- Shrink first tag to something reachable (and make sure first and second components are the same!)
+                  -- Shrink first tag to something accessible (and make sure first and second components are the same!)
                   [ (((j, d1), (j, l1')), ((j, d1),(j, l1')))
                   | l1' <- shrinkTag l1,
-                    Data_Set.member (fromJust $ cellColorOf l1') reachable ]
+                    Data_Set.member (fromJust $ cellColorOf l1') accessible ]
                   ++
                   -- ... same for second register state
                   [ (((j, d1), (j, l1)), ((j, d2'),(j, l2))) | d2' <- shrink d2 ]
                   ++
                   [ (((j, d1), (j, l1)), ((j, d2),(j, l2')))
                   | l2' <- shrinkTag l2,
-                    not $ Data_Set.member (fromJust $ cellColorOf l2') reachable ]
+                    not $ Data_Set.member (fromJust $ cellColorOf l2') accessible ]
                   ++
                   [ (((j, d1), (j, l2')), ((j, d1),(j, l2')))
                   | l2' <- shrinkTag l2,
-                    Data_Set.member (fromJust $ cellColorOf l2') reachable ]
-                | otherwise -> error $ "Not both reachable or unreachable?" ++ show (d1,l1,d2,l2)
+                    Data_Set.member (fromJust $ cellColorOf l2') accessible ]
+                | otherwise -> error $ "Not both accessible or unaccessible?" ++ show (d1,l1,d2,l2)
               otherwise -> error "Data memory without cell or pointer color?"
  
       shrinkMemAux :: [ IndexedTaggedInt ] -> [ IndexedTaggedInt] -> [ ([IndexedTaggedInt], [IndexedTaggedInt]) ]
@@ -549,7 +485,7 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
         
 shrinkMStatePair_ :: PolicyPlus -> MStatePair -> [MStatePair]
 shrinkMStatePair_ pplus (M (m1,p1) (m2,p2)) =
-  let r = runReader (reachable p1) pplus
+  let r = runReader (accessible p1) pplus
       -- Shrink Memories
   in
      [ M (m1{f_mem = mem1},p1{p_mem = pmem1}) (m2{f_mem=mem2}, p2{p_mem=pmem2})
@@ -561,23 +497,6 @@ shrinkMStatePair_ pplus (M (m1,p1) (m2,p2)) =
 ------------------------------------------------------------------------------------------
 -- Top-level non-interference policy
   
-{- Noninterference:
-     - for each program p and machine state s1
-     - for each s2 that agrees with s on (the pure values stored in)
-       memory cells colored with reachable colors
-     - p coterminates on s1 and s2
-     - moreover, if it terminates in s1' and s2', then s1' and s2'
-       also agree on all reachable memory cells
-
-   Note that this is quite an intensional property -- not so easy for
-   programmers to reason about their implications!  Also, an
-   interesting extension is to add a stack, either (initially) in
-   hardware or (harder) protected with tags so that called procedures
-   cannot access their callers' stack frames.  This gives a more
-   interesting (though, pragmatically, still rather weak) property.
-   To get a pragmatically more useful property, something like "sealed
-   capabilities" (aka closures) or a protected stack is needed. -}
-
 prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
   let run_state1 = mstate_run_state_read m1
       run_state2 = mstate_run_state_read m2
@@ -594,10 +513,10 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
   else
     case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
       (Right (m1r,p1r), Right (m2r, p2r)) ->
-        (whenFail (do putStrLn $ "Reachable parts differ after execution!"
+        (whenFail (do putStrLn $ "Accessible parts differ after execution!"
                       let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
                       uncurry (printTrace pplus) (unzip finalTrace)) $
-           property $ (runReader (sameReachablePart (M (m1r,p1r) (m2r, p2r))) pplus))
+           property $ (runReader (sameAccessiblePart (M (m1r,p1r) (m2r, p2r))) pplus))
         .&&. 
         prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
       (Left s1, Left s2) ->
@@ -632,12 +551,13 @@ load_policy = do
         , dataMemHigh = 20  -- Was 40, but that seems like a lot! (8 may be too little!)
         , instrLow = 1000
         , compareMachines = \pplus (M (m1,p1) (m2,p2)) -> 
-            P.text "Reachable:"
-              <+> pretty pplus (runReader (reachable p1) pplus) 
-                               (runReader (reachable p2) pplus)
+            P.text "Accessible:"
+              <+> pretty pplus (runReader (accessible p1) pplus) 
+                               (runReader (accessible p2) pplus)
         , shrinkMStatePair = shrinkMStatePair_
         , genMStatePair = genMStatePair_
         , prop = prop_
         }
   return pplus
 
+-}
