@@ -1,3 +1,6 @@
+.stack-work/
+forvis.cabal
+*~
 README.html
 tmp_haskell
 *exe
@@ -23,7 +26,9 @@ cabal.sandbox.config
 *.vo
 Makefile.conf
 .coqdeps.d
-.stack-work/
 cabal.project.local
 .HTF/
 elf_to_hex
+ast.txt
+symbols.txt
+.mutants

@@ -3,6 +3,8 @@
 
 module Forvis_Spec_D where
 
+#ifdef FLOAT
+
 -- ================================================================
 -- Part of: specification of all RISC-V instructions.
 
@@ -956,3 +958,4 @@ exec_FMV_D_X  is_C  (FMV_D_X  rd  rs1)  mstate =
     mstate1
 
 -- ================================================================
+#endif

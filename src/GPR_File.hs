@@ -30,6 +30,7 @@ import Arch_Defs
 -- present, so we use 'fromMaybe' to extract 'v' from 'Just v'.
                                                                     -- \begin_latex{GPR_File}
 newtype GPR_File = GPR_File  (Data_Map.Map  GPR_Addr  GPR_Val)
+  deriving (Eq)
 
 mkGPR_File :: GPR_File
 mkGPR_File = GPR_File (Data_Map.fromList (zip

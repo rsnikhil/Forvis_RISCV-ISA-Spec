@@ -1,0 +1,171 @@
+module heap:
+
+type:
+    data Color = Int (20) // this means max number of colors is 20 (I think!)
+
+metadata:
+    Cell Color  // data memory with a color
+    Pointer Color // value with a color (assuming all values are pointers for now)
+    Env   // sole PC tag (not used in any interesting way -- just here for illustration)
+    Inst  // instruction  (not used at all for now)
+    Alloc // the magic alloc instruction
+
+// Notes:
+//   - putting alloc-specific rule first and using ^ means it wins over ordinary ADDI
+//     'new' is a magic built-in in dpl
+
+// ==============================================================================
+// ==============================================================================
+policy: main =
+// ------------------------------------------------------------------------------
+// ALLOCATION
+
+allocGrp(
+  env == _, code == [+Alloc]
+  -> 
+  env = env, res = {(Pointer new)})
+
+// Another potential mutant, if the policy language can express it:
+//   Allocate a previously-used color (e.g., constant 1)
+
+// ------------------------------------------------------------------------------
+// ARITHMETIC
+
+^ immArithGrp(
+  env == _, op1 == _ 
+  -> 
+  env = env, res = op1)        
+
+^ arithGrp(
+  env == _, op1 == _ 
+  -> 
+  env = env, res = op1)  
+
+// ------------------------------------------------------------------------------
+// LOAD FROM MEMORY
+
+#ifndef OMIT_CHECKS_ON_LOAD
+^ loadGrp(
+    env == _, addr == {(Pointer color)}, mem == [+(Cell color)] 
+    ->
+    env = env, res = mem[-(Cell _)])
+#else
+^ loadGrp(
+    env == _, addr == {(Pointer color)}, mem == _ 
+    ->
+    env = env, res = mem[-(Cell _)])   
+#endif
+
+// ------------------------------------------------------------------------------
+// STORE TO MEMORY
+
+# ifndef OMIT_TAGGING_ON_STORE
+^ storeGrp(
+    env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] 
+    ->
+    env = env, mem = val[+(Cell color)])
+#else
+// BCP: This variant is not actually wrong, in the simple heap safety policy, because we
+// will always be writing the same value in both runs!  (With a stack safety policy, it
+// should be wrong because the stack safety property includes an integrity claim.)
+^ storeGrp(
+    env == _, addr == _, val == _, mem == _ 
+    ->
+    env = env )
+#endif
+
+// ------------------------------------------------------------------------------
+// JUMP
+
+^ jumpGrp(env == _ -> env = env, return = {(Pointer new)} ) 
+
+// ==============================================================================
+// ==============================================================================
+// map external names (dotted strings) to tag sets
+// (Adding these explicit "heap."s is just a workaround pending a proper fix to PIPE.hs)
+require:  
+    init test.Cell {heap.Cell}   
+    init test.Pointer {heap.Pointer}
+    init test.Env {heap.Env}
+    init test.Inst {heap.Inst}
+    init test.AllocInst {heap.Alloc,heap.Inst}
+    init test.CP {heap.Cell,heap.Pointer}
+//
+// Needs to be modified to attach an optional int to the string on the right...
+
+//     init test.Cell1 {Cell(1)}
+// or
+//     init test.Cell() {Cell()}
+// There is code in PIPE.hs to do this, but it needs to be fixed to deal with tags, not tag sets
+// APT: The PIPE code has now been fixed so that whenever you translate an external name
+// you pass a list of (Maybe Int) representing the optional ints to attach to each tag in the RHS tag set.
+// E.g. mkTagSet policy ["test","Pointer"] [Just 42]
+//      mkTagSet policy ["test","Env"] [Nothing]
+//      mkTagSet policy ["test","AllocInst"] [Nothing,Nothing]
+
+
+group:
+    loadUpperGrp(-> RD:dest)
+        lui
+        auipc
+
+//    jumpGrp(RS1:return -> RD:return) APT: This makes no sense given the current semantics of jal in PIPE.hs
+    jumpGrp(-> RD:return)      
+        jal
+
+    jumpRegGrp(RS1:target -> RD:return)
+        jalr
+
+    branchGrp(RS1:op1, RS2:op2 -> )
+        beq
+        bne
+        blt
+        bge
+        bltu
+        bgeu
+
+    loadGrp(RS1:addr, MEM:mem -> RD:res)
+        lb
+        lh
+        lw
+        lbu
+        lhu
+
+    storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
+        sb
+        sh
+        sw
+
+    allocGrp (RS1:op1 -> RD:res)	// not essential to make this a separate group
+        addi
+
+    immArithGrp(RS1:op1 -> RD:res)
+        addi
+        slti
+        sltiu
+        xori
+        ori
+        andi
+        slli
+        srli
+        srai
+ 
+    arithGrp(RS1:op1, RS2:op2 -> RD:res)
+        add
+        sub
+        sll
+        slt
+        sltu
+        xor
+        srl
+        sra
+        or 
+        and
+
+    systemGrp( -> )
+        fence
+ 
+    privGrp( -> )
+        ecall
+        ebreak
+
