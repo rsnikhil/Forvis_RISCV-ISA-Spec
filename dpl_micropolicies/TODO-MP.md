@@ -1,12 +1,24 @@
 * URGENT
 
-fold our changes back into master when Nikhil says it's time
-
 (Leo) improve the printing of diffs in registers (calcDiff)
 
-* NOW
+move to micropolicies
 
-make a second policy (a trivial one at first)
+* QUESTIONS FOR DRAPER/DOVER
+
+is there a way in DPL to add to depth?
+  (to avoid polluting rule cache)
+
+* STACK POLICY
+
+- we finished writing a strawman policy
+- next we need to
+  - write an example that should pass the policy and try to run it
+  - write an example that should NOT pass the policy and try to run it
+  - write the property and make sure it makes the right prediction on these two
+  - work on generation
+
+* NOW
 
 beautify the code some more
   use the P monad uniformly for printing, I guess

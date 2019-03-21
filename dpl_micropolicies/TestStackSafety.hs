@@ -2,26 +2,23 @@
 
 The main idea of the stack property:
   - We are always comparing one "main run" to a stack of "variant states" *
-    <PC of JAL instructions>.
+    <PC of JAL instructions> * <SP at JAL instructions>.
   - In the inefficient version, each execution step steps the main state and
     ALL the variant states
   - When the machines (all together) execute a call (whatever that exactly
     means), we add to the variant stack a scrambled version of the main
     state in which every inaccessible location is replaced by an arbitrary
     number, paired with the current PC
-  - when we return (whatever that exactly means!), we throw away the top
-    variant state and check that the current PC is now one more than the
-    saved PC
+  - when we return, we throw away the top variant state
   - the invariant we expect is that
       - the accessible region of the main machine is the same as the
         accessible regions of all the variant machines after each step
       - the inaccessible region of each variant machine is unchanged by each
         step
-  - a CALL is when the machine executes a JAL preceded by the rest of the
-    header sequence  (we had some questions about this!)
-  - a RETURN is when the machine executes an indirect jump to the saved
-    PC+1 preceded by the rest of the return sequence  (and this!)
-
+  - a CALL is when the machine executes a JAL 
+  - a RETURN is when the machine's PC is one more than the PC at the top of
+    the stack of saved PCs and the stack pointer is equal to the top element
+    of the stack of saved SPs.
 -}
 
 {-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables, TupleSections, FlexibleInstances, MultiParamTypeClasses #-}
@@ -203,6 +200,18 @@ genInstr pplus ms ps =
                   let tag = emptyInstTag pplus
                   return (ADD rd rs1 rs2, tag))
             ]
+
+{-
+    HEADER sequence:
+        - SW SP RA 1    @H1    - store RA
+        - ADDI SP SP 2  @H2    - increment SP
+        - ADDI RA R0 0  @H3    - untag RA so others can use
+
+    RETURN sequence: 
+        - LW RA SP -1   @R1    - load return address
+        - ADDI SP SP -2 @R2    - decrement SP
+        - JALR RA RA    @R3    - jump back 
+-}
 
 --------------------------------------------------
 -- STOPPED HERE
