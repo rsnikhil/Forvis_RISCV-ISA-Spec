@@ -2,8 +2,6 @@
 
 (Leo) improve the printing of diffs in registers (calcDiff)
 
-move to micropolicies
-
 * QUESTIONS FOR DRAPER/DOVER
 
 is there a way in DPL to add to depth?
@@ -17,6 +15,10 @@ is there a way in DPL to add to depth?
   - write an example that should NOT pass the policy and try to run it
   - write the property and make sure it makes the right prediction on these two
   - work on generation
+
+questions to think about
+  - should we set up the machine so that the stack can run into the
+    heap (to create opportunities for interesting bugs)?
 
 * NOW
 

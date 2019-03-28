@@ -15,6 +15,7 @@ import Generator (genASTFile,genSymbolsFile)
 import Test.QuickCheck
 
 import qualified TestHeapSafety
+import qualified TestStackSafety
 import Printing
 
 import Control.Monad
@@ -25,12 +26,13 @@ instance Show Machine_State where
 instance Show MStatePair where
   show _ = ""
 
-pol = "heap"
+pol = "stack"
 
 load_policy :: IO PolicyPlus
 load_policy = do
   case pol of
-    "heap" -> TestHeapSafety.load_policy 
+    "heap"    -> TestHeapSafety.load_policy 
+    "stack"   -> TestStackSafety.load_policy 
     otherwise -> error $ "unknown policy '" ++ pol ++ "'"
 
 main_trace = do

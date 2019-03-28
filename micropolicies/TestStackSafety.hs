@@ -71,12 +71,15 @@ depthOf t =
   -- trace ("cellColorOf " ++ show t ++ " i.e. " ++ show (toExt t)) $
   join $ Data_List.lookup "stack.Depth" (toExt t)
 
+getPCDepth :: PIPE_State -> Int
+getPCDepth p = fromJust $ depthOf $ p_pc p
+
 sameAccessiblePart :: MStatePair -> P Bool
 sameAccessiblePart (M (s1, p1) (s2, p2)) = do
-  pcd1 <- getPCDepth p1
-  pcd2 <- getPCDepth p2
+  let pcd1 = getPCDepth p1
+      pcd2 = getPCDepth p2
 
-  let filterAux [] _ = return []
+      filterAux [] _ = return []
       filterAux _ [] = return []
       filterAux ((i,d):ds) ((j,t):ts)
         | i == j = do
@@ -185,14 +188,14 @@ genInstr pplus ms ps =
                   let tag = emptyInstTag pplus                         
                   return (LW rd rs imm, tag)
               )
-            , (onNonEmpty dataRegs 3 * onNonEmpty arithRegs 1,
+            , (1,
                do -- STORE
                   rs <- genSourceReg ms
                   rd <- genSourceReg ms
                   imm <- genImm maxImm
                   let tag = emptyInstTag pplus                         
                   return (SW rd rs imm, tag))
-            , (onNonEmpty arithRegs 1,
+            , (1,
                do -- ADD
                   rs1 <- genSourceReg ms
                   rs2 <- genSourceReg ms
@@ -200,6 +203,12 @@ genInstr pplus ms ps =
                   let tag = emptyInstTag pplus
                   return (ADD rd rs1 rs2, tag))
             ]
+
+genMStatePair_ :: PolicyPlus -> Gen MStatePair
+genMStatePair_ pplus = undefined
+
+----------------------------------------------------------------
+-- OLD STUFF TO BE REVIVED
 
 {-
     HEADER sequence:
@@ -540,33 +549,34 @@ maxInstrsToGenerate = 10
 
 prop_ :: PolicyPlus -> MStatePair -> Property
 prop_ pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms
+-}
 
-------------------------------------------------------------------------------------------
--- The heap-safety policy
+prop_ :: PolicyPlus -> MStatePair -> Property
+prop_ _ _ = property False
+
+--------------------------------------------------------------------------
+-- The stack-safety policy
   
 load_policy = do
-  ppol <- load_pipe_policy "heap.main"
+  ppol <- load_pipe_policy "stack.main"
   let pplus = PolicyPlus
         { policy = ppol
-        , initGPR = fromExt [("heap.Pointer", Just 0)]
-        , initMem =
-            -- TODO: Might be better to make it some separate
-            -- "Uninitialized" tag?
-            fromExt [("heap.Cell", Just 0), ("heap.Pointer", Just 0)]
-        , initPC = fromExt [("heap.Env", Nothing)]
-        , initNextColor = 5
-        , emptyInstTag = fromExt [("heap.Inst", Nothing)]
-        , dataMemLow = 4
-        , dataMemHigh = 20  -- Was 40, but that seems like a lot! (8 may be too little!)
-        , instrLow = 1000
-        , compareMachines = \pplus (M (m1,p1) (m2,p2)) -> 
-            P.text "Accessible:"
-              <+> pretty pplus (runReader (accessible p1) pplus) 
-                               (runReader (accessible p2) pplus)
-        , shrinkMStatePair = shrinkMStatePair_
+        , initGPR = fromExt [("stack.Boring", Nothing)]
+        , initMem = fromExt [("stack.Boring", Nothing)]
+        , initPC  = fromExt [("stack.PC", Just 0)]
+        , initNextColor = 1
+        , emptyInstTag = fromExt [("stack.Boring", Nothing)]
+        , instrLow = 0
+--        , instrHigh = 499
+--        , stackLow = 500
+--        , stackHigh = 899
+        , dataMemLow = 900
+        , dataMemHigh = 920  
+        , compareMachines = \pplus (M (m1,p1) (m2,p2)) -> P.empty
+        , shrinkMStatePair = (\_ _ -> [])
         , genMStatePair = genMStatePair_
         , prop = prop_
         }
   return pplus
 
--}
+

@@ -1,4 +1,10 @@
-all: build mutants unmutated
+all: build stack
+
+stack:
+	$(MAKE) mutants unmutated POLICY=stack
+
+heap:
+	$(MAKE) mutants unmutated POLICY=heap
 
 build:
 	@stack build :dpl-exe 
@@ -19,8 +25,8 @@ mutant:
 	@echo 
 	@echo "[0m"
 	@mkdir -p .mutants
-	@cpp -D$(MUT) heap.dpl > .mutants/heap.dpl
-	@$(SED) .mutants/heap.dpl
+	@cpp -D$(MUT) $(POLICY).dpl > .mutants/$(POLICY).dpl
+	@$(SED) .mutants/$(POLICY).dpl
 	@(cd .mutants; time stack exec dpl-exe)
 
 mutants:
