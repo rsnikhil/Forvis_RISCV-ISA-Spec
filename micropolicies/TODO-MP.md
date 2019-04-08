@@ -9,9 +9,15 @@ is there a way in DPL to add to depth?
 
 * STACK POLICY
 
-- we finished writing a strawman policy
-- next we need to
-  - write an example that should pass the policy and try to run it
+- we finished writing a strawman policy (but not yet property)
+
+- spade work: Make the type of "test states" be an existential in Policy_Plus
+  (look up: how do haskell existentials work??)
+
+- next step: write a simple prop_ in TestStackSafety that just runs the program
+
+- then we need to
+  - finish writing an example that should pass the policy and try to run it
   - write an example that should NOT pass the policy and try to run it
   - write the property and make sure it makes the right prediction on these two
   - work on generation

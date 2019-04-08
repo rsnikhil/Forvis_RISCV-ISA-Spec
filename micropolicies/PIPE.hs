@@ -1,3 +1,5 @@
+{-# Language ExistentialQuantification #-}
+
 module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             PolicyPlus(..),
             askPolicy,
@@ -68,11 +70,13 @@ showTagSet t =
 type Color = Int
 
 data PolicyPlus =
+  -- The type of tests
+  forall test.
   PolicyPlus {
     -- The policy itself
     policy :: PIPE_Policy
     -- Features for generation
-  , genMStatePair :: PolicyPlus -> Gen MStatePair
+  , genMStatePair :: PolicyPlus -> Gen test
   , initGPR :: TagSet 
   , initMem :: TagSet 
   , initPC :: TagSet 
@@ -83,11 +87,11 @@ data PolicyPlus =
   , dataMemHigh :: Integer
   , instrLow :: Integer
   -- Features for shrinking
-  , shrinkMStatePair :: PolicyPlus -> MStatePair -> [MStatePair]
+  , shrinkMStatePair :: PolicyPlus -> test -> [test]
   -- Features for printing
-  , compareMachines :: PolicyPlus -> MStatePair -> Doc  -- needs a better name!
+  , compareMachines :: PolicyPlus -> test -> Doc  -- needs a better name!
   -- Features for testing
-  , prop :: PolicyPlus -> MStatePair -> Property
+  , prop :: PolicyPlus -> test -> Property
   }
 
 type P a = Reader PolicyPlus a

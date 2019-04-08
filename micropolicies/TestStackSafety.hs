@@ -1,5 +1,15 @@
 {-
 
+    HEADER sequence:
+        - SW SP RA 1    @H1    - store RA
+        - ADDI SP SP 2  @H2    - increment SP
+        - ADDI RA R0 0  @H3    - untag RA so others can use
+
+    RETURN sequence: 
+        - LW RA SP -1   @R1    - load return address
+        - ADDI SP SP -2 @R2    - decrement SP
+        - JALR RA RA    @R3    - jump back 
+
 The main idea of the stack property:
   - We are always comparing one "main run" to a stack of "variant states" *
     <PC of JAL instructions> * <SP at JAL instructions>.
@@ -169,8 +179,6 @@ accessibleLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
     _ -> []
 -}
 
-defaultInstrTag = fromExt [("stack.plainInst", Nothing)]
-
 genInstr :: PolicyPlus -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
 genInstr pplus ms ps =
   frequency [ (1,
@@ -204,23 +212,39 @@ genInstr pplus ms ps =
                   return (ADD rd rs1 rs2, tag))
             ]
 
+setInstrI :: Machine_State -> Instr_I -> Machine_State
+setInstrI ms i =
+  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
+
+setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
+setInstrTagI ms ps it =
+  ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
+
+setInstrIAt :: Machine_State -> Instr_I -> Integer -> Machine_State
+setInstrIAt ms i addr =
+  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert addr (encode_I RV32 i) (f_dm $ f_mem ms) } }
+
+setInstrTagIAt :: PIPE_State -> TagSet -> Integer -> PIPE_State
+setInstrTagIAt ps it addr =
+  ps {p_mem = ( MemT $ Data_Map.insert addr (it) (unMemT $ p_mem ps) ) }
+
 genMStatePair_ :: PolicyPlus -> Gen MStatePair
-genMStatePair_ pplus = undefined
+genMStatePair_ pplus =
+  let minit = initMachine 
+      pinit = init_pipe_state pplus
+      instrs = [ (0, JAL 0 100, emptyInstTag pplus)
+               ]
+      (m,p) = foldl (\(m',p') (addr,inst,tag) ->
+                       (setInstrIAt m' inst addr, setInstrTagIAt p' tag addr)
+                      )
+                (minit,pinit) instrs
+  in 
+
+  return (M (m,p) (m,p))
 
 ----------------------------------------------------------------
 -- OLD STUFF TO BE REVIVED
 
-{-
-    HEADER sequence:
-        - SW SP RA 1    @H1    - store RA
-        - ADDI SP SP 2  @H2    - increment SP
-        - ADDI RA R0 0  @H3    - untag RA so others can use
-
-    RETURN sequence: 
-        - LW RA SP -1   @R1    - load return address
-        - ADDI SP SP -2 @R2    - decrement SP
-        - JALR RA RA    @R3    - jump back 
--}
 
 --------------------------------------------------
 -- STOPPED HERE
@@ -552,7 +576,36 @@ prop_ pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms
 -}
 
 prop_ :: PolicyPlus -> MStatePair -> Property
-prop_ _ _ = property False
+prop_ pplus (M (m1,p1) (m2,p2)) = undefined
+{-
+  let run_state1 = mstate_run_state_read m1
+      run_state2 = mstate_run_state_read m2
+      m1' = mstate_io_tick m1
+      m2' = mstate_io_tick m2 
+      trace' = ((m1,p1),(m2,p2)) : trace  in
+  if count >= maxcount then 
+    label "Out of gas" $ property True 
+  -- TODO: Check for traps too
+  else if run_state1 /= Run_State_Running || run_state2 /= Run_State_Running then 
+    label (let (s1,s2) = (show run_state1, show run_state2) in
+           if s1==s2 then s1 else (s1 ++ " / " ++ s2))
+       $ property True
+  else
+    case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
+      (Right (m1r,p1r), Right (m2r, p2r)) ->
+        (whenFail (do putStrLn $ "Accessible parts differ after execution!"
+                      let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
+                      uncurry (printTrace pplus) (unzip finalTrace)) $
+           property $ (runReader (sameAccessiblePart (M (m1r,p1r) (m2r, p2r))) pplus))
+        .&&. 
+        prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
+      (Left s1, Left s2) ->
+         label ("Pipe trap " ++ s1 ++ " / " ++ s2) $ property True
+      (Left s1, _) ->
+         label ("Pipe trap " ++ s1) $ property True
+      (_, Left s2) ->
+         label ("Pipe trap " ++ s2) $ property True
+-}
 
 --------------------------------------------------------------------------
 -- The stack-safety policy

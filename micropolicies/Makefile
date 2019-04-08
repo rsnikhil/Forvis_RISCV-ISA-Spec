@@ -1,10 +1,10 @@
 all: build stack
 
 stack:
-	$(MAKE) mutants unmutated POLICY=stack
+	$(MAKE) stackmutants unmutated POLICY=stack
 
 heap:
-	$(MAKE) mutants unmutated POLICY=heap
+	$(MAKE) heapmutants unmutated POLICY=heap
 
 build:
 	@stack build :dpl-exe 
@@ -29,7 +29,9 @@ mutant:
 	@$(SED) .mutants/$(POLICY).dpl
 	@(cd .mutants; time stack exec dpl-exe)
 
-mutants:
+stackmutants:
+
+heapmutants:
 	@make mutant MUT=OMIT_CHECKS_ON_LOAD
 
 # Not a bug, in the simple heap safety policy
