@@ -69,14 +69,14 @@ showTagSet t =
 -- the policy interpreter.)
 type Color = Int
 
+-- TODO: Not sure whether more things should be deleted from this
+-- TODO: tidy commented-out bits
 data PolicyPlus =
-  -- The type of tests
-  forall test.
   PolicyPlus {
     -- The policy itself
     policy :: PIPE_Policy
     -- Features for generation
-  , genMStatePair :: PolicyPlus -> Gen test
+-- , genMStatePair :: PolicyPlus -> Gen testState
   , initGPR :: TagSet 
   , initMem :: TagSet 
   , initPC :: TagSet 
@@ -87,11 +87,9 @@ data PolicyPlus =
   , dataMemHigh :: Integer
   , instrLow :: Integer
   -- Features for shrinking
-  , shrinkMStatePair :: PolicyPlus -> test -> [test]
-  -- Features for printing
-  , compareMachines :: PolicyPlus -> test -> Doc  -- needs a better name!
+--  , shrinkMStatePair :: PolicyPlus -> testState -> [testState]
   -- Features for testing
-  , prop :: PolicyPlus -> test -> Property
+--  , prop :: PolicyPlus -> testState -> Property
   }
 
 type P a = Reader PolicyPlus a
