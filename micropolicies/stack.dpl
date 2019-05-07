@@ -4,15 +4,15 @@ type:
     data Depth = Int (20) // this means max depth is 20 (I think!)
 
 metadata:
-    Boring
-    Stack Depth  // For memory cells that are part of the stack
-    PC Depth   
-    SP           // stack pointer register
-    H1           // header seq
-    H2  
-    H3  
-    R1           // return seq
-    R2  
+    Boring,
+    Stack Depth,  // For memory cells that are part of the stack
+    PC Depth,   
+    SP,           // stack pointer register
+    H1,           // header seq
+    H2,  
+    H3,  
+    R1,           // return seq
+    R2,  
     R3  
 
 // ==============================================================================
@@ -92,13 +92,13 @@ require:
     init test.R3 {stack.R3}   
 
 group:
-    jalGrp(-> RD:return)      
+    grp jalGrp(-> RD:return)      
         jal
 
-    jalrGrp(RS1:target -> RD:return)
+    grp jalrGrp(RS1:target -> RD:return)
         jalr
 
-    branchGrp(RS1:op1, RS2:op2 -> )
+    grp branchGrp(RS1:op1, RS2:op2 -> )
         beq
         bne
         blt
@@ -106,23 +106,23 @@ group:
         bltu
         bgeu
 
-    loadGrp(RS1:addr, MEM:mem -> RD:res)
+    grp loadGrp(RS1:addr, MEM:mem -> RD:res)
         lb
         lh
         lw
         lbu
         lhu
 
-    loadUpperGrp(-> RD:dest)
+    grp loadUpperGrp(-> RD:dest)
         lui
         auipc
 
-    storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
+    grp storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
         sb
         sh
         sw
 
-    immArithGrp(RS1:op1 -> RD:res)
+    grp immArithGrp(RS1:op1 -> RD:res)
         addi
         slti
         sltiu
@@ -133,7 +133,7 @@ group:
         srli
         srai
  
-    arithGrp(RS1:op1, RS2:op2 -> RD:res)
+    grp arithGrp(RS1:op1, RS2:op2 -> RD:res)
         add
         sub
         sll
@@ -145,10 +145,10 @@ group:
         or 
         and
 
-    systemGrp( -> )
+    grp systemGrp( -> )
         fence
  
-    privGrp( -> )
+    grp privGrp( -> )
         ecall
         ebreak
 

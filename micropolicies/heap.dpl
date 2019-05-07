@@ -4,10 +4,10 @@ type:
     data Color = Int (20) // this means max number of colors is 20 (I think!)
 
 metadata:
-    Cell Color  // data memory with a color
-    Pointer Color // value with a color (assuming all values are pointers for now)
-    Env   // sole PC tag (not used in any interesting way -- just here for illustration)
-    Inst  // instruction  (not used at all for now)
+    Cell Color,  // data memory with a color
+    Pointer Color, // value with a color (assuming all values are pointers for now)
+    Env,   // sole PC tag (not used in any interesting way -- just here for illustration)
+    Inst,  // instruction  (not used at all for now)
     Alloc // the magic alloc instruction
 
 // Notes:
@@ -105,18 +105,18 @@ require:
 
 
 group:
-    loadUpperGrp(-> RD:dest)
+    grp loadUpperGrp(-> RD:dest)
         lui
         auipc
 
 //    jumpGrp(RS1:return -> RD:return) APT: This makes no sense given the current semantics of jal in PIPE.hs
-    jumpGrp(-> RD:return)      
+    grp jumpGrp(-> RD:return)      
         jal
 
-    jumpRegGrp(RS1:target -> RD:return)
+    grp jumpRegGrp(RS1:target -> RD:return)
         jalr
 
-    branchGrp(RS1:op1, RS2:op2 -> )
+    grp branchGrp(RS1:op1, RS2:op2 -> )
         beq
         bne
         blt
@@ -124,22 +124,22 @@ group:
         bltu
         bgeu
 
-    loadGrp(RS1:addr, MEM:mem -> RD:res)
+    grp loadGrp(RS1:addr, MEM:mem -> RD:res)
         lb
         lh
         lw
         lbu
         lhu
 
-    storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
+    grp storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
         sb
         sh
         sw
 
-    allocGrp (RS1:op1 -> RD:res)	// not essential to make this a separate group
+    grp allocGrp (RS1:op1 -> RD:res)	// not essential to make this a separate group
         addi
 
-    immArithGrp(RS1:op1 -> RD:res)
+    grp immArithGrp(RS1:op1 -> RD:res)
         addi
         slti
         sltiu
@@ -150,7 +150,7 @@ group:
         srli
         srai
  
-    arithGrp(RS1:op1, RS2:op2 -> RD:res)
+    grp arithGrp(RS1:op1, RS2:op2 -> RD:res)
         add
         sub
         sll
@@ -162,10 +162,10 @@ group:
         or 
         and
 
-    systemGrp( -> )
+    grp systemGrp( -> )
         fence
  
-    privGrp( -> )
+    grp privGrp( -> )
         ecall
         ebreak
 
