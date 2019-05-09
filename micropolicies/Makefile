@@ -1,4 +1,4 @@
-all: build stack
+all: build heap
 
 stack:
 	$(MAKE) stackmutants unmutated POLICY=stack
@@ -18,23 +18,26 @@ else
   SED = sed -i '/^\#/d' 
 endif
 
+V=@
+
 mutant:
-	@echo 
-	@echo "[37;46m"
-	@echo "                                  $(MUT)"
-	@echo 
-	@echo "[0m"
-	@mkdir -p .mutants
-	@cpp -D$(MUT) $(POLICY).dpl > .mutants/$(POLICY).dpl
-	@$(SED) .mutants/$(POLICY).dpl
-	@(cd .mutants; time stack exec dpl-exe)
+	$Vecho 
+	$Vecho "[37;46m"
+	$Vecho "                                  $(MUT)"
+	$Vecho 
+	$Vecho "[0m"
+	$Vmkdir -p .mutants
+	$Vcpp -D$(MUT) $(POLICY).dpl > .mutants/$(POLICY).dpl
+	$V$(SED) .mutants/$(POLICY).dpl
+	$V(cd .mutants; time stack exec dpl-exe)
 
 stackmutants:
 
 heapmutants:
-	@make mutant MUT=OMIT_CHECKS_ON_LOAD
+	$Vmake mutant MUT=OMIT_CHECKS_ON_LOAD
 
 # Not a bug, in the simple heap safety policy
 #	@make mutant MUT=OMIT_TAGGING_ON_STORE
 
-
+clean:
+	rm -rf .mutants

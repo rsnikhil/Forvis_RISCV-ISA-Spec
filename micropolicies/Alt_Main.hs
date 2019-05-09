@@ -15,18 +15,18 @@ import Generator (genASTFile,genSymbolsFile)
 import Test.QuickCheck
 
 import qualified TestHeapSafety
--- import qualified TestStackSafety
+import qualified TestStackSafety
 import Printing
 
 import Control.Monad
 
-pol = "heap"
+pol = "stack"
 
 main :: IO ()
 main = do
   case pol of
     "heap"    -> TestHeapSafety.main 
-    -- "stack"   -> TestStackSafety.main
+    "stack"   -> TestStackSafety.main
     otherwise -> error $ "unknown policy '" ++ pol ++ "'"
 
 

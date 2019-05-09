@@ -2,16 +2,14 @@
 
 (Leo) improve the printing of diffs in registers (calcDiff) in TestHeapSafety
 
-* QUESTIONS FOR DRAPER/DOVER
-
-is there a way in DPL to add to depth?
-  (to avoid polluting rule cache)
-
 * STACK POLICY
 
 - we finished writing a strawman policy (but not yet property)
 
 - get TestStackSafety minimally compiling
+
+- stack policy should add to depth instead of making fresh colors
+  (to avoid polluting rule cache)
 
 - next step: write a simple prop_ in TestStackSafety that just runs the program
 
