@@ -1,6 +1,6 @@
-* URGENT
+* NEXT
 
-(Leo) improve the printing of diffs in registers (calcDiff)
+(Leo) improve the printing of diffs in registers (calcDiff) in TestHeapSafety
 
 * QUESTIONS FOR DRAPER/DOVER
 
@@ -11,12 +11,12 @@ is there a way in DPL to add to depth?
 
 - we finished writing a strawman policy (but not yet property)
 
-- spade work: Make the type of "test states" be an existential in Policy_Plus
-  (look up: how do haskell existentials work??)
+- get TestStackSafety minimally compiling
 
 - next step: write a simple prop_ in TestStackSafety that just runs the program
 
 - then we need to
+  - copy over printing stuff, etc., from TestHeapSafety to TestStackSafety
   - finish writing an example that should pass the policy and try to run it
   - write an example that should NOT pass the policy and try to run it
   - write the property and make sure it makes the right prediction on these two
