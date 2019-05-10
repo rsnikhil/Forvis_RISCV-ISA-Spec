@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-
 
     HEADER sequence:
@@ -55,6 +56,9 @@ import Test.QuickCheck
 import Text.PrettyPrint (Doc, (<+>), ($$))
 import qualified Text.PrettyPrint as P
 
+import Control.Lens
+import Control.Lens.Fold
+
 -- From /src
 import Arch_Defs
 import Bit_Utils
@@ -72,6 +76,24 @@ import Run_Program_PIPE
 import PIPE
 import Printing
 import Terminal 
+
+-- TestState
+data StatePair = SP { _ms :: Machine_State
+                    , _ps :: PIPE_State
+                    }
+
+data StackElem = SE { _mp_state :: StatePair
+                    , _jal_pc   :: !Integer -- Should this be something else?
+                    , _jal_sp   :: !Integer -- Should this be something else?
+                    }
+
+data TestState = TS { _mp :: StatePair
+                    , _variants :: [StackElem]
+                    }
+
+makeLenses ''StatePair
+makeLenses ''StackElem
+makeLenses ''TestState
 
 ----------------------------------------------------------------------------------------
 -- Accessibility
@@ -103,6 +125,61 @@ sameAccessiblePart (M (s1, p1) (s2, p2)) = do
   f2 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2)
 
   return $ (pcd1 == pcd2) && (f_gprs s1 == f_gprs s2) && (f1 == f2)
+
+------------------------------------------------------------------------------------------
+-- Execution
+
+running :: Machine_State -> Bool
+running m = mstate_run_state_read m == Run_State_Running
+
+exec :: PolicyPlus -> StatePair -> Either String StatePair
+exec pplus (SP m p) = uncurry SP <$> fetch_and_execute pplus m p
+  
+--Either String TestState
+step :: PolicyPlus -> TestState -> Either String TestState 
+step pplus ts
+  -- If all machines are in running state
+  --  and $ map (running . _machine_state) $ _variants ts
+  | allOf (variants . folded . mp_state . ms) running ts = do
+      let ts' = over (mp . ms) mstate_io_tick
+              $ over (variants . traverse . mp_state . ms) mstate_io_tick ts
+      ts'' <- traverseOf (variants . traverse . mp_state) (exec pplus) ts'
+      traverseOf mp (exec pplus) ts''
+  | otherwise =
+      -- TODO: better error string
+      --    label (let (s1,s2) = (show run_state1, show run_state2) in
+      --           if s1==s2 then s1 else (s1 ++ " / " ++ s2))
+      Left "Not Running State" 
+
+
+--  prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
+--  let run_state1 = mstate_run_state_read m1
+--      run_state2 = mstate_run_state_read m2
+--      m1' = mstate_io_tick m1
+--      m2' = mstate_io_tick m2 
+--      trace' = ((m1,p1),(m2,p2)) : trace  in
+--  if count >= maxcount then 
+--    label "Out of gas" $ property True 
+--  -- TODO: Check for traps too
+--  else if run_state1 /= Run_State_Running || run_state2 /= Run_State_Running then 
+--       $ property True
+--  else
+--    case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
+--      (Right (m1r,p1r), Right (m2r, p2r)) ->
+--        (whenFail (do putStrLn $ "Reachable parts differ after execution!"
+--                      let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
+--                      uncurry (printTrace pplus) (unzip finalTrace)) $
+--           property $ (runReader (sameReachablePart (M (m1r,p1r) (m2r, p2r))) pplus))
+--        .&&. 
+--        prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
+--      (Left s1, Left s2) ->
+--         label ("Pipe trap " ++ s1 ++ " / " ++ s2) $ property True
+--      (Left s1, _) ->
+--         label ("Pipe trap " ++ s1) $ property True
+--      (_, Left s2) ->
+--         label ("Pipe trap " ++ s2) $ property True
+-- 
+
 
 ------------------------------------------------------------------------------------------
 -- Generation
@@ -626,10 +703,37 @@ load_policy = do
         , dataMemLow = 900
         , dataMemHigh = 920  
 --        , compareMachines = \pplus (M (m1,p1) (m2,p2)) -> P.empty
-        , shrinkMStatePair = (\_ _ -> [])
-        , genMStatePair = genMStatePair_
-        , prop = prop_
+--        , shrinkMStatePair = (\_ _ -> [])
+--        , genMStatePair = genMStatePair_
+--        , prop = prop_
         }
   return pplus
 
+--main_trace = do
+--  pplus <- load_policy
+--  (M (ms1,ps1) (ms2,ps2)) <- head <$> sample' (genMStatePair pplus)
+--  let (res, tr) = run_loop pplus 10 ps1 ms1
+--      (ps', ms') : _ = tr
+--  putStrLn ""
+----  putStrLn "Initial state:"
+----  print_coupled pplus ms1 ps1
+----  putStrLn "_______________________________________________________________________"
+----  putStrLn "Final state:"
+----  print_coupled pplus ms' ps'
+----  putStrLn "_______________________________________________________________________"
+----  putStrLn "Trace:"
+--  let finalTrace = {- map flipboth $ -} reverse $ zip tr tr
+--  uncurry (printTrace pplus) (unzip finalTrace)
+----  printTrace pplus (reverse tr)
+--  putStrLn (show res)
+-- 
+---- The real one
+--main_test = do
+--  pplus <- load_policy
+--  quickCheckWith stdArgs{maxSuccess=1000}
+--    $ forAllShrink (genMStatePair pplus)
+--           (\mp -> shrinkMStatePair pplus mp 
+--                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
+--    $ \m -> prop pplus m
 
+main = undefined

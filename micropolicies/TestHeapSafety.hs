@@ -40,18 +40,19 @@ import PIPE
 import Printing
 import Terminal 
 
+-- TODO: Rename to TestState to reveal abstractions with stack
+type TestState = MStatePair
+
 ------------------------------------------------------------------------------------
 -- Printing
 
 prettyMStatePair :: PolicyPlus -> MStatePair -> Doc
 prettyMStatePair pplus (M (m1, p1) (m2, p2)) =
     let ppol = policy pplus in
-    P.vcat [ P.text "PC:" <+> pretty pplus (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
-           , P.text "Registers:" $$ P.nest 2 (pretty pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
-           , P.text "Memories:" $$ P.nest 2 (pretty pplus (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
-           , P.text "Reachable:"
-              <+> pretty pplus (runReader (reachable p1) pplus) 
-                               (runReader (reachable p2) pplus)
+    P.vcat [ P.text "PC:"        <+> pretty pplus (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
+           , P.text "Registers:" $$  P.nest 2 (pretty pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
+           , P.text "Memories:"  $$  P.nest 2 (pretty pplus (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
+           , P.text "Reachable:" <+> pretty pplus (runReader (reachable p1) pplus) (runReader (reachable p2) pplus)
            ]
 
 print_mstatepair :: PolicyPlus -> MStatePair -> IO ()
@@ -838,3 +839,4 @@ main_test = do
     $ \m -> prop pplus m
 
 main = main_test
+
