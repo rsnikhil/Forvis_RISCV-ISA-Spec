@@ -95,6 +95,9 @@ makeLenses ''StatePair
 makeLenses ''StackElem
 makeLenses ''TestState
 
+statePairs :: Traversal' TestState StatePair
+statePairs f (TS mp vars) = TS <$> f mp <*> traverse (mp_state %%~ f) vars
+
 ----------------------------------------------------------------------------------------
 -- Accessibility
 
@@ -140,17 +143,15 @@ step :: PolicyPlus -> TestState -> Either String TestState
 step pplus ts
   -- If all machines are in running state
   --  and $ map (running . _machine_state) $ _variants ts
-  | allOf (variants . folded . mp_state . ms) running ts = do
-      let ts' = over (mp . ms) mstate_io_tick
-              $ over (variants . traverse . mp_state . ms) mstate_io_tick ts
-      ts'' <- traverseOf (variants . traverse . mp_state) (exec pplus) ts'
-      traverseOf mp (exec pplus) ts''
+--  | allOf (statePairs . ms)variants . folded . mp_state . ms) running ts = do
+  | allOf (statePairs . ms) running ts =
+      ts & statePairs . ms %~  mstate_io_tick
+         & statePairs      %%~ exec pplus
   | otherwise =
       -- TODO: better error string
       --    label (let (s1,s2) = (show run_state1, show run_state2) in
       --           if s1==s2 then s1 else (s1 ++ " / " ++ s2))
       Left "Not Running State" 
-
 
 --  prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
 --  let run_state1 = mstate_run_state_read m1
