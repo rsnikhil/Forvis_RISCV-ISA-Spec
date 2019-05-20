@@ -142,16 +142,16 @@ exec pplus (SP m p) = uncurry SP <$> fetch_and_execute pplus m p
 step :: PolicyPlus -> TestState -> Either String TestState 
 step pplus ts
   -- If all machines are in running state
-  --  and $ map (running . _machine_state) $ _variants ts
---  | allOf (statePairs . ms)variants . folded . mp_state . ms) running ts = do
   | allOf (statePairs . ms) running ts =
       ts & statePairs . ms %~  mstate_io_tick
          & statePairs      %%~ exec pplus
   | otherwise =
+      Left "Not Running State" 
+
       -- TODO: better error string
       --    label (let (s1,s2) = (show run_state1, show run_state2) in
       --           if s1==s2 then s1 else (s1 ++ " / " ++ s2))
-      Left "Not Running State" 
+
 
 --  prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
 --  let run_state1 = mstate_run_state_read m1
@@ -323,44 +323,19 @@ genMStatePair_ pplus =
 ----------------------------------------------------------------
 -- OLD STUFF TO BE REVIVED
 
-
---------------------------------------------------
--- STOPPED HERE
-
-{-
-genColor :: Gen Color
-genColor =
-  frequency [ (1, pure $ 0)
-            , (4, choose (0, 4)) ]
-
--- Only colors up to 2 (for registers)
-genColorLow :: Gen Color
-genColorLow = frequency [ (1, pure $ 0)
-                        , (2, choose (0,2)) ]
-
--- Focus on unaccessible colors
-genColorHigh :: Gen Color
-genColorHigh =
-  frequency [ (1, pure $ 0)
-            , (1, choose (1,2) )
-            , (3, choose (3,4) )
-            ]
-
-genMTagM :: PolicyPlus -> Gen TagSet
-genMTagM pplus = do
-  c1 <- genColor
-  c2 <- genColor
-  return $ fromExt [("heap.Cell", Just c1), ("heap.Pointer", Just c2)]
+boring :: TagSet
+boring = fromExt [("stack.Boring", Nothing)]
 
 genDataMemory :: PolicyPlus -> Gen (Mem, MemT)
 genDataMemory pplus = do
   let idx = [dataMemLow pplus, (dataMemLow pplus)+4..(dataMemHigh pplus)]
   combined <- mapM (\i -> do d <- genImm $ dataMemHigh pplus    -- BCP: This always puts 4 in every location!
-                             t <- genMTagM pplus
+                             let t = boring
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
   return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
 
+{-
 setInstrI :: Machine_State -> Instr_I -> Machine_State
 setInstrI ms i =
   ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }

@@ -3,6 +3,7 @@ module Main where
 import Arch_Defs
 import Forvis_Spec_I
 import PIPE
+import MachineLenses
 import Memory
 import Data.Bits
 
@@ -20,7 +21,7 @@ import Printing
 
 import Control.Monad
 
-pol = "stack"
+pol = "heap"
 
 main :: IO ()
 main = do
