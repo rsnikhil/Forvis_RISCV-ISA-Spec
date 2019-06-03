@@ -20,6 +20,13 @@
   - write the property and make sure it makes the right prediction on these two
   - work on generation
 
+- A good next step would be to see if we can debug the following policy
+  (similar to one of the ones that was presented to Linton)
+     - a location marked in a particular way can only assigned to one time
+       (the policy seemed to allow assignments from a particular piece of
+       code, but this code itself was not protected)
+- related: work on the policies that 
+
 questions to think about
   - should we set up the machine so that the stack can run into the
     heap (to create opportunities for interesting bugs)?
