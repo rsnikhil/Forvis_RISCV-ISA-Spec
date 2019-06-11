@@ -718,7 +718,7 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
         [ ( ((j1,d1),(j1,l1)) : more1', ((j2,d2),(j2,l2)) : more2' )
         | (more1', more2') <- shrinkMemAux more1 more2 ]
  
-      indexTagedIntsToMem :: _ -> [IndexedTaggedInt] -> (Mem, MemT)
+      indexTagedIntsToMem :: Maybe (Integer,Integer) -> [IndexedTaggedInt] -> (Mem, MemT)
       indexTagedIntsToMem i itis = ((flip Mem i) . Data_Map.fromList) *** (MemT . Data_Map.fromList) $ unzip itis
         
   in map (indexTagedIntsToMem i1 *** indexTagedIntsToMem i2) $ shrinkMemAux (zip m1' t1') (zip m2' t2')

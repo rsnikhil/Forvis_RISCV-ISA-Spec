@@ -626,10 +626,11 @@ load_policy = do
         , dataMemLow = 900
         , dataMemHigh = 920  
 --        , compareMachines = \pplus (M (m1,p1) (m2,p2)) -> P.empty
-        , shrinkMStatePair = (\_ _ -> [])
-        , genMStatePair = genMStatePair_
-        , prop = prop_
+--        , shrinkMStatePair = (\_ _ -> [])
+--        , genMStatePair = genMStatePair_
+--        , prop = prop_
         }
   return pplus
 
+main = undefined
 

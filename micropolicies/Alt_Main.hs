@@ -20,7 +20,7 @@ import Printing
 
 import Control.Monad
 
-pol = "stack"
+pol = "heap"
 
 main :: IO ()
 main = do
