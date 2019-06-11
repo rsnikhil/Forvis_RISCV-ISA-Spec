@@ -1,3 +1,10 @@
+* SMALLER POLICIES
+
+- simple: "cells marked in a certain way can only be written once"
+
+- similar: "cells marked in a certain way can only be written by code
+  marked a certain way (at the beginning of the run!)"
+
 * NEXT
 
 (Leo) improve the printing of diffs in registers (calcDiff) in TestHeapSafety
