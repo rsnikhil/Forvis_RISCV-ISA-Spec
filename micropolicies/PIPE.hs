@@ -25,10 +25,11 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             PIPE_Result(..),
             exec_pipe) where
 
-import qualified Data.Map.Strict as Map
 import Data.Maybe
-import qualified Data.Set as Set
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.List (find,sort,intercalate)
 import Numeric (showHex)
 import Data.Char
@@ -42,6 +43,7 @@ import qualified EvalCommon as EC
 import qualified Eval as E
 
 import Machine_State
+import MachineLenses
 import Forvis_Spec_I
 import GPR_File
 -- import Memory
@@ -153,7 +155,7 @@ toExt ts =
   
 ---------------------------------
 
-newtype GPR_FileT = GPR_FileT  { _pgpr_map :: Map.Map  InstrField  TagSet }
+newtype GPR_FileT = GPR_FileT  { _pgpr_map :: Map InstrField  TagSet }
   deriving (Eq, Show)
 
 makeLenses ''GPR_FileT
@@ -171,14 +173,16 @@ gpr_writeT    (GPR_FileT dm)  reg         val =
 
 ---------------------------------
 
-newtype MemT = MemT { pmem_map :: Map.Map Integer TagSet}
+newtype MemT = MemT { _pmem_map :: Map Integer TagSet}
   deriving (Eq, Show)
+
+makeLenses ''MemT
 
 mkMemT :: [(Integer,TagSet)] -> MemT 
 mkMemT = foldr (\ (a,t) m -> mem_writeT m a t) (MemT Map.empty)
 
 mem_readT :: PolicyPlus -> MemT -> Integer -> TagSet
-mem_readT pplus m a = maybe (initMem pplus) id (Map.lookup a (pmem_map m))
+mem_readT pplus m a = maybe (initMem pplus) id (Map.lookup a (_pmem_map m))
  
 -- LATER: We are not sure this will do the right thing (i.e., something
 -- coherent with what the processor does) on unaligned writes.
@@ -198,7 +202,7 @@ mem_writeT m a t =
 
 {- private -}                
 mem_writeT' :: MemT -> Integer -> TagSet -> MemT
-mem_writeT' m a t = MemT (Map.insert a t (pmem_map m))
+mem_writeT' m a t = MemT (Map.insert a t (_pmem_map m))
 
 ---------------------------------
 
@@ -213,7 +217,10 @@ data PIPE_State = PIPE_State {
 
 makeLenses ''PIPE_State
 
+pgpr :: Lens' PIPE_State (Map InstrField TagSet)
 pgpr = pgpr_gpr . pgpr_map
+
+pmem :: Lens' PIPE_State (Map Integer TagSet)
 pmem = pmem_mem . pmem_map
 
 {- Build an initial state with default tags. This can then be
@@ -228,7 +235,7 @@ init_pipe_state pplus = PIPE_State (initPC pplus) -- pc
 {- These operators are private (for no very strong reason). -}
 -- Should be done with lenses...
 set_rtag :: PIPE_State -> GPR_Addr -> TagSet -> PIPE_State
-set_rtag p a t = p & pmem . at a .~ t -- p {p_gprs = gpr_writeT (p_gprs p) a t}
+set_rtag p a t = pmem . at a .~ t $ p -- p {p_gprs = gpr_writeT (p_gprs p) a t}
 
 get_rtag :: PIPE_State -> GPR_Addr -> TagSet
 get_rtag p = gpr_readT (_pgpr_gpr p)
@@ -273,7 +280,7 @@ exec_pipe' :: PolicyPlus -> PIPE_State -> Integer -> Instr_I -> Integer -> (PIPE
 exec_pipe' pplus p pc inst maddr =
   let inp0 :: EC.OperandTags
       inp0 = Map.fromList [
-              (Right EC.ESKEnv, p_pc p),
+              (Right EC.ESKEnv, _ppc p),
               (Right EC.ESKCode, get_mtag pplus p pc)]
       {- generate opcode name in usual form for 'group' section -- a bit hacky -}
       name = map toLower $ takeWhile (not . isSpace) $ show inst  
@@ -281,7 +288,7 @@ exec_pipe' pplus p pc inst maddr =
       ex inp outf =          
             let (r,next') =
                   EC.runTagResult
-                    (p_next p)
+                    (_pnext p)
                     (E.evalPolMod (policy pplus) (name, inp0 `Map.union` (EC.wrapESKMap inp))) 
             in case r of
                  -- LATER: The trap message on the next line should be
