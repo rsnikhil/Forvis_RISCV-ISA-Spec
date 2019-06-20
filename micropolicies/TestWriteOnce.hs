@@ -284,6 +284,7 @@ sameReachablePart (M (s1, p1) (s2, p2)) = do
   f2 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2)
 
   return $ r1 == r2 && (f_gprs s1 == f_gprs s2) && (f1 == f2)
+-}
 
 ------------------------------------------------------------------------------------------
 -- Generation
@@ -324,17 +325,16 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
 
       validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
         | reg_content >= dataMemLow pplus &&
-          reg_content <= dataMemHigh pplus
-          && isJust (pointerColorOf reg_tag) =
+          reg_content <= dataMemHigh pplus =
            Just (reg_id, reg_content, 0, dataMemHigh pplus - reg_content, reg_tag)
-        | reg_content == 0 && isJust (pointerColorOf reg_tag) =
+        | reg_content == 0 =
         -- We can allow a 0 register by adding at least 4
            Just (reg_id, 0, dataMemLow pplus, dataMemHigh pplus, reg_tag)
         | otherwise =
            Nothing
         
       validJump ((reg_id,reg_content),(_, reg_tag))
-        | reg_content < instrLow pplus && isJust (envColorOf reg_tag) =
+        | reg_content < instrLow pplus =
           Just (reg_id, instrLow pplus - reg_content)
         | otherwise =
           Nothing
@@ -343,22 +343,6 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
       controlRegs = map (fromJust) $ filter (isJust) $ map validJump rts
       arithRegs   = map fst regs
   in (dataRegs, controlRegs, arithRegs)
-
--- All locations that can be accessed using color 'c' between 'lo' and 'hi'
-reachableLocsBetween :: PolicyPlus -> Mem -> MemT -> Integer -> Integer -> TagSet -> [Integer]
-reachableLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
-  case pointerColorOf t of
-    Just c -> 
-      map fst $ filter (\(i,t) ->
-                          case cellColorOf t of
-                            Just c' -> c == c' && i >= lo && i <= hi
-                            _ -> False
-                       ) (Data_Map.assocs pm)
-    _ -> []
-
-allocInstTag :: PolicyPlus -> TagSet
-allocInstTag pplus =
-  fromExt [("heap.Alloc", Nothing), ("heap.Inst", Nothing)]
 
 genInstr :: PolicyPlus -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
 genInstr pplus ms ps =
@@ -371,99 +355,38 @@ genInstr pplus ms ps =
                   rs <- elements arithRegs
                   rd <- genTargetReg ms
                   imm <- genImm (dataMemHigh pplus)
-                  -- (Old comment? "Need to figure out what to do with Malloc")
-                  alloc <- frequency [(2, pure $ emptyInstTag pplus),
-                                      (3, pure $ allocInstTag pplus)]
-                  return (ADDI rd rs imm, alloc))
+                  return (ADDI rd rs imm, defaultTag))
             , (onNonEmpty dataRegs 3,
                do -- LOAD
                   (rs,content,min_imm,max_imm,tag) <- elements dataRegs
-                  let locs = --traceShow (content, min_imm, max_imm, tag) $
-                             reachableLocsBetween pplus (f_mem ms) (p_mem ps) (content+min_imm) (content+max_imm) tag
                   rd <- genTargetReg ms
-                  imm <- frequency [ -- Generate a reachable location)
-                                     (--traceShow locs $
-                                       onNonEmpty locs 1,
-                                      do addr <- elements locs
-                                         return $ addr - content)
-                                   , (1, (min_imm+) <$> genImm (max_imm - min_imm))
-                                   ]
-                  let tag = emptyInstTag pplus                         
-                  return (LW rd rs imm, tag)
+                  imm <- (min_imm +) <$> genImm (max_imm - min_imm)
+                  return (LW rd rs imm, defaultTag)
               )
             , (onNonEmpty dataRegs 3 * onNonEmpty arithRegs 1,
-               do -- STORE
+               do -- STORE    -- TODO: Don't write to WriteNever locations too often!
                   (rd,content, min_imm,max_imm,tag) <- elements dataRegs
                   rs <- genTargetReg ms
                   imm <- (min_imm+) <$> genImm (max_imm - min_imm)
-                  let tag = emptyInstTag pplus
-                  return (SW rd rs imm, tag))
+                  return (SW rd rs imm, defaultTag))
             , (onNonEmpty arithRegs 1,
                do -- ADD
                   rs1 <- elements arithRegs
                   rs2 <- elements arithRegs
                   rd <- genTargetReg ms
-                  let tag = emptyInstTag pplus
-                  return (ADD rd rs1 rs2, tag))
+                  return (ADD rd rs1 rs2, defaultTag))
             ]
 
-randInstr :: PolicyPlus -> Machine_State -> Gen (Instr_I, TagSet)
-randInstr pplus ms =          
-  frequency [ (1, do -- ADDI
-                  rs <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  imm <- genImm 4
-                  alloc <- frequency [(1, pure $ emptyInstTag pplus), (4, pure $ allocInstTag pplus)]
-                  return (ADDI rd rs imm, alloc))
-            , (1, do -- LOAD
-                  rs <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  imm <- genImm 4
-                  let tag = emptyInstTag pplus                  
-                  return (LW rd rs imm, tag))
-            , (1, do -- STORE
-                  rs <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  imm <- genImm 4
-                  let tag = emptyInstTag pplus
-                  return (SW rd rs imm, tag))
-            , (1, do -- ADD
-                  rs1 <- genSourceReg ms
-                  rs2 <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  let tag = emptyInstTag pplus
-                  return (ADD rd rs1 rs2, tag))
-            ]
-
-genColor :: Gen Color
-genColor =
-  frequency [ (1, pure $ 0)
-            , (4, choose (0, 4)) ]
-
--- Only colors up to 2 (for registers)
-genColorLow :: Gen Color
-genColorLow = frequency [ (1, pure $ 0)
-                        , (2, choose (0,2)) ]
-
--- Focus on unreachable colors
-genColorHigh :: Gen Color
-genColorHigh =
-  frequency [ (1, pure $ 0)
-            , (1, choose (1,2) )
-            , (3, choose (3,4) )
-            ]
-
-genMTagM :: PolicyPlus -> Gen TagSet
-genMTagM pplus = do
-  c1 <- genColor
-  c2 <- genColor
-  return $ fromExt [("heap.Cell", Just c1), ("heap.Pointer", Just c2)]
+genMTag :: PolicyPlus -> Gen TagSet
+genMTag pplus = do
+  frequency [ (1, pure defaultTag)
+            , (1, pure writeOnceTag) ]
 
 genDataMemory :: PolicyPlus -> Gen (Mem, MemT)
 genDataMemory pplus = do
   let idx = [dataMemLow pplus, (dataMemLow pplus)+4..(dataMemHigh pplus)]
   combined <- mapM (\i -> do d <- genImm $ dataMemHigh pplus    -- BCP: This always puts 4 in every location!
-                             t <- genMTagM pplus
+                             t <- genMTag pplus
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
   return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
@@ -476,7 +399,8 @@ setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
 setInstrTagI ms ps it =
   ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
 
-genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
+genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State -> Set GPR_Addr
+             -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
 genByExec pplus 0 ms ps instrlocs = return (ms, ps, instrlocs)
 genByExec pplus n ms ps instrlocs
   -- Check if an instruction already exists
@@ -508,15 +432,6 @@ updRegs (GPR_File rs) = do
   let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
   return $ GPR_File rs'
 
-mkPointerTagSet pplus c = fromExt [("heap.Pointer", Just c)]
-
-updTags :: PolicyPlus -> GPR_FileT -> Gen GPR_FileT
-updTags pplus (GPR_FileT rs) = do
-  [c1, c2, c3] <- (map $ mkPointerTagSet (policy pplus)) <$> (replicateM 3 genColorLow)
-  
-  let rs' :: Data_Map.Map Integer TagSet = Data_Map.insert 1 c1 $ Data_Map.insert 2 c2 $ Data_Map.insert 3 c3 rs
-  return $ GPR_FileT rs'
-
 genMachine :: PolicyPlus -> Gen (Machine_State, PIPE_State)
 genMachine pplus = do
   -- registers
@@ -527,9 +442,8 @@ genMachine pplus = do
       ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- Needed??
 
   rs' <- updRegs $ f_gprs ms2
-  ts' <- updTags pplus $ p_gprs ps2
   let ms' = ms2 {f_gprs = rs'}
-      ps' = ps2 {p_gprs = ts'}
+      ps' = ps2
   
   (ms_fin, ps_fin, instrlocs) <- genByExec pplus maxInstrsToGenerate ms' ps' Data_Set.empty
 
@@ -545,29 +459,7 @@ genMachine pplus = do
 
   return (ms_fin', ps_fin')
 
-varyUnreachableMem :: PolicyPlus -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
-varyUnreachableMem pplus r (Mem m ra) (MemT pm) = do
-  combined <- mapM (\((i,d),(j,t)) -> do
-                       case cellColorOf t of
-                         Just c'
-                           | Data_Set.member c' r -> return ((i,d),(j,t))
-                           | otherwise -> do d' <- genImm 12 -- TODO: This makes no sense
-                                             return ((i,d'),(j,t)) -- TODO: Here we could scramble v
-                         _ -> return ((i,d),(j,t))
-                    ) $ zip (Data_Map.assocs m) (Data_Map.assocs pm)
-  let (m', pm') = unzip combined
-  return (Mem (Data_Map.fromList m') ra, MemT (Data_Map.fromList pm'))
-
-varyUnreachable :: PolicyPlus -> (Machine_State, PIPE_State) -> Gen MStatePair
-varyUnreachable pplus (m, p) = do
-  let r = runReader (reachable p) pplus
-  (mem', pmem') <- varyUnreachableMem pplus r (f_mem m) (p_mem p)
-  return $ M (m,p) (m {f_mem = mem'}, p {p_mem = pmem'})
-
-genMStatePair :: PolicyPlus -> Gen MStatePair
-genMStatePair pplus = 
-  genMachine pplus >>= varyUnreachable pplus
-
+{-
 ------------------------------------------------------------------------------------------
 -- Shrinking
 
@@ -742,9 +634,10 @@ shrinkMStatePair pplus (M (m1,p1) (m2,p2)) =
    capabilities" (aka closures) or a protected stack is needed. -}
 -}
 
-writeOnceLabel = fromExt [("writeonce.WriteOnce", Nothing)]
+defaultTag = fromExt [("writeonce.Default", Nothing)]
+writeOnceTag = fromExt [("writeonce.WriteOnce", Nothing)]
+-- writeNeverTag = fromExt [("writeonce.WriteNever", Nothing)]
 
-genMState = undefined
 shrinkMState = undefined
 
 step pplus (m,p) = 
@@ -768,7 +661,7 @@ cellContents trace addr =
 
 prop_WO pplus count maxcount (m,p) =
   let trace = eval pplus count maxcount [] (m,p) 
-      addrs = map fst $ filter (\(_,l) -> l == writeOnceLabel) $
+      addrs = map fst $ filter (\(_,l) -> l == writeOnceTag) $
                          Data_Map.assocs $ unMemT $ p_mem p 
       contents = map (cellContents trace) addrs in
   property $ all (\l -> length (Data_List.group l) <= 2) contents
@@ -786,26 +679,28 @@ load_policy = do
   ppol <- load_pipe_policy "writeonce.main"
   let pplus = PolicyPlus
         { policy = ppol
-        , initGPR = fromExt [("writeonce.Default", Nothing)]
-        , initMem = fromExt [("writeonce.Default", Nothing)]
-        , initPC = fromExt [("writeonce.Default", Nothing)]
+        , initGPR = defaultTag
+        , initMem = defaultTag
+        , initPC = defaultTag
         , initNextColor = 5
-        , emptyInstTag = fromExt [("writeonce.Default", Nothing)]
+        , emptyInstTag = defaultTag
         , dataMemLow = 4
         , dataMemHigh = 20  
         , instrLow = 1000
         }
   return pplus
 
+instance Show Machine_State where
+  show _ = ""
+
 -- The real one
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    True {-
-    $ forAllShrink (genMState pplus)
-           (\m -> shrinkMState pplus m ++ 
-                  concatMap (shrinkMState pplus) (shrinkMState pplus m))
+    $ forAllShrink (genMachine pplus)
+           (\m -> [] -- shrinkMState pplus m ++ 
+                  -- concatMap (shrinkMState pplus) (shrinkMState pplus m)
+           )
     $ \m -> prop pplus m
--}
 
 main = main_test

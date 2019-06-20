@@ -1,10 +1,13 @@
-all: build heap
+all: build writeonce
 
 stack:
 	$(MAKE) stackmutants unmutated POLICY=stack
 
 heap:
 	$(MAKE) heapmutants unmutated POLICY=heap
+
+writeonce:
+	$(MAKE) writeoncemutants unmutated POLICY=writeonce
 
 build:
 	@stack build :dpl-exe 
@@ -30,6 +33,10 @@ mutant:
 	$Vcpp -D$(MUT) $(POLICY).dpl > .mutants/$(POLICY).dpl
 	$V$(SED) .mutants/$(POLICY).dpl
 	$V(cd .mutants; time stack exec dpl-exe)
+
+writeoncemutants:
+	$Vmake mutant MUT=IGNORE_WRITEONCE
+	$Vmake mutant MUT=IGNORE_WRITENEVER
 
 stackmutants:
 
