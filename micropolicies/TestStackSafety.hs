@@ -290,35 +290,35 @@ genInstr pplus ms ps =
                   return (ADD rd rs1 rs2, tag))
             ]
 
-setInstrI :: Machine_State -> Instr_I -> Machine_State
-setInstrI ms i =
-  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
+--setInstrI :: Machine_State -> Instr_I -> Machine_State
+--setInstrI ms i =
+--  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
+-- 
+--setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
+--setInstrTagI ms ps it =
+--  ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
+-- 
+--setInstrIAt :: Machine_State -> Instr_I -> Integer -> Machine_State
+--setInstrIAt ms i addr =
+--  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert addr (encode_I RV32 i) (f_dm $ f_mem ms) } }
+-- 
+--setInstrTagIAt :: PIPE_State -> TagSet -> Integer -> PIPE_State
+--setInstrTagIAt ps it addr =
+--  ps {p_mem = ( MemT $ Data_Map.insert addr (it) (unMemT $ p_mem ps) ) }
 
-setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
-setInstrTagI ms ps it =
-  ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
-
-setInstrIAt :: Machine_State -> Instr_I -> Integer -> Machine_State
-setInstrIAt ms i addr =
-  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert addr (encode_I RV32 i) (f_dm $ f_mem ms) } }
-
-setInstrTagIAt :: PIPE_State -> TagSet -> Integer -> PIPE_State
-setInstrTagIAt ps it addr =
-  ps {p_mem = ( MemT $ Data_Map.insert addr (it) (unMemT $ p_mem ps) ) }
-
-genMStatePair_ :: PolicyPlus -> Gen MStatePair
-genMStatePair_ pplus =
-  let minit = initMachine 
-      pinit = init_pipe_state pplus
-      instrs = [ (0, JAL 0 100, emptyInstTag pplus)
-               ]
-      (m,p) = foldl (\(m',p') (addr,inst,tag) ->
-                       (setInstrIAt m' inst addr, setInstrTagIAt p' tag addr)
-                      )
-                (minit,pinit) instrs
-  in 
-
-  return (M (m,p) (m,p))
+--genMStatePair_ :: PolicyPlus -> Gen MStatePair
+--genMStatePair_ pplus =
+--  let minit = initMachine 
+--      pinit = init_pipe_state pplus
+--      instrs = [ (0, JAL 0 100, emptyInstTag pplus)
+--               ]
+--      (m,p) = foldl (\(m',p') (addr,inst,tag) ->
+--                       (setInstrIAt m' inst addr, setInstrTagIAt p' tag addr)
+--                      )
+--                (minit,pinit) instrs
+--  in 
+-- 
+--  return (M (m,p) (m,p))
 
 ----------------------------------------------------------------
 -- OLD STUFF TO BE REVIVED
@@ -684,32 +684,5 @@ load_policy = do
 --        , prop = prop_
         }
   return pplus
-
---main_trace = do
---  pplus <- load_policy
---  (M (ms1,ps1) (ms2,ps2)) <- head <$> sample' (genMStatePair pplus)
---  let (res, tr) = run_loop pplus 10 ps1 ms1
---      (ps', ms') : _ = tr
---  putStrLn ""
-----  putStrLn "Initial state:"
-----  print_coupled pplus ms1 ps1
-----  putStrLn "_______________________________________________________________________"
-----  putStrLn "Final state:"
-----  print_coupled pplus ms' ps'
-----  putStrLn "_______________________________________________________________________"
-----  putStrLn "Trace:"
---  let finalTrace = {- map flipboth $ -} reverse $ zip tr tr
---  uncurry (printTrace pplus) (unzip finalTrace)
-----  printTrace pplus (reverse tr)
---  putStrLn (show res)
--- 
----- The real one
---main_test = do
---  pplus <- load_policy
---  quickCheckWith stdArgs{maxSuccess=1000}
---    $ forAllShrink (genMStatePair pplus)
---           (\mp -> shrinkMStatePair pplus mp 
---                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
---    $ \m -> prop pplus m
 
 main = undefined

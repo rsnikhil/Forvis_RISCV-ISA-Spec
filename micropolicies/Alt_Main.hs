@@ -17,6 +17,7 @@ import Test.QuickCheck
 
 import qualified TestHeapSafety
 import qualified TestStackSafety
+import qualified TestWriteOnce
 import Printing
 
 import Control.Monad
@@ -28,6 +29,7 @@ main = do
   case pol of
     "heap"    -> TestHeapSafety.main 
     "stack"   -> TestStackSafety.main
+    "writeonce"   -> TestWriteOnce.main
     otherwise -> error $ "unknown policy '" ++ pol ++ "'"
 
 

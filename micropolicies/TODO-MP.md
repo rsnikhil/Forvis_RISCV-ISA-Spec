@@ -1,3 +1,10 @@
+* SMALLER POLICIES
+
+- simple: "cells marked in a certain way can only be written once"
+
+- similar: "cells marked in a certain way can only be written by code
+  marked a certain way (at the beginning of the run!)"
+
 * NEXT
 
 (Leo) improve the printing of diffs in registers (calcDiff) in TestHeapSafety
@@ -19,6 +26,13 @@
   - write an example that should NOT pass the policy and try to run it
   - write the property and make sure it makes the right prediction on these two
   - work on generation
+
+- A good next step would be to see if we can debug the following policy
+  (similar to one of the ones that was presented to Linton)
+     - a location marked in a particular way can only assigned to one time
+       (the policy seemed to allow assignments from a particular piece of
+       code, but this code itself was not protected)
+- related: work on the policies that 
 
 questions to think about
   - should we set up the machine so that the stack can run into the

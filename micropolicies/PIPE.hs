@@ -16,10 +16,12 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             fromExt,
             toExt,
             GPR_FileT(..),
-            mkGPR_FileT, gpr_readT, gpr_writeT,
+            mkGPR_FileT, unGPRT, gpr_readT, gpr_writeT,
             MemT(..),
-            mkMemT, mem_readT, mem_writeT,
+            mkMemT, unMemT, mem_readT, mem_writeT,
             PIPE_State(..),
+            ppc, pgpr, pmem, pgpr_gpr, pmem_mem,
+            p_pc, p_gprs, p_mem,
             init_pipe_state,
             MStatePair(..),
             PIPE_Result(..),
@@ -55,10 +57,13 @@ import Text.PrettyPrint (Doc, (<+>), ($$))
 
 import Control.Lens
 
+import Debug.Trace
+
 -----------------------------------------------------------------
 type PIPE_Policy = E.QPolMod
 
-type TagSet = EC.TagValue 
+newtype TagSet = TagSet {unTagSet :: EC.TagValue}
+  deriving (Eq, Show)
 
 showTagSet t = 
     let f (s, Nothing) = s
@@ -147,11 +152,11 @@ fromExt ext =
    if sort ext /= ext then
      error "fromExt on unsorted list"
    else
-     Map.fromList $ map (\ (s,a) -> (QTag $ CF.parseDotName s,a)) ext
+     TagSet $ Map.fromList $ map (\ (s,a) -> (QTag $ CF.parseDotName s,a)) ext
 
 toExt :: TagSet -> [(String,Maybe Int)]
 toExt ts =       
-  sort (Map.foldrWithKey (\ k a b -> (CF.qualSymStr k,a):b) [] ts)
+  sort (Map.foldrWithKey (\ k a b -> (CF.qualSymStr k,a):b) [] (unTagSet ts))
   
 ---------------------------------
 
@@ -159,6 +164,8 @@ newtype GPR_FileT = GPR_FileT  { _pgpr_map :: Map InstrField  TagSet }
   deriving (Eq, Show)
 
 makeLenses ''GPR_FileT
+
+unGPRT = _pgpr_map
 
 mkGPR_FileT :: TagSet -> GPR_FileT
 mkGPR_FileT t = GPR_FileT (Map.fromList (zip [0..31] (repeat t)))
@@ -177,6 +184,8 @@ newtype MemT = MemT { _pmem_map :: Map Integer TagSet}
   deriving (Eq, Show)
 
 makeLenses ''MemT
+
+unMemT = _pmem_map
 
 mkMemT :: [(Integer,TagSet)] -> MemT 
 mkMemT = foldr (\ (a,t) m -> mem_writeT m a t) (MemT Map.empty)
@@ -217,6 +226,10 @@ data PIPE_State = PIPE_State {
 
 makeLenses ''PIPE_State
 
+p_gprs = _pgpr_gpr
+p_mem  = _pmem_mem
+p_pc   = _ppc
+
 pgpr :: Lens' PIPE_State (Map InstrField TagSet)
 pgpr = pgpr_gpr . pgpr_map
 
@@ -235,16 +248,16 @@ init_pipe_state pplus = PIPE_State (initPC pplus) -- pc
 {- These operators are private (for no very strong reason). -}
 -- Should be done with lenses...
 set_rtag :: PIPE_State -> GPR_Addr -> TagSet -> PIPE_State
-set_rtag p a t = pmem . at a .~ t $ p -- p {p_gprs = gpr_writeT (p_gprs p) a t}
-
+set_rtag p a t = p & pgpr . at a ?~ t 
+   
 get_rtag :: PIPE_State -> GPR_Addr -> TagSet
-get_rtag p = gpr_readT (_pgpr_gpr p)
+get_rtag p a = maybe (error $ "get_rtag: " ++ show a ++  "\n" ++ show p) id $ p ^. pgpr . at a
 
 set_mtag :: PIPE_State -> Integer -> TagSet -> PIPE_State
-set_mtag p a t = p {_pmem_mem = mem_writeT (_pmem_mem p) a t}
+set_mtag p a t = p & pgpr . at a ?~ t 
 
-get_mtag :: PolicyPlus -> PIPE_State -> Integer -> TagSet
-get_mtag pplus p = mem_readT pplus (_pmem_mem p) 
+get_mtag :: PIPE_State -> Integer -> TagSet
+get_mtag p a = maybe (error "get_mtag") id $ p ^. pmem . at a 
 
 data MStatePair =
   M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
@@ -280,8 +293,8 @@ exec_pipe' :: PolicyPlus -> PIPE_State -> Integer -> Instr_I -> Integer -> (PIPE
 exec_pipe' pplus p pc inst maddr =
   let inp0 :: EC.OperandTags
       inp0 = Map.fromList [
-              (Right EC.ESKEnv, _ppc p),
-              (Right EC.ESKCode, get_mtag pplus p pc)]
+              (Right EC.ESKEnv , unTagSet $ _ppc p),
+              (Right EC.ESKCode, unTagSet $ get_mtag p pc)]
       {- generate opcode name in usual form for 'group' section -- a bit hacky -}
       name = map toLower $ takeWhile (not . isSpace) $ show inst  
       look k m = maybe (error $ "lookup failure " ++ (show k)) id (Map.lookup k m)
@@ -299,39 +312,39 @@ exec_pipe' pplus p pc inst maddr =
                  -- execute (I've tried to add this but it doesn't
                  -- look good yet)
                  Left EC.TFImplicit ->
-                   let tags = map (\(k,t) -> show k ++ "=" ++ showTagSet t) (Map.assocs inp) in
+                   let tags = map (\(k,t) -> show k ++ "=" ++ showTagSet (TagSet t)) (Map.assocs inp) in
                    let i = "[" ++ intercalate ", " tags ++ "]" in
                    (p, PIPE_Trap $ "no applicable rule for " ++ i
                                     ++ " and instr group " ++ show name)
                  Left (EC.TFExplicit s) -> (p, PIPE_Trap s)
                  Right out -> 
                            ((outf out) 
-                            {_ppc = look (Right EC.ESKEnv) out,
+                            {_ppc = TagSet $ look (Right EC.ESKEnv) out,
                              _pnext = next'},
                             PIPE_Success)
-      get = get_rtag p
-      set = set_rtag p
+      get x = get_rtag p x
+      set x = set_rtag p x
       r0d0 =
         ex Map.empty
            (\_ -> p)
       r0d1 rd =
         ex Map.empty
-           (\out -> set rd $ look (Left RD) out) 
+           (\out -> set rd $ TagSet $ look (Left RD) out) 
       r1d1 rs1 rd = 
-        ex (Map.fromList [(RS1,get rs1)])
-           (\out -> set rd $ look (Left RD) out)
+        ex (Map.fromList [(RS1, unTagSet $ get rs1)])
+           (\out -> set rd $ TagSet $ look (Left RD) out)
       r2d0 rs1 rs2 = 
-        ex (Map.fromList [(RS1,get rs1),(RS2,get rs2)])
+        ex (Map.fromList [(RS1, unTagSet $ get rs1),(RS2, unTagSet $ get rs2)])
            (\_ -> p)
       r2d1 rs1 rs2 rd = 
-        ex (Map.fromList [(RS1,get rs1),(RS2,get rs2)])
-              (\out -> set rd $ look (Left RD) out)
+        ex (Map.fromList [(RS1, unTagSet $ get rs1),(RS2, unTagSet $ get rs2)])
+              (\out -> set rd $ TagSet $ look (Left RD) out)
       r1md1 rs1 rd =
-        ex (Map.fromList [(RS1,get rs1),(Mem, get_mtag pplus p maddr)])
-           (\out -> set rd $ look (Left RD) out)              
+        ex (Map.fromList [(RS1, unTagSet $ get rs1),(Mem, unTagSet $ get_mtag p maddr)])
+           (\out -> set rd $ TagSet $ look (Left RD) out)              
       r2md0m rs1 rs2 =
-        ex (Map.fromList [(RS1,get rs1),(RS2,get rs2),(Mem, get_mtag pplus p maddr)])
-           (\out -> set_mtag p maddr $ look  (Left Mem) out)              
+        ex (Map.fromList [(RS1, unTagSet $ get rs1),(RS2, unTagSet $ get rs2),(Mem, unTagSet $ get_mtag p maddr)])
+           (\out -> set_mtag p maddr $ TagSet $ look  (Left Mem) out)              
   in case inst of
        LUI rd _ -> r0d1 rd
        AUIPC rd _ -> r0d1 rd
