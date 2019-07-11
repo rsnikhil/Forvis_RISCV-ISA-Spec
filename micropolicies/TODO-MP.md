@@ -5,6 +5,16 @@
 - similar: "cells marked in a certain way can only be written by code
   marked a certain way (at the beginning of the run!)"
 
+* SELF MODIFYING POLICY
+
+- tried: policy checking that a particular istruction (JAL) always follows another (ADD)
+  Wasn't clear why self modifying code was needed. Simpler bugs violate it
+
+- idea: at the beginning, some memory cells are marked "sensitive" and some are marked "blessed"
+  property:
+    cells marked "sensitive" AT THE BEGINNING can only be changed by instructions "blessed" AT THE BEGINNING
+    where the instruction is in a location marked "blessed" at the beginning and its opcode/registers are unchanged
+
 * NEXT
 
 (Leo) improve the printing of diffs in registers (calcDiff) in TestHeapSafety
