@@ -22,7 +22,7 @@ import Printing
 
 import Control.Monad
 
-pol = "heap"
+pol = "writeonce"
 
 main :: IO ()
 main = do

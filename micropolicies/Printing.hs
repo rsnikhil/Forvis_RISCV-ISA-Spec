@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances #-}
+{-# LANGUAGE TupleSections, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, UndecidableInstances #-}
 module Printing where
 
 import Arch_Defs
@@ -65,6 +65,9 @@ instance PP PIPE_State where
 print_pipe :: PolicyPlus -> PIPE_State -> IO ()
 print_pipe pplus ps =
   putStrLn $ P.render $ pp pplus ps
+
+instance PP (Integer, TagSet) where
+  pp pplus x = pretty pplus x x
 
 class CoupledPP a b | a -> b where
   pretty :: PolicyPlus -> a -> b -> Doc

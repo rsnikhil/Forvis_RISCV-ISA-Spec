@@ -1,0 +1,134 @@
+module writeonce:
+
+metadata:
+    Default,
+    WriteOnce,
+    WriteNever
+
+// ==============================================================================
+// ==============================================================================
+policy: main =
+
+// ------------------------------------------------------------------------------
+// ARITHMETIC
+
+  immArithGrp(
+  env == _, op1 == _ 
+  -> 
+  env = env, res = op1)        
+
+^ arithGrp(
+  env == _, op1 == _ 
+  -> 
+  env = env, res = op1)  
+
+// ------------------------------------------------------------------------------
+// LOAD FROM MEMORY
+
+^ loadGrp(
+    env == _, addr == _, mem == _ 
+    ->
+    env = env, res = mem)
+
+// ------------------------------------------------------------------------------
+// STORE TO MEMORY
+
+#ifndef IGNORE_WRITEONCE
+^ storeGrp(
+    env == _, addr == _, val == _, mem == {WriteOnce}
+    ->
+    env = env, mem = {WriteNever})
+#else
+^ storeGrp(
+    env == _, addr == _, val == _, mem == {WriteOnce}
+    ->
+    env = env )
+#endif
+
+#ifndef IGNORE_WRITENEVER
+^ storeGrp(
+    env == _, addr == _, val == _, mem == {Default}
+    ->
+    env = env, mem = mem)
+#else
+^ storeGrp(
+    env == _, addr == _, val == _, mem == _ 
+    ->
+    env = env)
+#endif
+
+// ------------------------------------------------------------------------------
+// JUMP
+
+^ jumpGrp(env == _ -> env = env, return = env ) 
+
+// ==============================================================================
+// ==============================================================================
+// map external names (dotted strings) to tag sets
+// (Adding these explicit "writeonce."s is just a workaround pending a proper fix to PIPE.hs)
+require:  
+    init test.Default {writeonce.Default}   
+    init test.WriteOnce {writeonce.WriteOnce}   
+    init test.WriteNever {writeonce.WriteNever}   
+
+group:
+    grp loadUpperGrp(-> RD:dest)
+        lui
+        auipc
+
+    grp jumpGrp(-> RD:return)      
+        jal
+
+    grp jumpRegGrp(RS1:target -> RD:return)
+        jalr
+
+    grp branchGrp(RS1:op1, RS2:op2 -> )
+        beq
+        bne
+        blt
+        bge
+        bltu
+        bgeu
+
+    grp loadGrp(RS1:addr, MEM:mem -> RD:res)
+        lb
+        lh
+        lw
+        lbu
+        lhu
+
+    grp storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
+        sb
+        sh
+        sw
+
+    grp immArithGrp(RS1:op1 -> RD:res)
+        addi
+        slti
+        sltiu
+        xori
+        ori
+        andi
+        slli
+        srli
+        srai
+ 
+    grp arithGrp(RS1:op1, RS2:op2 -> RD:res)
+        add
+        sub
+        sll
+        slt
+        sltu
+        xor
+        srl
+        sra
+        or 
+        and
+
+    grp systemGrp( -> )
+        fence
+ 
+    grp privGrp( -> )
+        ecall
+        ebreak
+

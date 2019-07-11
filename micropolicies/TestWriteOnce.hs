@@ -43,37 +43,40 @@ import Terminal
 ------------------------------------------------------------------------------------
 -- Printing
 
+-- TODO: Instance p pretty
+instance PP (Machine_State, PIPE_State) where
+  pp pplus (m,p) =
+    let ppol = policy pplus in
+    P.vcat [ P.text "PC:" <+> pretty pplus (f_pc m, p_pc p) (f_pc m, p_pc p)
+           , P.text "Registers:" $$ P.nest 2 (pretty pplus (f_gprs m, p_gprs p) (f_gprs m, p_gprs p))
+           , P.text "Memories:" $$ P.nest 2 (pretty pplus (f_mem m, p_mem p) (f_mem m, p_mem p))
+           ]
+
 verboseTracing = False
 --verboseTracing = True
 
-{-
-printTrace pplus tr1 tr2 = putStrLn $ P.render $ prettyTrace pplus tr1 tr2
+printTrace pplus tr = putStrLn $ P.render $ prettyTrace pplus tr
 
-prettyTrace :: PolicyPlus -> [(Machine_State, PIPE_State)] -> [(Machine_State, PIPE_State)] -> Doc
-prettyTrace pplus [] [] = P.empty
-prettyTrace pplus [(m1,p1)] [(m2,p2)] = prettyMStatePair pplus (M (m1,p1) (m2,p2))
-prettyTrace pplus (tr1@((m1,p1):_)) (tr2@((m2,p2):_)) =
-    prettyMStatePair pplus (M (m1,p1) (m2,p2)) $$ P.text ""
-      $$ P.text "Trace:" $$ prettyDiffs pplus tr1 tr2
+prettyTrace :: PolicyPlus -> [(Machine_State, PIPE_State)] -> Doc 
+prettyTrace pplus [] = P.empty
+prettyTrace pplus [(m,p)] = pp pplus (m,p)
+prettyTrace pplus (tr@((m,p):_)) =
+    pp pplus (m,p) $$ P.text ""
+      $$ P.text "Trace:" $$ prettyDiffs pplus tr
 
-prettyDiffs :: PolicyPlus -> [(Machine_State, PIPE_State)] -> [(Machine_State, PIPE_State)] -> Doc
-prettyDiffs pplus ((m11,p11):(m12,p12):tr1) ((m21,p21):(m22,p22):tr2) =
+prettyDiffs :: PolicyPlus -> [(Machine_State, PIPE_State)] -> Doc
+prettyDiffs pplus ((m1,p1):(m2,p2):tr) =
   (if verboseTracing then
        P.text "----------------------------------------------------------------"
-    $$ P.nest 10 (P.text "Raw Machine 1 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m12)))
-    $$ P.nest 10 (P.text "Raw Machine 1 tags:" $$ P.nest 3 (P.text (show $ p_mem p12)))
-    $$ P.nest 10 (P.text "Raw Machine 2 memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m22)))
-    $$ P.nest 10 (P.text "Raw Machine 2 tags:" $$ P.nest 3 (P.text (show $ p_mem p22)))
-    $$ P.nest 10 (P.text "Machine 1:" $$ P.nest 3 (pretty pplus m12 p12) $$
-                  P.text "Machine 2" $$ P.nest 3 (pretty pplus m22 p22) )
-  else
-    P.empty)
-  $$ pretty pplus (calcDiff pplus (m11,p11) (m12,p12))
-                  (calcDiff pplus (m21,p21) (m22,p22))
-  $$ prettyDiffs pplus ((m12,p12):tr1) ((m22,p22):tr2)
-prettyDiffs pplus [(m1,p1)] [(m2,p2)] =
-  P.text "" $$ P.text "Final:" $$ prettyMStatePair pplus (M (m1,p1) (m2,p2))
-prettyDiffs _ _ _ = P.empty
+    $$ P.nest 10 (P.text "Raw Machine memory:" $$ P.nest 3 (P.text (show $ f_dm $ f_mem m1)))
+    $$ P.nest 10 (P.text "Raw Machine 1 tags:" $$ P.nest 3 (P.text (show $ p_mem p1)))
+    $$ P.nest 10 (P.text "Machine:" $$ P.nest 3 (pretty pplus m2 p2))
+  else P.empty)
+  $$ pp pplus (calcDiff pplus (m1,p1) (m2,p2))
+  $$ prettyDiffs pplus ((m2,p2):tr)
+prettyDiffs pplus [(m,p)] =
+  P.text "" $$ P.text "Final:" $$ pp pplus (m,p) 
+prettyDiffs _ _ = P.empty
 
 data Diff = Diff { d_pc :: (Integer, TagSet)               -- value and tag of the current PC
                  , d_instr :: Maybe Instr_I                -- current instruction
@@ -158,43 +161,28 @@ calcDiff pplus (m1,p1) (m2,p2) =
 --                        " data = " ++ show data_diff ++
 --                        " and tags = " ++ show tag_diff
 
-prettyRegDiff pplus ((i,d,l):r1) ((i', d', l'):r2)
-    | i == i', d == d', l == l' =
-        (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty pplus d l)
-        $$ prettyRegDiff pplus r1 r2
-    | otherwise =
-      (ppStrong (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty pplus d l <||>
-                 P.char 'r' P.<> P.integer i' <+> P.text "<-" <+> pretty pplus d' l'))
-      $$ prettyRegDiff pplus r1 r2
-prettyRegDiff _ [] [] = P.empty
--- TODO (Leo): This can happen a lot now...
-prettyRegDiff _ r1 r2 = P.text $ "<prettyRegDiff??> " ++ show (r1,r2)
+ppRegDiff pplus ((i,d,l):r) =
+  (P.char 'r' P.<> P.integer i <+> P.text "<-" <+> pretty pplus d l)
+        $$ ppRegDiff pplus r
+ppRegDiff _ [] = P.empty
 
-prettyMemDiff pplus ((i,d,l):m1) ((i', d', l'):m2)
-    | i == i', d == d', l == l' =
-        (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty pplus d l)
-        $$ prettyMemDiff pplus m1 m2
-    | otherwise =
-      (ppStrong (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty pplus d l
-                 <||> P.char '[' P.<> P.integer i' P.<> P.char ']' <+> P.text "<-" <+> pretty pplus d' l'))
-      $$ prettyMemDiff pplus m1 m2
-prettyMemDiff _ [] [] = P.empty
-prettyMemDiff _ _ _ = P.text "<prettyMemDiff??>"
+ppMemDiff pplus ((i,d,l):m) =
+  (P.char '[' P.<> P.integer i P.<> P.char ']' <+> P.text "<-" <+> pretty pplus d l)
+  $$ ppMemDiff pplus m
+ppMemDiff _ [] = P.empty
 
-instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
-  pretty pplus (Just i1) (Just i2)
-    | i1 == i2  = pp pplus i1
-    | otherwise = ppStrong (pp pplus i1 <||> pp pplus i2)
-  pretty _ Nothing Nothing = P.text "<Bad instr>"
+instance PP (Maybe Instr_I) where
+  pp pplus (Just i) = pp pplus i
+  pp _ Nothing = P.text "<Bad instr>"
 
-instance CoupledPP Diff Diff where
-  pretty pplus d1 d2 =
-    P.hcat [ pad 17 (pretty pplus (d_pc d1) (d_pc d2))
+instance PP Diff where
+  pp pplus d =
+    P.hcat [ pad 17 (pp pplus (d_pc d))
            , P.text " "
-           , pad 17 (pretty pplus (d_instr d1) (d_instr d2))
+           , pad 17 (pp pplus (d_instr d))
            , P.text "     "
-           , prettyRegDiff pplus (d_reg d1) (d_reg d2)
-           , prettyMemDiff pplus (d_mem d1) (d_mem d2)
+           , ppRegDiff pplus (d_reg d)
+           , ppMemDiff pplus (d_mem d)
            ]
 
 -- Null "show" functions, for things that we don't want QuickCheck trying to print
@@ -202,88 +190,6 @@ instance Show Machine_State where
   show _ = ""
 instance Show MStatePair where
   show _ = ""
-
-------------------------------------------------------------------------------------
--- Reachability
-
-{- A stupid n^2 reachability algorithm for now.  If we find it is too
-   slow as memories get larger, we could improve it like this:
-      - As we go along, maintain a set of "reachable colors" plus a
-        map from "unreachable colors" to the addresses tagged with
-        each of them.  If an unreachable color ever becomes reachable,
-        then add it to the reachable set and recursively traverse the
-        things on its list.
--}
-
-cellColorOf :: TagSet -> Maybe Color
-cellColorOf t = 
-  -- trace ("cellColorOf " ++ show t ++ " i.e. " ++ show (toExt t)) $
-  join $ Data_List.lookup "heap.Cell" (toExt t)
-
--- pointerColorOf :: TagSet -> P (Maybe Color)
--- pointerColorOf t = do
---   ppol <- askPolicy
---   let l = rdTagSet ppol t
---   -- Ughly:
---   case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Pointer"] l) of
---     (Just [_,p], _) -> return p
---     (_, Just [p]) -> return p
---     _ -> return Nothing
-
-pointerColorOf :: TagSet -> Maybe Color
-pointerColorOf t = 
-  join $ Data_List.lookup "heap.Pointer" (toExt t)
-
-envColorOf :: TagSet -> Maybe Color
-envColorOf t = do
-  join $ Data_List.lookup "heap.Env" (toExt t)
-
-reachableInOneStep :: MemT -> Set Color -> P (Set Color)
-reachableInOneStep m s =
-  foldM (\s t -> do  --  do notation not actually needed here
-           let c = cellColorOf t
-           let p = pointerColorOf t
-           case (c,p) of
-             (Just c', Just p') | Data_Set.member c' s -> return $ Data_Set.insert p' s
-             _ -> return s)
-   s (Data_Map.elems $ unMemT m)
-
-reachableLoop :: MemT -> Set Color -> P (Set Color)
-reachableLoop m s = do
-  s' <- reachableInOneStep m s 
-  if s == s' then return s else reachableLoop m s'
-
-registerColors :: PIPE_State -> P (Set Color)
-registerColors pstate = 
-  foldM (\s t -> do -- Do notation not actually needed
-            let c = pointerColorOf t
-            case c of
-              Just c' -> return $ Data_Set.insert c' s 
-              Nothing -> return s)
-    Data_Set.empty (unGPR $ p_gprs pstate) 
-
-reachable :: PIPE_State -> P (Set Color)
-reachable p = registerColors p >>= reachableLoop (p_mem p) 
-
-sameReachablePart :: MStatePair -> P Bool
-sameReachablePart (M (s1, p1) (s2, p2)) = do
-  r1 <- reachable p1
-  r2 <- reachable p2
-
-  let filterAux [] _ = return []
-      filterAux _ [] = return []
-      filterAux ((i,d):ds) ((j,t):ts)
-        | i == j = do
-            case cellColorOf t of
-              Just c' | Data_Set.member c' r1 -> (d :) <$> filterAux ds ts
-              _ -> filterAux ds ts
-        | i < j = filterAux ds ((j,t):ts)
-        | i > j = filterAux ((i,d):ds) ts
-
-  f1 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s1) (Data_Map.assocs $ unMemT $ p_mem p1)
-  f2 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2)
-
-  return $ r1 == r2 && (f_gprs s1 == f_gprs s2) && (f1 == f2)
 
 ------------------------------------------------------------------------------------------
 -- Generation
@@ -324,17 +230,16 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
 
       validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
         | reg_content >= dataMemLow pplus &&
-          reg_content <= dataMemHigh pplus
-          && isJust (pointerColorOf reg_tag) =
+          reg_content <= dataMemHigh pplus =
            Just (reg_id, reg_content, 0, dataMemHigh pplus - reg_content, reg_tag)
-        | reg_content == 0 && isJust (pointerColorOf reg_tag) =
+        | reg_content == 0 =
         -- We can allow a 0 register by adding at least 4
            Just (reg_id, 0, dataMemLow pplus, dataMemHigh pplus, reg_tag)
         | otherwise =
            Nothing
         
       validJump ((reg_id,reg_content),(_, reg_tag))
-        | reg_content < instrLow pplus && isJust (envColorOf reg_tag) =
+        | reg_content < instrLow pplus =
           Just (reg_id, instrLow pplus - reg_content)
         | otherwise =
           Nothing
@@ -343,22 +248,6 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
       controlRegs = map (fromJust) $ filter (isJust) $ map validJump rts
       arithRegs   = map fst regs
   in (dataRegs, controlRegs, arithRegs)
-
--- All locations that can be accessed using color 'c' between 'lo' and 'hi'
-reachableLocsBetween :: PolicyPlus -> Mem -> MemT -> Integer -> Integer -> TagSet -> [Integer]
-reachableLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
-  case pointerColorOf t of
-    Just c -> 
-      map fst $ filter (\(i,t) ->
-                          case cellColorOf t of
-                            Just c' -> c == c' && i >= lo && i <= hi
-                            _ -> False
-                       ) (Data_Map.assocs pm)
-    _ -> []
-
-allocInstTag :: PolicyPlus -> TagSet
-allocInstTag pplus =
-  fromExt [("heap.Alloc", Nothing), ("heap.Inst", Nothing)]
 
 genInstr :: PolicyPlus -> Machine_State -> PIPE_State -> Gen (Instr_I, TagSet)
 genInstr pplus ms ps =
@@ -371,99 +260,38 @@ genInstr pplus ms ps =
                   rs <- elements arithRegs
                   rd <- genTargetReg ms
                   imm <- genImm (dataMemHigh pplus)
-                  -- (Old comment? "Need to figure out what to do with Malloc")
-                  alloc <- frequency [(2, pure $ emptyInstTag pplus),
-                                      (3, pure $ allocInstTag pplus)]
-                  return (ADDI rd rs imm, alloc))
+                  return (ADDI rd rs imm, defaultTag))
             , (onNonEmpty dataRegs 3,
                do -- LOAD
                   (rs,content,min_imm,max_imm,tag) <- elements dataRegs
-                  let locs = --traceShow (content, min_imm, max_imm, tag) $
-                             reachableLocsBetween pplus (f_mem ms) (p_mem ps) (content+min_imm) (content+max_imm) tag
                   rd <- genTargetReg ms
-                  imm <- frequency [ -- Generate a reachable location)
-                                     (--traceShow locs $
-                                       onNonEmpty locs 1,
-                                      do addr <- elements locs
-                                         return $ addr - content)
-                                   , (1, (min_imm+) <$> genImm (max_imm - min_imm))
-                                   ]
-                  let tag = emptyInstTag pplus                         
-                  return (LW rd rs imm, tag)
+                  imm <- (min_imm +) <$> genImm (max_imm - min_imm)
+                  return (LW rd rs imm, defaultTag)
               )
             , (onNonEmpty dataRegs 3 * onNonEmpty arithRegs 1,
-               do -- STORE
+               do -- STORE    -- TODO: Don't write to WriteNever locations too often!
                   (rd,content, min_imm,max_imm,tag) <- elements dataRegs
                   rs <- genTargetReg ms
                   imm <- (min_imm+) <$> genImm (max_imm - min_imm)
-                  let tag = emptyInstTag pplus
-                  return (SW rd rs imm, tag))
+                  return (SW rd rs imm, defaultTag))
             , (onNonEmpty arithRegs 1,
                do -- ADD
                   rs1 <- elements arithRegs
                   rs2 <- elements arithRegs
                   rd <- genTargetReg ms
-                  let tag = emptyInstTag pplus
-                  return (ADD rd rs1 rs2, tag))
+                  return (ADD rd rs1 rs2, defaultTag))
             ]
 
-randInstr :: PolicyPlus -> Machine_State -> Gen (Instr_I, TagSet)
-randInstr pplus ms =          
-  frequency [ (1, do -- ADDI
-                  rs <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  imm <- genImm 4
-                  alloc <- frequency [(1, pure $ emptyInstTag pplus), (4, pure $ allocInstTag pplus)]
-                  return (ADDI rd rs imm, alloc))
-            , (1, do -- LOAD
-                  rs <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  imm <- genImm 4
-                  let tag = emptyInstTag pplus                  
-                  return (LW rd rs imm, tag))
-            , (1, do -- STORE
-                  rs <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  imm <- genImm 4
-                  let tag = emptyInstTag pplus
-                  return (SW rd rs imm, tag))
-            , (1, do -- ADD
-                  rs1 <- genSourceReg ms
-                  rs2 <- genSourceReg ms
-                  rd <- genTargetReg ms
-                  let tag = emptyInstTag pplus
-                  return (ADD rd rs1 rs2, tag))
-            ]
-
-genColor :: Gen Color
-genColor =
-  frequency [ (1, pure $ 0)
-            , (4, choose (0, 4)) ]
-
--- Only colors up to 2 (for registers)
-genColorLow :: Gen Color
-genColorLow = frequency [ (1, pure $ 0)
-                        , (2, choose (0,2)) ]
-
--- Focus on unreachable colors
-genColorHigh :: Gen Color
-genColorHigh =
-  frequency [ (1, pure $ 0)
-            , (1, choose (1,2) )
-            , (3, choose (3,4) )
-            ]
-
-genMTagM :: PolicyPlus -> Gen TagSet
-genMTagM pplus = do
-  c1 <- genColor
-  c2 <- genColor
-  return $ fromExt [("heap.Cell", Just c1), ("heap.Pointer", Just c2)]
+genMTag :: PolicyPlus -> Gen TagSet
+genMTag pplus = do
+  frequency [ (1, pure defaultTag)
+            , (1, pure writeOnceTag) ]
 
 genDataMemory :: PolicyPlus -> Gen (Mem, MemT)
 genDataMemory pplus = do
   let idx = [dataMemLow pplus, (dataMemLow pplus)+4..(dataMemHigh pplus)]
   combined <- mapM (\i -> do d <- genImm $ dataMemHigh pplus    -- BCP: This always puts 4 in every location!
-                             t <- genMTagM pplus
+                             t <- genMTag pplus
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
   return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
@@ -476,7 +304,8 @@ setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
 setInstrTagI ms ps it =
   ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
 
-genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
+genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State -> Set GPR_Addr
+             -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
 genByExec pplus 0 ms ps instrlocs = return (ms, ps, instrlocs)
 genByExec pplus n ms ps instrlocs
   -- Check if an instruction already exists
@@ -508,15 +337,6 @@ updRegs (GPR_File rs) = do
   let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
   return $ GPR_File rs'
 
-mkPointerTagSet pplus c = fromExt [("heap.Pointer", Just c)]
-
-updTags :: PolicyPlus -> GPR_FileT -> Gen GPR_FileT
-updTags pplus (GPR_FileT rs) = do
-  [c1, c2, c3] <- (map $ mkPointerTagSet (policy pplus)) <$> (replicateM 3 genColorLow)
-  
-  let rs' :: Data_Map.Map Integer TagSet = Data_Map.insert 1 c1 $ Data_Map.insert 2 c2 $ Data_Map.insert 3 c3 rs
-  return $ GPR_FileT rs'
-
 genMachine :: PolicyPlus -> Gen (Machine_State, PIPE_State)
 genMachine pplus = do
   -- registers
@@ -527,9 +347,8 @@ genMachine pplus = do
       ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- Needed??
 
   rs' <- updRegs $ f_gprs ms2
-  ts' <- updTags pplus $ p_gprs ps2
   let ms' = ms2 {f_gprs = rs'}
-      ps' = ps2 {p_gprs = ts'}
+      ps' = ps2
   
   (ms_fin, ps_fin, instrlocs) <- genByExec pplus maxInstrsToGenerate ms' ps' Data_Set.empty
 
@@ -545,53 +364,14 @@ genMachine pplus = do
 
   return (ms_fin', ps_fin')
 
-varyUnreachableMem :: PolicyPlus -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
-varyUnreachableMem pplus r (Mem m ra) (MemT pm) = do
-  combined <- mapM (\((i,d),(j,t)) -> do
-                       case cellColorOf t of
-                         Just c'
-                           | Data_Set.member c' r -> return ((i,d),(j,t))
-                           | otherwise -> do d' <- genImm 12 -- TODO: This makes no sense
-                                             return ((i,d'),(j,t)) -- TODO: Here we could scramble v
-                         _ -> return ((i,d),(j,t))
-                    ) $ zip (Data_Map.assocs m) (Data_Map.assocs pm)
-  let (m', pm') = unzip combined
-  return (Mem (Data_Map.fromList m') ra, MemT (Data_Map.fromList pm'))
-
-varyUnreachable :: PolicyPlus -> (Machine_State, PIPE_State) -> Gen MStatePair
-varyUnreachable pplus (m, p) = do
-  let r = runReader (reachable p) pplus
-  (mem', pmem') <- varyUnreachableMem pplus r (f_mem m) (p_mem p)
-  return $ M (m,p) (m {f_mem = mem'}, p {p_mem = pmem'})
-
-genMStatePair :: PolicyPlus -> Gen MStatePair
-genMStatePair pplus = 
-  genMachine pplus >>= varyUnreachable pplus
-
 ------------------------------------------------------------------------------------------
 -- Shrinking
-
--- Tag shrinking basically amounts to shrinking the colors
--- of things to C 0. Assuming that C 0 is always reachable.
--- We can't change the Tag type. We can't change the Color
--- arbitrarily.
-shrinkColor :: Color -> [Color]
-shrinkColor (0) = []
-shrinkColor (1) = [0]
-shrinkColor (n) = [0,n-1]
 
 shrinkTag :: TagSet -> [TagSet]
 shrinkTag t =
   case toExt t of
-    [("heap.Alloc", Nothing), ("heap.Instr", Nothing)] ->
-      [fromExt [("heap.Instr", Nothing)]]
-    [("heap.Pointer", Just cp)] ->
-      [fromExt [("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
-    [("heap.Cell", Just cc), ("heap.Pointer", Just cp)] ->
-         [fromExt [("heap.Cell", Just cc'), ("heap.Pointer", Just cp )] | cc' <- shrinkColor cc]
-      ++ [fromExt [("heap.Cell", Just cc),  ("heap.Pointer", Just cp')] | cp' <- shrinkColor cp]
+    [("writeonce.WriteOnce", Nothing)] -> [defaultTag]
     _ -> []
-
 
 -- INV: If we're shrinking registers, everything should already be equal.
 shrinkRegister :: PolicyPlus -> (Integer, TagSet) -> [(Integer, TagSet)]
@@ -602,21 +382,20 @@ shrinkVector f []    = []
 shrinkVector f (h:t) = map (:t) (f h) ++ map (h:) (shrinkVector f t)
 
 -- INV: The register files are also identical
-shrinkGPRs :: PolicyPlus -> (GPR_File, GPR_FileT) -> (GPR_File, GPR_FileT)
-                -> [((GPR_File, GPR_FileT),(GPR_File, GPR_FileT))]
-shrinkGPRs pplus (GPR_File d1, GPR_FileT t1) (GPR_File d2, GPR_FileT t2) =
+shrinkGPR :: PolicyPlus -> (GPR_File, GPR_FileT) -> [(GPR_File, GPR_FileT)] 
+shrinkGPR pplus (GPR_File d, GPR_FileT t) =
   -- assert (d1==d2 && t1 == t2) $
-  let combined :: [((GPR_Addr, GPR_Val), (InstrField, TagSet), (GPR_Addr, GPR_Val), (InstrField, TagSet))]
-      combined = zip4 (Data_Map.assocs d1) (Data_Map.assocs t1) (Data_Map.assocs d2) (Data_Map.assocs t2) in
-  [ ((GPR_File $ Data_Map.fromList d1', GPR_FileT $ Data_Map.fromList t1'), 
-     (GPR_File $ Data_Map.fromList d2', GPR_FileT $ Data_Map.fromList t2'))
-  | (d1',t1',d2',t2') <- map unzip4 $ shrinkVector shrinkR combined
+  let combined :: [( (GPR_Addr, GPR_Val), (InstrField, TagSet) )] 
+      combined = zip (Data_Map.assocs d) (Data_Map.assocs t)
+  in 
+  [ (GPR_File $ Data_Map.fromList d', GPR_FileT $ Data_Map.fromList t') 
+  | (d',t') <- map unzip $ shrinkVector shrinkR combined
   ]
-  where shrinkR :: ((GPR_Addr, GPR_Val), (InstrField, TagSet), (GPR_Addr, GPR_Val), (InstrField, TagSet))
-               -> [((GPR_Addr, GPR_Val), (InstrField, TagSet), (GPR_Addr, GPR_Val), (InstrField, TagSet))]
-        shrinkR ((i1,v1),(j1,l1),(i2,v2),(j2,l2)) =
-             [ ((i1,v'),(j1,l1),(i2,v'),(j2,l2)) | v' <- shrink v1 ]
-          ++ [ ((i1,v1),(j1,l'),(i2,v2),(j2,l')) | l' <- shrinkTag l1 ]
+  where shrinkR :: ((GPR_Addr, GPR_Val), (InstrField, TagSet))
+               -> [((GPR_Addr, GPR_Val), (InstrField, TagSet))]
+        shrinkR ((i1,v1),(j1,l1)) =
+             [ ((i1,v'),(j1,l1)) | v' <- shrink v1 ]
+          ++ [ ((i1,v1),(j1,l')) | l' <- shrinkTag l1 ]
 
 -- To shrink an instruction, try converting it to a noop (ADD 0 0 0)
 shrinkInstr :: Instr_I -> [Instr_I]
@@ -630,95 +409,46 @@ type IndexedTaggedInt = ((Integer,Integer), (Integer,TagSet))
 -- Have to perform the same thing to both memories at once
 -- We also need the set of reachable things for data memories
 -- INV: Original memories contain identical indices
-shrinkMems :: PolicyPlus -> Set Color -> (Mem, MemT) -> (Mem, MemT) -> [((Mem, MemT), (Mem,MemT))]
-shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) = 
-  let m1' = Data_Map.assocs m1
-      t1' = Data_Map.assocs t1
-      m2' = Data_Map.assocs m2
-      t2' = Data_Map.assocs t2
+shrinkMem :: PolicyPlus -> (Mem, MemT) -> [(Mem, MemT)]
+shrinkMem pplus (Mem m i, MemT t) =
+  let m' = Data_Map.assocs m
+      t' = Data_Map.assocs t
 
       isData  i = i >= dataMemLow pplus && i <= dataMemHigh pplus
       isInstr i = i == 0 || i >= instrLow pplus
  
-      shrinkMemLoc :: (Integer, Integer, TagSet) -> (Integer, Integer, TagSet) ->
-                      [ (IndexedTaggedInt, IndexedTaggedInt) ]
-      shrinkMemLoc (j,d1,l1) (_,d2,l2)
+      shrinkMemLoc :: (Integer, Integer, TagSet) -> [ IndexedTaggedInt ]
+      shrinkMemLoc (j,d,l)
         | isInstr j =
-          case (decode_I RV32 d1, decode_I RV32 d2) of
-            -- Both (identical) instructions
-            (Just i1, Just i2)
-              | i1 == i2 && l1 == l2 ->
-                -- Shrink instruction
-                [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- encode_I RV32 <$> shrinkInstr i1] ++
-                -- Or shrink tag (alloc)
-                [ (((j, d1), (j, l')), ((j, d1),(j, l'))) | l' <- shrinkTag l1 ]
-              | otherwise -> error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
-            _ -> error "Instructions can't be decoded while shrinking"
+          case decode_I RV32 d of
+            (Just i) ->
+              [ ( (j, d'), (j, l) ) | d' <- encode_I RV32 <$> shrinkInstr i] ++
+              [ ( (j, d), (j, l') ) | l' <- shrinkTag l ]
+            _ -> error "Instruction can't be decoded while shrinking"
         | otherwise =
-            case (cellColorOf l1, pointerColorOf l1, cellColorOf l2, pointerColorOf l2) of 
---            case (l1, l2) of
-              (Just loc1, Just _, Just loc2, Just _) 
---              (MTagM v1 loc1, MTagM v2 loc2)
-                -- Both reachable, everything should be identical
-                | Data_Set.member loc1 reachable && Data_Set.member loc2 reachable && l1 == l2 && d1 == d2->
-                  -- shrink the first and copy
-                  -- Shrink data
-                  [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- shrink d1 ]
-                  ++ 
-                  -- Or shrink tag 
-                  [ (((j, d1), (j, l')), ((j, d2),(j, l'))) | l' <- shrinkTag l1 ]
-                -- Both unreachable, shrink independently
-                | not (Data_Set.member loc1 reachable) && not (Data_Set.member loc2 reachable) ->
-                  -- Shrink first data value 
-                  [ (((j, d1'), (j, l1)), ((j, d2),(j, l2))) | d1' <- shrink d1 ]
-                  ++
-                  -- Shrink first tag to something unreachable 
-                  [ (((j, d1), (j, l1')), ((j, d2),(j, l2)))
-                  | l1' <- shrinkTag l1,
-                    not $ Data_Set.member (fromJust $ cellColorOf l1') reachable ]
-                  ++
-                  -- Shrink first tag to something reachable (and make sure first and second components are the same!)
-                  [ (((j, d1), (j, l1')), ((j, d1),(j, l1')))
-                  | l1' <- shrinkTag l1,
-                    Data_Set.member (fromJust $ cellColorOf l1') reachable ]
-                  ++
-                  -- ... same for second register state
-                  [ (((j, d1), (j, l1)), ((j, d2'),(j, l2))) | d2' <- shrink d2 ]
-                  ++
-                  [ (((j, d1), (j, l1)), ((j, d2),(j, l2')))
-                  | l2' <- shrinkTag l2,
-                    not $ Data_Set.member (fromJust $ cellColorOf l2') reachable ]
-                  ++
-                  [ (((j, d1), (j, l2')), ((j, d1),(j, l2')))
-                  | l2' <- shrinkTag l2,
-                    Data_Set.member (fromJust $ cellColorOf l2') reachable ]
-                | otherwise -> error $ "Not both reachable or unreachable?" ++ show (d1,l1,d2,l2)
-              otherwise -> error "Data memory without cell or pointer color?"
+              [ ( (j, d'), (j, l) ) | d' <- shrink d] ++
+              [ ( (j, d), (j, l') ) | l' <- shrinkTag l ]
  
-      shrinkMemAux :: [ IndexedTaggedInt ] -> [ IndexedTaggedInt] -> [ ([IndexedTaggedInt], [IndexedTaggedInt]) ]
-      shrinkMemAux [] [] = []
-      shrinkMemAux (((j1,d1),(_,l1)):more1) (((j2,d2),(_,l2)):more2) =
+      shrinkMemAux :: [ IndexedTaggedInt ] -> [ [IndexedTaggedInt] ]
+      shrinkMemAux [] = []
+      shrinkMemAux (((j,d),(_,l)):more) =
         -- Shrink Current memory location and rebuild mem
-        [ ((loc1':more1), (loc2':more2)) | (loc1', loc2') <- shrinkMemLoc (j1,d1,l1) (j2,d2,l2) ]
+        [ (loc':more) | loc' <- shrinkMemLoc (j,d,l) ]
         ++
         -- Keep current memory location and shrink something later on
-        [ ( ((j1,d1),(j1,l1)) : more1', ((j2,d2),(j2,l2)) : more2' )
-        | (more1', more2') <- shrinkMemAux more1 more2 ]
+        [ ( ((j,d),(j,l)) : more' ) | more' <- shrinkMemAux more ]
  
       indexTagedIntsToMem :: Maybe (Integer,Integer) -> [IndexedTaggedInt] -> (Mem, MemT)
       indexTagedIntsToMem i itis = ((flip Mem i) . Data_Map.fromList) *** (MemT . Data_Map.fromList) $ unzip itis
         
-  in map (indexTagedIntsToMem i1 *** indexTagedIntsToMem i2) $ shrinkMemAux (zip m1' t1') (zip m2' t2')
+  in map (indexTagedIntsToMem i) $ shrinkMemAux (zip m' t') 
         
-shrinkMStatePair :: PolicyPlus -> MStatePair -> [MStatePair]
-shrinkMStatePair pplus (M (m1,p1) (m2,p2)) =
-  let r = runReader (reachable p1) pplus
-      -- Shrink Memories
-  in
-     [ M (m1{f_mem = mem1},p1{p_mem = pmem1}) (m2{f_mem=mem2}, p2{p_mem=pmem2})
-     | ((mem1, pmem1), (mem2, pmem2)) <- shrinkMems pplus r (f_mem m1, p_mem p1) (f_mem m2, p_mem p2) ]
-  ++ [ M (m1{f_gprs = gpr1},p1{p_gprs = pgpr1}) (m2{f_gprs=gpr2}, p2{p_gprs=pgpr2})
-     | ((gpr1, pgpr1), (gpr2, pgpr2)) <- shrinkGPRs pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2) ]
+shrinkMState :: PolicyPlus -> (Machine_State, PIPE_State) -> [(Machine_State, PIPE_State)]
+shrinkMState pplus (m,p) =
+     [ (m{f_mem = mem},p{p_mem = pmem})
+     | (mem, pmem) <- shrinkMem pplus (f_mem m, p_mem p) ]
+  ++ [ (m{f_gprs = gpr},p{p_gprs = pgpr})
+     | ((gpr, pgpr)) <- shrinkGPR pplus (f_gprs m, p_gprs p) ]
 
 
 ------------------------------------------------------------------------------------------
@@ -740,12 +470,11 @@ shrinkMStatePair pplus (M (m1,p1) (m2,p2)) =
    interesting (though, pragmatically, still rather weak) property.
    To get a pragmatically more useful property, something like "sealed
    capabilities" (aka closures) or a protected stack is needed. -}
--}
 
-writeOnceLabel = fromExt [("writeonce.WriteOnce", Nothing)]
+defaultTag = fromExt [("writeonce.Default", Nothing)]
+writeOnceTag = fromExt [("writeonce.WriteOnce", Nothing)]
+-- writeNeverTag = fromExt [("writeonce.WriteNever", Nothing)]
 
-genMState = undefined
-shrinkMState = undefined
 
 step pplus (m,p) = 
   let run_state = mstate_run_state_read m
@@ -757,27 +486,35 @@ step pplus (m,p) =
 
 eval pplus count maxcount trace (m,p) =
   if count >= maxcount then 
-    trace
+    reverse trace
   else   
     case step pplus (m,p) of
       Right (m',p') -> eval pplus (count+1) maxcount ((m,p) : trace) (m',p')
-      Left _ -> trace
+      Left _ -> reverse trace
 
 cellContents trace addr =
   map (\(m,_) -> (f_dm $ f_mem m) Data_Map.! addr) trace
 
 prop_WO pplus count maxcount (m,p) =
   let trace = eval pplus count maxcount [] (m,p) 
-      addrs = map fst $ filter (\(_,l) -> l == writeOnceLabel) $
+      addrs = map fst $ filter (\(_,l) -> l == writeOnceTag) $
                          Data_Map.assocs $ unMemT $ p_mem p 
       contents = map (cellContents trace) addrs in
-  property $ all (\l -> length (Data_List.group l) <= 2) contents
+  whenFail (do putStrLn $ "Memory location tagged WriteOnce written twice!"
+               let finalTrace = trace
+               printTrace pplus finalTrace) $ 
+           all (\l -> length (Data_List.group l) <= 2) contents
 
 maxInstrsToGenerate :: Int
 maxInstrsToGenerate = 10
 
-prop :: PolicyPlus -> (Machine_State, PIPE_State) -> Property
-prop pplus (m,p) = prop_WO pplus 0 maxInstrsToGenerate (m,p)
+newtype MP = MP (Machine_State, PIPE_State)
+
+instance Show MP where
+  show _ = ""
+
+prop :: PolicyPlus -> MP -> Property
+prop pplus (MP (m,p)) = prop_WO pplus 0 maxInstrsToGenerate (m,p)
 
 ------------------------------------------------------------------------------------------
 -- The heap-safety policy
@@ -786,11 +523,11 @@ load_policy = do
   ppol <- load_pipe_policy "writeonce.main"
   let pplus = PolicyPlus
         { policy = ppol
-        , initGPR = fromExt [("writeonce.Default", Nothing)]
-        , initMem = fromExt [("writeonce.Default", Nothing)]
-        , initPC = fromExt [("writeonce.Default", Nothing)]
+        , initGPR = defaultTag
+        , initMem = defaultTag
+        , initPC = defaultTag
         , initNextColor = 5
-        , emptyInstTag = fromExt [("writeonce.Default", Nothing)]
+        , emptyInstTag = defaultTag
         , dataMemLow = 4
         , dataMemHigh = 20  
         , instrLow = 1000
@@ -801,11 +538,10 @@ load_policy = do
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    True {-
-    $ forAllShrink (genMState pplus)
-           (\m -> shrinkMState pplus m ++ 
-                  concatMap (shrinkMState pplus) (shrinkMState pplus m))
+    $ forAllShrink (MP <$> genMachine pplus)
+                   (\(MP m) -> map MP $ shrinkMState pplus m ++ 
+                                        concatMap (shrinkMState pplus) (shrinkMState pplus m)
+                   )
     $ \m -> prop pplus m
--}
 
 main = main_test
