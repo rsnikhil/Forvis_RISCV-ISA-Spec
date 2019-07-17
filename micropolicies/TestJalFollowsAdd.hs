@@ -1,6 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables, TupleSections, FlexibleInstances, MultiParamTypeClasses #-}
 
-module TestWriteOnce where
+module TestJalFollowsAdd where
 
 -- From Haskell libraries
 import Control.Arrow (second, (***))
@@ -39,6 +39,18 @@ import Run_Program_PIPE
 import PIPE
 import Printing
 import Terminal 
+
+{-
+
+PROPERTY: Whenever a JAL instruction is executed, it is preceded by an ADD
+
+POLICY:
+- Most instructions are tagged <plain>
+- Some ADD instructions can be tagged <Seq1>. Those change the tag of the pc to <Seq1>
+- When a JAL instruction is executed, the pc must be <Seq1>
+- You can only write over <plain> memory cells (<- BUG OPPORTUNITY!)
+
+-}
 
 ------------------------------------------------------------------------------------
 -- Printing
@@ -495,15 +507,25 @@ eval pplus count maxcount trace (m,p) =
 cellContents trace addr =
   map (\(m,_) -> (f_dm $ f_mem m) Data_Map.! addr) trace
 
-prop_WO pplus count maxcount (m,p) =
-  let trace = eval pplus count maxcount [] (m,p) 
-      addrs = map fst $ filter (\(_,l) -> l == writeOnceTag) $
-                         Data_Map.assocs $ unMemT $ p_mem p 
-      contents = map (cellContents trace) addrs in
-  whenFail (do putStrLn $ "Memory location tagged WriteOnce written twice!"
-               let finalTrace = trace
-               printTrace pplus finalTrace) $ 
-           all (\l -> length (Data_List.group l) <= 2) contents
+prop_JAL_follows_ADD pplus count maxcount (m,p) =
+  let trace  = eval pplus count maxcount [] (m,p)
+      instrs = map (\(m,p) -> case fst $ instr_fetch m of
+                                Fetch u32 -> decode_I RV32 u32
+                                _         -> Nothing
+                   ) trace
+      -- ASSUME: no nothings in the middle of instrs
+      instrs' = catMaybes instrs
+
+      aux :: Maybe Instr_I -> [Instr_I] -> Bool
+      aux (Just (ADD _ _ _)) (JAL r1 r2 : rest) = aux (Just (JAL r1 r2)) rest
+      aux _                  (JAL r1 r2 : rest) = False
+      aux _                  (i : rest) = aux (Just i) rest
+      aux _                  []         = True
+
+  in    
+  whenFail (do putStrLn $ "Executed a JAL without an ADD before"
+               printTrace pplus trace)
+           (aux Nothing instrs')
 
 maxInstrsToGenerate :: Int
 maxInstrsToGenerate = 10
@@ -514,18 +536,18 @@ instance Show MP where
   show _ = ""
 
 prop :: PolicyPlus -> MP -> Property
-prop pplus (MP (m,p)) = prop_WO pplus 0 maxInstrsToGenerate (m,p)
+prop pplus (MP (m,p)) = prop_JAL_follows_ADD pplus 0 maxInstrsToGenerate (m,p)
 
 ------------------------------------------------------------------------------------------
 -- The heap-safety policy
   
 load_policy = do
-  ppol <- load_pipe_policy "writeonce.main"
+  ppol <- load_pipe_policy "jalfollowsadd.main"
   let pplus = PolicyPlus
         { policy = ppol
         , initGPR = defaultTag
         , initMem = defaultTag
-        , initPC = defaultTag
+        , initPC  = defaultTag
         , initNextColor = 5
         , emptyInstTag = defaultTag
         , dataMemLow = 4
