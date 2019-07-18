@@ -8,10 +8,13 @@ import Memory
 import Data.Bits
 import Data.Maybe (isJust,catMaybes)
 
-import qualified Data.Map.Strict as Data_Map
-import qualified Data.Set as Data_Set
+import qualified Data.Map.Strict as Map
+import Data.Map (Map)
+import qualified Data.Set as Set
 import Data.Set (Set)
 import Machine_State
+
+import Control.Lens
 
 import Numeric (showHex, readHex)
 
@@ -45,12 +48,17 @@ instance PP Integer where
 instance PP GPR_FileT where
   pp pplus (GPR_FileT m) =
     P.vcat $ map (\(i,r) -> pp pplus i <+> P.char ':' <+> pp pplus r)
-           $ Data_Map.assocs m
+           $ Map.assocs m
 
+instance (PP a, PP b) => PP (Map a b) where
+  pp pplus m = 
+    P.vcat $ map (\(i,r) -> pp pplus i <+> P.char ':' <+> pp pplus r)
+           $ Map.assocs m
+    
 instance PP PIPE_State where
   pp pplus ps = 
-    P.vcat [ P.text "PC Tag:" <+> pp pplus (p_pc ps)
-           , P.text "Register Tags:" $$ P.nest 2 (pp pplus $ p_gprs ps)
+    P.vcat [ P.text "PC Tag:" <+> pp pplus (_ppc ps)
+           , P.text "Register Tags:" $$ P.nest 2 (pp pplus $ ps ^. pgpr)
            -- p_mem
            ]
 
@@ -99,13 +107,13 @@ instance PP Instr_I where
 
 pr_imem :: Mem -> PolicyPlus -> Doc
 pr_imem m pplus =
-  let contents = Data_Map.assocs $ f_dm m 
+  let contents = Map.assocs $ f_dm m 
       decoded  = filter (isJust . snd) $ map (second $ decode_I RV32) contents
   in P.vcat $ map (\(i, Just instr) -> pad 4 (P.integer i) <:> pp pplus instr) decoded
 
 pr_mem :: Mem -> PolicyPlus -> Doc
 pr_mem m pplus = 
-  let contents = Data_Map.assocs $ f_dm m 
+  let contents = Map.assocs $ f_dm m 
       decoded  = filter (not . isJust . decode_I RV32 . snd) contents
   in P.vcat $ map (\(i, d) -> P.integer i <:> P.integer d) decoded
 
@@ -115,7 +123,7 @@ pr_mem m pplus =
 --            $ chunksOf 4
 --            $ map (\((i,d),(i', t)) -> P.integer i <+> P.char ':'
 --                                       <+> pretty pplus d t)
---            $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
+--            $ zip (Map.assocs m) (Map.assocs mt)
 
 instance CoupledPP GPR_File GPR_FileT where
   pretty pplus (GPR_File m) (GPR_FileT mt) =
@@ -123,11 +131,11 @@ instance CoupledPP GPR_File GPR_FileT where
     map (\((i,d),(i', t)) ->
             P.integer i <+> P.char ':' <+> pretty pplus d t <+> P.text "  ")
       $ filter (\((_,d),(_,t)) -> (d /= 0) || (t /= initGPR pplus))
-      $ zip (Data_Map.assocs m) (Data_Map.assocs mt)
+      $ zip (Map.assocs m) (Map.assocs mt)
 
 instance CoupledPP Mem MemT where
   pretty pplus (Mem m _) (MemT pm) =
-    let contents = zip (Data_Map.assocs $ m) (Data_Map.assocs pm)
+    let contents = zip (Map.assocs $ m) (Map.assocs pm)
     in P.vcat $ map (\((i,d),(j,t)) ->
                         case decode_I RV32 d of
                           Just instr -> P.integer i <:> pp pplus instr <@> pp pplus t
@@ -162,13 +170,13 @@ instance CoupledPP (GPR_File, GPR_FileT) (GPR_File, GPR_FileT) where
              $ filter (\ (((_,d1),(_,t1)),((_,d2),(_,t2))) ->
                             (d1 /= 0) || (t1 /= initGPR pplus) ||
                             (d2 /= 0) || (t2 /= initGPR pplus))
-             $ zip (zip (Data_Map.assocs $ r1) (Data_Map.assocs $ t1))
-                   (zip (Data_Map.assocs $ r2) (Data_Map.assocs $ t2))
+             $ zip (zip (Map.assocs $ r1) (Map.assocs $ t1))
+                   (zip (Map.assocs $ r2) (Map.assocs $ t2))
     
 instance CoupledPP (Mem, MemT) (Mem, MemT) where
   pretty pplus (Mem m1 _, MemT p1) (Mem m2 _, MemT p2) =
-    let c1 = zip (Data_Map.assocs $ m1) (Data_Map.assocs p1)
-        c2 = zip (Data_Map.assocs $ m2) (Data_Map.assocs p2)
+    let c1 = zip (Map.assocs $ m1) (Map.assocs p1)
+        c2 = zip (Map.assocs $ m2) (Map.assocs p2)
 
         pr_loc ((i,d),(j,t)) =
           case decode_I RV32 d of
@@ -198,9 +206,9 @@ instance PP Color where
   
 instance CoupledPP (Set Color) (Set Color) where
   pretty pplus s1 s2 =
-    if s1 == s2 then foldl1 (<+>) (map (pp pplus) $ Data_Set.elems s1)
+    if s1 == s2 then foldl1 (<+>) (map (pp pplus) $ Set.elems s1)
     else
-      ppStrong (foldl1 (<+>) (map (pp pplus) $ Data_Set.elems s1) <||> foldl1 (<+>) (map (pp pplus) $ Data_Set.elems s2))
+      ppStrong (foldl1 (<+>) (map (pp pplus) $ Set.elems s1) <||> foldl1 (<+>) (map (pp pplus) $ Set.elems s2))
 
 print_coupled :: PolicyPlus -> Machine_State -> PIPE_State -> IO ()
 print_coupled pplus ms ps =

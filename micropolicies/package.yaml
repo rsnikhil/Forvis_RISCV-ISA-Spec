@@ -20,7 +20,7 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/githubuser/forvis#readme>
 
 dependencies:
-- base >= 4.7 && < 5
+- base >= 4.8 && < 5
 # TODO: Can the rest of these be moved to just apply to micropolicies, etc.?
 - containers
 - bytestring
@@ -105,6 +105,8 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -ddump-to-file
+    - -ddump-splices
     dependencies:
     - forvis
 

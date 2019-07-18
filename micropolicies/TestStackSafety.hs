@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-
 
     HEADER sequence:
@@ -55,6 +56,9 @@ import Test.QuickCheck
 import Text.PrettyPrint (Doc, (<+>), ($$))
 import qualified Text.PrettyPrint as P
 
+import Control.Lens
+import Control.Lens.Fold
+
 -- From /src
 import Arch_Defs
 import Bit_Utils
@@ -72,6 +76,27 @@ import Run_Program_PIPE
 import PIPE
 import Printing
 import Terminal 
+
+-- TestState
+data StatePair = SP { _ms :: Machine_State
+                    , _ps :: PIPE_State
+                    }
+
+data StackElem = SE { _mp_state :: StatePair
+                    , _jal_pc   :: !Integer -- Should this be something else?
+                    , _jal_sp   :: !Integer -- Should this be something else?
+                    }
+
+data TestState = TS { _mp :: StatePair
+                    , _variants :: [StackElem]
+                    }
+
+makeLenses ''StatePair
+makeLenses ''StackElem
+makeLenses ''TestState
+
+statePairs :: Traversal' TestState StatePair
+statePairs f (TS mp vars) = TS <$> f mp <*> traverse (mp_state %%~ f) vars
 
 ----------------------------------------------------------------------------------------
 -- Accessibility
@@ -103,6 +128,59 @@ sameAccessiblePart (M (s1, p1) (s2, p2)) = do
   f2 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2)
 
   return $ (pcd1 == pcd2) && (f_gprs s1 == f_gprs s2) && (f1 == f2)
+
+------------------------------------------------------------------------------------------
+-- Execution
+
+running :: Machine_State -> Bool
+running m = mstate_run_state_read m == Run_State_Running
+
+exec :: PolicyPlus -> StatePair -> Either String StatePair
+exec pplus (SP m p) = uncurry SP <$> fetch_and_execute pplus m p
+  
+--Either String TestState
+step :: PolicyPlus -> TestState -> Either String TestState 
+step pplus ts
+  -- If all machines are in running state
+  | allOf (statePairs . ms) running ts =
+      ts & statePairs . ms %~  mstate_io_tick
+         & statePairs      %%~ exec pplus
+  | otherwise =
+      Left "Not Running State" 
+
+      -- TODO: better error string
+      --    label (let (s1,s2) = (show run_state1, show run_state2) in
+      --           if s1==s2 then s1 else (s1 ++ " / " ++ s2))
+
+
+--  prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
+--  let run_state1 = mstate_run_state_read m1
+--      run_state2 = mstate_run_state_read m2
+--      m1' = mstate_io_tick m1
+--      m2' = mstate_io_tick m2 
+--      trace' = ((m1,p1),(m2,p2)) : trace  in
+--  if count >= maxcount then 
+--    label "Out of gas" $ property True 
+--  -- TODO: Check for traps too
+--  else if run_state1 /= Run_State_Running || run_state2 /= Run_State_Running then 
+--       $ property True
+--  else
+--    case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
+--      (Right (m1r,p1r), Right (m2r, p2r)) ->
+--        (whenFail (do putStrLn $ "Reachable parts differ after execution!"
+--                      let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
+--                      uncurry (printTrace pplus) (unzip finalTrace)) $
+--           property $ (runReader (sameReachablePart (M (m1r,p1r) (m2r, p2r))) pplus))
+--        .&&. 
+--        prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
+--      (Left s1, Left s2) ->
+--         label ("Pipe trap " ++ s1 ++ " / " ++ s2) $ property True
+--      (Left s1, _) ->
+--         label ("Pipe trap " ++ s1) $ property True
+--      (_, Left s2) ->
+--         label ("Pipe trap " ++ s2) $ property True
+-- 
+
 
 ------------------------------------------------------------------------------------------
 -- Generation
@@ -212,77 +290,52 @@ genInstr pplus ms ps =
                   return (ADD rd rs1 rs2, tag))
             ]
 
-setInstrI :: Machine_State -> Instr_I -> Machine_State
-setInstrI ms i =
-  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
+--setInstrI :: Machine_State -> Instr_I -> Machine_State
+--setInstrI ms i =
+--  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
+-- 
+--setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
+--setInstrTagI ms ps it =
+--  ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
+-- 
+--setInstrIAt :: Machine_State -> Instr_I -> Integer -> Machine_State
+--setInstrIAt ms i addr =
+--  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert addr (encode_I RV32 i) (f_dm $ f_mem ms) } }
+-- 
+--setInstrTagIAt :: PIPE_State -> TagSet -> Integer -> PIPE_State
+--setInstrTagIAt ps it addr =
+--  ps {p_mem = ( MemT $ Data_Map.insert addr (it) (unMemT $ p_mem ps) ) }
 
-setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
-setInstrTagI ms ps it =
-  ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
-
-setInstrIAt :: Machine_State -> Instr_I -> Integer -> Machine_State
-setInstrIAt ms i addr =
-  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert addr (encode_I RV32 i) (f_dm $ f_mem ms) } }
-
-setInstrTagIAt :: PIPE_State -> TagSet -> Integer -> PIPE_State
-setInstrTagIAt ps it addr =
-  ps {p_mem = ( MemT $ Data_Map.insert addr (it) (unMemT $ p_mem ps) ) }
-
-genMStatePair_ :: PolicyPlus -> Gen MStatePair
-genMStatePair_ pplus =
-  let minit = initMachine 
-      pinit = init_pipe_state pplus
-      instrs = [ (0, JAL 0 100, emptyInstTag pplus)
-               ]
-      (m,p) = foldl (\(m',p') (addr,inst,tag) ->
-                       (setInstrIAt m' inst addr, setInstrTagIAt p' tag addr)
-                      )
-                (minit,pinit) instrs
-  in 
-
-  return (M (m,p) (m,p))
+--genMStatePair_ :: PolicyPlus -> Gen MStatePair
+--genMStatePair_ pplus =
+--  let minit = initMachine 
+--      pinit = init_pipe_state pplus
+--      instrs = [ (0, JAL 0 100, emptyInstTag pplus)
+--               ]
+--      (m,p) = foldl (\(m',p') (addr,inst,tag) ->
+--                       (setInstrIAt m' inst addr, setInstrTagIAt p' tag addr)
+--                      )
+--                (minit,pinit) instrs
+--  in 
+-- 
+--  return (M (m,p) (m,p))
 
 ----------------------------------------------------------------
 -- OLD STUFF TO BE REVIVED
 
-
---------------------------------------------------
--- STOPPED HERE
-
-{-
-genColor :: Gen Color
-genColor =
-  frequency [ (1, pure $ 0)
-            , (4, choose (0, 4)) ]
-
--- Only colors up to 2 (for registers)
-genColorLow :: Gen Color
-genColorLow = frequency [ (1, pure $ 0)
-                        , (2, choose (0,2)) ]
-
--- Focus on unaccessible colors
-genColorHigh :: Gen Color
-genColorHigh =
-  frequency [ (1, pure $ 0)
-            , (1, choose (1,2) )
-            , (3, choose (3,4) )
-            ]
-
-genMTagM :: PolicyPlus -> Gen TagSet
-genMTagM pplus = do
-  c1 <- genColor
-  c2 <- genColor
-  return $ fromExt [("heap.Cell", Just c1), ("heap.Pointer", Just c2)]
+boring :: TagSet
+boring = fromExt [("stack.Boring", Nothing)]
 
 genDataMemory :: PolicyPlus -> Gen (Mem, MemT)
 genDataMemory pplus = do
   let idx = [dataMemLow pplus, (dataMemLow pplus)+4..(dataMemHigh pplus)]
   combined <- mapM (\i -> do d <- genImm $ dataMemHigh pplus    -- BCP: This always puts 4 in every location!
-                             t <- genMTagM pplus
+                             let t = boring
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
   return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
 
+{-
 setInstrI :: Machine_State -> Instr_I -> Machine_State
 setInstrI ms i =
   ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
@@ -633,4 +686,3 @@ load_policy = do
   return pplus
 
 main = undefined
-

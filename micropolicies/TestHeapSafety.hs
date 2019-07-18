@@ -7,12 +7,15 @@ import Control.Arrow (second, (***))
 import Control.Exception.Base (assert)
 import Control.Monad.Reader
 
+import Control.Lens hiding (elements)
+
 import Data.Bits
 import Data.List (zip4,unzip4)
 import Data.Maybe
-import qualified Data.List as Data_List
-import qualified Data.Map.Strict as Data_Map
-import qualified Data.Set as Data_Set
+import qualified Data.List as List
+import qualified Data.Map as Map
+import Data.Map (Map)
+import qualified Data.Set as Set
 import Data.Set (Set)
 
 import Debug.Trace
@@ -38,7 +41,11 @@ import Gen
 import Run_Program_PIPE
 import PIPE
 import Printing
-import Terminal 
+import Terminal
+import MachineLenses
+
+-- TODO: Rename to TestState to reveal abstractions with stack
+type TestState = MStatePair
 
 ------------------------------------------------------------------------------------
 -- Printing
@@ -46,12 +53,10 @@ import Terminal
 prettyMStatePair :: PolicyPlus -> MStatePair -> Doc
 prettyMStatePair pplus (M (m1, p1) (m2, p2)) =
     let ppol = policy pplus in
-    P.vcat [ P.text "PC:" <+> pretty pplus (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
-           , P.text "Registers:" $$ P.nest 2 (pretty pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
-           , P.text "Memories:" $$ P.nest 2 (pretty pplus (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
-           , P.text "Reachable:"
-              <+> pretty pplus (runReader (reachable p1) pplus) 
-                               (runReader (reachable p2) pplus)
+    P.vcat [ P.text "PC:"        <+> pretty pplus (f_pc m1, p_pc p1) (f_pc m2, p_pc p2)
+           , P.text "Registers:" $$  P.nest 2 (pretty pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2))
+           , P.text "Memories:"  $$  P.nest 2 (pretty pplus (f_mem m1, p_mem p1) (f_mem m2, p_mem p2))
+           , P.text "Reachable:" <+> pretty pplus (reachable p1) (reachable p2)
            ]
 
 print_mstatepair :: PolicyPlus -> MStatePair -> IO ()
@@ -126,17 +131,17 @@ calcDiff pplus (m1,p1) (m2,p2) =
           GPR_FileT t2 = p_gprs p2
           reg_diff =
             filter (\((i1,d1),(i2,d2)) -> assert (i1 == i2) $ d1 /= d2)
-                   (zip (Data_Map.assocs r1) (Data_Map.assocs r2))
+                   (zip (Map.assocs r1) (Map.assocs r2))
           tag_diff =
             filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2)
-                   (zip (Data_Map.assocs t1) (Data_Map.assocs t2))
+                   (zip (Map.assocs t1) (Map.assocs t2))
       in case (reg_diff, tag_diff) of
            ([], []) -> []
            ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> [(i,d,l)]
            ([((i,_),(_,d))],[]) ->
-             catMaybes [(i,d,) <$> Data_Map.lookup i t2]
+             catMaybes [(i,d,) <$> Map.lookup i t2]
            ([],[((i,_),(_,l))]) ->
-             catMaybes [(i,,l) <$> Data_Map.lookup i r2]
+             catMaybes [(i,,l) <$> Map.lookup i r2]
            _ -> -- TODO (Leo!)
                 error $ "More than one diff in register file:" ++
                         " registers = " ++ show reg_diff ++
@@ -146,8 +151,8 @@ calcDiff pplus (m1,p1) (m2,p2) =
           Mem dm2 _ = f_mem m2
           MemT pm1 = p_mem p1
           MemT pm2 = p_mem p2
-          both1 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm1) (Data_Map.assocs pm1)
-          both2 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm2) (Data_Map.assocs pm2)
+          both1 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Map.assocs dm1) (Map.assocs pm1)
+          both2 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Map.assocs dm2) (Map.assocs pm2)
           diffs = diff both1 both2 (uninitialized_word, emptyInstTag pplus)
           extract (i,(_,(d,t))) = (i,d,t)
        in map extract diffs 
@@ -157,16 +162,16 @@ calcDiff pplus (m1,p1) (m2,p2) =
 --            filter (\((i1,d1),(i2,d2)) ->
 --                      if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show ("i1", i1, "d1", d1, "i2", i2, "d2", d2, "dm1", dm1, "dm2", dm2))
 ----                             assert (i1 == i2) $ d1 /= d2)
---                   (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
+--                   (zip (Map.assocs dm1) (Map.assocs dm2))
 --          tag_diff =
---            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
+--            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Map.assocs pm1) (Map.assocs pm2))
 --      in case (data_diff, tag_diff) of
 --           ([], []) -> Nothing
 --           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
 --           ([((i,_),(_,d))],[]) ->
---             (i,d,) <$> Data_Map.lookup i pm2
+--             (i,d,) <$> Map.lookup i pm2
 --           ([],[((i,_),(_,l))]) ->
---             (i,,l) <$> Data_Map.lookup i dm2
+--             (i,,l) <$> Map.lookup i dm2
 --           _ -> error $ "More than one diff in memory file:" ++
 --                        " data = " ++ show data_diff ++
 --                        " and tags = " ++ show tag_diff
@@ -231,72 +236,69 @@ instance Show MStatePair where
 cellColorOf :: TagSet -> Maybe Color
 cellColorOf t = 
   -- trace ("cellColorOf " ++ show t ++ " i.e. " ++ show (toExt t)) $
-  join $ Data_List.lookup "heap.Cell" (toExt t)
+  join $ List.lookup "heap.Cell" (toExt t)
 
 -- pointerColorOf :: TagSet -> P (Maybe Color)
 -- pointerColorOf t = do
 --   ppol <- askPolicy
 --   let l = rdTagSet ppol t
 --   -- Ughly:
---   case (Data_List.lookup ["test","CP"] l, Data_List.lookup ["test","Pointer"] l) of
+--   case (List.lookup ["test","CP"] l, List.lookup ["test","Pointer"] l) of
 --     (Just [_,p], _) -> return p
 --     (_, Just [p]) -> return p
 --     _ -> return Nothing
 
 pointerColorOf :: TagSet -> Maybe Color
 pointerColorOf t = 
-  join $ Data_List.lookup "heap.Pointer" (toExt t)
+  join $ List.lookup "heap.Pointer" (toExt t)
 
 envColorOf :: TagSet -> Maybe Color
 envColorOf t = do
-  join $ Data_List.lookup "heap.Env" (toExt t)
+  join $ List.lookup "heap.Env" (toExt t)
 
-reachableInOneStep :: MemT -> Set Color -> P (Set Color)
+reachableInOneStep :: MemT -> Set Color -> Set Color
 reachableInOneStep m s =
-  foldM (\s t -> do  --  do notation not actually needed here
-           let c = cellColorOf t
-           let p = pointerColorOf t
-           case (c,p) of
-             (Just c', Just p') | Data_Set.member c' s -> return $ Data_Set.insert p' s
-             _ -> return s)
-   s (Data_Map.elems $ unMemT m)
+  foldl (\s t -> case (cellColorOf t, pointerColorOf t) of
+                   (Just c, Just p) | Set.member c s -> Set.insert p s
+                   _ -> s
+        ) s (Map.elems $ unMemT m)
 
-reachableLoop :: MemT -> Set Color -> P (Set Color)
-reachableLoop m s = do
-  s' <- reachableInOneStep m s 
-  if s == s' then return s else reachableLoop m s'
+reachableLoop :: MemT -> Set Color -> Set Color
+reachableLoop m s =
+  let s' = reachableInOneStep m s in
+  if s == s' then s else reachableLoop m s'
 
-registerColors :: PIPE_State -> P (Set Color)
-registerColors pstate = 
-  foldM (\s t -> do -- Do notation not actually needed
-            let c = pointerColorOf t
-            case c of
-              Just c' -> return $ Data_Set.insert c' s 
-              Nothing -> return s)
-    Data_Set.empty (unGPR $ p_gprs pstate) 
+registerColors :: PIPE_State -> Set Color
+registerColors pstate =
+  foldl (\s t -> 
+            case pointerColorOf t of
+              Just c  -> Set.insert c s 
+              Nothing -> s
+        ) Set.empty (unGPRT $ p_gprs pstate) 
 
-reachable :: PIPE_State -> P (Set Color)
-reachable p = registerColors p >>= reachableLoop (p_mem p) 
+reachable :: PIPE_State -> Set Color
+reachable p = reachableLoop (p_mem p) $ registerColors p 
 
-sameReachablePart :: MStatePair -> P Bool
-sameReachablePart (M (s1, p1) (s2, p2)) = do
-  r1 <- reachable p1
-  r2 <- reachable p2
+sameReachablePart :: MStatePair -> Bool
+sameReachablePart (M (s1, p1) (s2, p2)) = 
+  let r1 = reachable p1
+      r2 = reachable p2
 
-  let filterAux [] _ = return []
-      filterAux _ [] = return []
+      filterAux [] _ = []
+      filterAux _ [] = []
       filterAux ((i,d):ds) ((j,t):ts)
-        | i == j = do
+        | i == j = 
             case cellColorOf t of
-              Just c' | Data_Set.member c' r1 -> (d :) <$> filterAux ds ts
+              Just c' | Set.member c' r1 -> d : filterAux ds ts
               _ -> filterAux ds ts
         | i < j = filterAux ds ((j,t):ts)
         | i > j = filterAux ((i,d):ds) ts
 
-  f1 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s1) (Data_Map.assocs $ unMemT $ p_mem p1)
-  f2 <- filterAux (Data_Map.assocs $ f_dm $ f_mem s2) (Data_Map.assocs $ unMemT $ p_mem p2)
+      f1 = filterAux (Map.assocs $ f_dm $ f_mem s1) (Map.assocs $ unMemT $ p_mem p1)
+      f2 = filterAux (Map.assocs $ f_dm $ f_mem s2) (Map.assocs $ unMemT $ p_mem p2)
 
-  return $ r1 == r2 && (f_gprs s1 == f_gprs s2) && (f1 == f2)
+  in 
+  r1 == r2 && (f_gprs s1 == f_gprs s2) && (f1 == f2)
 
 ------------------------------------------------------------------------------------------
 -- Generation
@@ -331,8 +333,8 @@ groupRegisters :: PolicyPlus -> GPR_File -> GPR_FileT ->
                    [GPR_Addr])
 groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
   -- Assuming that the register files are same length and they have no holes
-  let regs = Data_Map.assocs rs
-      tags = Data_Map.assocs ts
+  let regs = Map.assocs rs
+      tags = Map.assocs ts
       rts = zip regs tags
 
       validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
@@ -366,7 +368,7 @@ reachableLocsBetween pplus (Mem m _) (MemT pm) lo hi t =
                           case cellColorOf t of
                             Just c' -> c == c' && i >= lo && i <= hi
                             _ -> False
-                       ) (Data_Map.assocs pm)
+                       ) (Map.assocs pm)
     _ -> []
 
 allocInstTag :: PolicyPlus -> TagSet
@@ -479,103 +481,129 @@ genDataMemory pplus = do
                              t <- genMTagM pplus
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
-  return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
+  return (Mem (Map.fromList m) Nothing, MemT $ Map.fromList pm)
 
 setInstrI :: Machine_State -> Instr_I -> Machine_State
 setInstrI ms i =
-  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
+  ms & fmem . at (f_pc ms) ?~ (encode_I RV32 i) 
+-- WAS:  ms {f_mem = (f_mem ms) { f_dm = Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
 
 setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
 setInstrTagI ms ps it =
-  ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
+  ps & pmem . at (f_pc ms) ?~ it 
+-- WAS:  ps {p_mem = ( MemT $ Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
 
-genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State -> Set GPR_Addr -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
-genByExec pplus 0 ms ps instrlocs = return (ms, ps, instrlocs)
-genByExec pplus n ms ps instrlocs
-  -- Check if an instruction already exists
-  | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
-    case fetch_and_execute pplus ms ps of
-      Right (ms'', ps'') ->
-        genByExec pplus (n-1) ms'' ps'' instrlocs
-      Left err ->
-        -- trace ("Warning: Fetch and execute failed with " ++ show n
-        --        ++ " steps remaining and error: " ++ show err) $
-        return (ms, ps, instrlocs)
-  | otherwise = do
-    (is, it) <- genInstr pplus ms ps
-    let ms' = setInstrI ms is
-        ps' = setInstrTagI ms ps it
-    case -- traceShow ("Instruction generated...", is) $
-         fetch_and_execute pplus ms' ps' of
-      Right (ms'', ps'') ->
-        -- trace "Successful execution" $
-        genByExec pplus (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
-      Left err ->
-        -- trace ("Warning: Fetch and execute failed with "
-        --       ++ show n ++ " steps remaining and error: " ++ show err) $
-        return (ms', ps', instrlocs)
 
-updRegs :: GPR_File -> Gen GPR_File
-updRegs (GPR_File rs) = do
-  [d1, d2, d3] <- replicateM 3 $ genImm 40
-  let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
-  return $ GPR_File rs'
+-- | Generation by execution receives an initial machine X PIPE state and
+-- | generates instructions until n steps have been executed.
+-- | Returns the original machines with just the instruction memory locations
+-- | updated.
+genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State ->
+             Gen (Machine_State, PIPE_State)
+genByExec pplus n init_ms init_ps = exec_aux n init_ms init_ps init_ms init_ps
+  where exec_aux 0 ims ips ms ps = return (ims, ips)
+        exec_aux n ims ips ms ps 
+        -- Check if an instruction already exists
+          | Map.member (f_pc ms) (f_dm $ f_mem ms) =
+            case fetch_and_execute pplus ms ps of
+              Right (ms'', ps'') ->
+                exec_aux (n-1) ims ips ms'' ps'' 
+              Left err ->
+                -- trace ("Warning: Fetch and execute failed with " ++ show n
+                --        ++ " steps remaining and error: " ++ show err) $
+                return (ms, ps)
+          | otherwise = do
+              -- Generate an instruction for the current state
+              (is, it) <- genInstr pplus ms ps
+              -- Update the i-memory of both the machine we're stepping...
+              let ms' = ms & fmem . at (f_pc ms) ?~ (encode_I RV32 is)
+                  ps' = ps & pmem . at (f_pc ms) ?~ it 
+              -- .. and the i-memory of the inital pair _at the f_pc ms location_
+                  ims' = ims & fmem . at (f_pc ms) ?~ (encode_I RV32 is)
+                  ips' = ips & pmem . at (f_pc ms) ?~ it
+              -- Proceed with execution
+              -- traceShow ("Instruction generated...", is) $
+              case fetch_and_execute pplus ms' ps' of
+                Right (ms'', ps'') ->
+                  -- trace "Successful execution" $
+                  exec_aux (n-1) ims' ips' ms'' ps'' 
+                Left err ->
+                  -- trace ("Warning: Fetch and execute failed with "
+                  --       ++ show n ++ " steps remaining and error: " ++ show err) $
+                  return (ims', ips')
+
+genGPRs :: Machine_State -> Gen Machine_State
+-- Map GPR_Addr GPR_Val -> Gen (Map GPR_Addr GPR_Val) 
+genGPRs m = do
+  ds <- replicateM 3 $ genImm 40
+  return $ m & fgpr %~ Map.union (Map.fromList $ zip [1..] ds)
+--    Map.union (Map.fromList $ zip [1..] ds) rs
+--  [d1, d2, d3] <- 
+--  let rs' :: Map.Map Integer Integer = Map.insert 1 d1 $ Map.insert 2 d2 $ Map.insert 3 d3 rs
+--  return $ GPR_File rs'
 
 mkPointerTagSet pplus c = fromExt [("heap.Pointer", Just c)]
 
-updTags :: PolicyPlus -> GPR_FileT -> Gen GPR_FileT
-updTags pplus (GPR_FileT rs) = do
-  [c1, c2, c3] <- (map $ mkPointerTagSet (policy pplus)) <$> (replicateM 3 genColorLow)
-  
-  let rs' :: Data_Map.Map Integer TagSet = Data_Map.insert 1 c1 $ Data_Map.insert 2 c2 $ Data_Map.insert 3 c3 rs
-  return $ GPR_FileT rs'
+genGPRTs :: PolicyPlus -> PIPE_State -> Gen PIPE_State
+genGPRTs pplus p = do 
+  cs <- (map $ mkPointerTagSet (policy pplus)) <$> (replicateM 3 genColorLow)
+  return $ p & pgpr %~ Map.union (Map.fromList $ zip [1..] cs)
+--  let rs' :: Map.Map Integer TagSet = Map.insert 1 c1 $ Map.insert 2 c2 $ Map.insert 3 c3 rs
+--  return $ GPR_FileT rs'
 
 genMachine :: PolicyPlus -> Gen (Machine_State, PIPE_State)
 genMachine pplus = do
   -- registers
-  (mem,pmem) <- genDataMemory pplus
-  let ms = initMachine {f_mem = mem}
-      ps = (init_pipe_state pplus){p_mem = pmem}
-      ms2 = setInstrI ms (JAL 0 1000)
-      ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- Needed??
+  (mm,pm) <- genDataMemory pplus
+  let ms = initMachine
+             & fmem_mem .~ mm --{f_mem = mem}
+             & fmem . at (f_pc initMachine) ?~ (encode_I RV32 $ JAL 0 1000) 
+      ps = init_pipe_state pplus
+             & pmem_mem .~ pm
+             & pmem . at (f_pc ms) ?~ (emptyInstTag pplus) 
 
-  rs' <- updRegs $ f_gprs ms2
-  ts' <- updTags pplus $ p_gprs ps2
-  let ms' = ms2 {f_gprs = rs'}
-      ps' = ps2 {p_gprs = ts'}
+--      ps = init_pipe_state pplus & pmem_mem .~ pm
+--      ms2 = setInstrI ms (JAL 0 1000)
+--      ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- Needed??
+
+  ms' <- genGPRs  ms
+  ps' <- genGPRTs pplus ps
+
+  (ms_fin, ps_fin) <- genByExec pplus maxInstrsToGenerate ms' ps'
+
   
-  (ms_fin, ps_fin, instrlocs) <- genByExec pplus maxInstrsToGenerate ms' ps' Data_Set.empty
+--  let ms_fin' = ms_fin & 
+-- 
+--      final_mem = f_dm $ f_mem ms_fin
+--      res_mem = foldr (\a mem -> Map.insert a (fromJust $ Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs
+--      ms_fin' = 
+--        ms' {f_mem = (f_mem ms') { f_dm = res_mem } }  
+-- 
+--      final_pmem = unMemT $ p_mem ps_fin
+--      res_pmem = foldr (\a pmem -> Map.insert a (fromJust $ Map.lookup a final_pmem) pmem) (unMemT $ p_mem ps') instrlocs
+--      ps_fin' =
+--        ps' {p_mem = MemT res_pmem}
 
-  let final_mem = f_dm $ f_mem ms_fin
-      res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs
-      ms_fin' = 
-        ms' {f_mem = (f_mem ms') { f_dm = res_mem } }  
-
-      final_pmem = unMemT $ p_mem ps_fin
-      res_pmem = foldr (\a pmem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_pmem) pmem) (unMemT $ p_mem ps') instrlocs
-      ps_fin' =
-        ps' {p_mem = MemT res_pmem}
-
-  return (ms_fin', ps_fin')
+  return (ms_fin, ps_fin)
 
 varyUnreachableMem :: PolicyPlus -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
 varyUnreachableMem pplus r (Mem m ra) (MemT pm) = do
   combined <- mapM (\((i,d),(j,t)) -> do
                        case cellColorOf t of
                          Just c'
-                           | Data_Set.member c' r -> return ((i,d),(j,t))
+                           | Set.member c' r -> return ((i,d),(j,t))
                            | otherwise -> do d' <- genImm 12 -- TODO: This makes no sense
                                              return ((i,d'),(j,t)) -- TODO: Here we could scramble v
                          _ -> return ((i,d),(j,t))
-                    ) $ zip (Data_Map.assocs m) (Data_Map.assocs pm)
+                    ) $ zip (Map.assocs m) (Map.assocs pm)
   let (m', pm') = unzip combined
-  return (Mem (Data_Map.fromList m') ra, MemT (Data_Map.fromList pm'))
+  return (Mem (Map.fromList m') ra, MemT (Map.fromList pm'))
 
 varyUnreachable :: PolicyPlus -> (Machine_State, PIPE_State) -> Gen MStatePair
 varyUnreachable pplus (m, p) = do
-  let r = runReader (reachable p) pplus
+  let r = reachable p
   (mem', pmem') <- varyUnreachableMem pplus r (f_mem m) (p_mem p)
-  return $ M (m,p) (m {f_mem = mem'}, p {p_mem = pmem'})
+  return $ M (m,p) (m & fmem_mem .~ mem', p & pmem_mem .~ pmem')
 
 genMStatePair :: PolicyPlus -> Gen MStatePair
 genMStatePair pplus = 
@@ -620,9 +648,9 @@ shrinkGPRs :: PolicyPlus -> (GPR_File, GPR_FileT) -> (GPR_File, GPR_FileT)
 shrinkGPRs pplus (GPR_File d1, GPR_FileT t1) (GPR_File d2, GPR_FileT t2) =
   -- assert (d1==d2 && t1 == t2) $
   let combined :: [((GPR_Addr, GPR_Val), (InstrField, TagSet), (GPR_Addr, GPR_Val), (InstrField, TagSet))]
-      combined = zip4 (Data_Map.assocs d1) (Data_Map.assocs t1) (Data_Map.assocs d2) (Data_Map.assocs t2) in
-  [ ((GPR_File $ Data_Map.fromList d1', GPR_FileT $ Data_Map.fromList t1'), 
-     (GPR_File $ Data_Map.fromList d2', GPR_FileT $ Data_Map.fromList t2'))
+      combined = zip4 (Map.assocs d1) (Map.assocs t1) (Map.assocs d2) (Map.assocs t2) in
+  [ ((GPR_File $ Map.fromList d1', GPR_FileT $ Map.fromList t1'), 
+     (GPR_File $ Map.fromList d2', GPR_FileT $ Map.fromList t2'))
   | (d1',t1',d2',t2') <- map unzip4 $ shrinkVector shrinkR combined
   ]
   where shrinkR :: ((GPR_Addr, GPR_Val), (InstrField, TagSet), (GPR_Addr, GPR_Val), (InstrField, TagSet))
@@ -645,10 +673,10 @@ type IndexedTaggedInt = ((Integer,Integer), (Integer,TagSet))
 -- INV: Original memories contain identical indices
 shrinkMems :: PolicyPlus -> Set Color -> (Mem, MemT) -> (Mem, MemT) -> [((Mem, MemT), (Mem,MemT))]
 shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) = 
-  let m1' = Data_Map.assocs m1
-      t1' = Data_Map.assocs t1
-      m2' = Data_Map.assocs m2
-      t2' = Data_Map.assocs t2
+  let m1' = Map.assocs m1
+      t1' = Map.assocs t1
+      m2' = Map.assocs m2
+      t2' = Map.assocs t2
 
       isData  i = i >= dataMemLow pplus && i <= dataMemHigh pplus
       isInstr i = i == 0 || i >= instrLow pplus
@@ -668,12 +696,11 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
               | otherwise -> error $ "Distinguishable memory locations: " ++ show (j,d1,l1,d2,l2)
             _ -> error "Instructions can't be decoded while shrinking"
         | otherwise =
+--            traceShow ("Shrinking...", l1, l2) $ undefined
             case (cellColorOf l1, pointerColorOf l1, cellColorOf l2, pointerColorOf l2) of 
---            case (l1, l2) of
               (Just loc1, Just _, Just loc2, Just _) 
---              (MTagM v1 loc1, MTagM v2 loc2)
                 -- Both reachable, everything should be identical
-                | Data_Set.member loc1 reachable && Data_Set.member loc2 reachable && l1 == l2 && d1 == d2->
+                | Set.member loc1 reachable && Set.member loc2 reachable && l1 == l2 && d1 == d2 ->
                   -- shrink the first and copy
                   -- Shrink data
                   [ (((j, d'), (j, l1)), ((j, d'),(j, l1))) | d' <- shrink d1 ]
@@ -681,30 +708,30 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
                   -- Or shrink tag 
                   [ (((j, d1), (j, l')), ((j, d2),(j, l'))) | l' <- shrinkTag l1 ]
                 -- Both unreachable, shrink independently
-                | not (Data_Set.member loc1 reachable) && not (Data_Set.member loc2 reachable) ->
+                | not (Set.member loc1 reachable) && not (Set.member loc2 reachable) ->
                   -- Shrink first data value 
                   [ (((j, d1'), (j, l1)), ((j, d2),(j, l2))) | d1' <- shrink d1 ]
                   ++
                   -- Shrink first tag to something unreachable 
                   [ (((j, d1), (j, l1')), ((j, d2),(j, l2)))
                   | l1' <- shrinkTag l1,
-                    not $ Data_Set.member (fromJust $ cellColorOf l1') reachable ]
+                    not $ Set.member (fromJust $ cellColorOf l1') reachable ]
                   ++
                   -- Shrink first tag to something reachable (and make sure first and second components are the same!)
                   [ (((j, d1), (j, l1')), ((j, d1),(j, l1')))
                   | l1' <- shrinkTag l1,
-                    Data_Set.member (fromJust $ cellColorOf l1') reachable ]
+                    Set.member (fromJust $ cellColorOf l1') reachable ]
                   ++
                   -- ... same for second register state
                   [ (((j, d1), (j, l1)), ((j, d2'),(j, l2))) | d2' <- shrink d2 ]
                   ++
                   [ (((j, d1), (j, l1)), ((j, d2),(j, l2')))
                   | l2' <- shrinkTag l2,
-                    not $ Data_Set.member (fromJust $ cellColorOf l2') reachable ]
+                    not $ Set.member (fromJust $ cellColorOf l2') reachable ]
                   ++
                   [ (((j, d1), (j, l2')), ((j, d1),(j, l2')))
                   | l2' <- shrinkTag l2,
-                    Data_Set.member (fromJust $ cellColorOf l2') reachable ]
+                    Set.member (fromJust $ cellColorOf l2') reachable ]
                 | otherwise -> error $ "Not both reachable or unreachable?" ++ show (d1,l1,d2,l2)
               otherwise -> error "Data memory without cell or pointer color?"
  
@@ -719,19 +746,25 @@ shrinkMems pplus reachable (Mem m1 i1, MemT t1) (Mem m2 i2, MemT t2) =
         | (more1', more2') <- shrinkMemAux more1 more2 ]
  
       indexTagedIntsToMem :: Maybe (Integer,Integer) -> [IndexedTaggedInt] -> (Mem, MemT)
-      indexTagedIntsToMem i itis = ((flip Mem i) . Data_Map.fromList) *** (MemT . Data_Map.fromList) $ unzip itis
+      indexTagedIntsToMem i itis = ((flip Mem i) . Map.fromList) *** (MemT . Map.fromList) $ unzip itis
         
   in map (indexTagedIntsToMem i1 *** indexTagedIntsToMem i2) $ shrinkMemAux (zip m1' t1') (zip m2' t2')
         
 shrinkMStatePair :: PolicyPlus -> MStatePair -> [MStatePair]
 shrinkMStatePair pplus (M (m1,p1) (m2,p2)) =
-  let r = runReader (reachable p1) pplus
+  let r = trace "Calculating Reachable" $ reachable p1
       -- Shrink Memories
-  in
-     [ M (m1{f_mem = mem1},p1{p_mem = pmem1}) (m2{f_mem=mem2}, p2{p_mem=pmem2})
-     | ((mem1, pmem1), (mem2, pmem2)) <- shrinkMems pplus r (f_mem m1, p_mem p1) (f_mem m2, p_mem p2) ]
-  ++ [ M (m1{f_gprs = gpr1},p1{p_gprs = pgpr1}) (m2{f_gprs=gpr2}, p2{p_gprs=pgpr2})
-     | ((gpr1, pgpr1), (gpr2, pgpr2)) <- shrinkGPRs pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2) ]
+  in 
+     [ M (m1 & fmem_mem .~ mem1, p1 & pmem_mem .~ pmem1)
+         (m2 & fmem_mem .~ mem2, p2 & pmem_mem .~ pmem2)
+     | ((mem1, pmem1), (mem2, pmem2))
+       <- traceShow ("Shrinking memories") $
+          shrinkMems pplus r (f_mem m1, p_mem p1) (f_mem m2, p_mem p2) ]
+  ++ [ M (m1 & fgpr_gpr .~ gpr1, p1 & pgpr_gpr .~ pgpr1)
+         (m2 & fgpr_gpr .~ gpr2, p2 & pgpr_gpr .~ pgpr2)
+     | ((gpr1, pgpr1), (gpr2, pgpr2))
+       <- traceShow ("Shrinking GPRS") $
+          shrinkGPRs pplus (f_gprs m1, p_gprs p1) (f_gprs m2, p_gprs p2) ]
 
 
 ------------------------------------------------------------------------------------------
@@ -773,7 +806,7 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
         (whenFail (do putStrLn $ "Reachable parts differ after execution!"
                       let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
                       uncurry (printTrace pplus) (unzip finalTrace)) $
-           property $ (runReader (sameReachablePart (M (m1r,p1r) (m2r, p2r))) pplus))
+           property $ sameReachablePart (M (m1r,p1r) (m2r, p2r)))
         .&&. 
         prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
       (Left s1, Left s2) ->
@@ -833,8 +866,9 @@ main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
     $ forAllShrink (genMStatePair pplus)
-           (\mp -> shrinkMStatePair pplus mp 
-                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
+           (\mp -> [] ) --shrinkMStatePair pplus mp 
+--                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \m -> prop pplus m
 
 main = main_test
+

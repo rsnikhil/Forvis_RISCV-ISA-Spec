@@ -3,6 +3,7 @@ module Main where
 import Arch_Defs
 import Forvis_Spec_I
 import PIPE
+import MachineLenses
 import Memory
 import Data.Bits
 
