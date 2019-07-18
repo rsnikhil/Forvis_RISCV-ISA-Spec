@@ -1,5 +1,9 @@
 * SMALLER POLICIES
 
+- figure out what the userType policy is actually intended to
+    - guarantee once we know this, then make sure that we can find
+      policy violations that involve overwriting code!!
+
 - simple: "cells marked in a certain way can only be written once"
 
 - similar: "cells marked in a certain way can only be written by code
