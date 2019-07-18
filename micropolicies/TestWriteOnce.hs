@@ -48,6 +48,8 @@ import MachineLenses
 ------------------------------------------------------------------------------------
 -- Printing
 
+
+
 -- TODO: Instance p pretty
 instance PP (Machine_State, PIPE_State) where
   pp pplus (m,p) =

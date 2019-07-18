@@ -1,3 +1,11 @@
+* THINGS TO TALK TO CHRIS ABOUT
+
+- Running FreeRTOS on Forvis
+
+- Overview of the writeonce/heap policies
+
+- Ask him about other policies / what would help them
+
 * SMALLER POLICIES
 
 - figure out what the userType policy is actually intended to

@@ -1,18 +1,18 @@
 all: build writeonce
 
-stack:
+stack: build
 	$(MAKE) stackmutants unmutated POLICY=stack
 
-heap:
+heap: build
 	$(MAKE) heapmutants unmutated POLICY=heap
 
-writeonce:
+writeonce: build
 	$(MAKE) writeoncemutants unmutated POLICY=writeonce
 
 build:
 	@stack build :dpl-exe 
 
-unmutated:
+unmutated: build
 	@make mutant MUT=NO_MUTATIONS
 
 ifeq ($(shell uname),Darwin)
