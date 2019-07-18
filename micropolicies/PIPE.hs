@@ -254,7 +254,7 @@ get_rtag :: PIPE_State -> GPR_Addr -> TagSet
 get_rtag p a = maybe (error $ "get_rtag: " ++ show a ++  "\n" ++ show p) id $ p ^. pgpr . at a
 
 set_mtag :: PIPE_State -> Integer -> TagSet -> PIPE_State
-set_mtag p a t = p & pgpr . at a ?~ t 
+set_mtag p a t = p & pmem . at a ?~ t 
 
 get_mtag :: PIPE_State -> Integer -> TagSet
 get_mtag p a = maybe (error "get_mtag") id $ p ^. pmem . at a 

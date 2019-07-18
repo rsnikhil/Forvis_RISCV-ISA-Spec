@@ -1,6 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables, TupleSections, FlexibleInstances, MultiParamTypeClasses #-}
 
-module TestWriteOnce where
+module TestJalFollowsAdd where
 
 -- From Haskell libraries
 import Control.Arrow (second, (***))
@@ -10,10 +10,9 @@ import Control.Monad.Reader
 import Data.Bits
 import Data.List (zip4,unzip4)
 import Data.Maybe
-import qualified Data.List as List
-import qualified Data.Map.Strict as Map
-import Data.Map (Map)
-import qualified Data.Set as Set
+import qualified Data.List as Data_List
+import qualified Data.Map.Strict as Data_Map
+import qualified Data.Set as Data_Set
 import Data.Set (Set)
 
 import Debug.Trace
@@ -22,9 +21,6 @@ import Test.QuickCheck
 
 import Text.PrettyPrint (Doc, (<+>), ($$))
 import qualified Text.PrettyPrint as P
-
-import Control.Lens hiding (elements)
-
 
 -- From /src
 import Arch_Defs
@@ -43,7 +39,18 @@ import Run_Program_PIPE
 import PIPE
 import Printing
 import Terminal 
-import MachineLenses
+
+{-
+
+PROPERTY: Whenever a JAL instruction is executed, it is preceded by an ADD
+
+POLICY:
+- Most instructions are tagged <plain>
+- Some ADD instructions can be tagged <Seq1>. Those change the tag of the pc to <Seq1>
+- When a JAL instruction is executed, the pc must be <Seq1>
+- You can only write over <plain> memory cells (<- BUG OPPORTUNITY!)
+
+-}
 
 ------------------------------------------------------------------------------------
 -- Printing
@@ -121,17 +128,17 @@ calcDiff pplus (m1,p1) (m2,p2) =
           GPR_FileT t2 = p_gprs p2
           reg_diff =
             filter (\((i1,d1),(i2,d2)) -> assert (i1 == i2) $ d1 /= d2)
-                   (zip (Map.assocs r1) (Map.assocs r2))
+                   (zip (Data_Map.assocs r1) (Data_Map.assocs r2))
           tag_diff =
             filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2)
-                   (zip (Map.assocs t1) (Map.assocs t2))
+                   (zip (Data_Map.assocs t1) (Data_Map.assocs t2))
       in case (reg_diff, tag_diff) of
            ([], []) -> []
            ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> [(i,d,l)]
            ([((i,_),(_,d))],[]) ->
-             catMaybes [(i,d,) <$> Map.lookup i t2]
+             catMaybes [(i,d,) <$> Data_Map.lookup i t2]
            ([],[((i,_),(_,l))]) ->
-             catMaybes [(i,,l) <$> Map.lookup i r2]
+             catMaybes [(i,,l) <$> Data_Map.lookup i r2]
            _ -> -- TODO (Leo!)
                 error $ "More than one diff in register file:" ++
                         " registers = " ++ show reg_diff ++
@@ -141,8 +148,8 @@ calcDiff pplus (m1,p1) (m2,p2) =
           Mem dm2 _ = f_mem m2
           MemT pm1 = p_mem p1
           MemT pm2 = p_mem p2
-          both1 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Map.assocs dm1) (Map.assocs pm1)
-          both2 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Map.assocs dm2) (Map.assocs pm2)
+          both1 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm1) (Data_Map.assocs pm1)
+          both2 = map (\((i,d),(j,t)) -> assert (i==j) $ (i,(d,t))) $ zip (Data_Map.assocs dm2) (Data_Map.assocs pm2)
           diffs = diff both1 both2 (uninitialized_word, emptyInstTag pplus)
           extract (i,(_,(d,t))) = (i,d,t)
        in map extract diffs 
@@ -152,16 +159,16 @@ calcDiff pplus (m1,p1) (m2,p2) =
 --            filter (\((i1,d1),(i2,d2)) ->
 --                      if i1 == i2 then d1 /= d2 else error $ "DIFF: " ++ show ("i1", i1, "d1", d1, "i2", i2, "d2", d2, "dm1", dm1, "dm2", dm2))
 ----                             assert (i1 == i2) $ d1 /= d2)
---                   (zip (Map.assocs dm1) (Map.assocs dm2))
+--                   (zip (Data_Map.assocs dm1) (Data_Map.assocs dm2))
 --          tag_diff =
---            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Map.assocs pm1) (Map.assocs pm2))
+--            filter (\((i1,l1),(i2,l2)) -> assert (i1 == i2) $ l1 /= l2) (zip (Data_Map.assocs pm1) (Data_Map.assocs pm2))
 --      in case (data_diff, tag_diff) of
 --           ([], []) -> Nothing
 --           ([((i,_),(_,d))],[((j,_),(_,l))]) | i == j -> Just (i,d,l)
 --           ([((i,_),(_,d))],[]) ->
---             (i,d,) <$> Map.lookup i pm2
+--             (i,d,) <$> Data_Map.lookup i pm2
 --           ([],[((i,_),(_,l))]) ->
---             (i,,l) <$> Map.lookup i dm2
+--             (i,,l) <$> Data_Map.lookup i dm2
 --           _ -> error $ "More than one diff in memory file:" ++
 --                        " data = " ++ show data_diff ++
 --                        " and tags = " ++ show tag_diff
@@ -229,8 +236,8 @@ groupRegisters :: PolicyPlus -> GPR_File -> GPR_FileT ->
                    [GPR_Addr])
 groupRegisters pplus (GPR_File rs) (GPR_FileT ts) =
   -- Assuming that the register files are same length and they have no holes
-  let regs = Map.assocs rs
-      tags = Map.assocs ts
+  let regs = Data_Map.assocs rs
+      tags = Data_Map.assocs ts
       rts = zip regs tags
 
       validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
@@ -299,80 +306,75 @@ genDataMemory pplus = do
                              t <- genMTag pplus
                              return ((i, d),(i,t))) idx
   let (m,pm) = unzip combined
-  return (Mem (Map.fromList m) Nothing, MemT $ Map.fromList pm)
+  return (Mem (Data_Map.fromList m) Nothing, MemT $ Data_Map.fromList pm)
 
--- | Generation by execution receives an initial machine X PIPE state and
--- | generates instructions until n steps have been executed.
--- | Returns the original machines with just the instruction memory locations
--- | updated.
-genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State ->
-             Gen (Machine_State, PIPE_State)
-genByExec pplus n init_ms init_ps = exec_aux n init_ms init_ps init_ms init_ps
-  where exec_aux 0 ims ips ms ps = return (ims, ips)
-        exec_aux n ims ips ms ps 
-        -- Check if an instruction already exists
-          | Map.member (f_pc ms) (f_dm $ f_mem ms) =
-            case fetch_and_execute pplus ms ps of
-              Right (ms'', ps'') ->
-                exec_aux (n-1) ims ips ms'' ps'' 
-              Left err ->
-                -- trace ("Warning: Fetch and execute failed with " ++ show n
-                --        ++ " steps remaining and error: " ++ show err) $
-                return (ms, ps)
-          | otherwise = do
-              -- Generate an instruction for the current state
-              (is, it) <- genInstr pplus ms ps
-              -- Update the i-memory of both the machine we're stepping...
-              let ms' = ms & fmem . at (f_pc ms) ?~ (encode_I RV32 is)
-                  ps' = ps & pmem . at (f_pc ms) ?~ it 
-              -- .. and the i-memory of the inital pair _at the f_pc ms location_
-                  ims' = ims & fmem . at (f_pc ms) ?~ (encode_I RV32 is)
-                  ips' = ips & pmem . at (f_pc ms) ?~ it
-              -- Proceed with execution
-              -- traceShow ("Instruction generated...", is) $
-              case fetch_and_execute pplus ms' ps' of
-                Right (ms'', ps'') ->
-                  -- trace "Successful execution" $
-                  exec_aux (n-1) ims' ips' ms'' ps'' 
-                Left err ->
-                  -- trace ("Warning: Fetch and execute failed with "
-                  --       ++ show n ++ " steps remaining and error: " ++ show err) $
-                  return (ims', ips')
+setInstrI :: Machine_State -> Instr_I -> Machine_State
+setInstrI ms i =
+  ms {f_mem = (f_mem ms) { f_dm = Data_Map.insert (f_pc ms) (encode_I RV32 i) (f_dm $ f_mem ms) } }
 
+setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
+setInstrTagI ms ps it =
+  ps {p_mem = ( MemT $ Data_Map.insert (f_pc ms) (it) (unMemT $ p_mem ps) ) }
 
-genGPRs :: Machine_State -> Gen Machine_State
--- Map GPR_Addr GPR_Val -> Gen (Map GPR_Addr GPR_Val) 
-genGPRs m = do
-  ds <- replicateM 3 $ genImm 40
-  return $ m & fgpr %~ Map.union (Map.fromList $ zip [1..] ds)
---    Map.union (Map.fromList $ zip [1..] ds) rs
---  [d1, d2, d3] <- 
---  let rs' :: Map.Map Integer Integer = Map.insert 1 d1 $ Map.insert 2 d2 $ Map.insert 3 d3 rs
---  return $ GPR_File rs'
+genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State -> Set GPR_Addr
+             -> Gen (Machine_State, PIPE_State, Set GPR_Addr)
+genByExec pplus 0 ms ps instrlocs = return (ms, ps, instrlocs)
+genByExec pplus n ms ps instrlocs
+  -- Check if an instruction already exists
+  | Data_Map.member (f_pc ms) (f_dm $ f_mem ms) =
+    case fetch_and_execute pplus ms ps of
+      Right (ms'', ps'') ->
+        genByExec pplus (n-1) ms'' ps'' instrlocs
+      Left err ->
+        -- trace ("Warning: Fetch and execute failed with " ++ show n
+        --        ++ " steps remaining and error: " ++ show err) $
+        return (ms, ps, instrlocs)
+  | otherwise = do
+    (is, it) <- genInstr pplus ms ps
+    let ms' = setInstrI ms is
+        ps' = setInstrTagI ms ps it
+    case -- traceShow ("Instruction generated...", is) $
+         fetch_and_execute pplus ms' ps' of
+      Right (ms'', ps'') ->
+        -- trace "Successful execution" $
+        genByExec pplus (n-1) ms'' ps'' (Data_Set.insert (f_pc ms') instrlocs)
+      Left err ->
+        -- trace ("Warning: Fetch and execute failed with "
+        --       ++ show n ++ " steps remaining and error: " ++ show err) $
+        return (ms', ps', instrlocs)
 
--- updRegs :: GPR_File -> Gen GPR_File
--- updRegs (GPR_File rs) = do
---   [d1, d2, d3] <- replicateM 3 $ genImm 40
---   let rs' :: Map.Map Integer Integer = Map.insert 1 d1 $ Map.insert 2 d2 $ Map.insert 3 d3 rs
---   return $ GPR_File rs'
+updRegs :: GPR_File -> Gen GPR_File
+updRegs (GPR_File rs) = do
+  [d1, d2, d3] <- replicateM 3 $ genImm 40
+  let rs' :: Data_Map.Map Integer Integer = Data_Map.insert 1 d1 $ Data_Map.insert 2 d2 $ Data_Map.insert 3 d3 rs
+  return $ GPR_File rs'
 
 genMachine :: PolicyPlus -> Gen (Machine_State, PIPE_State)
 genMachine pplus = do
   -- registers
-  (mm,pm) <- genDataMemory pplus
-  let ms = initMachine
-             & fmem_mem .~ mm --{f_mem = mem}
-             & fmem . at (f_pc initMachine) ?~ (encode_I RV32 $ JAL 0 1000) 
-      ps = init_pipe_state pplus
-             & pmem_mem .~ pm
-             & pmem . at (f_pc ms) ?~ (emptyInstTag pplus) 
+  (mem,pmem) <- genDataMemory pplus
+  let ms = initMachine {f_mem = mem}
+      ps = (init_pipe_state pplus){p_mem = pmem}
+      ms2 = setInstrI ms (JAL 0 1000)
+      ps2 = setInstrTagI ms ps (emptyInstTag pplus)  -- Needed??
 
-  ms' <- genGPRs  ms
-  let ps' = ps 
+  rs' <- updRegs $ f_gprs ms2
+  let ms' = ms2 {f_gprs = rs'}
+      ps' = ps2
+  
+  (ms_fin, ps_fin, instrlocs) <- genByExec pplus maxInstrsToGenerate ms' ps' Data_Set.empty
 
-  (ms_fin, ps_fin) <- genByExec pplus maxInstrsToGenerate ms' ps' 
+  let final_mem = f_dm $ f_mem ms_fin
+      res_mem = foldr (\a mem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_mem) mem) (f_dm $ f_mem ms') instrlocs
+      ms_fin' = 
+        ms' {f_mem = (f_mem ms') { f_dm = res_mem } }  
 
-  return (ms_fin, ps_fin)
+      final_pmem = unMemT $ p_mem ps_fin
+      res_pmem = foldr (\a pmem -> Data_Map.insert a (fromJust $ Data_Map.lookup a final_pmem) pmem) (unMemT $ p_mem ps') instrlocs
+      ps_fin' =
+        ps' {p_mem = MemT res_pmem}
+
+  return (ms_fin', ps_fin')
 
 ------------------------------------------------------------------------------------------
 -- Shrinking
@@ -396,9 +398,9 @@ shrinkGPR :: PolicyPlus -> (GPR_File, GPR_FileT) -> [(GPR_File, GPR_FileT)]
 shrinkGPR pplus (GPR_File d, GPR_FileT t) =
   -- assert (d1==d2 && t1 == t2) $
   let combined :: [( (GPR_Addr, GPR_Val), (InstrField, TagSet) )] 
-      combined = zip (Map.assocs d) (Map.assocs t)
+      combined = zip (Data_Map.assocs d) (Data_Map.assocs t)
   in 
-  [ (GPR_File $ Map.fromList d', GPR_FileT $ Map.fromList t') 
+  [ (GPR_File $ Data_Map.fromList d', GPR_FileT $ Data_Map.fromList t') 
   | (d',t') <- map unzip $ shrinkVector shrinkR combined
   ]
   where shrinkR :: ((GPR_Addr, GPR_Val), (InstrField, TagSet))
@@ -421,8 +423,8 @@ type IndexedTaggedInt = ((Integer,Integer), (Integer,TagSet))
 -- INV: Original memories contain identical indices
 shrinkMem :: PolicyPlus -> (Mem, MemT) -> [(Mem, MemT)]
 shrinkMem pplus (Mem m i, MemT t) =
-  let m' = Map.assocs m
-      t' = Map.assocs t
+  let m' = Data_Map.assocs m
+      t' = Data_Map.assocs t
 
       isData  i = i >= dataMemLow pplus && i <= dataMemHigh pplus
       isInstr i = i == 0 || i >= instrLow pplus
@@ -449,15 +451,15 @@ shrinkMem pplus (Mem m i, MemT t) =
         [ ( ((j,d),(j,l)) : more' ) | more' <- shrinkMemAux more ]
  
       indexTagedIntsToMem :: Maybe (Integer,Integer) -> [IndexedTaggedInt] -> (Mem, MemT)
-      indexTagedIntsToMem i itis = ((flip Mem i) . Map.fromList) *** (MemT . Map.fromList) $ unzip itis
+      indexTagedIntsToMem i itis = ((flip Mem i) . Data_Map.fromList) *** (MemT . Data_Map.fromList) $ unzip itis
         
   in map (indexTagedIntsToMem i) $ shrinkMemAux (zip m' t') 
         
 shrinkMState :: PolicyPlus -> (Machine_State, PIPE_State) -> [(Machine_State, PIPE_State)]
 shrinkMState pplus (m,p) =
-     [ (m & fmem_mem .~ mem, p & pmem_mem .~ pmem)
+     [ (m{f_mem = mem},p{p_mem = pmem})
      | (mem, pmem) <- shrinkMem pplus (f_mem m, p_mem p) ]
-  ++ [ (m & fgpr_gpr .~ gpr, p & pgpr_gpr .~ pgpr)
+  ++ [ (m{f_gprs = gpr},p{p_gprs = pgpr})
      | ((gpr, pgpr)) <- shrinkGPR pplus (f_gprs m, p_gprs p) ]
 
 
@@ -503,17 +505,27 @@ eval pplus count maxcount trace (m,p) =
       Left _ -> reverse trace
 
 cellContents trace addr =
-  map (\(m,_) -> (f_dm $ f_mem m) Map.! addr) trace
+  map (\(m,_) -> (f_dm $ f_mem m) Data_Map.! addr) trace
 
-prop_WO pplus count maxcount (m,p) =
-  let trace = eval pplus count maxcount [] (m,p) 
-      addrs = map fst $ filter (\(_,l) -> l == writeOnceTag) $
-                         Map.assocs $ unMemT $ p_mem p 
-      contents = map (cellContents trace) addrs in
-  whenFail (do putStrLn $ "Memory location tagged WriteOnce written twice!"
-               let finalTrace = trace
-               printTrace pplus finalTrace) $ 
-           all (\l -> length (List.group l) <= 2) contents
+prop_JAL_follows_ADD pplus count maxcount (m,p) =
+  let trace  = eval pplus count maxcount [] (m,p)
+      instrs = map (\(m,p) -> case fst $ instr_fetch m of
+                                Fetch u32 -> decode_I RV32 u32
+                                _         -> Nothing
+                   ) trace
+      -- ASSUME: no nothings in the middle of instrs
+      instrs' = catMaybes instrs
+
+      aux :: Maybe Instr_I -> [Instr_I] -> Bool
+      aux (Just (ADD _ _ _)) (JAL r1 r2 : rest) = aux (Just (JAL r1 r2)) rest
+      aux _                  (JAL r1 r2 : rest) = False
+      aux _                  (i : rest) = aux (Just i) rest
+      aux _                  []         = True
+
+  in    
+  whenFail (do putStrLn $ "Executed a JAL without an ADD before"
+               printTrace pplus trace)
+           (aux Nothing instrs')
 
 maxInstrsToGenerate :: Int
 maxInstrsToGenerate = 10
@@ -524,18 +536,18 @@ instance Show MP where
   show _ = ""
 
 prop :: PolicyPlus -> MP -> Property
-prop pplus (MP (m,p)) = prop_WO pplus 0 maxInstrsToGenerate (m,p)
+prop pplus (MP (m,p)) = prop_JAL_follows_ADD pplus 0 maxInstrsToGenerate (m,p)
 
 ------------------------------------------------------------------------------------------
 -- The heap-safety policy
   
 load_policy = do
-  ppol <- load_pipe_policy "writeonce.main"
+  ppol <- load_pipe_policy "jalfollowsadd.main"
   let pplus = PolicyPlus
         { policy = ppol
         , initGPR = defaultTag
         , initMem = defaultTag
-        , initPC = defaultTag
+        , initPC  = defaultTag
         , initNextColor = 5
         , emptyInstTag = defaultTag
         , dataMemLow = 4

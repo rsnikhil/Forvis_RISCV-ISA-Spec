@@ -1,0 +1,128 @@
+module jalfollowsadd:
+
+metadata:
+    Default,
+    AddBeforeJal
+
+// ==============================================================================
+// ==============================================================================
+policy: main =
+
+// ------------------------------------------------------------------------------
+// ARITHMETIC
+
+  immArithGrp(
+  env == _, op1 == {Default}
+  -> 
+  env = {Default}, res = {Default})        
+
+// When we execute an ADD instruction, the pc gets its tag
+^ addGrp(
+  env == _, op1 == _
+  -> 
+  env = op1, res = {Default})  
+
+^  arithGrp(
+  env == _, op1 == {Default}
+  -> 
+  env = {Default}, res = {Default})        
+
+// ------------------------------------------------------------------------------
+// LOAD FROM MEMORY
+
+^ loadGrp(
+    env == _, addr == _, mem == _ 
+    ->
+    env = {Default}, res = {Default})
+
+// ------------------------------------------------------------------------------
+// STORE TO MEMORY
+
+#ifndef STORE_THROUGH_SPECIAL
+^ storeGrp(
+    env == _, addr == _, val == _, mem == {Default}
+    ->
+    env = {Default}, mem = {Default})
+#else
+^ storeGrp(
+    env == _, addr == _, val == _, mem == _
+    ->
+    env = {Default}, mem = mem )
+#endif
+
+// ------------------------------------------------------------------------------
+// JUMP
+
+^ jumpGrp(env == _ -> env = env, return = env ) 
+
+// ==============================================================================
+// ==============================================================================
+// map external names (dotted strings) to tag sets
+// (Adding these explicit "writeonce."s is just a workaround pending a proper fix to PIPE.hs)
+require:  
+    init test.Default {writeonce.Default}   
+    init test.AddBeforeJal {writeonce.AddBeforeJal}   
+
+group:
+    grp loadUpperGrp(-> RD:dest)
+        lui
+        auipc
+
+    grp jumpGrp(-> RD:return)      
+        jal
+
+    grp jumpRegGrp(RS1:target -> RD:return)
+        jalr
+
+    grp branchGrp(RS1:op1, RS2:op2 -> )
+        beq
+        bne
+        blt
+        bge
+        bltu
+        bgeu
+
+    grp loadGrp(RS1:addr, MEM:mem -> RD:res)
+        lb
+        lh
+        lw
+        lbu
+        lhu
+
+    grp storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
+        sb
+        sh
+        sw
+
+    grp immArithGrp(RS1:op1 -> RD:res)
+        addi
+        slti
+        sltiu
+        xori
+        ori
+        andi
+        slli
+        srli
+        srai
+
+    grp addGrp(RS1:op1, RS2:op2 -> RD:res)
+        add
+
+    grp arithGrp(RS1:op1, RS2:op2 -> RD:res)
+        sub
+        sll
+        slt
+        sltu
+        xor
+        srl
+        sra
+        or 
+        and
+
+    grp systemGrp( -> )
+        fence
+ 
+    grp privGrp( -> )
+        ecall
+        ebreak
+
