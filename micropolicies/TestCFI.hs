@@ -493,29 +493,36 @@ eval pplus count maxcount trace (m,p) =
       Right (m',p') -> eval pplus (count+1) maxcount ((m,p) : trace) (m',p')
       Left _ -> reverse trace
 
-genGraph :: Gen [(Integer, Integer)]
-genGraph = do
-  let genEdge = (4*) <$> choose (960 `div` 4, 1040 `div` 4 )
-      graphSize = 42
-  sources <- replicateM graphSize genEdge
-  targets <- replicateM graphSize genEdge
-  return $ (0,1000) : zip sources targets
+genGraph :: Machine_State -> [(Integer, Integer)]
+genGraph ms = 
+  let ds = Map.assocs (ms ^. fmem)
+      pairs = catMaybes $ map (\(i,c) -> case decode_I RV32 c of
+                                           Just (JAL _ imm) -> Just (i, i + imm)
+                                           Just _ -> Nothing
+                                           Nothing -> Nothing
+                              ) ds
+  in pairs
+--  let genEdge = (4*) <$> choose (960 `div` 4, 1040 `div` 4 )
+--      graphSize = 42
+--  sources <- replicateM graphSize genEdge
+--  targets <- replicateM graphSize genEdge
+--  return $ (0,1000) : zip sources targets
 
 -- graph :: [(Int, Int)]
 prop_CFI pplus count maxcount (m,p) =
-  forAllShrink genGraph (const []) $ \graph -> do
+  let graph = genGraph m in
   let trace = eval pplus count maxcount [] (m,p)
       -- Allows you to jump to the next instruction!
       aux []  = property True
       aux [_] = property True
       aux ((m1,p1):(m2,p2):rest) =
-        if f_pc m1 + 4 /= f_pc m2 || f_pc m2 == 0 then
+        if f_pc m1 + 4 /= f_pc m2 && f_pc m2 /= 0 then
           if (elem (f_pc m1, f_pc m2) graph) then aux ((m2,p2):rest)
           else 
           whenFail (do putStrLn $ "Bad branch from " ++ show (f_pc m1) ++ " to " ++ show (f_pc m2)
                        printTrace pplus trace
                    ) False
-        else aux ((m2,p2):rest)
+        else aux ((m2,p2):rest) in
   aux trace
 
 maxInstrsToGenerate :: Int
@@ -524,7 +531,7 @@ maxInstrsToGenerate = 20
 newtype MP = MP (Machine_State, PIPE_State)
 
 instance Show MP where
-  show _ = ""
+  show (MP (m, p)) = show m
 
 prop :: PolicyPlus -> MP -> Property
 prop pplus (MP (m,p)) = prop_CFI pplus 0 maxInstrsToGenerate (m,p)
@@ -542,7 +549,7 @@ load_policy = do
         , initNextColor = 5
         , emptyInstTag = defaultTag
         , dataMemLow = 4
-        , dataMemHigh = 20  
+        , dataMemHigh = 40  
         , instrLow = 1000
         }
   return pplus

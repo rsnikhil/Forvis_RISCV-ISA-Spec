@@ -1,3 +1,7 @@
+* URGENT:
+
+- default tag for memory
+
 * THINGS TO TALK TO CHRIS ABOUT
 
 - Running FreeRTOS on Forvis

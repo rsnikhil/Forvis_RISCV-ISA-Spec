@@ -72,11 +72,13 @@ policy:
     ^ immArithGrp    (env == [-Jumping] -> env = env, res={})
     ^ immArithGrp (-> fail "Illegal control flow detected")
     ^ arithGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], res={})
-       // Case for normal execution
+
+// Case for normal execution
     ^ arithGrp    (env == [-Jumping] -> env = env, res={})
     ^ arithGrp (-> fail "Illegal control flow detected")
     ^ branchGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping])
-       // Case for normal execution
+
+// Case for normal execution
     ^ branchGrp    (env == [-Jumping] -> env = env)
     ^ branchGrp (-> fail "Illegal control flow detected")
     ^ jumpGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], return ={})
@@ -84,7 +86,8 @@ policy:
     ^ jumpGrp    (env == [-Jumping] -> env = env, return={})
     ^ jumpGrp (-> fail "Illegal control flow detected")
     ^ jumpRegGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], return ={})
-       // Case for normal execution
+
+// Case for normal execution
     ^ jumpRegGrp    (env == [-Jumping] -> env = env, return={})
     ^ jumpRegGrp (-> fail "Illegal control flow detected")
 
