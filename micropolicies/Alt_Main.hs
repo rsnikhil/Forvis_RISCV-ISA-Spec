@@ -20,9 +20,11 @@ import qualified TestStackSafety
 import qualified TestWriteOnce
 import Printing
 
+import TestState
+
 import Control.Monad
 
-pol = "heap"
+pol = "writeonce"
 
 main :: IO ()
 main = do

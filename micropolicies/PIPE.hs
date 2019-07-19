@@ -20,7 +20,7 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             MemT(..),
             mkMemT, unMemT, mem_readT, mem_writeT,
             PIPE_State(..),
-            ppc, pgpr, pmem, pgpr_gpr, pmem_mem,
+            ppc, pgpr, pmem, pgpr_gpr, pgpr_map, pmem_mem, pmem_map,
             p_pc, p_gprs, p_mem,
             init_pipe_state,
             MStatePair(..),
