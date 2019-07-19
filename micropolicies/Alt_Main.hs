@@ -18,16 +18,18 @@ import Test.QuickCheck
 import qualified TestHeapSafety
 import qualified TestStackSafety
 import qualified TestWriteOnce
+import qualified TestCFI
 import Printing
 
 import Control.Monad
 
-pol = "heap"
+pol = "cfi"
 
 main :: IO ()
 main = do
   case pol of
-    "heap"    -> TestHeapSafety.main 
+    "heap"    -> TestHeapSafety.main
+    "cfi"    -> TestCFI.main 
     "stack"   -> TestStackSafety.main
     "writeonce"   -> TestWriteOnce.main
     otherwise -> error $ "unknown policy '" ++ pol ++ "'"

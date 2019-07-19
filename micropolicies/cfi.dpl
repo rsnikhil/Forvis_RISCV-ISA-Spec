@@ -1,0 +1,187 @@
+/*
+ * Copyright © 2017-2018 The Charles Stark Draper Laboratory, Inc. and/or Dover Microsystems, Inc.
+ * All rights reserved. 
+ *
+ * Use and disclosure subject to the following license. 
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+module cfi:
+
+/* Very basic control flow policy.
+ * Jumps, branches and returns must land on an instruction (code = Target) with
+ * (env = Jumping) to be valid control flow transfers. Some sections of the code
+ * may be marked NoCFI to be exempt from control flow checking.
+ */
+
+
+metadata:
+  Target,
+  None,
+  Jumping,
+  NoCFI
+
+policy:
+    cfiPol =
+
+    // special case: allow return to C from asm interrupt handling
+//    mretGrp ( env == _ -> env = {} )
+
+     // Case for not checking cfi (asm code)
+//    allGrp    (code == [+NoCFI], env == _ -> env = env )
+         // cases for landing on a jump (bounce)
+    branchGrp (code == [Target], env == [Jumping] -> env = {Jumping})
+    ^ jumpGrp   (code == [Target], env == [Jumping] -> env = {Jumping}, return = {})
+        // cases for a jump to target
+    ^ branchGrp (code == [-Target], env == [-Jumping], op1 == _, op2 == _ -> env = env[Jumping])
+    ^ jumpRegGrp   (code == [-Target], env == [-Jumping], target == _ -> return = {}, env = env[Jumping])
+    ^ jumpGrp   (code == [-Target], env == [-Jumping] -> return = {}, env = env[Jumping])
+        // Case for landing on a target
+
+    ^ loadGrp    (code == [+Target], env == [+Jumping], mem == _ ->
+                  env = env[-Jumping], res={})
+       // Case for normal execution
+    ^ loadGrp    (env == [-Jumping] -> env = env, res={})
+    ^ loadGrp (-> fail "Illegal control flow detected")
+
+    ^ storeGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], mem={})
+       // Case for normal execution
+    ^ storeGrp    (env == [-Jumping] -> env = env, mem={})
+    ^ storeGrp (-> fail "Illegal control flow detected")
+
+    ^ immArithGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], res ={})
+       // Case for normal execution
+    ^ immArithGrp    (env == [-Jumping] -> env = env, res={})
+    ^ immArithGrp (-> fail "Illegal control flow detected")
+    ^ arithGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], res={})
+       // Case for normal execution
+    ^ arithGrp    (env == [-Jumping] -> env = env, res={})
+    ^ arithGrp (-> fail "Illegal control flow detected")
+    ^ branchGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping])
+       // Case for normal execution
+    ^ branchGrp    (env == [-Jumping] -> env = env)
+    ^ branchGrp (-> fail "Illegal control flow detected")
+    ^ jumpGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], return ={})
+       // Case for normal execution
+    ^ jumpGrp    (env == [-Jumping] -> env = env, return={})
+    ^ jumpGrp (-> fail "Illegal control flow detected")
+    ^ jumpRegGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], return ={})
+       // Case for normal execution
+    ^ jumpRegGrp    (env == [-Jumping] -> env = env, return={})
+    ^ jumpRegGrp (-> fail "Illegal control flow detected")
+
+
+    main = cfiPol
+
+require:
+    init test.Target {cfi.Target}
+    init test.None   {cfi.None}
+    init test.Jumping {cfi.Jumping}
+    init test.NoCFI   {cfi.NoCFI}
+
+    init ISA.RISCV.Reg.Env                   {}
+    init ISA.RISCV.Reg.Default               {}
+    init ISA.RISCV.Reg.RZero                 {}
+    init ISA.RISCV.CSR.Default               {}
+    init ISA.RISCV.CSR.MTVec                 {}
+
+    init llvm.CFI_Call-Tgt                   {Target}
+    init llvm.CFI_Branch-Tgt                 {Target}
+    init llvm.CFI_Return-Tgt                 {Target}
+    init llvm.NoCFI                          {NoCFI}
+    
+    init dover.Kernel.MemoryMap.Default       {}
+    init dover.riscv.Mach.PC                           {}
+    init dover.riscv.User.PC                           {}
+    init dover.riscv.Mach.Reg                          {}
+    init dover.riscv.User.Reg                          {}
+    init dover.riscv.Mach.RegZero                      {}
+    init dover.riscv.User.RegZero                      {}
+    init dover.Kernel.MemoryMap.UserStack     {}
+    init dover.Kernel.MemoryMap.UserHeap      {}
+    init dover.SOC.IO.UART                             {None}
+    init dover.SOC.IO.Flash                            {}
+    init dover.SOC.CSR.Default                         {}
+    init dover.SOC.CSR.MTVec                           {}
+    init dover.Kernel.Code.ElfSection.SHF_WRITE     {}
+    init dover.Kernel.Code.ElfSection.SHF_ALLOC     {}
+    init dover.Kernel.Code.ElfSection.SHF_EXECINSTR {}
+
+    init SOC.IO.UART_0                       {}
+    init SOC.Memory.Flash_0                  {}
+    init SOC.Memory.Ram_0                    {}
+
+    init SOC.IO.Debug                        {}
+    init SOC.IO.TEST                         {}
+    init SOC.IO.CLINT                        {}
+    init SOC.IO.ITIM                         {}
+    init SOC.IO.PLIC                         {}
+
+group:
+    grp loadGrp(RS1:addr, MEM:mem -> RD:res)
+        lb
+        lh
+        lw
+        lbu
+        lhu
+
+    grp storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
+        sb
+        sh
+        sw
+
+    grp immArithGrp(RS1:op1 -> RD:res)
+        addi
+        slti
+        sltiu
+        xori
+        ori
+        andi
+        slli
+        srli
+        srai
+ 
+    grp arithGrp(RS1:op1, RS2:op2 -> RD:res)
+        add
+        sub
+        sll
+        slt
+        sltu
+        xor
+        srl
+        sra
+        or 
+        and
+
+    grp branchGrp(RS1:op1, RS2:op2 -> )
+        beq
+        bne
+        blt
+        bge
+        bltu
+        bgeu
+
+    grp jumpGrp(-> RD:return)      
+        jal
+
+    grp jumpRegGrp(RS1:target -> RD:return)
+        jalr
+

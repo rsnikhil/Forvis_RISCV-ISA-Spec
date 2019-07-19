@@ -297,7 +297,9 @@ exec_pipe' pplus p pc inst maddr =
               (Right EC.ESKCode, unTagSet $ get_mtag p pc)]
       {- generate opcode name in usual form for 'group' section -- a bit hacky -}
       name = map toLower $ takeWhile (not . isSpace) $ show inst  
-      look k m = maybe (error $ "lookup failure " ++ (show k)) id (Map.lookup k m)
+      look k m = -- trace ("Calling lookup with " ++ show k ++ " in m: " ++ show m)
+                 maybe (error $ "lookup failure " ++ (show k) ++ " in " ++ show m) id
+                         (Map.lookup k m)   
       ex inp outf =          
             let (r,next') =
                   EC.runTagResult

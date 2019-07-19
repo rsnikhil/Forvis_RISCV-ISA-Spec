@@ -1,4 +1,7 @@
-all: build writeonce
+all: build cfi
+
+cfi: build
+	$(MAKE) cfimutants unmutated POLICY=cfi
 
 stack: build
 	$(MAKE) stackmutants unmutated POLICY=stack
@@ -39,6 +42,8 @@ writeoncemutants:
 	$Vmake mutant MUT=IGNORE_WRITENEVER
 
 stackmutants:
+
+cfimutants:
 
 heapmutants:
 	$Vmake mutant MUT=OMIT_CHECKS_ON_LOAD
