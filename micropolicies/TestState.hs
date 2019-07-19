@@ -83,6 +83,8 @@ mergeDiffs st1 st2 rd@((i,(d1,d2)):rs) td@((j,(l1,l2)):ts)
   | i == j = (Just (i,d2,l2)) : mergeDiffs st1 st2 rs ts
   | i <= j = ((i,d2,) <$> (st2 ^. ps . pgpr . at i)) : mergeDiffs st1 st2 rs td
   | i >= j = ((j,,l2) <$> (st2 ^. ms . fgpr . at j)) : mergeDiffs st1 st2 rd ts
+mergeDiffs st1 st2 ((i,(d1,d2)):rs) [] = ((i,d2,) <$> (st2 ^. ps . pgpr . at i)) : mergeDiffs st1 st2 rs []
+mergeDiffs st1 st2 [] ((j,(l1,l2)):ts) = ((j,,l2) <$> (st2 ^. ms . fgpr . at j)) : mergeDiffs st1 st2 [] ts
 
 -- TODO: Default Tag
 calcDiff :: PolicyPlus -> RichState -> RichState -> Diff
@@ -184,17 +186,21 @@ docMaps (d, t) diffs =
 --                                          (Map.assocs $ t ^. pmem_map)
 --  in docAssocs assocs diffs
 
-docTestStates :: TestState a -> [Diff] -> Doc
-docTestStates ts diffs =
-  P.vcat [ P.text "PC:" <+> docPCs (ts ^. mp . ms . fpc, ts ^. mp . ps . ppc)
+docRichStates :: RichState -> [Diff] -> Doc
+docRichStates st diffs =
+  P.vcat [ P.text "PC:" <+> docPCs (st ^. ms . fpc, st ^. ps . ppc)
                                    (map _d_pc diffs)
          , P.text "Registers:"
-           $$ P.nest 2 (docMaps (ts ^. mp . ms . fgpr, ts ^. mp . ps . pgpr)
+           $$ P.nest 2 (docMaps (st ^. ms . fgpr, st ^. ps . pgpr)
                                 (map _d_reg diffs))
          , P.text "Memories:"
-           $$ P.nest 2 (docMaps (ts ^. mp . ms . fmem, ts ^. mp . ps . pmem)
+           $$ P.nest 2 (docMaps (st ^.  ms . fmem, st ^.  ps . pmem)
                                 (map _d_mem diffs))
-         ] 
+         ]
+
+docTestState :: PolicyPlus -> TestState a -> Doc
+docTestState pplus ts = docRichStates (ts ^. mp) (map (\x -> calcDiff pplus (ts ^. mp) (x ^. mp_state)) (ts ^. variants))
+
 
 
 

@@ -43,9 +43,10 @@ import PIPE
 import Printing
 import Terminal
 import MachineLenses
+import TestState (docTestState, TestState(..), RichState(..), StackElem(..))
 
 -- TODO: Rename to TestState to reveal abstractions with stack
-type TestState = MStatePair
+--type TestState = MStatePair
 
 ------------------------------------------------------------------------------------
 -- Printing
@@ -870,5 +871,11 @@ main_test = do
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \m -> prop pplus m
 
-main = main_test
+main_print = do
+  pplus <- load_policy
+  M (m1,p1) (m2,p2) <- generate (genMStatePair pplus)
+  let ts = TS (Rich m1 p1) [SE (Rich m2 p2) ()]
+  putStrLn $ P.render $ docTestState pplus ts
+
+main = main_print
 

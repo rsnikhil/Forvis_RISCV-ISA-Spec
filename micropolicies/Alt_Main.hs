@@ -24,7 +24,7 @@ import TestState
 
 import Control.Monad
 
-pol = "writeonce"
+pol = "heap"
 
 main :: IO ()
 main = do
