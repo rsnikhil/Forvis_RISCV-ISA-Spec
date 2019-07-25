@@ -44,6 +44,13 @@ writeoncemutants:
 stackmutants:
 
 cfimutants:
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_LOAD
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_STORE
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_IMMARITH
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_ARITH
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_BRANCH
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_JUMP
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_JUMPREG
 
 heapmutants:
 	$Vmake mutant MUT=OMIT_CHECKS_ON_LOAD

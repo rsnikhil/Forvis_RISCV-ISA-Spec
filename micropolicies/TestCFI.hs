@@ -494,7 +494,7 @@ eval pplus count maxcount trace (m,p) =
       Left _ -> reverse trace
 
 genGraph :: Machine_State -> [(Integer, Integer)]
-genGraph ms = 
+genGraph' ms = 
   let ds = Map.assocs (ms ^. fmem)
       pairs = catMaybes $ map (\(i,c) -> case decode_I RV32 c of
                                            Just (JAL _ imm) -> Just (i, i + imm)
@@ -506,7 +506,8 @@ genGraph ms =
 --      graphSize = 42
 --  sources <- replicateM graphSize genEdge
 --  targets <- replicateM graphSize genEdge
---  return $ (0,1000) : zip sources targets
+
+genGraph ms = [(0,1000)]
 
 -- graph :: [(Int, Int)]
 prop_CFI pplus count maxcount (m,p) =

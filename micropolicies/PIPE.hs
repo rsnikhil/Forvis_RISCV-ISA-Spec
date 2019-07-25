@@ -256,8 +256,14 @@ get_rtag p a = maybe (error $ "get_rtag: " ++ show a ++  "\n" ++ show p) id $ p 
 set_mtag :: PIPE_State -> Integer -> TagSet -> PIPE_State
 set_mtag p a t = p & pmem . at a ?~ t 
 
-get_mtag :: PIPE_State -> Integer -> Instr_I -> TagSet
-get_mtag p a i = maybe (error $ "get_mtag failed: " ++ show a ++ " does not exist in " ++ show (p ^. pmem) ++ " current instr: " ++ show i) id $ p ^. pmem . at a 
+-- We may want to generalize the default case when memory layouts
+-- become more interesting...
+get_mtag :: PolicyPlus -> PIPE_State -> Integer -> Instr_I -> TagSet
+get_mtag pplus p a i =
+  maybe (if a == 0 || a >= instrLow pplus
+           then emptyInstTag pplus
+           else initMem pplus)
+        id $ p ^. pmem . at a 
 
 data MStatePair =
   M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
@@ -294,7 +300,7 @@ exec_pipe' pplus p pc inst maddr =
   let inp0 :: EC.OperandTags
       inp0 = Map.fromList [
               (Right EC.ESKEnv , unTagSet $ _ppc p),
-              (Right EC.ESKCode, unTagSet $ get_mtag p pc inst)]
+              (Right EC.ESKCode, unTagSet $ get_mtag pplus p pc inst)]
       {- generate opcode name in usual form for 'group' section -- a bit hacky -}
       name = map toLower $ takeWhile (not . isSpace) $ show inst  
       look k m = -- trace ("Calling lookup with " ++ show k ++ " in m: " ++ show m)
@@ -342,10 +348,10 @@ exec_pipe' pplus p pc inst maddr =
         ex (Map.fromList [(RS1, unTagSet $ get rs1),(RS2, unTagSet $ get rs2)])
               (\out -> set rd $ TagSet $ look (Left RD) out)
       r1md1 rs1 rd =
-        ex (Map.fromList [(RS1, unTagSet $ get rs1),(Mem, unTagSet $ get_mtag p maddr inst)])
+        ex (Map.fromList [(RS1, unTagSet $ get rs1),(Mem, unTagSet $ get_mtag pplus p maddr inst)])
            (\out -> set rd $ TagSet $ look (Left RD) out)              
       r2md0m rs1 rs2 =
-        ex (Map.fromList [(RS1, unTagSet $ get rs1),(RS2, unTagSet $ get rs2),(Mem, unTagSet $ get_mtag p maddr inst)])
+        ex (Map.fromList [(RS1, unTagSet $ get rs1),(RS2, unTagSet $ get rs2),(Mem, unTagSet $ get_mtag pplus p maddr inst)])
            (\out -> set_mtag p maddr $ TagSet $ look  (Left Mem) out)              
   in case inst of
        LUI rd _ -> r0d1 rd

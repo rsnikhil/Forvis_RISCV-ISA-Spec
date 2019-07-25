@@ -59,38 +59,66 @@ policy:
     ^ loadGrp    (code == [+Target], env == [+Jumping], mem == _ ->
                   env = env[-Jumping], res={})
        // Case for normal execution
+#ifndef CFI_BAD_JUMP_TO_LOAD
     ^ loadGrp    (env == [-Jumping] -> env = env, res={})
     ^ loadGrp (-> fail "Illegal control flow detected")
+#else
+    ^ loadGrp    (env == _ -> env = env[-Jumping], res={})
+#endif
 
     ^ storeGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], mem={})
        // Case for normal execution
+#ifndef CFI_BAD_JUMP_TO_STORE
     ^ storeGrp    (env == [-Jumping] -> env = env, mem={})
     ^ storeGrp (-> fail "Illegal control flow detected")
+#else
+    ^ storeGrp    (env == _ -> env = env[-Jumping], res={}, mem={})
+#endif
 
     ^ immArithGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], res ={})
        // Case for normal execution
+#ifndef CFI_BAD_JUMP_TO_IMMARITH
     ^ immArithGrp    (env == [-Jumping] -> env = env, res={})
     ^ immArithGrp (-> fail "Illegal control flow detected")
-    ^ arithGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], res={})
+#else
+    ^ immArithGrp    (env == _ -> env = env[-Jumping], res={})
+#endif
 
-// Case for normal execution
+    ^ arithGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], res={})
+    // Case for normal execution
+#ifndef CFI_BAD_JUMP_TO_ARITH
     ^ arithGrp    (env == [-Jumping] -> env = env, res={})
     ^ arithGrp (-> fail "Illegal control flow detected")
-    ^ branchGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping])
+#else
+    ^ arithGrp    (env == _ -> env = env[-Jumping], res={})
+#endif
 
-// Case for normal execution
+    ^ branchGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping])
+    // Case for normal execution
+#ifndef CFI_BAD_JUMP_TO_BRANCH
     ^ branchGrp    (env == [-Jumping] -> env = env)
     ^ branchGrp (-> fail "Illegal control flow detected")
+#else
+    ^ branchGrp    (env == _ -> env = env[-Jumping])
+#endif
+
     ^ jumpGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], return ={})
-       // Case for normal execution
+    // Case for normal execution
+#ifndef CFI_BAD_JUMP_TO_JUMP
     ^ jumpGrp    (env == [-Jumping] -> env = env, return={})
     ^ jumpGrp (-> fail "Illegal control flow detected")
-    ^ jumpRegGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], return ={})
+#else
+    ^ jumpGrp    (env == _ -> env = env[-Jumping], return={})
+#endif
 
-// Case for normal execution
+    ^ jumpRegGrp    (code == [+Target], env == [+Jumping] -> env = env[-Jumping], return ={})
+    // Case for normal execution
+#ifndef CFI_BAD_JUMP_TO_JUMPREG
     ^ jumpRegGrp    (env == [-Jumping] -> env = env, return={})
     ^ jumpRegGrp (-> fail "Illegal control flow detected")
-
+#else
+    ^ jumpRegGrp    (env == _ -> env = env[-Jumping], return={})
+#endif
 
     main = cfiPol
 
