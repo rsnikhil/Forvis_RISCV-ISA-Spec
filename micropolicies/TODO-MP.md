@@ -90,6 +90,13 @@
     ---- every time you generate jump, flip a coin about whether to include edge in the graph
 
 ** TAINT
+- DONE! (ish)
+  * Found a couple of real bugs (loading/storing through tainted pointers)
+  * A spurious rule? (storing a tainted value to a clean location rule never fires)
+  * Many mutants added.
+- TODO:
+  * Fix shrinking
+  * prettyRegDiff / pretty printing in general
 - Ideas
     - Property: for programs that don't branch on tainted data, we have non-interference.  Bake this into the policy?
     - Is this a better answer to traditional complaints that taint tracking doesn't provide a property?
