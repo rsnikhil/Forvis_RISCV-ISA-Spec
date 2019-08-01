@@ -60,7 +60,12 @@ heapmutants:
 
 taintmutants:
 	$Vmake mutant MUT=NO_ADDR_TAINT_CHECK_STORE
+	$Vmake mutant MUT=NO_VAL_TAINT_CHECK_STORE
+	$Vmake mutant MUT=NO_MEM_TAINT_CHECK_STORE
 	$Vmake mutant MUT=NO_ADDR_TAINT_CHECK_LOAD
+	$Vmake mutant MUT=NO_MEM_TAINT_CHECK_LOAD	
+	$Vmake mutant MUT=ADD_NO_TAINT_1
+	$Vmake mutant MUT=ADD_NO_TAINT_2
 
 # Not a bug, in the simple heap safety policy
 #	@make mutant MUT=OMIT_TAGGING_ON_STORE

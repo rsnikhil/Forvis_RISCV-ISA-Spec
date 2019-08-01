@@ -12,19 +12,40 @@ policy:
               -> fail "Tainted data written to clean memory")
 
    // Propogate taint
+#ifndef ADD_NO_TAINT_1
    ^ arithGrp(env == _, op1 == [+Taint], op2 == _ -> env = env, res = op1)
+#else
+//   ^ arithGrp(env == _, op1 == [+Taint], op2 == _ -> env = env, res = {})
+#endif
+#ifndef ADD_NO_TAINT_2
    ^ arithGrp(env == _, op1 == _, op2 == [+Taint] -> env = env, res = op2)
+#else
+//   ^ arithGrp(env == _, op1 == _, op2 == [+Taint] -> env = env, res = {})
+#endif
    ^ mulDivRemGrp(code == _, env == _, op1 == [+Taint], op2 == _ -> env = env, res = op1)
    ^ mulDivRemGrp(code == _, env == _, op1 == _, op2 == [+Taint] -> env = env, res = op2)
    ^ immArithGrp(env == _, op1 == [+Taint] -> env = env, res = op1)
+#ifndef NO_MEM_TAINT_CHECK_LOAD
    ^ loadGrp(mem == [+Taint], addr == _, env == _ -> env = env, res = mem )
+#else
+// No mem check
+#endif
 #ifndef NO_ADDR_TAINT_CHECK_LOAD
    ^ loadGrp(mem == _, addr == [+Taint], env == _ -> env = env, res = addr )
 #else
 // THIS WAS AN ACTUAL BUG! Addres check ommitted
 #endif
+#ifndef NO_VAL_TAINT_CHECK_STORE
+//NOT A BUG! We never write tainted data to clean memory because of the first rule
    ^ storeGrp(mem == _, addr == _, val == [+Taint], env == _ -> env = env, mem = val)
+#else
+// NO CHECK
+#endif
+#ifndef NO_MEM_TAINT_CHECK_STORE
    ^ storeGrp(mem == [+Taint], addr == _, val == _, env == _ -> env = env, mem = mem )
+#else
+// NO CHECK
+#endif
 #ifndef NO_ADDR_TAINT_CHECK_STORE
    ^ storeGrp(mem == _, addr == [+Taint], val == _, env == _ ->
      fail "Can't write through a tainted pointer")
