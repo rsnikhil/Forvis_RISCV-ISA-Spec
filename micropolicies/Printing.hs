@@ -88,6 +88,10 @@ pr_instr_I_type :: String -> InstrField -> InstrField -> InstrField -> Doc
 pr_instr_I_type label rd rs imm =
   P.text label <+> pr_register rd <+> pr_register rs <+> P.integer imm
 
+pr_instr_B_type :: String -> InstrField -> InstrField -> InstrField -> Doc
+pr_instr_B_type label rd rs imm =
+  P.text label <+> pr_register rd <+> pr_register rs <+> P.integer imm
+
 pr_instr_R_type :: String -> InstrField -> InstrField -> InstrField -> Doc
 pr_instr_R_type label rd rs1 rs2  =
   P.text label <+> pr_register rd <+> pr_register rs1 <+> pr_register rs2
@@ -103,6 +107,7 @@ instance PP Instr_I where
   pp _ (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
   pp _ (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
   pp _ (JAL rs imm) = pr_instr_J_type "JAL" rs imm
+  pp _ (BLT rs1 rs2 imm) = pr_instr_B_type "BLT" rs1 rs2 imm  
   pp _ i = error $ show i
 
 pr_imem :: Mem -> PolicyPlus -> Doc

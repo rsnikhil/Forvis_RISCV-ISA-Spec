@@ -186,6 +186,11 @@ instance CoupledPP (Maybe Instr_I) (Maybe Instr_I) where
     | i1 == i2  = pp pplus i1
     | otherwise = ppStrong (pp pplus i1 <||> pp pplus i2)
   pretty _ Nothing Nothing = P.text "<Bad instr>"
+  pretty pplus (Just i) Nothing =
+    ppStrong (pp pplus i <||> P.char '-')
+  pretty pplus Nothing (Just i) =
+    ppStrong (pp pplus i <||> P.char '-')
+  
 
 instance CoupledPP Diff Diff where
   pretty pplus d1 d2 =
@@ -297,6 +302,14 @@ genInstr pplus ms ps =
                   rd <- genTargetReg ms
                   let tag = emptyInstTag pplus
                   return (ADD rd rs1 rs2, tag))
+            , (onNonEmpty arithRegs 1,
+               do -- BLT
+                  rs1 <- elements arithRegs
+                  rs2 <- elements arithRegs
+                  imm <- (8+) <$> genImm 12 --TODO: More principled relative jumps
+                  -- BLT does multiples of 2
+                  let tag = emptyInstTag pplus
+                  return (BLT rs1 rs2 imm, tag))
             ]
 
 
