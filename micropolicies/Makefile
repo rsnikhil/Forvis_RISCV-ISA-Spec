@@ -1,4 +1,7 @@
-all: build cfi
+all: build taint
+
+taint: build
+	$(MAKE) taintmutants unmutated POLICY=taint
 
 cfi: build
 	$(MAKE) cfimutants unmutated POLICY=cfi
@@ -54,6 +57,10 @@ cfimutants:
 
 heapmutants:
 	$Vmake mutant MUT=OMIT_CHECKS_ON_LOAD
+
+taintmutants:
+	$Vmake mutant MUT=NO_ADDR_TAINT_CHECK_STORE
+	$Vmake mutant MUT=NO_ADDR_TAINT_CHECK_LOAD
 
 # Not a bug, in the simple heap safety policy
 #	@make mutant MUT=OMIT_TAGGING_ON_STORE

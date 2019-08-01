@@ -19,15 +19,17 @@ import qualified TestHeapSafety
 import qualified TestStackSafety
 import qualified TestWriteOnce
 import qualified TestCFI
+import qualified TestTaint
 import Printing
 
 import Control.Monad
 
-pol = "cfi"
+pol = "taint"
 
 main :: IO ()
 main = do
   case pol of
+    "taint"   -> TestTaint.main
     "heap"    -> TestHeapSafety.main
     "cfi"    -> TestCFI.main 
     "stack"   -> TestStackSafety.main
