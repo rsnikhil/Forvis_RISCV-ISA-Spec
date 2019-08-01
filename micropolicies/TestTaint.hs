@@ -662,13 +662,15 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
        $ property True
   else
     case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
-      (Right (m1r,p1r), Right (m2r, p2r)) ->
-        (whenFail (do putStrLn $ "Reachable parts differ after execution!"
-                      let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
-                      uncurry (printTrace pplus) (unzip finalTrace)) $
-           property $ sameUntaintedPart (M (m1r,p1r) (m2r, p2r)))
-        .&&. 
-        prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
+      (Right (m1r,p1r), Right (m2r, p2r))
+        | f_pc m1r == f_pc m2r ->
+           (whenFail (do putStrLn $ "Reachable parts differ after execution!"
+                         let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
+                         uncurry (printTrace pplus) (unzip finalTrace)) $
+              property $ sameUntaintedPart (M (m1r,p1r) (m2r, p2r)))
+           .&&. 
+           prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
+        | otherwise -> label ("Control flow out of sync") $ property True
       (Left s1, Left s2) ->
          label ("Pipe trap " ++ s1 ++ " / " ++ s2) $ property True
       (Left s1, _) ->
