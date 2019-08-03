@@ -1,5 +1,11 @@
 * NEXT STEPS
 
+- printing:
+  + space in registers
+  + address printed twice in diff
+  + remove prefix from tags
+  + print affected registers before each instruction
+  
 - try the taint policy (either)
 - finish the stack policy (both)
 - finish generalization (Leo)
