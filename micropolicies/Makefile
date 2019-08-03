@@ -1,4 +1,10 @@
-all: build writeonce
+all: build taint
+
+taint: build
+	$(MAKE) taintmutants unmutated POLICY=taint
+
+cfi: build
+	$(MAKE) cfimutants unmutated POLICY=cfi
 
 stack: build
 	$(MAKE) stackmutants unmutated POLICY=stack
@@ -40,8 +46,27 @@ writeoncemutants:
 
 stackmutants:
 
+cfimutants:
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_LOAD
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_STORE
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_IMMARITH
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_ARITH
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_BRANCH
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_JUMP
+	$Vmake mutant MUT=CFI_BAD_JUMP_TO_JUMPREG
+
 heapmutants:
 	$Vmake mutant MUT=OMIT_CHECKS_ON_LOAD
+
+taintmutants:
+	$Vmake mutant MUT=NO_ADDR_TAINT_CHECK_STORE
+	$Vmake mutant MUT=NO_VAL_TAINT_CHECK_STORE
+	$Vmake mutant MUT=NO_MEM_TAINT_CHECK_STORE
+	$Vmake mutant MUT=NO_ADDR_TAINT_CHECK_LOAD
+	$Vmake mutant MUT=NO_MEM_TAINT_CHECK_LOAD	
+	$Vmake mutant MUT=ADD_NO_TAINT_1
+	$Vmake mutant MUT=ADD_NO_TAINT_2
+
 # Not a bug, in the simple heap safety policy
 #	@make mutant MUT=OMIT_TAGGING_ON_STORE
 

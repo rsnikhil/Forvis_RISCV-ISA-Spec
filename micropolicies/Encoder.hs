@@ -26,6 +26,7 @@ encode_I rv (LW rd rs1 imm12)   = mkInstr_I_type imm12 rs1 funct3_LW rd opcode_L
 encode_I rv (SW rs1 rs2 imm12)  = mkInstr_S_type imm12 rs2 rs1 funct3_SW opcode_STORE
 encode_I rv (ADD rd rs1 rs2)    = mkInstr_R_type funct7_ADD rs2 rs1 funct3_ADD rd opcode_OP
 encode_I rv (JAL rd imm21)      = mkInstr_J_type imm21 rd opcode_JAL
+encode_I rv (BLT rs1 rs2 imm13) = mkInstr_B_type imm13 rs1 funct3_BLT rs2 opcode_BRANCH
 
 mkInstr_J_type :: InstrField -> InstrField -> InstrField -> Instr_32b
 mkInstr_J_type    imm21         rd            opcode =
@@ -73,6 +74,23 @@ mkInstr_I_type    imm12         rs1           funct3        rd            opcode
               .|. opcode)
   in
     -- assert  legal  instr
+    instr
+
+-- branch?
+mkInstr_B_type :: InstrField -> InstrField -> InstrField ->  InstrField -> InstrField -> Instr_32b
+mkInstr_B_type    imm13         rs1           funct3        rs2            opcode =
+  let
+    legal = True -- TODO
+    imm12 = imm13 --`div` 2
+    instr  = ((    shiftL  (bitSlice imm12 12 12) 31)
+              .|. (shiftL  (bitSlice imm12 10  5) 25)
+              .|. (shiftL  (bitSlice imm12  4  1)  8)
+              .|. (shiftL  (bitSlice imm12 11 11)  7)                           
+              .|. (shiftL  rs1     15)
+              .|. (shiftL  funct3  12)
+              .|. (shiftL  rs2     20)
+              .|. opcode)
+  in
     instr
 
 mkInstr_R_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr_32b

@@ -1,0 +1,756 @@
+module taint:
+
+metadata:
+  Taint, // is data tainted
+  Clean  // can tainted data be written here?
+
+policy:
+  main =
+
+   // explicit failure for write tainted val to clean addr
+   storeGrp(   mem == [+Clean], addr == _, val == [+Taint], env == _
+              -> fail "Tainted data written to clean memory")
+
+   // Propogate taint
+#ifndef ADD_NO_TAINT_1
+   ^ arithGrp(env == _, op1 == [+Taint], op2 == _ -> env = env, res = op1)
+#else
+//   ^ arithGrp(env == _, op1 == [+Taint], op2 == _ -> env = env, res = {})
+#endif
+#ifndef ADD_NO_TAINT_2
+   ^ arithGrp(env == _, op1 == _, op2 == [+Taint] -> env = env, res = op2)
+#else
+//   ^ arithGrp(env == _, op1 == _, op2 == [+Taint] -> env = env, res = {})
+#endif
+   ^ mulDivRemGrp(code == _, env == _, op1 == [+Taint], op2 == _ -> env = env, res = op1)
+   ^ mulDivRemGrp(code == _, env == _, op1 == _, op2 == [+Taint] -> env = env, res = op2)
+   ^ immArithGrp(env == _, op1 == [+Taint] -> env = env, res = op1)
+#ifndef NO_MEM_TAINT_CHECK_LOAD
+   ^ loadGrp(mem == [+Taint], addr == _, env == _ -> env = env, res = mem )
+#else
+// No mem check
+#endif
+#ifndef NO_ADDR_TAINT_CHECK_LOAD
+   ^ loadGrp(mem == _, addr == [+Taint], env == _ -> env = env, res = addr )
+#else
+// THIS WAS AN ACTUAL BUG! Addres check ommitted
+#endif
+#ifndef NO_VAL_TAINT_CHECK_STORE
+//NOT A BUG! We never write tainted data to clean memory because of the first rule
+   ^ storeGrp(mem == _, addr == _, val == [+Taint], env == _ -> env = env, mem = val)
+#else
+// NO CHECK
+#endif
+#ifndef NO_MEM_TAINT_CHECK_STORE
+   ^ storeGrp(mem == [+Taint], addr == _, val == _, env == _ -> env = env, mem = mem )
+#else
+// NO CHECK
+#endif
+#ifndef NO_ADDR_TAINT_CHECK_STORE
+   ^ storeGrp(mem == _, addr == [+Taint], val == _, env == _ ->
+     fail "Can't write through a tainted pointer")
+#else
+// Could also taint mem with addr. Also an actual bug (but one that I made).
+// THIS WAS AN ACTUAL BUG! Addres check ommitted
+#endif
+   // keep clean mem stays clean always
+   ^ storeGrp(   mem == [+Clean], addr == _, val == _, env == _ -> env = env, mem = mem)
+
+
+   // default: allow other operations
+   ^ branchGrp(code == _, env == _, op1 == _, op2 == _ -> env = env )
+   ^ jumpRegGrp(code == _, env == _, target == _ -> env = env , return = {})
+   ^ jumpGrp(code == _, env == _ -> return = {})
+   ^ loadUpperGrp(code == _, env == _ -> env = env, dest = {})
+   ^ immArithGrp(code == _, env == _, op1 == _ -> env = env, res = {})
+   ^ arithGrp(code == _, env == _, op1 == _, op2 == _ -> env = env, res = {})
+   ^ loadGrp(code == _, env == _, addr == _, mem == _ -> env = env, res = {})
+   ^ storeGrp(code == _, env == _, addr == _, val == _, mem == _ -> env = env, mem = {})
+   ^ mulDivRemGrp(code == _, env == _, op1 == _, op2 == _ -> env = env, res = {})
+   ^ csrGrp(code == _, env == _, op1 == _, csr == _ -> env = env, csr = {}, res = {})
+   ^ csriGrp(code == _, env == _, csr == _ -> env = env, csr = {}, res = {})
+   ^ privGrp(code == _, env == _ -> env = env)
+   ^ systemGrp(code == _, env == _ -> env = env)
+   ^ floatGrp(code == _, env == _ -> env = env)
+   ^ atomicGrp(code == _, env == _ -> env = env)
+
+require:
+    init ISA.RISCV.Reg.Env                   {}
+    init ISA.RISCV.Reg.Default               {}
+    init ISA.RISCV.Reg.RZero                 {}
+    init ISA.RISCV.CSR.Default               {}
+    init ISA.RISCV.CSR.MTVec                 {}
+
+    init Tools.Link.MemoryMap.Default        {}
+    init Tools.Link.MemoryMap.UserHeap       {}
+    init Tools.Link.MemoryMap.UserStack      {}
+
+    init SOC.IO.UART_0                       {Clean}
+    init SOC.Memory.Flash_0                  {}
+    init SOC.Memory.Ram_0                    {}
+
+    init SOC.IO.Debug                        {}
+    init SOC.IO.TEST                         {}
+    init SOC.IO.CLINT                        {}
+    init SOC.IO.ITIM                         {}
+    init SOC.IO.PLIC                         {}
+
+    init poc.var.taint                       {Taint}
+
+
+group:
+    grp branchGrp(RS1:op1, RS2:op2 -> )
+        beq
+        bne
+        blt
+        bge
+        bltu
+        bgeu
+    grp retGrp(RS1:target -> )
+        jalr    x0, *
+    grp jumpRegGrp(RS1:target -> RD:return)
+        jalr
+    grp jumpGrp( -> RD:return)
+        jal
+    grp callGrp( -> RD:return)
+        jal
+        jalr
+
+    grp controlFlowGrp( -> )
+        beq
+        bne
+        blt
+        bge
+        bltu
+        bgeu
+        jal
+        jalr
+
+    grp pcGrp(-> RD:dest)
+        auipc
+
+    grp addiGrp( -> RD:dest)
+        addi
+
+    grp loadUpperGrp(-> RD:dest)
+        lui
+        auipc
+/*
+    moveGrp(RS1:src -> RD:dest)
+        addi    *, *, 0x0
+*/
+    grp moveGrp(RS1:src -> RD:dest)
+        fmv.w.x
+        fmv.d.x
+        fmv.q.x    
+        fmv.x.w
+        fmv.x.d
+        fmv.x.q
+
+    grp xoriGrp(RS1:op1 -> RD:res)
+        xori
+
+    grp andiGrp(RS1:op1 -> RD:res)
+        andi
+        
+    grp immArithGrp(RS1:op1 -> RD:res)
+        addi
+        slli
+        slti
+        sltiu
+        xori
+        srli
+        srai
+        ori
+        andi
+        addiw
+        slliw
+        srliw
+        sraiw
+
+    grp xorGrp(RS1:op1, RS2:op2 -> RD:res)
+        xor
+
+    grp arithGrp(RS1:op1, RS2:op2 -> RD:res)
+        add
+        sub
+        sll
+        slt
+        sltu
+        xor
+        srl
+        sra
+        or 
+        and
+        addw
+        subw
+        sllw
+        srlw
+        sraw
+        fadd.d
+        fsub.d
+        fadd.s
+        fsub.s
+        fadd.q
+        fsub.q
+        amoadd.w
+        amoxor.w
+        amoor.w
+        amoand.w
+
+
+    grp loadGrp(RS1:addr, MEM:mem -> RD:res)
+        lb
+        lh
+        lw
+        ld
+        lbu
+        lhu
+        lwu
+        flw
+        fld
+        flq
+        lr.w
+        
+    grp storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
+        sb
+        sh
+        sw
+        sd
+        fsw
+        fsd
+        fsq
+        sc.w
+
+/*        
+    stackMoveGrp(RS2:src -> MEM:res)
+        sw
+        lw
+ */
+    grp mulDivRemGrp(RS1:op1, RS2:op2 -> RD:res)
+        mul
+        mulh
+        mulhsu
+        mulhu
+        div
+        divu
+        rem
+        remu
+        fmul.s
+        fdiv.s
+        fmul.d
+        fdiv.d
+        fmul.q
+        fdiv.q
+
+    grp csrGrp(RS1:op1, CSR:csr -> CSR:csr, RD:res)
+        csrrw
+        csrrs
+        csrrc
+        
+    grp csriGrp(CSR:csr -> CSR:csr, RD:res)
+        csrrwi
+        csrrsi
+        csrrci
+
+    grp mretGrp ( -> )
+        mret
+
+    grp privGrp( -> )
+        ecall
+        ebreak
+        uret
+        sret
+        mret
+        sfence.vma
+        wfi
+
+    grp systemGrp( -> )
+        fence
+        fence.i
+
+
+    grp floatGrp( -> )
+        flw
+        fld
+        flq
+        fsw
+        fsd
+        fsq
+        fmadd.s
+        fmsub.s
+        fnmsub.s
+        fnmadd.s
+        fmadd.d
+        fmsub.d
+        fnmsub.d
+        fnmadd.d
+        fmadd.q
+        fmsub.q
+        fnmsub.q
+        fnmadd.q
+        fadd.s
+        fsub.s
+        fmul.s
+        fdiv.s
+        fadd.d
+        fsub.d
+        fmul.d
+        fdiv.d
+        fadd.q
+        fsub.q
+        fmul.q
+        fdiv.q
+        fsgnj.s
+        fsgnjn.s
+        fsgnjx.s
+        fmin.s
+        fmax.s
+        fsgnj.d
+        fsgnjn.d
+        fsgnjx.d
+        fmin.d
+        fmax.d
+        fsgnj.q
+        fsgnjn.q
+        fsgnjx.q
+        fmin.q
+        fmax.q
+        fle.s
+        flt.s
+        feq.s
+        fle.d
+        flt.d
+        feq.d
+        fle.q
+        flt.q
+        feq.q
+        fsqrt.s
+        fcvt.s.d
+        fcvt.d.s
+        fsqrt.d
+        fcvt.s.q
+        fcvt.q.s
+        fcvt.d.q
+        fcvt.q.d
+        fsqrt.q
+        fcvt.w.s
+        fcvt.wu.s
+        fcvt.l.s
+        fcvt.lu.s
+        fcvt.w.d
+        fcvt.wu.d
+        fcvt.l.d
+        fcvt.lu.d
+        fcvt.w.q
+        fcvt.wu.q
+        fcvt.l.q
+        fcvt.lu.q
+        fcvt.s.w
+        fcvt.s.wu
+        fcvt.s.l
+        fcvt.s.lu
+        fcvt.d.w
+        fcvt.d.wu
+        fcvt.d.l
+        fcvt.d.lu
+        fcvt.q.w
+        fcvt.q.wu
+        fcvt.q.l
+        fcvt.q.lu
+        fmv.x.w
+        fclass.s
+        fmv.x.d
+        fclass.d
+        fmv.x.q
+        fclass.q
+        fmv.w.x
+        fmv.d.x
+        fmv.q.x    
+
+    grp atomicGrp( -> ) 
+        lr.w
+        sc.w
+        amoadd.w
+        amoxor.w
+        amoor.w
+        amoand.w
+        amomin.w
+        amomax.w
+        amominu.w
+        amomaxu.w
+        amoswap.w
+
+    grp allGrp( -> )
+    // branchGrp(RS1:op1, RS2:op2 -> )
+        beq
+        bne
+        blt
+        bge
+        bltu
+        bgeu
+    // jumpGrp(RS1:target -> RD:return)
+        jalr
+        jal
+    // loadUpperGrp(-> RD:dest)
+        lui
+        auipc
+    // immArithGrp(RS1:op1 -> RD:res)
+        addi
+        slli
+        slti
+        sltiu
+        xori
+        srli
+        srai
+        ori
+        andi
+        addiw
+        slliw
+        srliw
+        sraiw
+    // arithGrp(RS1:op1, RS2:op2 -> RD:res)
+        add
+        sub
+        sll
+        slt
+        sltu
+        xor
+        srl
+        sra
+        or 
+        and
+        addw
+        subw
+        sllw
+        srlw
+        sraw
+    // loadGrp(RS1:addr, MEM:mem -> RD:res)
+        lb
+        lh
+        lw
+        ld
+        lbu
+        lhu
+        lwu
+    // storeGrp(RS1:addr, RS2:val, MEM:mem -> MEM:mem)
+        sb
+        sh
+        sw
+        sd
+    // stackMoveGrp(RS2:src -> MEM:res)
+        sw
+        lw
+    // mulDivRemGrp(RS1:op1, RS2:op2 -> RD:res)
+        mul
+        mulh
+        mulhsu
+        mulhu
+        div
+        divu
+        rem
+        remu
+
+    // csrGrp(RS1:op1, CSR:csr -> CSR:csr, RD:res)
+        csrrw
+        csrrs
+        csrrc
+    // csriGrp(IMM:op1, CSR:csr -> CSR:csr, RD:res)
+        csrrwi
+        csrrsi
+        csrrci
+    // privGrp(op1, op2, res)
+        ecall
+        ebreak
+        uret
+        sret
+        mret
+        sfence.vma
+        wfi
+    // systemGrp()
+        fence
+        fence.i
+    // floatGrp( -> )
+        flw
+        fld
+        flq
+        fsw
+        fsd
+        fsq
+        fmadd.s
+        fmsub.s
+        fnmsub.s
+        fnmadd.s
+        fmadd.d
+        fmsub.d
+        fnmsub.d
+        fnmadd.d
+        fmadd.q
+        fmsub.q
+        fnmsub.q
+        fnmadd.q
+        fadd.s
+        fsub.s
+        fmul.s
+        fdiv.s
+        fadd.d
+        fsub.d
+        fmul.d
+        fdiv.d
+        fadd.q
+        fsub.q
+        fmul.q
+        fdiv.q
+        fsgnj.s
+        fsgnjn.s
+        fsgnjx.s
+        fmin.s
+        fmax.s
+        fsgnj.d
+        fsgnjn.d
+        fsgnjx.d
+        fmin.d
+        fmax.d
+        fsgnj.q
+        fsgnjn.q
+        fsgnjx.q
+        fmin.q
+        fmax.q
+        fle.s
+        flt.s
+        feq.s
+        fle.d
+        flt.d
+        feq.d
+        fle.q
+        flt.q
+        feq.q
+        fsqrt.s
+        fcvt.s.d
+        fcvt.d.s
+        fsqrt.d
+        fcvt.s.q
+        fcvt.q.s
+        fcvt.d.q
+        fcvt.q.d
+        fsqrt.q
+        fcvt.w.s
+        fcvt.wu.s
+        fcvt.l.s
+        fcvt.lu.s
+        fcvt.w.d
+        fcvt.wu.d
+        fcvt.l.d
+        fcvt.lu.d
+        fcvt.w.q
+        fcvt.wu.q
+        fcvt.l.q
+        fcvt.lu.q
+        fcvt.s.w
+        fcvt.s.wu
+        fcvt.s.l
+        fcvt.s.lu
+        fcvt.d.w
+        fcvt.d.wu
+        fcvt.d.l
+        fcvt.d.lu
+        fcvt.q.w
+        fcvt.q.wu
+        fcvt.q.l
+        fcvt.q.lu
+        fmv.x.w
+        fclass.s
+        fmv.x.d
+        fclass.d
+        fmv.x.q
+        fclass.q
+        fmv.w.x
+        fmv.d.x
+        fmv.q.x
+
+
+    grp notMemGrp( -> )
+    // branchGrp(RS1:op1, RS2:op2 -> )
+        beq
+        bne
+        blt
+        bge
+        bltu
+        bgeu
+    // jumpGrp(RS1:target -> RD:return)
+        jalr
+        jal
+    // loadUpperGrp(-> RD:dest)
+        lui
+        auipc
+    // immArithGrp(RS1:op1 -> RD:res)
+        addi
+        slli
+        slti
+        sltiu
+        xori
+        srli
+        srai
+        ori
+        andi
+        addiw
+        slliw
+        srliw
+        sraiw
+    // arithGrp(RS1:op1, RS2:op2 -> RD:res)
+        add
+        sub
+        sll
+        slt
+        sltu
+        xor
+        srl
+        sra
+        or 
+        and
+        addw
+        subw
+        sllw
+        srlw
+        sraw
+    // stackMoveGrp(RS2:src -> MEM:res)
+        sw
+        lw
+    // mulDivRemGrp(RS1:op1, RS2:op2 -> RD:res)
+        mul
+        mulh
+        mulhsu
+        mulhu
+        div
+        divu
+        rem
+        remu
+
+    // csrGrp(RS1:op1, CSR:csr -> CSR:csr, RD:res)
+        csrrw
+        csrrs
+        csrrc
+    // csriGrp(IMM:op1, CSR:csr -> CSR:csr, RD:res)
+        csrrwi
+        csrrsi
+        csrrci
+    // privGrp(op1, op2, res)
+        ecall
+        ebreak
+        uret
+        sret
+        mret
+        sfence.vma
+        wfi
+    // systemGrp()
+        fence
+        fence.i
+//floatGrp( -> )
+        flw
+        fld
+        flq
+        fsw
+        fsd
+        fsq
+        fmadd.s
+        fmsub.s
+        fnmsub.s
+        fnmadd.s
+        fmadd.d
+        fmsub.d
+        fnmsub.d
+        fnmadd.d
+        fmadd.q
+        fmsub.q
+        fnmsub.q
+        fnmadd.q
+        fadd.s
+        fsub.s
+        fmul.s
+        fdiv.s
+        fadd.d
+        fsub.d
+        fmul.d
+        fdiv.d
+        fadd.q
+        fsub.q
+        fmul.q
+        fdiv.q
+        fsgnj.s
+        fsgnjn.s
+        fsgnjx.s
+        fmin.s
+        fmax.s
+        fsgnj.d
+        fsgnjn.d
+        fsgnjx.d
+        fmin.d
+        fmax.d
+        fsgnj.q
+        fsgnjn.q
+        fsgnjx.q
+        fmin.q
+        fmax.q
+        fle.s
+        flt.s
+        feq.s
+        fle.d
+        flt.d
+        feq.d
+        fle.q
+        flt.q
+        feq.q
+        fsqrt.s
+        fcvt.s.d
+        fcvt.d.s
+        fsqrt.d
+        fcvt.s.q
+        fcvt.q.s
+        fcvt.d.q
+        fcvt.q.d
+        fsqrt.q
+        fcvt.w.s
+        fcvt.wu.s
+        fcvt.l.s
+        fcvt.lu.s
+        fcvt.w.d
+        fcvt.wu.d
+        fcvt.l.d
+        fcvt.lu.d
+        fcvt.w.q
+        fcvt.wu.q
+        fcvt.l.q
+        fcvt.lu.q
+        fcvt.s.w
+        fcvt.s.wu
+        fcvt.s.l
+        fcvt.s.lu
+        fcvt.d.w
+        fcvt.d.wu
+        fcvt.d.l
+        fcvt.d.lu
+        fcvt.q.w
+        fcvt.q.wu
+        fcvt.q.l
+        fcvt.q.lu
+        fmv.x.w
+        fclass.s
+        fmv.x.d
+        fclass.d
+        fmv.x.q
+        fclass.q
+        fmv.w.x
+        fmv.d.x
+        fmv.q.x    
+//atomicGrp( -> ) 
+        lr.w
+        sc.w
+        amoadd.w
+        amoxor.w
+        amoor.w
+        amoand.w
+        amomin.w
+        amomax.w
+        amominu.w
+        amomaxu.w
+        amoswap.w

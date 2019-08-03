@@ -87,7 +87,7 @@ data PolicyPlus =
 -- , genMStatePair :: PolicyPlus -> Gen testState
   , initGPR :: TagSet 
   , initMem :: TagSet 
-  , initPC :: TagSet 
+  , initPC  :: TagSet 
   , initNextColor :: Color
   , emptyInstTag :: TagSet
       -- (The next three are arguably policy-local things and should be removed from here)
@@ -256,8 +256,14 @@ get_rtag p a = maybe (error $ "get_rtag: " ++ show a ++  "\n" ++ show p) id $ p 
 set_mtag :: PIPE_State -> Integer -> TagSet -> PIPE_State
 set_mtag p a t = p & pmem . at a ?~ t 
 
-get_mtag :: PIPE_State -> Integer -> TagSet
-get_mtag p a = maybe (error "get_mtag") id $ p ^. pmem . at a 
+-- We may want to generalize the default case when memory layouts
+-- become more interesting...
+get_mtag :: PolicyPlus -> PIPE_State -> Integer -> Instr_I -> TagSet
+get_mtag pplus p a i =
+  maybe (if a == 0 || a >= instrLow pplus
+           then emptyInstTag pplus
+           else initMem pplus)
+        id $ p ^. pmem . at a 
 
 data MStatePair =
   M (Machine_State, PIPE_State) (Machine_State, PIPE_State)
@@ -294,10 +300,12 @@ exec_pipe' pplus p pc inst maddr =
   let inp0 :: EC.OperandTags
       inp0 = Map.fromList [
               (Right EC.ESKEnv , unTagSet $ _ppc p),
-              (Right EC.ESKCode, unTagSet $ get_mtag p pc)]
+              (Right EC.ESKCode, unTagSet $ get_mtag pplus p pc inst)]
       {- generate opcode name in usual form for 'group' section -- a bit hacky -}
       name = map toLower $ takeWhile (not . isSpace) $ show inst  
-      look k m = maybe (error $ "lookup failure " ++ (show k)) id (Map.lookup k m)
+      look k m = -- trace ("Calling lookup with " ++ show k ++ " in m: " ++ show m)
+                 maybe (error $ "lookup failure " ++ (show k) ++ " in " ++ show m) id
+                         (Map.lookup k m)   
       ex inp outf =          
             let (r,next') =
                   EC.runTagResult
@@ -340,10 +348,10 @@ exec_pipe' pplus p pc inst maddr =
         ex (Map.fromList [(RS1, unTagSet $ get rs1),(RS2, unTagSet $ get rs2)])
               (\out -> set rd $ TagSet $ look (Left RD) out)
       r1md1 rs1 rd =
-        ex (Map.fromList [(RS1, unTagSet $ get rs1),(Mem, unTagSet $ get_mtag p maddr)])
+        ex (Map.fromList [(RS1, unTagSet $ get rs1),(Mem, unTagSet $ get_mtag pplus p maddr inst)])
            (\out -> set rd $ TagSet $ look (Left RD) out)              
       r2md0m rs1 rs2 =
-        ex (Map.fromList [(RS1, unTagSet $ get rs1),(RS2, unTagSet $ get rs2),(Mem, unTagSet $ get_mtag p maddr)])
+        ex (Map.fromList [(RS1, unTagSet $ get rs1),(RS2, unTagSet $ get rs2),(Mem, unTagSet $ get_mtag pplus p maddr inst)])
            (\out -> set_mtag p maddr $ TagSet $ look  (Left Mem) out)              
   in case inst of
        LUI rd _ -> r0d1 rd
