@@ -4,12 +4,16 @@ module TestState where
 import Data.Functor
 import Control.Monad
 
-import Control.Lens
+import Control.Lens hiding (elements)
 import Control.Lens.Fold
 
 import qualified Data.Map as Map
 import Data.Map(Map)
+import qualified Data.Set as Set
+import Data.Set(Set)
 import Data.Maybe
+
+import Test.QuickCheck
 
 import Text.PrettyPrint (Doc, (<+>), ($$), fcat)
 import qualified Text.PrettyPrint as P
@@ -25,6 +29,9 @@ import Memory
 
 import MachineLenses
 import PIPE
+import Run_Program_PIPE
+import Encoder
+import Gen (initMachine) -- Move?
 
 -- | Basic Definition and Lenses
 --------------------------------
@@ -268,30 +275,31 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) dataP codeP =
         | reg_content >= dataMemLow pplus &&
           reg_content <= dataMemHigh pplus
           && dataP reg_tag =
-           Just (reg_id, reg_content, 0, dataMemHigh pplus - reg_content, reg_tag)
-        | reg_content == 0 && isJust (pointerColorOf reg_tag) =
+           Just $ DPI reg_id reg_content 0 (dataMemHigh pplus - reg_content) reg_tag
+        | reg_content == 0 && dataP reg_tag =
         -- We can allow a 0 register by adding at least 4
-           Just (reg_id, 0, dataMemLow pplus, dataMemHigh pplus, reg_tag)
+           Just $ DPI reg_id 0 (dataMemLow pplus) (dataMemHigh pplus) reg_tag
         | otherwise =
            Nothing
         
       validJump ((reg_id,reg_content),(_, reg_tag))
         | reg_content < instrLow pplus && codeP reg_tag =
-          Just (reg_id, instrLow pplus - reg_content)
+          Just $ CPI reg_id (instrLow pplus - reg_content)
         | otherwise =
           Nothing
 
       dataRegs    = map (fromJust) $ filter (isJust) $ map validData rts
       controlRegs = map (fromJust) $ filter (isJust) $ map validJump rts
-      arithRegs   = map fst regs
+      arithRegs   = map (AI . fst) regs
   in RegInfo dataRegs controlRegs arithRegs
 
 -- TODO: This might need to be further generalized in the future
 genInstr :: PolicyPlus -> Machine_State -> PIPE_State ->
-            (Instr_I -> TagSet) -> Gen (Instr_I, TagSet)
-genInstr pplus ms ps genInstrTag =
+            (TagSet -> Bool) -> (TagSet -> Bool) ->
+            (Instr_I -> Gen TagSet) -> Gen (Instr_I, TagSet)
+genInstr pplus ms ps dataP codeP genInstrTag =
   let RegInfo dataInfo ctrlInfo arithInfo =
-        groupRegisters pplus (f_gprs ms) (p_gprs ps)
+        groupRegisters pplus (f_gprs ms) (p_gprs ps) dataP codeP
 
       onNonEmpty [] _= 0
       onNonEmpty _ n = n
@@ -308,7 +316,7 @@ genInstr pplus ms ps genInstrTag =
               )
             , (onNonEmpty dataInfo 3,
                do -- LOAD
-                  DI rs content min_imm max_imm tag <- elements dataInfo
+                  DPI rs content min_imm max_imm tag <- elements dataInfo
                   rd <- genTargetReg ms
                   imm <- (min_imm+) <$> genImm (max_imm - min_imm)
                   -- TODO: Think about generalizing this reachability thingy.
@@ -328,7 +336,7 @@ genInstr pplus ms ps genInstrTag =
               )
             , (onNonEmpty dataInfo 3 * onNonEmpty arithInfo 1,
                do -- STORE
-                  DI rd content min_imm max_imm tag <- elements dataRegs
+                  DPI rd content min_imm max_imm tag <- elements dataInfo
                   rs <- genTargetReg ms
                   imm <- (min_imm+) <$> genImm (max_imm - min_imm)
                   let instr = SW rd rs imm
@@ -337,17 +345,17 @@ genInstr pplus ms ps genInstrTag =
               )
             , (onNonEmpty arithInfo 1,
                do -- ADD
-                  AI rs1 <- elements arithRegs
-                  AI rs2 <- elements arithRegs
+                  AI rs1 <- elements arithInfo
+                  AI rs2 <- elements arithInfo
                   rd <- genTargetReg ms
                   let instr = ADD rd rs1 rs2 
                   tag <- genInstrTag instr
                   return (instr, tag)
               )
-            , (onNonEmpty arithRegs 1,
+            , (onNonEmpty arithInfo 1,
                do -- BLT
-                  AI rs1 <- elements arithRegs
-                  AI rs2 <- elements arithRegs
+                  AI rs1 <- elements arithInfo
+                  AI rs2 <- elements arithInfo
                   imm <- (8+) <$> genImm 12 --TODO: More principled relative jumps
                   -- BLT does multiples of 2
                   let instr = BLT rs1 rs2 imm
@@ -356,7 +364,7 @@ genInstr pplus ms ps genInstrTag =
               )
             ]
 
-genDataMemory :: PolicyPlus -> Gen TagSet -> Gen (Mem, MemT)
+genDataMemory :: PolicyPlus -> (PolicyPlus -> Gen TagSet) -> Gen (Mem, MemT)
 genDataMemory pplus genMTag = do
   let idx = [dataMemLow pplus, (dataMemLow pplus)+4..(dataMemHigh pplus)]
   combined <- mapM (\i -> do d <- genImm $ dataMemHigh pplus 
@@ -378,8 +386,10 @@ setInstrTagI ms ps it =
 -- | Returns the original machines with just the instruction memory locations
 -- | updated.
 genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State ->
+             (TagSet -> Bool) -> (TagSet -> Bool) -> (Instr_I -> Gen TagSet) ->
              Gen (Machine_State, PIPE_State)
-genByExec pplus n init_ms init_ps = exec_aux n init_ms init_ps init_ms init_ps
+genByExec pplus n init_ms init_ps dataP codeP genInstrTag =
+  exec_aux n init_ms init_ps init_ms init_ps
   where exec_aux 0 ims ips ms ps = return (ims, ips)
         exec_aux n ims ips ms ps 
         -- Check if an instruction already exists
@@ -393,7 +403,7 @@ genByExec pplus n init_ms init_ps = exec_aux n init_ms init_ps init_ms init_ps
                 return (ms, ps)
           | otherwise = do
               -- Generate an instruction for the current state
-              (is, it) <- genInstr pplus ms ps
+              (is, it) <- genInstr pplus ms ps dataP codeP genInstrTag
               -- Update the i-memory of both the machine we're stepping...
               let ms' = ms & fmem . at (f_pc ms) ?~ (encode_I RV32 is)
                   ps' = ps & pmem . at (f_pc ms) ?~ it 
@@ -417,18 +427,18 @@ genGPRs m = do
   ds <- replicateM 3 $ genImm 40
   return $ m & fgpr %~ Map.union (Map.fromList $ zip [1..] ds)
 
-mkPointerTagSet pplus c = fromExt [("heap.Pointer", Just c)]
-
-genGPRTs :: PolicyPlus -> PIPE_State -> (Gen TagSet) -> Gen PIPE_State
+genGPRTs :: PolicyPlus -> PIPE_State -> Gen TagSet -> Gen PIPE_State
 genGPRTs pplus p genGPRTag = do 
-  cs <- (map $ mkPointerTagSet (policy pplus)) <$> (replicateM 3 genGPRTag)
+  cs <- replicateM 3 genGPRTag
   return $ p & pgpr %~ Map.union (Map.fromList $ zip [1..] cs)
 
-genMachine :: PolicyPlus -> Gen (Machine_State, PIPE_State)
-genMachine pplus = do
+genMachine :: PolicyPlus -> (PolicyPlus -> Gen TagSet) -> (PolicyPlus -> Gen TagSet) ->
+             (TagSet -> Bool) -> (TagSet -> Bool) -> (Instr_I -> Gen TagSet) ->
+             Gen RichState
+genMachine pplus genMTag genGPRTag dataP codeP genITag = do
 
   -- | Initial memory
-  (mm,pm) <- genDataMemory pplus
+  (mm,pm) <- genDataMemory pplus genMTag
   let ms = initMachine
              & fmem_mem .~ mm 
              & fmem . at (f_pc initMachine) ?~ (encode_I RV32 $ JAL 0 1000) 
@@ -438,35 +448,66 @@ genMachine pplus = do
 
   -- | Update registers
   ms' <- genGPRs  ms
-  ps' <- genGPRTs pplus ps
+  ps' <- genGPRTs pplus ps (genGPRTag pplus)
 
   -- | Do generation by execution
-  (ms_fin, ps_fin) <- genByExec pplus maxInstrsToGenerate ms' ps'
+  (ms_fin, ps_fin) <- genByExec pplus maxInstrsToGenerate ms' ps' dataP codeP genITag
 
-  return (ms_fin, ps_fin)
+  return $ Rich ms_fin ps_fin
 
-varyUnreachableMem :: PolicyPlus -> Set Color -> Mem -> MemT -> Gen (Mem, MemT)
-varyUnreachableMem pplus r (Mem m ra) (MemT pm) = do
-  combined <- mapM (\((i,d),(j,t)) -> do
-                       case cellColorOf t of
-                         Just c'
-                           | Set.member c' r -> return ((i,d),(j,t))
-                           | otherwise -> do d' <- genImm 12 -- TODO: This makes no sense
-                                             return ((i,d'),(j,t)) -- TODO: Here we could scramble v
-                         _ -> return ((i,d),(j,t))
-                    ) $ zip (Map.assocs m) (Map.assocs pm)
+maxInstrsToGenerate :: Int
+maxInstrsToGenerate = 10
+
+varySecretMap :: PolicyPlus -> (TagSet -> Bool) ->
+  Map Integer Integer -> Map Integer TagSet ->
+  Gen (Map Integer Integer, Map Integer TagSet)
+varySecretMap pplus isSecret m pm = do 
+  combined <- mapM (\((i,d),(j,t)) -> 
+                       if isSecret t then do
+                         d' <- genImm 12       -- TODO: This makes no sense
+                         return ((i,d'),(j,t)) -- TODO: Here we could scramble v
+                       else
+                         return ((i,d),(j,t))
+                   ) $ zip (Map.assocs m) (Map.assocs pm)
   let (m', pm') = unzip combined
-  return (Mem (Map.fromList m') ra, MemT (Map.fromList pm'))
+  return (Map.fromList m', Map.fromList pm')
 
-varyUnreachable :: PolicyPlus -> (Machine_State, PIPE_State) -> Gen MStatePair
-varyUnreachable pplus (m, p) = do
-  let r = reachable p
-  (mem', pmem') <- varyUnreachableMem pplus r (f_mem m) (p_mem p)
-  return $ M (m,p) (m & fmem_mem .~ mem', p & pmem_mem .~ pmem')
+varySecretMem pplus isSecret (Mem m ra) (MemT pm) = do
+  (m', pm') <- varySecretMap pplus isSecret m pm
+  return (Mem m' ra, MemT pm')
 
-genMStatePair :: PolicyPlus -> Gen MStatePair
-genMStatePair pplus = 
-  genMachine pplus >>= varyUnreachable pplus
+varySecretGPR pplus isSecret (GPR_File m) (GPR_FileT pm) = do
+  (m', pm') <- varySecretMap pplus isSecret m pm
+  return (GPR_File m', GPR_FileT pm')
+
+varySecretState :: PolicyPlus -> (Machine_State -> PIPE_State -> TagSet -> Bool) ->
+                   RichState -> Gen RichState
+varySecretState pplus isSecretMP rs@(Rich m p) = do
+  let isSecret = isSecretMP m p
+  (mem', pmem') <- varySecretMem pplus isSecret (f_mem m) (p_mem p)
+  (gpr', pgpr') <- varySecretGPR pplus isSecret (f_gprs m) (p_gprs p)
+  return $ Rich ( m & fmem_mem .~ mem'
+                    & fgpr_gpr .~ gpr')
+                ( p & pmem_mem .~ pmem'
+                    & pgpr_gpr .~ pgpr')
+
+genSingleTestState :: PolicyPlus
+                   -> (PolicyPlus -> Gen TagSet) -> (PolicyPlus -> Gen TagSet)
+                   -> (TagSet -> Bool) -> (TagSet -> Bool)
+                   -> (Instr_I -> Gen TagSet)
+                   -> Gen (TestState a)
+genSingleTestState pplus genMTag genGPRTag dataP codeP genITag = do
+  rs <- genMachine pplus genMTag genGPRTag dataP codeP genITag
+  return $ TS rs []
+
+--genTestStateVariation :: PolicyPlus ->
+--                         (Machine_State -> PIPE_State -> TagSet) ->
+--                         (Machine_State -> PIPE_State -> a)
+--                         Gen (TestState a)
+--genTestStateVariation pplus isSecretMP mkInfo = do
+--  rs  <- genMachine pplus
+--  rs' <- varySecretState pplus isSecretMP
+--  return $ TS rs [SE rs' (mkInfo (rs' ^. ms) (rs' ^. ps))]
 
 
 
