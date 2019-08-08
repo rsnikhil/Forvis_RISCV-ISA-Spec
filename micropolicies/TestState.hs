@@ -4,6 +4,8 @@ module TestState where
 import Data.Functor
 import Control.Monad
 
+import Control.Arrow (first, second)
+
 import Control.Lens hiding (elements)
 import Control.Lens.Fold
 
@@ -51,8 +53,8 @@ makeLenses ''RichState
 makeLenses ''StackElem
 makeLenses ''TestState
 
-statePairs :: Traversal' (TestState a) RichState
-statePairs f (TS mp vars) = TS <$> f mp <*> traverse (mp_state %%~ f) vars
+richStates :: Traversal' (TestState a) RichState
+richStates f (TS mp vars) = TS <$> f mp <*> traverse (mp_state %%~ f) vars
 
 -- | TODO: Organization. Should different functionalities be broken in different files?
 
@@ -500,6 +502,19 @@ genSingleTestState pplus genMTag genGPRTag dataP codeP genITag = do
   rs <- genMachine pplus genMTag genGPRTag dataP codeP genITag
   return $ TS rs []
 
+genVariationTestState :: PolicyPlus
+                      -> (PolicyPlus -> Gen TagSet) -> (PolicyPlus -> Gen TagSet)
+                      -> (TagSet -> Bool) -> (TagSet -> Bool)
+                      -> (Instr_I -> Gen TagSet)
+                      -> (Machine_State -> PIPE_State -> TagSet -> Bool)
+                      -> (Machine_State -> PIPE_State -> a)
+                      -> Gen (TestState a)
+genVariationTestState pplus genMTag genGPRTag dataP codeP genITag isSecretMP mkInfo = do
+  rs  <- genMachine pplus genMTag genGPRTag dataP codeP genITag
+  rs' <- varySecretState pplus isSecretMP rs
+  let a = mkInfo (rs' ^. ms) (rs' ^. ps)
+  return $ TS rs [SE rs' a]
+
 --genTestStateVariation :: PolicyPlus ->
 --                         (Machine_State -> PIPE_State -> TagSet) ->
 --                         (Machine_State -> PIPE_State -> a)
@@ -509,7 +524,64 @@ genSingleTestState pplus genMTag genGPRTag dataP codeP genITag = do
 --  rs' <- varySecretState pplus isSecretMP
 --  return $ TS rs [SE rs' (mkInfo (rs' ^. ms) (rs' ^. ps))]
 
+-- | Execution |--
+------------------
+
+running :: Machine_State -> Bool
+running m = mstate_run_state_read m == Run_State_Running
+
+exec :: PolicyPlus -> RichState -> Either String RichState
+exec pplus (Rich m p) = uncurry Rich <$> fetch_and_execute pplus m p
+  
+--Either String TestState
+step :: PolicyPlus -> TestState a -> Either String (TestState a)
+step pplus ts
+  -- If all machines are in running state
+  | allOf (richStates . ms) running ts =
+      ts & richStates . ms %~  mstate_io_tick
+         & richStates      %%~ exec pplus
+  | otherwise =
+      Left "Not Running State" 
+
+traceExec :: PolicyPlus -> TestState a -> Int -> ([TestState a], String)
+traceExec pplus ts 0 = ([], "Out of fuel")
+traceExec pplus ts n =
+  case step pplus ts of
+    Right ts' -> first (ts:) $ traceExec pplus ts' (n-1)
+    Left  err -> ([], err)
+
+-- | Indistinguishability |--
+-----------------------------
+
+-- TODO: Default values? Reuse calcDiff and filter that?
+indist :: (TagSet -> Bool) -> RichState -> RichState -> Bool
+indist isPublic rs rs' = 
+  let filterAux [] _ = []
+      filterAux _ [] = []
+      filterAux ((i,d):ds) ((j,t):ts)
+        | i == j = 
+            if isPublic t then
+              filterAux ds ts
+            else d : filterAux ds ts
+        | i < j = filterAux ds ((j,t):ts)
+        | i > j = filterAux ((i,d):ds) ts
+ 
+      m1 = filterAux (Map.assocs $ f_dm $ f_mem $ _ms rs)
+                     (Map.assocs $ unMemT $ p_mem $ _ps rs')
+      m2 = filterAux (Map.assocs $ f_dm $ f_mem $ _ms rs)
+                     (Map.assocs $ unMemT $ p_mem $ _ps rs')
+      r1 = filterAux (Map.assocs $ rs  ^. ms . fgpr)
+                     (Map.assocs $ unGPRT $ p_gprs $ _ps rs)
+      r2 = filterAux (Map.assocs $ rs' ^. ms . fgpr)
+                     (Map.assocs $ unGPRT $ p_gprs $ _ps rs')
+ 
+  in 
+  (r1 == r2) && (m1 == m2)
 
 
-
+indistinguishable :: (TagSet -> Bool) -> TestState a -> Bool
+indistinguishable isPublic ts =
+  allOf (variants . folded . mp_state) (indist isPublic (ts ^. mp)) ts
+ 
+  
 
