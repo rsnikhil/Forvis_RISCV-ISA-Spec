@@ -68,13 +68,13 @@ genGPRTag = genMTag
 dataP = const True
 codeP = const True
 
-genITag = const cleanTag
+genITag _ = return cleanTag
 
 isSecretMP :: Machine_State -> PIPE_State -> TagSet -> Bool
 isSecretMP _ _ t = t == taintTag
 
 mkInfo :: Machine_State -> PIPE_State -> ()
-mkInfo = ()
+mkInfo _ _ = ()
 
 -- | Main
 
@@ -85,52 +85,20 @@ main_test = do
     $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP genITag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
-    $ \ts -> prop pplus m
+    $ \ts -> prop pplus ts
 
 main = main_test
 
 -- | Property
 
+prop_NI :: PolicyPlus -> Int -> TestState () -> Bool
 prop_NI pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount in
-  all (indistinguishable pplus (== taintTag)) trace
+  all (indistinguishable (== taintTag)) (takeWhile pcInSync trace)
 
-prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
-  let run_state1 = mstate_run_state_read m1
-      run_state2 = mstate_run_state_read m2
-      m1' = mstate_io_tick m1
-      m2' = mstate_io_tick m2 
-      trace' = ((m1,p1),(m2,p2)) : trace  in
-  if count >= maxcount then 
-    label "Out of gas" $ property True 
-  -- TODO: Check for traps too
-  else if run_state1 /= Run_State_Running || run_state2 /= Run_State_Running then 
-    label (let (s1,s2) = (show run_state1, show run_state2) in
-           if s1==s2 then s1 else (s1 ++ " / " ++ s2))
-       $ property True
-  else
-    case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
-      (Right (m1r,p1r), Right (m2r, p2r))
-        | f_pc m1r == f_pc m2r ->
-           (whenFail (do putStrLn $ "Reachable parts differ after execution!"
-                         let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
-                         uncurry (printTrace pplus) (unzip finalTrace)) $
-              property $ sameUntaintedPart (M (m1r,p1r) (m2r, p2r)))
-           .&&. 
-           prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
-        | otherwise -> label ("Control flow out of sync") $ property True
-      (Left s1, Left s2) ->
-         label ("Pipe trap " ++ s1 ++ " / " ++ s2) $ property True
-      (Left s1, _) ->
-         label ("Pipe trap " ++ s1) $ property True
-      (_, Left s2) ->
-         label ("Pipe trap " ++ s2) $ property True
 
-maxInstrsToGenerate :: Int
-maxInstrsToGenerate = 10
-
-prop :: PolicyPlus -> MStatePair -> Property
-prop pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms
+prop :: PolicyPlus -> TestState () -> Property
+prop pplus ts = property $ prop_NI pplus maxInstrsToGenerate ts
 
 
 

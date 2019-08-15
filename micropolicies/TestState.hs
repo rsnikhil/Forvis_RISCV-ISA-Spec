@@ -49,6 +49,9 @@ data TestState a = TS { _mp :: RichState
                       , _variants :: [StackElem a]
                       }
 
+instance Show (TestState a) where
+  show _ = ""
+
 makeLenses ''RichState
 makeLenses ''StackElem
 makeLenses ''TestState
@@ -583,5 +586,7 @@ indistinguishable :: (TagSet -> Bool) -> TestState a -> Bool
 indistinguishable isPublic ts =
   allOf (variants . folded . mp_state) (indist isPublic (ts ^. mp)) ts
  
-  
+pcInSync :: TestState a -> Bool
+pcInSync ts =
+  allOf (variants . folded . mp_state . ms . fpc) (== (ts ^. mp . ms . fpc)) ts
 
