@@ -218,3 +218,10 @@ start thinking about stack safety!
 
 haskell-mode for emacs!  (on BCP's work laptop)
 
+________________________________________________________
+* PAPER IDEAS
+
+Noninterference: Too strong and Too weak
+- Taint: weaker, still interesting?
+- Stack: stronger (things can become secret).
++ Testing framework for everything?
