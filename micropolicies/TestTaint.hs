@@ -646,13 +646,33 @@ sameUntaintedPart (M (s1, p1) (s2, p2)) =
   in 
   (r1 == r2) && (m1 == m2)
 
+cleanLocs :: MStatePair -> ([Integer], [Integer])
+cleanLocs (M (s1, p1) (s2, p2)) =
+  let filterAux [] _ = []
+      filterAux _ [] = []
+      filterAux ((i,d):ds) ((j,t):ts)
+        | i == j = 
+            if t == cleanTag then i : filterAux ds ts
+            else filterAux ds ts
+        | i < j = filterAux ds ((j,t):ts)
+        | i > j = if t == cleanTag
+                  then j : filterAux ((i,d):ds) ts
+                  else filterAux ((i,d):ds) ts
 
+      m1 = filterAux (Map.assocs $ f_dm $ f_mem s1) (Map.assocs $ unMemT $ p_mem p1)
+      m2 = filterAux (Map.assocs $ f_dm $ f_mem s2) (Map.assocs $ unMemT $ p_mem p2)
+
+  in --assert m1 == m2?
+    (m1, m2)
+    
 prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
   let run_state1 = mstate_run_state_read m1
       run_state2 = mstate_run_state_read m2
       m1' = mstate_io_tick m1
       m2' = mstate_io_tick m2 
-      trace' = ((m1,p1),(m2,p2)) : trace  in
+      trace' = ((m1,p1),(m2,p2)) : trace  
+      clean = cleanLocs (M (m1,p1) (m2,p2))
+  in
   if count >= maxcount then 
     label "Out of gas" $ property True 
   -- TODO: Check for traps too
@@ -664,11 +684,19 @@ prop_NI' pplus count maxcount trace (M (m1,p1) (m2,p2)) =
     case (fetch_and_execute pplus m1' p1, fetch_and_execute pplus m2' p2) of
       (Right (m1r,p1r), Right (m2r, p2r))
         | f_pc m1r == f_pc m2r ->
+           let clean' = cleanLocs (M (m1r,p1r) (m2r,p2r)) in
            (whenFail (do putStrLn $ "Reachable parts differ after execution!"
                          let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
                          uncurry (printTrace pplus) (unzip finalTrace)) $
-              property $ sameUntaintedPart (M (m1r,p1r) (m2r, p2r)))
+              property $ sameUntaintedPart (M (m1r,p1r) (m2r, p2r))) 
            .&&. 
+           (whenFail (do putStrLn $ "Clean tags set differs."
+                         putStrLn $ "Original: " ++ show clean
+                         putStrLn $ "Current:  " ++ show clean'
+                         let finalTrace = reverse $ ((m1r,p1r), (m2r, p2r)) : trace'
+                         uncurry (printTrace pplus) (unzip finalTrace)) $
+              property $ clean == clean')
+           .&&.
            prop_NI' pplus (count+1) maxcount trace' (M (m1r,p1r) (m2r, p2r))
         | otherwise -> label ("Control flow out of sync") $ property True
       (Left s1, Left s2) ->
