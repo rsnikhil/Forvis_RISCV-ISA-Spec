@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell, TupleSections, FlexibleInstances, FlexibleContexts #-}
 module TestState where
 
+import Debug.Trace
+
 import Data.Functor
 import Control.Monad
 
@@ -182,12 +184,14 @@ docAssocs ((addr,val,tag):rest) diffs =
   let (top, rem) = destrAssocs addr diffs in
   if all isNothing top then
     pretty addr <:> pretty (val, tag)
+    $$ docAssocs rest rem
   else
     pretty addr <:> (foldl1 (<||>) (pretty (val,tag) : map pretty top))
     $$ docAssocs rest rem
 
 docMaps :: (Map Integer Integer, Map Integer TagSet) -> [[(Integer, Integer, TagSet)]] -> Doc
 docMaps (d, t) diffs =
+  traceShow ("Calling docMaps with ", d, t, diffs) $ 
   let assocs = zipWith (\(i,d) (j,t) -> (i,d,t)) (Map.assocs d) (Map.assocs t)
   in docAssocs assocs diffs
 
@@ -205,6 +209,10 @@ docRichStates st diffs =
 
 docTestState :: PolicyPlus -> TestState a -> Doc
 docTestState pplus ts = docRichStates (ts ^. mp) (map (\x -> calcDiff pplus (ts ^. mp) (x ^. mp_state)) (ts ^. variants))
+
+printTestState :: PolicyPlus -> TestState a -> String
+printTestState pplus ts = P.render $ docTestState pplus ts
+  
 
 -- | Generation | --
 --------------------

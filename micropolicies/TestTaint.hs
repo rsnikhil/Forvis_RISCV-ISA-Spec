@@ -91,14 +91,19 @@ main = main_test
 
 -- | Property
 
-prop_NI :: PolicyPlus -> Int -> TestState () -> Bool
+prop_NI :: PolicyPlus -> Int -> TestState () -> Property
 prop_NI pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount in
+  whenFail (do putStrLn "Indistinguishable tags found!"
+               putStrLn "Original Test State:"
+               putStrLn $ printTestState pplus ts
+               putStrLn $ show ts
+           ) $
   all (indistinguishable (== taintTag)) (takeWhile pcInSync trace)
 
 
 prop :: PolicyPlus -> TestState () -> Property
-prop pplus ts = property $ prop_NI pplus maxInstrsToGenerate ts
+prop pplus ts = prop_NI pplus maxInstrsToGenerate ts
 
 
 
