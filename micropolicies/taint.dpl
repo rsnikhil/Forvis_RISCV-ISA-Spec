@@ -7,25 +7,30 @@ metadata:
 policy:
   main =
 
+
+
    // explicit failure for write tainted val to clean addr
+#ifndef STORE_OVERWRITE_CLEAN
    storeGrp(   mem == [+Clean], addr == _, val == [+Taint], env == _
-              -> fail "Tainted data written to clean memory")
-// Needs a mutant or two
+              -> fail "Tainted data written to clean memory") ^
+#else
+  // No explicit rule
+#endif
 
    // Propogate taint
 #ifndef ADD_NO_TAINT_1
-   ^ arithGrp(env == _, op1 == [+Taint], op2 == _ -> env = env, res = op1)
+   arithGrp(env == _, op1 == [+Taint], op2 == _ -> env = env, res = op1) ^
 #else
-//   ^ arithGrp(env == _, op1 == [+Taint], op2 == _ -> env = env, res = {})
+// ^  arithGrp(env == _, op1 == [+Taint], op2 == _ -> env = env, res = {})
 #endif
 #ifndef ADD_NO_TAINT_2
-   ^ arithGrp(env == _, op1 == _, op2 == [+Taint] -> env = env, res = op2)
+   arithGrp(env == _, op1 == _, op2 == [+Taint] -> env = env, res = op2) ^
 #else
 //   ^ arithGrp(env == _, op1 == _, op2 == [+Taint] -> env = env, res = {})
 #endif
-   ^ mulDivRemGrp(code == _, env == _, op1 == [+Taint], op2 == _ -> env = env, res = op1)
+   mulDivRemGrp(code == _, env == _, op1 == [+Taint], op2 == _ -> env = env, res = op1)
    ^ mulDivRemGrp(code == _, env == _, op1 == _, op2 == [+Taint] -> env = env, res = op2)
-   ^ immArithGrp(env == _, op1 == [+Taint] -> env = env, res = op1)
+   ^  immArithGrp(env == _, op1 == [+Taint] -> env = env, res = op1)
 #ifndef NO_MEM_TAINT_CHECK_LOAD
    ^ loadGrp(mem == [+Taint], addr == _, env == _ -> env = env, res = mem )
 #else
@@ -55,7 +60,11 @@ policy:
 // THIS WAS AN ACTUAL BUG! Addres check ommitted
 #endif
    // keep clean mem stays clean always
+#ifndef STORE_REMOVE_CLEAN   
    ^ storeGrp(   mem == [+Clean], addr == _, val == _, env == _ -> env = env, mem = mem)
+#else   
+   ^ storeGrp(   mem == [+Clean], addr == _, val == _, env == _ -> env = env, mem = {})
+#endif   
 
 
    // default: allow other operations
