@@ -10,6 +10,7 @@ policy:
    // explicit failure for write tainted val to clean addr
    storeGrp(   mem == [+Clean], addr == _, val == [+Taint], env == _
               -> fail "Tainted data written to clean memory")
+# Needs a mutant or two
 
    // Propogate taint
 #ifndef ADD_NO_TAINT_1

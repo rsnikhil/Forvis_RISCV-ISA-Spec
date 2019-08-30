@@ -1,15 +1,26 @@
 * NEXT STEPS
 
-- printing:
+- printing (leo)
   + space in registers
   + address printed twice in diff
   + remove prefix from tags
   + print affected registers before each instruction
   
-- try the taint policy (either)
-    the interesting thing to try is adding a side condition to NI that says
-    NI must only hold for pairs of traces that take exactly the same
-    conditional branches on tainted data.  
+- play with taint policy (Rob?)
+  + why does NO_VAL_TAINT_CHECK_STORE not fail?
+  + add a mutant for the very first rule
+  + add mutants that forget Clean tags
+
+- write-once policy (Rob?)
+  + Doesn't work by itself -- enrich the testing framework so it can find
+    this test randomly
+       + Is there a generic technique for uncovering code integrity bugs???
+         (Good research challenge!)
+       + At a minimum, we'll need to change the test generation so that we
+         overwrite code with valid instructions
+  + Should work when combined with RWX or something (NX, ...) -- any kind of
+    code integrity policy
+
 - finish the stack policy (both)
 - finish generalization (Leo)
 

@@ -607,7 +607,7 @@ shrinkMStatePair pplus (M (m1,p1) (m2,p2)) =
 
 
 ------------------------------------------------------------------------------------------
--- Top-level non-interference policy
+-- Top-level "taint-based" non-interference policy
   
 {- Noninterference:
      - for each program p and machine state s1
