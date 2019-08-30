@@ -7,6 +7,9 @@
   + print affected registers before each instruction
   
 - try the taint policy (either)
+    the interesting thing to try is adding a side condition to NI that says
+    NI must only hold for pairs of traces that take exactly the same
+    conditional branches on tainted data.  
 - finish the stack policy (both)
 - finish generalization (Leo)
 
