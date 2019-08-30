@@ -8,8 +8,6 @@
   
 - play with taint policy (Rob?)
   + why does NO_VAL_TAINT_CHECK_STORE not fail?
-  + add a mutant for the very first rule
-  + add mutants that forget Clean tags
 
 - write-once policy (Rob?)
   + Doesn't work by itself -- enrich the testing framework so it can find
@@ -112,7 +110,6 @@
 ** TAINT
 - DONE! (ish)
   * Found a couple of real bugs (loading/storing through tainted pointers)
-  * A spurious rule? (storing a tainted value to a clean location rule never fires)
   * Many mutants added.
 - TODO:
   * Fix shrinking
