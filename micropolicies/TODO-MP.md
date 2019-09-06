@@ -1,11 +1,24 @@
 * NEXT STEPS
 
-- printing:
+- printing (leo)
   + space in registers
   + address printed twice in diff
   + remove prefix from tags
   + print affected registers before each instruction
   
+- play with taint policy (Rob?)
+  + why does NO_VAL_TAINT_CHECK_STORE not fail?
+
+- write-once policy (Rob?)
+  + Doesn't work by itself -- enrich the testing framework so it can find
+    this test randomly
+       + Is there a generic technique for uncovering code integrity bugs???
+         (Good research challenge!)
+       + At a minimum, we'll need to change the test generation so that we
+         overwrite code with valid instructions
+  + Should work when combined with RWX or something (NX, ...) -- any kind of
+    code integrity policy
+
 - finish the stack policy (both)
 - finish generalization (Leo)
   + Works (mostly) for taint
@@ -112,7 +125,6 @@
 ** TAINT
 - DONE! (ish)
   * Found a couple of real bugs (loading/storing through tainted pointers)
-  * A spurious rule? (storing a tainted value to a clean location rule never fires)
   * Many mutants added.
 - TODO:
   * Fix shrinking
