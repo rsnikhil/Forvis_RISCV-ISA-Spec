@@ -20,16 +20,71 @@ The main idea of the stack property:
     means), we add to the variant stack a scrambled version of the main
     state in which every inaccessible location is replaced by an arbitrary
     number, paired with the current PC
+  - new inaccessible locations: things in the previously active stack frame
+    (that are not copied over to some register)
   - when we return, we throw away the top variant state
-  - the invariant we expect is that
+  - the invariant we expect to be preserved by step is that
       - the accessible region of the main machine is the same as the
         accessible regions of all the variant machines after each step
       - the inaccessible region of each variant machine is unchanged by each
         step
+
+      Accessible region is: PC + registers + reachability from there + stack (everything above it that is uncolored)
+
+         Characterize accessible region based on stack:
+         - Everything above the stack pointer sort of works
+         - BUT, it should really be "everything until the heap starts"
+         - If we can mention colors here, everything that is uncolored/default colored
+
+      Vertical ~   : accessible regions are identical across a pair of variants
+      Horizontal ~ : inaccessible regions are identical across a step of each machine
+
+            (Jump here)
+          ~
+      M1  -> M2   -> .... -> Mn
+      ~      ~
+      M1' -> M2'  ->
+             ~
+             M2'' -> ... (until ret)  -- This machine has a LARGER inaccessible region
+
+
   - a CALL is when the machine executes a JAL 
   - a RETURN is when the machine's PC is one more than the PC at the top of
     the stack of saved PCs and the stack pointer is equal to the top element
     of the stack of saved SPs.
+  - The PC's of the variants + main will always be in sync
+    + This is a stronger property than traditional IFC
+    + We can not even access sensitive data (and therefore will never branch on them)
+
+  - Compositionality wrt heap.
+    + Phrasing things in terms of constraints on what's accessible seems like a good idea
+    + Rather than having a fixed accessibility relation for each property
+
+  - Crazy ideas:
+    + What about coroutines? Changing contexts from one routine to another, changes the accessibility relation.
+    + Similarly, classification/declassification. It's all just changes to the accessibility relation. Maybe.
+    + Scrambling is always "fine". What matters is when we make it accessible again.
+
+  - Less Crazy ideas:
+    + Keep only two machines.
+    + Before each step: scramble the inaccessible part.
+    + After  each step that doesn't change the accessibility: check that
+      ++ the inaccessible part hasn't changed in each machine
+      ++ the accessible parts are identical across machines
+    + After a step where accessibility changes:
+      ++ Check that the increase in accessibility was "allowed"
+         +++ e.g. for stack, we are returning in a RETURN header
+         +++ e.g. we are switching coroutines (???)
+      ++ The decrease is fine?
+
+  - Philosophical problem:
+    + Distinguishing the caller from the callee
+    + e.g. the caller should be able to make the things they made inaccessible accessible again
+    + We should keep something about caller/callees while thinking about this
+    + Notion of identity in machine code. <- Confusiooon
+
+  - None of this makes sense without (some sort of) RWX in the background
+    + The callee shouldn't overwrite the callers code for example.
 -}
 
 {-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables, TupleSections, FlexibleInstances, MultiParamTypeClasses #-}

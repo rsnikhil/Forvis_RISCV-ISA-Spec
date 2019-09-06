@@ -6,9 +6,21 @@
   + remove prefix from tags
   + print affected registers before each instruction
   
-- try the taint policy (either)
 - finish the stack policy (both)
 - finish generalization (Leo)
+  + Works (mostly) for taint
+  + TODO: other policies
+  + TODO: printing
+  + TODO: shrinking
+
+* POSSIBLE PAPER TARGETS
+
+- CSF (February 2020).
+  + Noninterference: Too Weak and Too Strong
+  + Interfering with noninterference
+    ++ Taint policy (weaker)
+    ++ Stack policy (stronger)
+    ++ Testing Framework encompassing both (generalization)
 
 * NOTES ON OTHER POLICIES
 
@@ -26,6 +38,8 @@
 ** FreeRTOS
 - Want to avoid testing boot every time.  Can we save "loaded state".
 -- Use policy tests as starting point?  Is freertos just an elf file?
++ Question to ask:
+  Are there any policies that depend (in an interesting way) on the fact that they run over RTOS instead of a bare machine?
 
 ** CFI
 - BCP and Leo: got this policy and a simple property working, but we are
@@ -164,13 +178,6 @@
   - write an example that should NOT pass the policy and try to run it
   - write the property and make sure it makes the right prediction on these two
   - work on generation
-
-- A good next step would be to see if we can debug the following policy
-  (similar to one of the ones that was presented to Linton)
-     - a location marked in a particular way can only assigned to one time
-       (the policy seemed to allow assignments from a particular piece of
-       code, but this code itself was not protected)
-- related: work on the policies that 
 
 questions to think about
   - should we set up the machine so that the stack can run into the
