@@ -1,5 +1,14 @@
 * NEXT STEPS
 
+- Think some more about the CSF paper target
+  + Is just tainting + testing interesting enough by itself?
+  + Is there a way to generalize the stack policy so that it lines up better
+    with standard information flow -- in particular, so that it deals with
+    situations where the accessible memory contains both high and low data?
+      - Or should we think of this as described by a product lattice?  (We
+        still need to phrase the stack policy as "standard" NI.)
+- Read the two StkTokens papers (ESOP 18 and POPL 19)
+
 - printing (leo)
   + space in registers
   + address printed twice in diff
@@ -28,12 +37,18 @@
 
 * POSSIBLE PAPER TARGETS
 
-- CSF (February 2020).
+- CSF (February 7, 2020).
   + Noninterference: Too Weak and Too Strong
-  + Interfering with noninterference
+  + Interfering with Noninterference
     ++ Taint policy (weaker)
-    ++ Stack policy (stronger)
-    ++ Testing Framework encompassing both (generalization)
+    ++ Stack policy (stronger, with "temporary secrecy" and with no
+       computing on inaccessible data)
+    ++ The common element is that control flow never "diverges" between the
+       two executions
+    ++ Testing Framework encompassing both (generalization) and dealing with
+       a real processor (RISC-V) 
+          - this part would be especiall interesting if some draper people
+            wanted to participate! 
 
 * NOTES ON OTHER POLICIES
 

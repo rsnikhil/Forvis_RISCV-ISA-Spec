@@ -29,7 +29,8 @@ The main idea of the stack property:
       - the inaccessible region of each variant machine is unchanged by each
         step
 
-      Accessible region is: PC + registers + reachability from there + stack (everything above it that is uncolored)
+      Accessible region is: PC + registers + reachability from there + stack
+                            (everything above it that is uncolored)
 
          Characterize accessible region based on stack:
          - Everything above the stack pointer sort of works
@@ -46,7 +47,6 @@ The main idea of the stack property:
       M1' -> M2'  ->
              ~
              M2'' -> ... (until ret)  -- This machine has a LARGER inaccessible region
-
 
   - a CALL is when the machine executes a JAL 
   - a RETURN is when the machine's PC is one more than the PC at the top of
@@ -68,20 +68,33 @@ The main idea of the stack property:
   - Less Crazy ideas:
     + Keep only two machines.
     + Before each step: scramble the inaccessible part.
-    + After  each step that doesn't change the accessibility: check that
+    + After each step:
+      ++ Accessible regions should be identical
+      ++ Each location that was accessible before and is accessible after,
+         contents afterward should be identical across machines (security)
+      ++ Each location that was accessible before and is inaccessible after,
+         (should be identical after?)
+      ++ Each location that was inaccessible before and is accessible after...
+      ++ Each location that was inaccessible before and is inaccessible after, 
+         contents afterward should be identical before and after (integrity)
+
+    + After each step that doesn't change the accessibility: check that
       ++ the inaccessible part hasn't changed in each machine
       ++ the accessible parts are identical across machines
     + After a step where accessibility changes:
-      ++ Check that the increase in accessibility was "allowed"
-         +++ e.g. for stack, we are returning in a RETURN header
+      ++ Check that any increase in accessibility was "allowed"
+         +++ e.g. for stack, we are returning in a RETURN header and the
+             newly accessible part is exactly the stack frame of the caller
          +++ e.g. we are switching coroutines (???)
-      ++ The decrease is fine?
+      ++ The decreasing part is always fine (from a security point of view,
+         anyway -- liveness is a different question)
+    + Later: We're not so happy with this proposal because we can't 
 
   - Philosophical problem:
     + Distinguishing the caller from the callee
     + e.g. the caller should be able to make the things they made inaccessible accessible again
     + We should keep something about caller/callees while thinking about this
-    + Notion of identity in machine code. <- Confusiooon
+    + Notion of identity in machine code. <- Confusion
 
   - None of this makes sense without (some sort of) RWX in the background
     + The callee shouldn't overwrite the callers code for example.
