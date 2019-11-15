@@ -50,6 +50,15 @@
           - this part would be especiall interesting if some draper people
             wanted to participate! 
 
+* Notes from 11/15 meeting
+
+- Difference with compartmentalization
+  + Boundaries between compartments are not fixed. Definitely dynamic.
+  + Stack policy is assymetric (the caller can look at the callee's stuff after return)
+    (Maybe not completely true? e.g. only get access if the callee returns a pointer
+    to a struct?)
+- Andrew: seems very similar to compartmentalization of multi-threaded processes 
+
 * NOTES ON OTHER POLICIES
 
 ** RWX
