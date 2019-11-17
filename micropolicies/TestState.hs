@@ -163,35 +163,40 @@ docPCs pc pcs
   | all isNothing pcs = pretty pc
   | otherwise = foldl1 (<||>) (pretty pc : map pretty pcs)
 
+-- | Takes an address and a list of diffs
+-- | Assume: diffs are ordered and >= addr
+-- | Returns all relevant to the addr diffs and the "remainder"
 destrAssocs :: Ord addr =>
-  addr -> [[(addr, val, tag)]] -> ([Maybe (addr,val,tag)], [[(addr,val,tag)]])
-destrAssocs addr [] = ([], [])
-destrAssocs addr (avt:avts) =
-  let (front, back) = destrAssocs addr avts in
+  Int -> addr -> [[(addr, val, tag)]] -> ([Maybe (addr,val,tag)], [[(addr,val,tag)]])
+destrAssocs _ addr [] = ([], [])
+destrAssocs n addr (avt:avts) =
+  let (front, back) = destrAssocs (n+1) addr avts in
   case avt of
     [] -> (Nothing:front, []:back)
     (a,v,t):rest
       | a == addr -> (Just (a,v,t) : front, rest : back)
-      | a >= addr -> (Nothing      : front, avt  : back)
+      | a >= addr -> (Nothing        : front, avt  : back)
       | otherwise -> error "destrAssocs"
 
 instance Pretty (Integer, Integer, TagSet) where
   pretty (a,v,t) = pretty v <@> pretty t
 
 docAssocs :: [(Integer, Integer, TagSet)] -> [[(Integer, Integer, TagSet)]] -> Doc
-docAssocs [] [] = P.empty
+docAssocs [] _ = P.empty
 docAssocs ((addr,val,tag):rest) diffs =
-  let (top, rem) = destrAssocs addr diffs in
+  let (top, rem) = destrAssocs 0 addr diffs in
+--  trace ("Before destr:\n" ++ show diffs ++ "\nAfter destr:\n" ++ show top ++ "\n" ++ show rem) $
   if all isNothing top then
     pretty addr <:> pretty (val, tag)
     $$ docAssocs rest rem
   else
     pretty addr <:> (foldl1 (<||>) (pretty (val,tag) : map pretty top))
     $$ docAssocs rest rem
+--docAssocs [] diffs = error $ "Diffs not exhausted: " ++ show diffs
 
 docMaps :: (Map Integer Integer, Map Integer TagSet) -> [[(Integer, Integer, TagSet)]] -> Doc
 docMaps (d, t) diffs =
-  traceShow ("Calling docMaps with ", d, t, diffs) $ 
+--  trace ("Calling docMaps with:\n" ++ show d ++ "\n" ++ show t ++ "\n" ++ show diffs) $
   let assocs = zipWith (\(i,d) (j,t) -> (i,d,t)) (Map.assocs d) (Map.assocs t)
   in docAssocs assocs diffs
 
