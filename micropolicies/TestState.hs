@@ -178,8 +178,41 @@ destrAssocs n addr (avt:avts) =
       | a >= addr -> (Nothing        : front, avt  : back)
       | otherwise -> error "destrAssocs"
 
+pr_register :: InstrField -> Doc
+pr_register n = P.char 'r' P.<> P.integer n  
+
+pr_instr_I_type :: String -> InstrField -> InstrField -> InstrField -> Doc
+pr_instr_I_type label rd rs imm =
+  P.text label <+> pr_register rd <+> pr_register rs <+> P.integer imm
+
+pr_instr_B_type :: String -> InstrField -> InstrField -> InstrField -> Doc
+pr_instr_B_type label rd rs imm =
+  P.text label <+> pr_register rd <+> pr_register rs <+> P.integer imm
+
+pr_instr_R_type :: String -> InstrField -> InstrField -> InstrField -> Doc
+pr_instr_R_type label rd rs1 rs2  =
+  P.text label <+> pr_register rd <+> pr_register rs1 <+> pr_register rs2
+
+pr_instr_J_type :: String -> InstrField -> InstrField -> Doc
+pr_instr_J_type label rs imm =
+  P.text label <+> pr_register rs <+> P.integer imm
+
+instance Pretty Instr_I where
+  pretty (ADD 0 0 0) = P.text "<NOP>"
+  pretty (ADDI rd rs imm) = pr_instr_I_type "ADDI" rd rs imm
+  pretty (LW rd rs imm) = pr_instr_I_type "LW" rd rs imm
+  pretty (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
+  pretty (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
+  pretty (JAL rs imm) = pr_instr_J_type "JAL" rs imm
+  pretty (BLT rs1 rs2 imm) = pr_instr_B_type "BLT" rs1 rs2 imm  
+  pretty i = error $ show i
+
 instance Pretty (Integer, Integer, TagSet) where
-  pretty (a,v,t) = pretty v <@> pretty t
+  pretty (a,v,t) =
+    case decode_I RV32 v of
+      -- HACK: if it parses as an instruction, it still might be data. However unlikely
+      Just inst -> pretty inst <@> pretty t
+      Nothing   -> pretty v <@> pretty t
 
 docAssocs :: [(Integer, Integer, TagSet)] -> [[(Integer, Integer, TagSet)]] -> Doc
 docAssocs [] _ = P.empty
@@ -187,10 +220,10 @@ docAssocs ((addr,val,tag):rest) diffs =
   let (top, rem) = destrAssocs 0 addr diffs in
 --  trace ("Before destr:\n" ++ show diffs ++ "\nAfter destr:\n" ++ show top ++ "\n" ++ show rem) $
   if all isNothing top then
-    pretty addr <:> pretty (val, tag)
+    pretty addr <:> pretty (addr,val, tag)
     $$ docAssocs rest rem
   else
-    pretty addr <:> (foldl1 (<||>) (pretty (val,tag) : map pretty top))
+    pretty addr <:> (foldl1 (<||>) (pretty (addr,val,tag) : map pretty top))
     $$ docAssocs rest rem
 --docAssocs [] diffs = error $ "Diffs not exhausted: " ++ show diffs
 
