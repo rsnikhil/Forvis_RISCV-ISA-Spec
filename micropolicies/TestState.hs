@@ -142,26 +142,26 @@ pad i p = let s = show p in
           P.text (s ++ take (i - (length s)) (repeat ' '))
 
 class Pretty a where
-  pretty :: a -> Doc
+  pretty :: PolicyPlus -> a -> Doc
 
 instance Pretty TagSet where
-  pretty t = P.text (showTagSet t)
+  pretty _ t = P.text (showTagSet t)
 
 instance Pretty Integer where
-  pretty n = P.sizedText 2 $ show n
+  pretty _ n = P.sizedText 2 $ show n
 
 instance Pretty (Integer, TagSet) where
-  pretty (n,t) = pretty n <@> pretty t
+  pretty pplus (n,t) = pretty pplus n <@> pretty pplus t
 
 instance Pretty a => Pretty (Maybe a) where
-  pretty Nothing  = P.text "-"
-  pretty (Just a) = pretty a
+  pretty _ Nothing  = P.text "-"
+  pretty pplus (Just a) = pretty pplus a
 
-docPCs :: (Integer, TagSet) -> [Maybe (Integer,TagSet)] -> Doc
-docPCs pc [] = pretty pc
-docPCs pc pcs
-  | all isNothing pcs = pretty pc
-  | otherwise = foldl1 (<||>) (pretty pc : map pretty pcs)
+docPCs :: PolicyPlus -> (Integer, TagSet) -> [Maybe (Integer,TagSet)] -> Doc
+docPCs pplus pc [] = pretty pplus pc
+docPCs pplus pc pcs
+  | all isNothing pcs = pretty pplus pc
+  | otherwise = foldl1 (<||>) (pretty pplus pc : map (pretty pplus) pcs)
 
 -- | Takes an address and a list of diffs
 -- | Assume: diffs are ordered and >= addr
@@ -198,55 +198,64 @@ pr_instr_J_type label rs imm =
   P.text label <+> pr_register rs <+> P.integer imm
 
 instance Pretty Instr_I where
-  pretty (ADD 0 0 0) = P.text "<NOP>"
-  pretty (ADDI rd rs imm) = pr_instr_I_type "ADDI" rd rs imm
-  pretty (LW rd rs imm) = pr_instr_I_type "LW" rd rs imm
-  pretty (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
-  pretty (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
-  pretty (JAL rs imm) = pr_instr_J_type "JAL" rs imm
-  pretty (BLT rs1 rs2 imm) = pr_instr_B_type "BLT" rs1 rs2 imm  
-  pretty i = error $ show i
+  pretty _ (ADD 0 0 0) = P.text "<NOP>"
+  pretty _ (ADDI rd rs imm) = pr_instr_I_type "ADDI" rd rs imm
+  pretty _ (LW rd rs imm) = pr_instr_I_type "LW" rd rs imm
+  pretty _ (SW rd rs imm) = pr_instr_I_type "SW" rd rs imm
+  pretty _ (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
+  pretty _ (JAL rs imm) = pr_instr_J_type "JAL" rs imm
+  pretty _ (BLT rs1 rs2 imm) = pr_instr_B_type "BLT" rs1 rs2 imm  
+  pretty _ i = error $ show i
 
-instance Pretty (Integer, Integer, TagSet) where
-  pretty (a,v,t) =
-    case decode_I RV32 v of
-      -- HACK: if it parses as an instruction, it still might be data. However unlikely
-      Just inst -> pretty inst <@> pretty t
-      Nothing   -> pretty v <@> pretty t
+-- | Address based printing
+prAddress :: PolicyPlus -> Bool -> (Integer, Integer, TagSet) -> Doc
+prAddress pplus isMem (a,v,t) =
+    if (a == 0 && isMem) || a >= instrLow pplus then 
+      case decode_I RV32 v of
+        Just inst -> pretty pplus inst <@> pretty pplus t
+        Nothing   -> error $ "Not an instruction in instruction memory: " ++ show (a,v,t,instrLow pplus)
+    else 
+      pretty pplus v <@> pretty pplus t
 
-docAssocs :: [(Integer, Integer, TagSet)] -> [[(Integer, Integer, TagSet)]] -> Doc
-docAssocs [] _ = P.empty
-docAssocs ((addr,val,tag):rest) diffs =
+prAddressM :: PolicyPlus -> Bool -> Maybe (Integer, Integer, TagSet) -> Doc
+prAddressM pplus isMem Nothing = P.text "-"
+prAddressM pplus isMem (Just avt) = prAddress pplus isMem avt
+
+docAssocs :: PolicyPlus -> Bool -> [(Integer, Integer, TagSet)] -> [[(Integer, Integer, TagSet)]] -> Doc
+docAssocs pplus isMem [] _ = P.empty
+docAssocs pplus isMem ((addr,val,tag):rest) diffs =
   let (top, rem) = destrAssocs 0 addr diffs in
 --  trace ("Before destr:\n" ++ show diffs ++ "\nAfter destr:\n" ++ show top ++ "\n" ++ show rem) $
   if all isNothing top then
-    pretty addr <:> pretty (addr,val, tag)
-    $$ docAssocs rest rem
+    pretty pplus addr <:> prAddress pplus isMem (addr,val, tag)
+    $$ docAssocs pplus isMem rest rem
   else
-    pretty addr <:> (foldl1 (<||>) (pretty (addr,val,tag) : map pretty top))
-    $$ docAssocs rest rem
+    pretty pplus addr <:>
+    (foldl1 (<||>) (prAddress pplus isMem (addr,val,tag) : map (prAddressM pplus isMem) top))
+    $$ docAssocs pplus isMem rest rem
 --docAssocs [] diffs = error $ "Diffs not exhausted: " ++ show diffs
 
-docMaps :: (Map Integer Integer, Map Integer TagSet) -> [[(Integer, Integer, TagSet)]] -> Doc
-docMaps (d, t) diffs =
+docMaps :: PolicyPlus -> Bool -> (Map Integer Integer, Map Integer TagSet) -> [[(Integer, Integer, TagSet)]] -> Doc
+docMaps pplus isMem (d, t) diffs =
 --  trace ("Calling docMaps with:\n" ++ show d ++ "\n" ++ show t ++ "\n" ++ show diffs) $
   let assocs = zipWith (\(i,d) (j,t) -> (i,d,t)) (Map.assocs d) (Map.assocs t)
-  in docAssocs assocs diffs
+  in docAssocs pplus isMem assocs diffs
 
-docRichStates :: RichState -> [Diff] -> Doc
-docRichStates st diffs =
-  P.vcat [ P.text "PC:" <+> docPCs (st ^. ms . fpc, st ^. ps . ppc)
-                                   (map _d_pc diffs)
+docRichStates :: PolicyPlus -> RichState -> [Diff] -> Doc
+docRichStates pplus st diffs =
+  P.vcat [ P.text "PC:" <+> docPCs pplus (st ^. ms . fpc, st ^. ps . ppc)
+                                         (map _d_pc diffs)
          , P.text "Registers:"
-           $$ P.nest 2 (docMaps (st ^. ms . fgpr, st ^. ps . pgpr)
-                                (map _d_reg diffs))
+           $$ P.nest 2 (docMaps pplus False (st ^. ms . fgpr, st ^. ps . pgpr)
+                                            (map _d_reg diffs))
          , P.text "Memories:"
-           $$ P.nest 2 (docMaps (st ^.  ms . fmem, st ^.  ps . pmem)
-                                (map _d_mem diffs))
+           $$ P.nest 2 (docMaps pplus True (st ^.  ms . fmem, st ^.  ps . pmem)
+                                           (map _d_mem diffs))
          ]
 
 docTestState :: PolicyPlus -> TestState a -> Doc
-docTestState pplus ts = docRichStates (ts ^. mp) (map (\x -> calcDiff pplus (ts ^. mp) (x ^. mp_state)) (ts ^. variants))
+docTestState pplus ts =
+  docRichStates pplus (ts ^. mp) (map (\x -> calcDiff pplus (ts ^. mp) (x ^. mp_state)) (ts ^. variants))
 
 printTestState :: PolicyPlus -> TestState a -> String
 printTestState pplus ts = P.render $ docTestState pplus ts
@@ -636,3 +645,18 @@ pcInSync :: TestState a -> Bool
 pcInSync ts =
   allOf (variants . folded . mp_state . ms . fpc) (== (ts ^. mp . ms . fpc)) ts
 
+-- | Utilities |--
+------------------
+
+allWhenFail :: (TestState a -> [TestState a] -> Property)-> [TestState a] -> Property
+allWhenFail prop trace = aux [] trace
+  where aux acc [] = property True
+        aux acc (ts : tss) =
+          prop ts acc .&&. aux (ts : acc) tss
+--allWhenFail _ [] = property True
+--allWhenFail prop (ts:tss) = prop ts .&&. allWhenFail prop tss
+--  | prop ts = allWhenFail prop print_info tss
+--  | otherwise = whenFail (putStrLn $ print_info ts) False
+  
+
+  

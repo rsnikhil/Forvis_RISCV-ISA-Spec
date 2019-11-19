@@ -1,4 +1,4 @@
-{-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables, TupleSections, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables, TupleSections, FlexibleInstances, MultiParamTypeClasses, MultiWayIf #-}
 
 module TestTaint where
 
@@ -91,20 +91,42 @@ main = main_test
 
 -- | Property
 
+cleanLocs :: RichState -> [Integer]
+cleanLocs (Rich m p) =
+  let filterAux [] _ = []
+      filterAux _ [] = []
+      filterAux ((i,d):ds) ((j,t):ts)
+        | i == j =
+            if t == cleanTag then i : filterAux ds ts
+            else filterAux ds ts
+        | i < j = filterAux ds ((j,t):ts)
+        | i > j = if t == cleanTag
+                  then j : filterAux ((i,d):ds) ts
+                  else filterAux ((i,d):ds) ts
+
+  in filterAux (Map.assocs $ f_dm $ f_mem m) (Map.assocs $ unMemT $ p_mem p)
+
+
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
 prop_NI pplus maxCount ts =
+  let clean = cleanLocs <$> toListOf richStates ts in 
   let (trace,err) = traceExec pplus ts maxCount in
-  whenFail (do putStrLn "Indistinguishable tags found!"
-               putStrLn "Original Test State:"
-               putStrLn $ printTestState pplus ts
-               putStrLn $ show ts
-           ) $
-  all (indistinguishable (== taintTag)) (takeWhile pcInSync trace)
-
+  allWhenFail (\ts tss -> --tss is reversed here
+                 let clean' = cleanLocs <$> toListOf richStates ts in
+                 (whenFail (do putStrLn "Indistinguishable tags found!"
+                               putStrLn "Original Test State:"
+                               putStrLn $ printTestState pplus ts
+                           ) $ (indistinguishable (== taintTag) ts))
+                 .&&.
+                 (whenFail (do putStrLn $ "Clean tags set differs."
+                               putStrLn $ "Original: " ++ show clean
+                               putStrLn $ "Current:  " ++ show clean'
+                               putStrLn $ printTestState pplus ts
+                           ) $ (clean == clean'))
+              ) (takeWhile pcInSync trace)
 
 prop :: PolicyPlus -> TestState () -> Property
 prop pplus ts = prop_NI pplus maxInstrsToGenerate ts
-
 
 
 
