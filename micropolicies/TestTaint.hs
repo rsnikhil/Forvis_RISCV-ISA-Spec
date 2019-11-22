@@ -106,7 +106,7 @@ cleanLocs (Rich m p) =
 
   in filterAux (Map.assocs $ f_dm $ f_mem m) (Map.assocs $ unMemT $ p_mem p)
 
-
+-- TODO: Rephrase indistinguishability to only look at clean locs?
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
 prop_NI pplus maxCount ts =
   let clean = cleanLocs <$> toListOf richStates ts in 

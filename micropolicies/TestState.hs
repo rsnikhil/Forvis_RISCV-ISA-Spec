@@ -685,6 +685,8 @@ traceExec pplus ts n =
 -- | Indistinguishability |--
 -----------------------------
 
+--TODO: Should we compare tags as well?
+
 -- TODO: Default values? Reuse calcDiff and filter that?
 indist :: (TagSet -> Bool) -> RichState -> RichState -> Bool
 indist isPublic rs rs' = 
