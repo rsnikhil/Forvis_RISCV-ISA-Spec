@@ -1,4 +1,5 @@
-{-# LANGUAGE TemplateHaskell, TupleSections, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell, TupleSections, FlexibleInstances, FlexibleContexts,
+    ScopedTypeVariables #-}
 module TestState where
 
 import Debug.Trace
@@ -11,11 +12,15 @@ import Control.Arrow (first, second)
 import Control.Lens hiding (elements)
 import Control.Lens.Fold
 
+import Data.Function(on)
+
 import qualified Data.Map as Map
 import Data.Map(Map)
 import qualified Data.Set as Set
 import Data.Set(Set)
 import Data.Maybe
+import Data.List(minimumBy)
+import Data.Ord(comparing)
 
 import Test.QuickCheck
 
@@ -166,7 +171,7 @@ docPCs pplus pc pcs
 -- | Takes an address and a list of diffs
 -- | Assume: diffs are ordered and >= addr
 -- | Returns all relevant to the addr diffs and the "remainder"
-destrAssocs :: Ord addr =>
+destrAssocs :: (Show addr, Ord addr, Show val, Show tag) =>
   Int -> addr -> [[(addr, val, tag)]] -> ([Maybe (addr,val,tag)], [[(addr,val,tag)]])
 destrAssocs _ addr [] = ([], [])
 destrAssocs n addr (avt:avts) =
@@ -176,7 +181,7 @@ destrAssocs n addr (avt:avts) =
     (a,v,t):rest
       | a == addr -> (Just (a,v,t) : front, rest : back)
       | a >= addr -> (Nothing        : front, avt  : back)
-      | otherwise -> error "destrAssocs"
+      | otherwise -> error $ "destrAssocs" ++ show (n,addr,a,v,t,rest)
 
 pr_register :: InstrField -> Doc
 pr_register n = P.char 'r' P.<> P.integer n  
@@ -217,22 +222,41 @@ prAddress pplus isMem (a,v,t) =
     else 
       pretty pplus v <@> pretty pplus t
 
+prM :: (a -> Doc) -> Maybe a -> Doc
+prM pr Nothing  = P.text "-"
+prM pr (Just a) = pr a
+
 prAddressM :: PolicyPlus -> Bool -> Maybe (Integer, Integer, TagSet) -> Doc
-prAddressM pplus isMem Nothing = P.text "-"
-prAddressM pplus isMem (Just avt) = prAddress pplus isMem avt
+prAddressM pplus isMem m = prM (prAddress pplus isMem) m
 
 docAssocs :: PolicyPlus -> Bool -> [(Integer, Integer, TagSet)] -> [[(Integer, Integer, TagSet)]] -> Doc
 docAssocs pplus isMem [] _ = P.empty
 docAssocs pplus isMem ((addr,val,tag):rest) diffs =
-  let (top, rem) = destrAssocs 0 addr diffs in
---  trace ("Before destr:\n" ++ show diffs ++ "\nAfter destr:\n" ++ show top ++ "\n" ++ show rem) $
-  if all isNothing top then
-    pretty pplus addr <:> prAddress pplus isMem (addr,val, tag)
-    $$ docAssocs pplus isMem rest rem
+  let -- Find the minimum index in the diffs
+      filtered = filter (not . null) diffs
+      idx = if null filtered then
+              addr
+            else minimum $ map ((^. _1) . head) $ filter (not . null) diffs
+  in 
+  if idx >= addr then
+    let (top, rem) = -- trace ("Calling destrASsocs with " ++ show (idx, addr, diffs)) $
+                     destrAssocs 0 addr diffs in
+  --  trace ("Before destr:\n" ++ show diffs ++ "\nAfter destr:\n" ++ show top ++ "\n" ++ show rem) $
+    if all isNothing top then
+      pretty pplus addr <:> prAddress pplus isMem (addr,val, tag)
+      $$ docAssocs pplus isMem rest rem
+    else
+      pretty pplus addr <:>
+      (foldl1 (<||>) (prAddress pplus isMem (addr,val,tag) : map (prAddressM pplus isMem) top))
+      $$ docAssocs pplus isMem rest rem
   else
-    pretty pplus addr <:>
-    (foldl1 (<||>) (prAddress pplus isMem (addr,val,tag) : map (prAddressM pplus isMem) top))
+  -- Some address has been added in the diffs
+    let (top, rem) = -- trace ("Calling destrASsocs with " ++ show (idx, diffs)) $
+                     destrAssocs 0 idx diffs in
+    pretty pplus idx <:>
+    (foldl1 (<||>) (prAddressM pplus isMem Nothing : map (prAddressM pplus isMem) top))
     $$ docAssocs pplus isMem rest rem
+
 --docAssocs [] diffs = error $ "Diffs not exhausted: " ++ show diffs
 
 docMaps :: PolicyPlus -> Bool -> (Map Integer Integer, Map Integer TagSet) -> [[(Integer, Integer, TagSet)]] -> Doc
@@ -259,7 +283,57 @@ docTestState pplus ts =
 
 printTestState :: PolicyPlus -> TestState a -> String
 printTestState pplus ts = P.render $ docTestState pplus ts
-  
+
+docAssocDiff :: ((Integer, Integer, TagSet) -> Doc) -> PolicyPlus -> [[(Integer, Integer, TagSet)]] -> Doc
+docAssocDiff doc pplus assocs 
+  | all null assocs = P.empty
+  | otherwise =
+    let -- Find the minimum index in the diffs
+        idx :: Integer = minimum $ map ((^. _1) . head) $ filter (not . null) assocs
+        -- At least one top should be a just
+        (top, rem) = -- trace ("Calling destrAssocs (diffs) with " ++ show (idx, assocs)) $
+                     destrAssocs 0 idx assocs
+    in foldl1 (<||>) (map (prM doc) top)
+       $$ docAssocDiff doc pplus rem 
+
+docRegDiff, docMemDiff :: PolicyPlus -> [[(Integer, Integer, TagSet)]] -> Doc
+docRegDiff pplus = docAssocDiff (\(a,v,t) -> P.char 'r' P.<> P.integer a <+> P.text "<-" <+> pretty pplus (v,t)) pplus
+docMemDiff pplus = docAssocDiff (\(a,v,t) -> P.char '[' P.<> P.integer a <+> P.text "] <-" <+> pretty pplus (v,t)) pplus
+
+docDiffs :: PolicyPlus -> [Diff] -> Doc
+docDiffs pplus diffs =
+  P.text "TODO:" 
+  $$ docRegDiff pplus (map _d_reg diffs)
+  $$ docMemDiff pplus (map _d_mem diffs)
+--  pretty pplus d1 d2 =
+--    P.hcat [ pad 17 (pretty pplus (d_pc d1) (d_pc d2))
+--           , P.text " "
+--           , pad 17 (pretty pplus (d_instr d1) (d_instr d2))
+--           , P.text "     "
+--           , prettyRegDiff pplus (d_reg d1) (d_reg d2)
+--           , prettyMemDiff pplus (d_mem d1) (d_mem d2)
+--           ]
+
+docTraceDiff :: PolicyPlus -> TestState a -> [TestState a] -> Doc
+docTraceDiff pplus ts [] = P.empty
+docTraceDiff pplus ts (ts':tss) =
+  let rss  = toListOf richStates ts
+      rss' = toListOf richStates ts' in
+  if length rss == length rss' then
+    -- Calc list of diffs
+    let diffs = zipWith (calcDiff pplus) rss rss' in
+    docDiffs pplus diffs
+    $$ docTraceDiff pplus ts' tss
+  else error "Implement for varying rich state numbers"
+
+docTrace :: PolicyPlus -> [TestState a] -> Doc
+docTrace pplus (ts:tss) =
+  docTestState pplus ts
+  $$ docTraceDiff pplus ts tss
+
+printTrace :: PolicyPlus -> [TestState a] -> String
+printTrace pplus tss =
+  P.render $ docTrace pplus tss
 
 -- | Generation | --
 --------------------

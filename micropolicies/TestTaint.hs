@@ -116,12 +116,17 @@ prop_NI pplus maxCount ts =
                  (whenFail (do putStrLn "Indistinguishable tags found!"
                                putStrLn "Original Test State:"
                                putStrLn $ printTestState pplus ts
+                               putStrLn " Trace:"
+                               putStrLn $ printTrace pplus $ reverse tss
                            ) $ (indistinguishable (== taintTag) ts))
                  .&&.
                  (whenFail (do putStrLn $ "Clean tags set differs."
                                putStrLn $ "Original: " ++ show clean
                                putStrLn $ "Current:  " ++ show clean'
+                               putStrLn "Original Test State:"                               
                                putStrLn $ printTestState pplus ts
+                               putStrLn " Trace:"                               
+                               putStrLn $ printTrace pplus $ reverse tss                               
                            ) $ (clean == clean'))
               ) (takeWhile pcInSync trace)
 
