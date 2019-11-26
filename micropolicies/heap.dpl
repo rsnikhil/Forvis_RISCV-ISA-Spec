@@ -22,7 +22,7 @@ policy: main =
 
 allocGrp(
   env == _, code == [+Alloc]
-  -> 
+  ->
   env = env, res = {(Pointer new)})
 
 // Another potential mutant, if the policy language can express it:
@@ -32,28 +32,28 @@ allocGrp(
 // ARITHMETIC
 
 ^ immArithGrp(
-  env == _, op1 == _ 
-  -> 
-  env = env, res = op1)        
+  env == _, op1 == _
+  ->
+  env = env, res = op1)
 
 ^ arithGrp(
-  env == _, op1 == _ 
-  -> 
-  env = env, res = op1)  
+  env == _, op1 == _
+  ->
+  env = env, res = op1)
 
 // ------------------------------------------------------------------------------
 // LOAD FROM MEMORY
 
 #ifndef OMIT_CHECKS_ON_LOAD
 ^ loadGrp(
-    env == _, addr == {(Pointer color)}, mem == [+(Cell color)] 
+    env == _, addr == {(Pointer color)}, mem == [+(Cell color)]
     ->
     env = env, res = mem[-(Cell _)])
 #else
 ^ loadGrp(
-    env == _, addr == {(Pointer color)}, mem == _ 
+    env == _, addr == {(Pointer color)}, mem == _
     ->
-    env = env, res = mem[-(Cell _)])   
+    env = env, res = mem[-(Cell _)])
 #endif
 
 // ------------------------------------------------------------------------------
@@ -61,7 +61,7 @@ allocGrp(
 
 # ifndef OMIT_TAGGING_ON_STORE
 ^ storeGrp(
-    env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)] 
+    env == _, addr == {(Pointer color)}, val == _, mem == [+(Cell _)]
     ->
     env = env, mem = val[+(Cell color)])
 #else
@@ -69,7 +69,7 @@ allocGrp(
 // will always be writing the same value in both runs!  (With a stack safety policy, it
 // should be wrong because the stack safety property includes an integrity claim.)
 ^ storeGrp(
-    env == _, addr == _, val == _, mem == _ 
+    env == _, addr == _, val == _, mem == _
     ->
     env = env )
 #endif
@@ -77,14 +77,14 @@ allocGrp(
 // ------------------------------------------------------------------------------
 // JUMP
 
-^ jumpGrp(env == _ -> env = env, return = {(Pointer new)} ) 
+^ jumpGrp(env == _ -> env = env, return = {(Pointer new)} )
 
 // ==============================================================================
 // ==============================================================================
 // map external names (dotted strings) to tag sets
 // (Adding these explicit "heap."s is just a workaround pending a proper fix to PIPE.hs)
-require:  
-    init test.Cell {heap.Cell}   
+require:
+    init test.Cell {heap.Cell}
     init test.Pointer {heap.Pointer}
     init test.Env {heap.Env}
     init test.Inst {heap.Inst}
@@ -110,7 +110,7 @@ group:
         auipc
 
 //    jumpGrp(RS1:return -> RD:return) APT: This makes no sense given the current semantics of jal in PIPE.hs
-    grp jumpGrp(-> RD:return)      
+    grp jumpGrp(-> RD:return)
         jal
 
     grp jumpRegGrp(RS1:target -> RD:return)
@@ -149,7 +149,7 @@ group:
         slli
         srli
         srai
- 
+
     grp arithGrp(RS1:op1, RS2:op2 -> RD:res)
         add
         sub
@@ -159,13 +159,12 @@ group:
         xor
         srl
         sra
-        or 
+        or
         and
 
     grp systemGrp( -> )
         fence
- 
+
     grp privGrp( -> )
         ecall
         ebreak
-

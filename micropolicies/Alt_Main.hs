@@ -8,7 +8,7 @@ import Memory
 import Data.Bits
 
 import qualified Data.Map.Strict as Data_Map
-import Machine_State 
+import Machine_State
 
 import Run_Program_PIPE
 import Generator (genASTFile,genSymbolsFile)
@@ -24,16 +24,14 @@ import Printing
 
 import Control.Monad
 
-pol = "taint"
+pol = "heap"
 
 main :: IO ()
 main = do
   case pol of
     "taint"   -> TestTaint.main
     "heap"    -> TestHeapSafety.main
-    "cfi"    -> TestCFI.main 
+    "cfi"    -> TestCFI.main
     "stack"   -> TestStackSafety.main
     "writeonce"   -> TestWriteOnce.main
     otherwise -> error $ "unknown policy '" ++ pol ++ "'"
-
-

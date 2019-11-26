@@ -13,20 +13,20 @@ policy: main =
 // ARITHMETIC
 
   immArithGrp(
-  env == _, op1 == _ 
-  -> 
-  env = env, res = op1)        
+  env == _, op1 == _
+  ->
+  env = env, res = op1)
 
 ^ arithGrp(
-  env == _, op1 == _ 
-  -> 
-  env = env, res = op1)  
+  env == _, op1 == _
+  ->
+  env = env, res = op1)
 
 // ------------------------------------------------------------------------------
 // LOAD FROM MEMORY
 
 ^ loadGrp(
-    env == _, addr == _, mem == _ 
+    env == _, addr == _, mem == _
     ->
     env = env, res = mem)
 
@@ -52,7 +52,7 @@ policy: main =
     env = env, mem = mem)
 #else
 ^ storeGrp(
-    env == _, addr == _, val == _, mem == _ 
+    env == _, addr == _, val == _, mem == _
     ->
     env = env)
 #endif
@@ -60,23 +60,23 @@ policy: main =
 // ------------------------------------------------------------------------------
 // JUMP
 
-^ jumpGrp(env == _ -> env = env, return = env ) 
+^ jumpGrp(env == _ -> env = env, return = env )
 
 // ==============================================================================
 // ==============================================================================
 // map external names (dotted strings) to tag sets
 // (Adding these explicit "writeonce."s is just a workaround pending a proper fix to PIPE.hs)
-require:  
-    init test.Default {writeonce.Default}   
-    init test.WriteOnce {writeonce.WriteOnce}   
-    init test.WriteNever {writeonce.WriteNever}   
+require:
+    init test.Default {writeonce.Default}
+    init test.WriteOnce {writeonce.WriteOnce}
+    init test.WriteNever {writeonce.WriteNever}
 
 group:
     grp loadUpperGrp(-> RD:dest)
         lui
         auipc
 
-    grp jumpGrp(-> RD:return)      
+    grp jumpGrp(-> RD:return)
         jal
 
     grp jumpRegGrp(RS1:target -> RD:return)
@@ -112,7 +112,7 @@ group:
         slli
         srli
         srai
- 
+
     grp arithGrp(RS1:op1, RS2:op2 -> RD:res)
         add
         sub
@@ -122,13 +122,12 @@ group:
         xor
         srl
         sra
-        or 
+        or
         and
 
     grp systemGrp( -> )
         fence
- 
+
     grp privGrp( -> )
         ecall
         ebreak
-
