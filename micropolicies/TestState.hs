@@ -300,9 +300,16 @@ docRegDiff, docMemDiff :: PolicyPlus -> [[(Integer, Integer, TagSet)]] -> Doc
 docRegDiff pplus = docAssocDiff (\(a,v,t) -> P.char 'r' P.<> P.integer a <+> P.text "<-" <+> pretty pplus (v,t)) pplus
 docMemDiff pplus = docAssocDiff (\(a,v,t) -> P.char '[' P.<> P.integer a <+> P.text "] <-" <+> pretty pplus (v,t)) pplus
 
+
+docPCandInstrs :: PolicyPlus -> [Maybe (Integer, TagSet)] -> [Maybe Instr_I] -> Doc
+docPCandInstrs pplus (mpc:mpcs) (mi:mis)
+  | all (mpc==) mpcs && all (mi==) mis =
+      pretty pplus mpc <:> pretty pplus mi 
+docPCandInstrs _ _ _ = error "Empty/unequal pcs or mis"
+
 docDiffs :: PolicyPlus -> [Diff] -> Doc
 docDiffs pplus diffs =
-  P.text "TODO:" 
+  docPCandInstrs pplus (map _d_pc diffs) (map _d_instr diffs) P.<> P.text ":"
   $$ docRegDiff pplus (map _d_reg diffs)
   $$ docMemDiff pplus (map _d_mem diffs)
 --  pretty pplus d1 d2 =

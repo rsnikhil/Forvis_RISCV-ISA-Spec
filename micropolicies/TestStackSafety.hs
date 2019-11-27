@@ -30,6 +30,59 @@ The main idea of the stack property:
   - a RETURN is when the machine's PC is one more than the PC at the top of
     the stack of saved PCs and the stack pointer is equal to the top element
     of the stack of saved SPs.
+  - The PC's of the variants + main will always be in sync
+    + This is a stronger property than traditional IFC
+    + We can not even access sensitive data (and therefore will never branch on them)
+
+  - Compositionality wrt heap.
+    + Phrasing things in terms of constraints on what's accessible seems like a good idea
+    + Rather than having a fixed accessibility relation for each property
+
+  - Crazy ideas:
+    + What about coroutines? Changing contexts from one routine to another, changes the accessibility relation.
+    + Similarly, classification/declassification. It's all just changes to the accessibility relation. Maybe.
+    + Scrambling is always "fine". What matters is when we make it accessible again.
+
+  - Less Crazy ideas:
+    + Keep only two machines.
+    + Before each step: scramble the inaccessible part.
+    + After each step:
+      ++ Accessible regions should be identical
+      ++ Each location that was accessible before and is accessible after,
+         contents afterward should be identical across machines (security)
+      ++ Each location that was accessible before and is inaccessible after,
+         (should be identical after?)
+      ++ Each location that was inaccessible before and is accessible after...
+         (maybe combine both security and integrity check?)
+      ++ Each location that was inaccessible before and is inaccessible after, 
+         contents afterward should be identical before and after (integrity)
+    + If we had instructions that do NOTHING but change the accessibility relation
+      (and the rest of the instructions never change the acc relation) then
+      things might be easier.
+      Then, could we group the different behaviors from the decoupled ones?
+    + Instruction macros? Treat groups of instructions that perform
+      calls/returns atomically?
+
+    + After each step that doesn't change the accessibility: check that
+      ++ the inaccessible part hasn't changed in each machine
+      ++ the accessible parts are identical across machines
+    + After a step where accessibility changes:
+      ++ Check that any increase in accessibility was "allowed"
+         +++ e.g. for stack, we are returning in a RETURN header and the
+             newly accessible part is exactly the stack frame of the caller
+         +++ e.g. we are switching coroutines (???)
+      ++ The decreasing part is always fine (from a security point of view,
+         anyway -- liveness is a different question)
+    + Later: We're not so happy with this proposal because we can't 
+
+  - Philosophical problem:
+    + Distinguishing the caller from the callee
+    + e.g. the caller should be able to make the things they made inaccessible accessible again
+    + We should keep something about caller/callees while thinking about this
+    + Notion of identity in machine code. <- Confusion
+
+  - None of this makes sense without (some sort of) RWX in the background
+    + The callee shouldn't overwrite the callers code for example.
 -}
 
 {-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables, TupleSections, FlexibleInstances, MultiParamTypeClasses #-}
