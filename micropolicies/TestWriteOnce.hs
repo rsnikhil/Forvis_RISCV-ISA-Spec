@@ -540,9 +540,10 @@ load_policy = do
         , initPC = defaultTag
         , initNextColor = 5
         , emptyInstTag = defaultTag
-        , dataMemLow = 4
-        , dataMemHigh = 20  
-        , instrLow = 1000
+        , instrLow = 0
+        , instrHigh = 100
+        , dataMemLow = 1000
+        , dataMemHigh = 1020  
         }
   return pplus
 

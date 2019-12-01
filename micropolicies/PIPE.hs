@@ -20,6 +20,7 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             MemT(..),
             mkMemT, unMemT, mem_readT, mem_writeT,
             PIPE_State(..),
+            isInstr, 
             ppc, pgpr, pmem, pgpr_gpr, pgpr_map, pmem_mem, pmem_map,
             p_pc, p_gprs, p_mem,
             init_pipe_state,
@@ -84,16 +85,17 @@ data PolicyPlus =
     -- The policy itself
     policy :: PIPE_Policy
     -- Features for generation
--- , genMStatePair :: PolicyPlus -> Gen testState
   , initGPR :: TagSet 
   , initMem :: TagSet 
   , initPC  :: TagSet 
   , initNextColor :: Color
   , emptyInstTag :: TagSet
-      -- (The next three are arguably policy-local things and should be removed from here)
-  , dataMemLow :: Integer
-  , dataMemHigh :: Integer
-  , instrLow :: Integer
+  -- Memory layout: Instr mem ... stack | data mem
+  -- Stack pointer should begin at dataMemLow - 4?
+  , instrLow    :: !Integer
+  , instrHigh   :: !Integer
+  , dataMemLow  :: !Integer
+  , dataMemHigh :: !Integer
   -- Features for shrinking
 --  , shrinkMStatePair :: PolicyPlus -> testState -> [testState]
   -- Features for testing
@@ -256,13 +258,14 @@ get_rtag p a = maybe (error $ "get_rtag: " ++ show a ++  "\n" ++ show p) id $ p 
 set_mtag :: PIPE_State -> Integer -> TagSet -> PIPE_State
 set_mtag p a t = p & pmem . at a ?~ t 
 
+isInstr :: PolicyPlus -> Integer -> Bool
+isInstr pplus i = i >= instrLow pplus && i <= instrHigh pplus
+
 -- We may want to generalize the default case when memory layouts
 -- become more interesting...
 get_mtag :: PolicyPlus -> PIPE_State -> Integer -> Instr_I -> TagSet
 get_mtag pplus p a i =
-  maybe (if a == 0 || a >= instrLow pplus
-           then emptyInstTag pplus
-           else initMem pplus)
+  maybe (if isInstr pplus a then emptyInstTag pplus else initMem pplus)
         id $ p ^. pmem . at a 
 
 data MStatePair =

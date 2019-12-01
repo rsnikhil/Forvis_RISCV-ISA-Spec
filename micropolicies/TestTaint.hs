@@ -55,9 +55,11 @@ load_policy = do
         , initPC = cleanTag
         , initNextColor = 5
         , emptyInstTag = cleanTag
-        , dataMemLow = 4
-        , dataMemHigh = 20  -- Was 40, but that seems like a lot! (8 may be too little!)
-        , instrLow = 1000
+        , instrLow = 0
+        , instrHigh = 100
+        , dataMemLow = 1000
+        , dataMemHigh = 1020 -- Was 40, but that seems like a lot! (8 may be too little!)
+
         }
   return pplus
 

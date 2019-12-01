@@ -129,7 +129,7 @@ calcDiff pplus st1 st2 =
       let dataDiff = diff (Map.assocs $ st1 ^. ms . fmem)
                           (Map.assocs $ st2 ^. ms . fmem) (const uninitialized_word)
           tagDiff  = diff (Map.assocs $ st1 ^. ps . pmem)
-                          (Map.assocs $ st2 ^. ps . pmem) (\i -> if i == 0 || i >= instrLow pplus then emptyInstTag pplus else initMem pplus)
+                          (Map.assocs $ st2 ^. ps . pmem) (\i -> if isInstr pplus i then emptyInstTag pplus else initMem pplus)
       in catMaybes $ mergeDiffs st1 st2 dataDiff tagDiff
   } 
 
@@ -215,7 +215,7 @@ instance Pretty Instr_I where
 -- | Address based printing
 prAddress :: PolicyPlus -> Bool -> (Integer, Integer, TagSet) -> Doc
 prAddress pplus isMem (a,v,t) =
-    if (a == 0 && isMem) || a >= instrLow pplus then 
+    if isMem && isInstr pplus a then
       case decode_I RV32 v of
         Just inst -> pretty pplus inst <@> pretty pplus t
         Nothing   -> error $ "Not an instruction in instruction memory: " ++ show (a,v,t,instrLow pplus)
@@ -304,14 +304,14 @@ docMemDiff pplus = docAssocDiff (\(a,v,t) -> P.char '[' P.<> P.integer a <+> P.t
 docPCandInstrs :: PolicyPlus -> [Maybe (Integer, TagSet)] -> [Maybe Instr_I] -> Doc
 docPCandInstrs pplus (mpc:mpcs) (mi:mis)
   | all (mpc==) mpcs && all (mi==) mis =
-      pretty pplus mpc <:> pretty pplus mi 
+      pad 17 (pretty pplus mpc) P.<> P.text "  " P.<> pad 17 (pretty pplus mi)
 docPCandInstrs _ _ _ = error "Empty/unequal pcs or mis"
 
 docDiffs :: PolicyPlus -> [Diff] -> Doc
 docDiffs pplus diffs =
-  docPCandInstrs pplus (map _d_pc diffs) (map _d_instr diffs) P.<> P.text ":"
-  $$ docRegDiff pplus (map _d_reg diffs)
-  $$ docMemDiff pplus (map _d_mem diffs)
+  docPCandInstrs pplus (map _d_pc diffs) (map _d_instr diffs) 
+  <:> docRegDiff pplus (map _d_reg diffs)
+  P.<> docMemDiff pplus (map _d_mem diffs)
 --  pretty pplus d1 d2 =
 --    P.hcat [ pad 17 (pretty pplus (d_pc d1) (d_pc d2))
 --           , P.text " "
@@ -367,37 +367,30 @@ genImm :: Integer -> Gen InstrField
 genImm n = (4*) <$> choose (0, n `div` 4)  
 
 -- Data structure to capture the current status of the registers for generation
-data RegInfo = RegInfo { _dataPtr :: [DataPtrInfo] 
-                       , _codePtr :: [CodePtrInfo] 
-                       , _arith   :: [ArithInfo  ] 
+data RegInfo = RegInfo { _dataPtr :: [PtrInfo] 
+                       , _codePtr :: [PtrInfo] 
+                       , _arith   :: [ArithInfo] 
                        }
 
 -- No information needed (for now) for Arith registers
-data ArithInfo = AI { _aID :: GPR_Addr
+data ArithInfo = AI { _aID :: !GPR_Addr
                     -- Register ID
                     }
 
-data CodePtrInfo = CPI { _cID  :: GPR_Addr
-                       -- Register id
-                       , _cMinImm :: Integer
-                       -- Minimum immediate needed to make it a valid code pointer
-                       }
-
-data DataPtrInfo = DPI { _dID :: GPR_Addr
-                       -- Register id
-                       , _dVal :: Integer
-                       -- Register contents
-                       , _dMinImm :: Integer
-                       -- Minimum immediate needed to make it a valid data pointer
-                       , _dMaxImm :: Integer
-                       -- Maximum immediate needed to make it a valid data pointer
-                       , _dTag :: TagSet
-                       -- Associated Register Tag
-                       } 
+data PtrInfo = PI { _rID  :: !GPR_Addr
+                    -- Register id
+                  , _rVal :: !Integer
+                    -- Register contents
+                  , _pMinImm :: !Integer
+                    -- Minimum immediate needed to make it a valid data pointer
+                  , _pMaxImm :: !Integer
+                    -- Maximum immediate needed to make it a valid data pointer
+                  , _rTag :: !TagSet
+                   -- Associated Register Tag
+                  } 
 
 makeLenses ''ArithInfo
-makeLenses ''CodePtrInfo
-makeLenses ''DataPtrInfo
+makeLenses ''PtrInfo
 
 -- dataP, codeP : Predicates over the tagset to establish potential invariants for code/data pointers.
 -- Picks out valid (data registers + content + min immediate + max immediate + tag),
@@ -412,22 +405,38 @@ groupRegisters pplus (GPR_File rs) (GPR_FileT ts) dataP codeP =
       tags = Map.assocs ts
       rts = zip regs tags
 
-      validData ((reg_id,reg_content),(_reg_id, reg_tag)) 
-        | reg_content >= dataMemLow pplus &&
-          reg_content <= dataMemHigh pplus
-          && dataP reg_tag =
-           Just $ DPI reg_id reg_content 0 (dataMemHigh pplus - reg_content) reg_tag
-        | reg_content == 0 && dataP reg_tag =
-        -- We can allow a 0 register by adding at least 4
-           Just $ DPI reg_id 0 (dataMemLow pplus) (dataMemHigh pplus) reg_tag
-        | otherwise =
-           Nothing
-        
-      validJump ((reg_id,reg_content),(_, reg_tag))
-        | reg_content < instrLow pplus && codeP reg_tag =
-          Just $ CPI reg_id (instrLow pplus - reg_content)
-        | otherwise =
-          Nothing
+      -- Given range limits (low / high) for when something is valid
+      -- Calculate the immediates involved
+      -- Are Immediates signed? then we need reg_content <= dataMemLow pplus
+      -- If not we can remove that check:
+      valid tagPred lowLim highLim ((reg_id, reg_content), (_reg_id, reg_tag))
+        | tagPred reg_tag && reg_content <= highLim =
+          let minToAdd = if reg_content <= lowLim
+                         then lowLim - reg_content
+                         else 0 in
+          Just $ PI reg_id reg_content minToAdd (highLim - reg_content) reg_tag
+        | otherwise = Nothing
+
+      -- TODO: Take stack into account?
+      validData = valid dataP (dataMemLow pplus) (dataMemHigh pplus)
+      validJump = valid codeP (instrLow   pplus) (instrHigh   pplus)
+
+--            -- Convert 
+--        | reg_content >= dataMemLow pplus &&
+--          reg_content <= dataMemHigh pplus
+--          && dataP reg_tag =
+--           Just $ DPI reg_id reg_content 0 (dataMemHigh pplus - reg_content) reg_tag
+--        | reg_content == 0 && dataP reg_tag =
+--        -- We can allow a 0 register by adding at least 4
+--           Just $ DPI reg_id 0 (dataMemLow pplus) (dataMemHigh pplus) reg_tag
+--        | otherwise =
+--           Nothing
+--        
+--      validJump ((reg_id,reg_content),(_, reg_tag))
+--        | reg_content >= instrLow pplus && reg_content < instrLow pplus && codeP reg_tag =
+--          Just $ CPI reg_id (instrLow pplus - reg_content)
+--        | otherwise =
+--          Nothing
 
       dataRegs    = map (fromJust) $ filter (isJust) $ map validData rts
       controlRegs = map (fromJust) $ filter (isJust) $ map validJump rts
@@ -457,7 +466,7 @@ genInstr pplus ms ps dataP codeP genInstrTag =
               )
             , (onNonEmpty dataInfo 3,
                do -- LOAD
-                  DPI rs content min_imm max_imm tag <- elements dataInfo
+                  PI rs content min_imm max_imm tag <- elements dataInfo
                   rd <- genTargetReg ms
                   imm <- (min_imm+) <$> genImm (max_imm - min_imm)
                   -- TODO: Think about generalizing this reachability thingy.
@@ -477,7 +486,7 @@ genInstr pplus ms ps dataP codeP genInstrTag =
               )
             , (onNonEmpty dataInfo 3 * onNonEmpty arithInfo 1,
                do -- STORE
-                  DPI rd content min_imm max_imm tag <- elements dataInfo
+                  PI rd content min_imm max_imm tag <- elements dataInfo
                   rs <- genTargetReg ms
                   imm <- (min_imm+) <$> genImm (max_imm - min_imm)
                   let instr = SW rd rs imm
@@ -582,10 +591,10 @@ genMachine pplus genMTag genGPRTag dataP codeP genITag = do
   (mm,pm) <- genDataMemory pplus genMTag
   let ms = initMachine
              & fmem_mem .~ mm 
-             & fmem . at (f_pc initMachine) ?~ (encode_I RV32 $ JAL 0 1000) 
+--             & fmem . at (f_pc initMachine) ?~ (encode_I RV32 $ JAL 0 1000) 
       ps = init_pipe_state pplus
              & pmem_mem .~ pm
-             & pmem . at (f_pc ms) ?~ (emptyInstTag pplus) 
+--             & pmem . at (f_pc ms) ?~ (emptyInstTag pplus) 
 
   -- | Update registers
   ms' <- genGPRs  ms
