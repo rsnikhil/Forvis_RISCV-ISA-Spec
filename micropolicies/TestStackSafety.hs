@@ -38,7 +38,7 @@ import Printing
 import Terminal
 import MachineLenses
 import TestState
-{-
+
 -- | Policy Specific generation
 
 noTag = fromExt []
@@ -73,24 +73,25 @@ load_policy = do
             -- "Uninitialized" tag?
         , initPC = pcTag 0
         , initNextColor = 1
+        , instrLow = 0
+        , instrHigh = 100
         , emptyInstTag = noTag
-        , dataMemLow = 4
-        , dataMemHigh = 20  -- Was 40, but that seems like a lot! (8 may be too little!)
-        , instrLow = 1000
+        , dataMemLow = 1000
+        , dataMemHigh = 1020  -- Was 40, but that seems like a lot! (8 may be too little!)
         }
   return pplus
 
 genMTag, genGPRTag :: PolicyPlus -> Gen TagSet 
-genMTag pplus = frequency [(1, pure taintTag), (1, pure cleanTag)]
+genMTag pplus = frequency [(1, pure boringTag), (1, pure boringTag)]
 genGPRTag = genMTag
 
 dataP = const True
 codeP = const True
 
-genITag _ = return cleanTag
+genITag _ = return boringTag
 
 isSecretMP :: Machine_State -> PIPE_State -> TagSet -> Bool
-isSecretMP _ _ t = t == taintTag
+isSecretMP _ _ t = t == boringTag
 
 mkInfo :: Machine_State -> PIPE_State -> ()
 mkInfo _ _ = ()
@@ -110,44 +111,27 @@ main = main_test
 
 -- | Property
 
-cleanLocs :: RichState -> [Integer]
-cleanLocs (Rich m p) =
-  let filterAux [] _ = []
-      filterAux _ [] = []
-      filterAux ((i,d):ds) ((j,t):ts)
-        | i == j =
-            if t == cleanTag then i : filterAux ds ts
-            else filterAux ds ts
-        | i < j = filterAux ds ((j,t):ts)
-        | i > j = if t == cleanTag
-                  then j : filterAux ((i,d):ds) ts
-                  else filterAux ((i,d):ds) ts
-
-  in filterAux (Map.assocs $ f_dm $ f_mem m) (Map.assocs $ unMemT $ p_mem p)
-
 -- TODO: Rephrase indistinguishability to only look at clean locs?
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
-prop_NI pplus maxCount ts =
-  let clean = cleanLocs <$> toListOf richStates ts in 
-  let (trace,err) = traceExec pplus ts maxCount in
-  allWhenFail (\ts tss -> --tss is reversed here
-                 let clean' = cleanLocs <$> toListOf richStates ts in
-                 (whenFail (do putStrLn "Indistinguishable tags found!"
-                               putStrLn "Original Test State:"
-                               putStrLn $ printTestState pplus ts
-                               putStrLn " Trace:"
-                               putStrLn $ printTrace pplus $ reverse tss
-                           ) $ (indistinguishable (== taintTag) ts))
-                 .&&.
-                 (whenFail (do putStrLn $ "Clean tags set differs."
-                               putStrLn $ "Original: " ++ show clean
-                               putStrLn $ "Current:  " ++ show clean'
-                               putStrLn "Original Test State:"                               
-                               putStrLn $ printTestState pplus ts
-                               putStrLn " Trace:"                               
-                               putStrLn $ printTrace pplus $ reverse tss                               
-                           ) $ (clean == clean'))
-              ) (takeWhile pcInSync trace)
+prop_NI pplus maxCount ts = undefined
+--  let (trace,err) = traceExec pplus ts maxCount in
+--  allWhenFail (\ts tss -> --tss is reversed here
+--                 (whenFail (do putStrLn "Indistinguishable tags found!"
+--                               putStrLn "Original Test State:"
+--                               putStrLn $ printTestState pplus ts
+--                               putStrLn " Trace:"
+--                               putStrLn $ printTrace pplus $ reverse tss
+--                           ) $ (indistinguishable (== taintTag) ts))
+--                 .&&.
+--                 (whenFail (do putStrLn $ "Clean tags set differs."
+--                               putStrLn $ "Original: " ++ show clean
+--                               putStrLn $ "Current:  " ++ show clean'
+--                               putStrLn "Original Test State:"                               
+--                               putStrLn $ printTestState pplus ts
+--                               putStrLn " Trace:"                               
+--                               putStrLn $ printTrace pplus $ reverse tss                               
+--                           ) $ (clean == clean'))
+--              ) (takeWhile pcInSync trace)
 
 prop :: PolicyPlus -> TestState () -> Property
 prop pplus ts = prop_NI pplus maxInstrsToGenerate ts
@@ -812,4 +796,4 @@ prop pplus ms = prop_NI' pplus 0 maxInstrsToGenerate [] ms
 ----  printTrace pplus (reverse tr)
 --  putStrLn (show res)
 -}
--}
+

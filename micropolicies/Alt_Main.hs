@@ -26,7 +26,7 @@ import TestState
 
 import Control.Monad
 
-pol = "taint"
+pol = "stack"
 
 main :: IO ()
 main = do
@@ -34,7 +34,7 @@ main = do
     "taint"   -> TestTaint.main
     "heap"    -> TestHeapSafety.main
     "cfi"    -> TestCFI.main 
---    "stack"   -> TestStackSafety.main
+    "stack"   -> TestStackSafety.main
     "writeonce"   -> TestWriteOnce.main
     otherwise -> error $ "unknown policy '" ++ pol ++ "'"
 
