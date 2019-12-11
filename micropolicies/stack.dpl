@@ -26,23 +26,26 @@ policy: main =
        env == {(PC old)}
     -> env = {(PC new),H1}, return = {(PC old)} ) 
 
+// TODO:
+// val, mem used to be Stack old. Should it be PC?
+// Old mistake? code wasn't tagged H1. HOW would we find that?
 ^ storeGrp(
-       env == [+H1], addr == {SP}, val == {(Stack old)}, mem == _
-    -> env = env[-H1,+H2], mem = {(Stack old)})
+       env == [+H1], addr == {SP}, val == {(PC old)}, mem == _, code == {H1}
+    -> env = env[-H1,+H2], mem = {(PC old)})
 
 ^ immArithGrp(
      env == [+H2], op1 == {SP}, code == {H2} 
-  -> env = env[-H2,+H3], res = {SP})
+  -> env = env[-H2], res = {SP})
 
-^ immArithGrp(
-     env == [+H3], op1 == _, code == {H3} 
-  -> env = env[-H3], res = {Boring})
+//^ immArithGrp(
+//     env == [+H3], op1 == _, code == {H3} 
+//  -> env = env[-H3], res = {Boring})
 
 // ------------------------------------------------------------------------------
 // RETURN SEQUENCE
 
 ^ loadGrp(
-       addr == {SP}, mem == {(Stack d)}, res == {Boring}, env == _, code == {R1}
+       addr == {SP}, mem == {(PC d)}, res == {Boring}, env == _, code == {R1}
     -> env = env[+R2], res = mem)
 
 ^ immArithGrp(
@@ -50,23 +53,23 @@ policy: main =
   -> env = env[-R2,+R3], res = {SP})
 
 ^ jalrGrp(
-       target == {(Stack old)}, env == {R3,(PC _)}, code == {R3}
+       target == {(PC old)}, env == {R3,(PC _)}, code == {R3}
     -> env = {(PC old)}, return = {Boring} ) 
 
 // ------------------------------------------------------------------------------
 // OTHER INSTRUCTIONS
 
 ^ arithGrp(
-       code == {Boring}, env == _, op1 == {Boring}, op2 == {Boring}, res == {Boring}
+       code == {Boring}, env == _, op1 == [-SP], op2 == [-SP], res == {Boring}
     -> env = env, res = {Boring} ) 
 ^ immArithGrp(
-       code == {Boring}, env == _, op1 == {Boring}, res == {Boring}
+       code == {Boring}, env == _, op1 == [-SP], res == [-SP]
     -> env = env, res = {Boring})
 ^ loadGrp(
-       env == _, addr == {Boring}, mem == {Boring}, res == {Boring}
+       env == _, addr == [-SP], mem == {Boring}, res == {Boring}
     -> env = env, res = {Boring})
 ^ storeGrp(
-       env == _, addr == {Boring}, val == {Boring}, mem == {Boring}
+       env == _, addr == [-SP], val == {Boring}, mem == {Boring}
     -> env = env, mem = {Boring})
 ^ jalrGrp(
        target == {Boring}, env == {(PC _)}, return == {Boring}
