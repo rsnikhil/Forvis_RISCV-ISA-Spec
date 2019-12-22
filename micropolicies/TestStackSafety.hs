@@ -29,6 +29,7 @@ import Forvis_Spec_Instr_Fetch
 import GPR_File
 import Machine_State
 import Memory
+import ALU
 
 -- From .
 import Gen
@@ -144,7 +145,31 @@ next_desc s d s'
         isRet  = ((s' ^. ms . fpc) == 4 + fst (head $ stack d)) &&
                  (Just (snd (head $ stack d)) == (s ^. ms . fgpr . at sp))
         -- Should return Just (memory loc) if it is a write, Nothing otherwise
-        isWrite = Nothing -- FIX
+        isWrite =
+          -- TODO: Common definitions from Forvis_Spec_I
+          let writeAddr rs1 imm12 =
+                let mstate = s ^. ms
+                    -- rv   = mstate_rv_read    mstate
+                    xlen = mstate_xlen_read  mstate
+                    -- Compute effective address
+                    rs1_val  = mstate_gpr_read  rs1  mstate    -- address base
+                    s_imm12  = sign_extend  12  xlen  imm12
+                    eaddr1   = alu_add  xlen  rs1_val  s_imm12
+                    -- eaddr2   = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
+                    eaddr2  = eaddr1 -- TODO: Fix eaddr2 above
+                in
+                  eaddr2
+          in
+            case fst $ instr_fetch (s ^. ms) of
+              Fetch u32 -> case decode_I RV32 u32 of
+                Just instr -> case instr of
+                  SB _ rs1 imm12 -> Just (writeAddr rs1 imm12)
+                  SH _ rs1 imm12 -> Just (writeAddr rs1 imm12)
+                  SW _ rs1 imm12 -> Just (writeAddr rs1 imm12)
+                  _ -> Nothing
+                _ -> Nothing
+              -- TODO: SD support
+              _ -> Nothing
     in
     d { pcdepth =
           if isCall then
