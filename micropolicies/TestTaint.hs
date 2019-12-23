@@ -69,6 +69,7 @@ genGPRTag = genMTag
 
 dataP = const True
 codeP = const True
+callP = const False
 
 genITag _ = return cleanTag
 
@@ -84,7 +85,7 @@ mkInfo _ _ = ()
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP genITag isSecretMP mkInfo)
+    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP genITag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \ts -> prop pplus ts

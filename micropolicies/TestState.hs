@@ -345,19 +345,25 @@ printTrace pplus tss =
 -- | Generation | --
 --------------------
 
--- GPR's are hard coded to be [0..31], but we only use a couple of them
-maxReg = 3
+-- TODO: Do we care about gp/tp/fp?
+r0 = 0
+ra = 1
+sp = 2
 
--- Generate a random register for source
+-- GPR's are hard coded to be [0..31], but we only use a couple of them
+minReg = 3
+maxReg = minReg + 3
+
+-- Generate a random register for source, can include r0
 genSourceReg :: Machine_State -> Gen GPR_Addr
 genSourceReg ms =
-  choose (0, maxReg)
+  frequency [ (1, return r0)
+            , (fromInteger (maxReg - minReg), choose (minReg, maxReg)) ]
 
 -- Generate a target register GPR
--- For now, just avoid R0
 genTargetReg :: Machine_State -> Gen GPR_Addr
 genTargetReg ms =
-  choose (1, maxReg)
+  choose (minReg, maxReg)
 
 -- Generate an immediate up to number
 -- Multiple of 4
@@ -391,6 +397,7 @@ data PtrInfo = PI { _rID  :: !GPR_Addr
 
 makeLenses ''ArithInfo
 makeLenses ''PtrInfo
+
 
 -- dataP, codeP : Predicates over the tagset to establish potential invariants for code/data pointers.
 -- Picks out valid (data registers + content + min immediate + max immediate + tag),
@@ -514,6 +521,37 @@ genInstr pplus ms ps dataP codeP genInstrTag =
               )
             ]
 
+genCall :: PolicyPlus -> Machine_State -> PIPE_State ->
+            (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool) ->
+            (Instr_I -> Gen TagSet) ->
+            (Integer -> [(Instr_I, TagSet)]) ->
+            Gen [(Instr_I, TagSet)]
+genCall pplus ms ps dataP codeP callP genInstrTag headerSeq = do
+  let m = ms ^. fmem
+      t = Map.assocs $ ps ^. pmem
+
+      existingCallSites = map fst $ filter (\(i,t) -> callP t) t
+      newCallSites =
+        -- iterate through all possible instruction locations
+        -- and filter out the ones that already exist in memory
+        filter (\i -> not (Map.member i m))
+          [instrLow pplus, instrLow pplus + 4 .. (instrHigh pplus - 100)]
+ 
+  offset <- elements (existingCallSites ++ newCallSites)
+  return $ headerSeq offset
+
+-- TODO: This might need to be further generalized in the future
+genInstrSeq :: PolicyPlus -> Machine_State -> PIPE_State ->
+               (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool) ->
+               (Instr_I -> Gen TagSet) ->
+               (Integer -> [(Instr_I, TagSet)]) -> Bool -> [(Instr_I, TagSet)] ->
+               Gen [(Instr_I, TagSet)]
+genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq =
+  frequency [ (10, (:[]) <$> genInstr pplus ms ps dataP codeP genInstrTag)
+            , (1, genCall pplus ms ps dataP codeP callP genInstrTag headerSeq)
+            , (if hasCall then 1 else 0, return retSeq)
+            ] 
+
 genDataMemory :: PolicyPlus -> (PolicyPlus -> Gen TagSet) -> Gen (Mem, MemT)
 genDataMemory pplus genMTag = do
   let idx = [dataMemLow pplus, (dataMemLow pplus)+4..(dataMemHigh pplus)]
@@ -531,29 +569,41 @@ setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
 setInstrTagI ms ps it =
   ps & pmem . at (f_pc ms) ?~ it 
 
+
 -- | Generation by execution receives an initial machine X PIPE state and
 -- | generates instructions until n steps have been executed.
 -- | Returns the original machines with just the instruction memory locations
 -- | updated.
 genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State ->
-             (TagSet -> Bool) -> (TagSet -> Bool) -> (Instr_I -> Gen TagSet) ->
+             (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool) ->
+             (Instr_I -> Gen TagSet) -> 
              Gen (Machine_State, PIPE_State)
-genByExec pplus n init_ms init_ps dataP codeP genInstrTag =
-  exec_aux n init_ms init_ps init_ms init_ps
-  where exec_aux 0 ims ips ms ps = return (ims, ips)
-        exec_aux n ims ips ms ps 
+genByExec pplus n init_ms init_ps dataP codeP callP genInstrTag =
+  exec_aux n init_ms init_ps init_ms init_ps []
+  where exec_aux :: Int -> Machine_State -> PIPE_State ->
+                           Machine_State -> PIPE_State ->
+                           [(Instr_I, TagSet)] ->
+                           Gen (Machine_State, PIPE_State)
+        exec_aux 0 ims ips ms ps generated = return (ims, ips)
+        exec_aux n ims ips ms ps generated
         -- Check if an instruction already exists
           | Map.member (f_pc ms) (f_dm $ f_mem ms) =
             case fetch_and_execute pplus ms ps of
               Right (ms'', ps'') ->
-                exec_aux (n-1) ims ips ms'' ps'' 
+                -- TODO: Check that generated is empty here?
+                exec_aux (n-1) ims ips ms'' ps'' []
               Left err ->
                 -- trace ("Warning: Fetch and execute failed with " ++ show n
                 --        ++ " steps remaining and error: " ++ show err) $
                 return (ms, ps)
           | otherwise = do
               -- Generate an instruction for the current state
-              (is, it) <- genInstr pplus ms ps dataP codeP genInstrTag
+              -- Checking if there is a "sequence" part left
+              (is, it, generated') <-
+                case generated of
+                  [] -> (\(is,it) -> (is,it,[])) <$>
+                          genInstr pplus ms ps dataP codeP genInstrTag
+                  ((is,it):t) -> return (is,it,t)
               -- Update the i-memory of both the machine we're stepping...
               let ms' = ms & fmem . at (f_pc ms) ?~ (encode_I RV32 is)
                   ps' = ps & pmem . at (f_pc ms) ?~ it 
@@ -565,7 +615,7 @@ genByExec pplus n init_ms init_ps dataP codeP genInstrTag =
               case fetch_and_execute pplus ms' ps' of
                 Right (ms'', ps'') ->
                   -- trace "Successful execution" $
-                  exec_aux (n-1) ims' ips' ms'' ps'' 
+                  exec_aux (n-1) ims' ips' ms'' ps'' generated'
                 Left err ->
                   -- trace ("Warning: Fetch and execute failed with "
                   --       ++ show n ++ " steps remaining and error: " ++ show err) $
@@ -583,9 +633,10 @@ genGPRTs pplus p genGPRTag = do
   return $ p & pgpr %~ Map.union (Map.fromList $ zip [1..] cs)
 
 genMachine :: PolicyPlus -> (PolicyPlus -> Gen TagSet) -> (PolicyPlus -> Gen TagSet) ->
-             (TagSet -> Bool) -> (TagSet -> Bool) -> (Instr_I -> Gen TagSet) ->
+             (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool) ->
+             (Instr_I -> Gen TagSet) ->
              Gen RichState
-genMachine pplus genMTag genGPRTag dataP codeP genITag = do
+genMachine pplus genMTag genGPRTag dataP codeP callP genITag = do
 
   -- | Initial memory
   (mm,pm) <- genDataMemory pplus genMTag
@@ -601,7 +652,7 @@ genMachine pplus genMTag genGPRTag dataP codeP genITag = do
   ps' <- genGPRTs pplus ps (genGPRTag pplus)
 
   -- | Do generation by execution
-  (ms_fin, ps_fin) <- genByExec pplus maxInstrsToGenerate ms' ps' dataP codeP genITag
+  (ms_fin, ps_fin) <- genByExec pplus maxInstrsToGenerate ms' ps' dataP codeP callP genITag
 
   return $ Rich ms_fin ps_fin
 
@@ -643,22 +694,22 @@ varySecretState pplus isSecretMP rs@(Rich m p) = do
 
 genSingleTestState :: PolicyPlus
                    -> (PolicyPlus -> Gen TagSet) -> (PolicyPlus -> Gen TagSet)
-                   -> (TagSet -> Bool) -> (TagSet -> Bool)
+                   -> (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool)
                    -> (Instr_I -> Gen TagSet)
                    -> Gen (TestState a)
-genSingleTestState pplus genMTag genGPRTag dataP codeP genITag = do
-  rs <- genMachine pplus genMTag genGPRTag dataP codeP genITag
+genSingleTestState pplus genMTag genGPRTag dataP codeP callP genITag = do
+  rs <- genMachine pplus genMTag genGPRTag dataP codeP callP genITag
   return $ TS rs []
 
 genVariationTestState :: PolicyPlus
                       -> (PolicyPlus -> Gen TagSet) -> (PolicyPlus -> Gen TagSet)
-                      -> (TagSet -> Bool) -> (TagSet -> Bool)
+                      -> (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool)
                       -> (Instr_I -> Gen TagSet)
                       -> (Machine_State -> PIPE_State -> TagSet -> Bool)
                       -> (Machine_State -> PIPE_State -> a)
                       -> Gen (TestState a)
-genVariationTestState pplus genMTag genGPRTag dataP codeP genITag isSecretMP mkInfo = do
-  rs  <- genMachine pplus genMTag genGPRTag dataP codeP genITag
+genVariationTestState pplus genMTag genGPRTag dataP codeP callP genITag isSecretMP mkInfo = do
+  rs  <- genMachine pplus genMTag genGPRTag dataP codeP callP genITag
   rs' <- varySecretState pplus isSecretMP rs
   let a = mkInfo (rs' ^. ms) (rs' ^. ps)
   return $ TS rs [SE rs' a]

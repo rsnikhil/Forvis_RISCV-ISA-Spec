@@ -54,6 +54,28 @@ stackTag n = fromExt [("stack.Stack"  , Just n)]
 pcTag n = fromExt [("stack.PC"  , Just n)]
 
 {-
+HEADER sequence:
+           SW SP RA 1     @H1    - store RA
+           ADDI SP SP 2  @H2    - increment SP (by frame size)
+
+RETURN sequence:
+           LW RA SP -1    @R1    - load return address  (offset by one less than frame size)
+           ADDI SP SP -2 @R2    - decrement SP (by frame size)
+           JALR RA RA     @R3    - jump back
+-}
+
+headerSeq offset =
+            [ (JAL ra offset, boringTag)
+            , (SW sp ra 1  , tagH1)
+            , (ADDI sp sp 2, tagH2)
+            ]
+
+returnSeq = [ (LW ra sp (-1), tagR1)
+            , (ADDI sp sp 2 , tagR2)
+            , (JALR ra ra 0 , tagR3)
+            ]
+
+{-
 New memory layout:
 
 Instr Memory
@@ -74,7 +96,7 @@ load_policy = do
         , initPC = pcTag 0
         , initNextColor = 1
         , instrLow = 0
-        , instrHigh = 100
+        , instrHigh = 400
         , emptyInstTag = noTag
         , dataMemLow = 1000
         , dataMemHigh = 1020  -- Was 40, but that seems like a lot! (8 may be too little!)
@@ -87,6 +109,7 @@ genGPRTag = genMTag
 
 dataP = const True
 codeP = const True
+callP t = t == tagH1
 
 genITag _ = return boringTag
 
@@ -102,7 +125,7 @@ mkInfo _ _ = ()
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP genITag isSecretMP mkInfo)
+    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP genITag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \ts -> prop pplus ts
@@ -136,7 +159,6 @@ accessible i sd =
     _ -> False
 
 -- TODO: Fix this
-sp = 2
 next_desc :: RichState -> StateDesc -> RichState -> StateDesc
 next_desc s d s'
   | memdepth d Map.! (s ^. ms . fpc) == Instr =
