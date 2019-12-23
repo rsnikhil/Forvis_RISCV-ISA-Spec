@@ -189,6 +189,31 @@ next_desc s d s'
           else stack d
       } 
 
+-- A scrambled version of S w.r.t. D is identical in the instruction memory and
+-- accessible parts, and arbitrary in the inaccessible parts of the data memory.
+scramble :: TestState () -> StateDesc -> TestState ()
+scramble ts d = undefined
+
+step_consistent :: PolicyPlus -> TestState () -> StateDesc -> Bool
+step_consistent pplus ts d =
+  let tt = scramble ts d in
+  case (step pplus ts, step pplus tt) of
+    (Right ts', Right tt') ->
+      -- The instruction memory and the accessible_D parts of S’ and T’ agree
+      -- and the inaccessible_D parts of T and T’ agree.
+      undefined
+      &&
+      -- T’ is step consistent with D’.
+      undefined
+    _ -> True -- Vacuously
+
+-- TODO: Obtain state description from tag memory; determine provenance of list
+-- of (allowed) call addresses.
+prop_init :: PolicyPlus -> TestState () -> Property
+prop_init pplus ts =
+  let pmem = p_mem (ts ^. mp ^. ps) in
+  property (step_consistent pplus ts (initDesc undefined undefined))
+
 -- TODO: Rephrase indistinguishability to only look at clean locs?
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
 prop_NI pplus maxCount ts = 
@@ -213,6 +238,9 @@ prop_NI pplus maxCount ts =
 --              ) (takeWhile pcInSync trace)
 
 prop :: PolicyPlus -> TestState () -> Property
-prop pplus ts = prop_NI pplus maxInstrsToGenerate ts
+prop pplus ts =
+  prop_init pplus ts
+  .&&.
+  prop_NI pplus maxInstrsToGenerate ts
 
 
