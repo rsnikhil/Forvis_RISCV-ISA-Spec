@@ -207,12 +207,26 @@ step_consistent pplus ts d =
       undefined
     _ -> True -- Vacuously
 
--- TODO: Obtain state description from tag memory; determine provenance of list
--- of (allowed) call addresses.
+to_desc :: TagSet -> DescTag
+to_desc ts =
+  case toExt ts of
+    [("stack.Stack", Just n)] -> Stack n
+    _ -> Instr
+
+-- TODO: Determine provenance of list of (allowed) call addresses.
 prop_init :: PolicyPlus -> TestState () -> Property
 prop_init pplus ts =
-  let pmem = p_mem (ts ^. mp ^. ps) in
-  property (step_consistent pplus ts (initDesc undefined undefined))
+  let
+    pmemMap = p_mem (ts ^. mp ^. ps) ^. pmem_map
+    pmemDesc = Map.map to_desc pmemMap
+    calls = undefined
+    tsDesc = initDesc pmemDesc calls
+  in
+    whenFail (do putStrLn "Initial state is not step consistent!"
+                 putStrLn "Original Test State:"
+                 putStrLn $ printTestState pplus ts
+                 -- TODO: Print state description
+             ) $ (step_consistent pplus ts tsDesc)
 
 -- TODO: Rephrase indistinguishability to only look at clean locs?
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
