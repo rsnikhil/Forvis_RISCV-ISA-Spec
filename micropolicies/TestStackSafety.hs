@@ -213,14 +213,20 @@ to_desc ts =
     [("stack.Stack", Just n)] -> Stack n
     _ -> Instr
 
--- TODO: Determine provenance of list of (allowed) call addresses.
-prop_init :: PolicyPlus -> TestState () -> Property
-prop_init pplus ts =
+testInitDesc :: TestState a -> StateDesc
+testInitDesc ts =
   let
     pmemMap = p_mem (ts ^. mp ^. ps) ^. pmem_map
     pmemDesc = Map.map to_desc pmemMap
     calls = undefined
-    tsDesc = initDesc pmemDesc calls
+  in
+    initDesc pmemDesc calls
+
+-- TODO: Determine provenance of list of (allowed) call addresses.
+prop_init :: PolicyPlus -> TestState () -> Property
+prop_init pplus ts =
+  let
+    tsDesc = testInitDesc ts
   in
     whenFail (do putStrLn "Initial state is not step consistent!"
                  putStrLn "Original Test State:"
@@ -228,12 +234,90 @@ prop_init pplus ts =
                  -- TODO: Print state description
              ) $ (step_consistent pplus ts tsDesc)
 
+-- Enrich a trace of test states with their associated state descriptions.
+-- Currently, doing so after the run, so relatively inefficient.
+trace_descs :: [TestState a] -> [(TestState a, StateDesc)]
+trace_descs tss =
+  let
+    tsInit   = head tss
+    descInit = testInitDesc tsInit
+    accInit  = [(tsInit, descInit)]
+    foldDesc tds ts' =
+      let
+        (ts, td) = head tds
+        td' = next_desc (ts ^. mp) td (ts' ^. mp)
+      in
+        (ts', td') : tds
+    revDescs = foldl foldDesc accInit (tail tss)
+  in
+    reverse revDescs
+
+-- A direct encoding of the test of noninterference on stacks: if the current
+-- instruction is a return, locate its matching call in the trace and compare
+-- the two memory states.
+--   In doing so, we can rely on state descriptions or on instruction decoding;
+-- currently, for simplicity, the latter is used; well-bracketed control flow is
+-- assumed to locate the matching call of a return.
+isCall :: Machine_State -> Bool
+isCall s =
+  case fst $ instr_fetch s of
+    Fetch u32 -> case decode_I RV32 u32 of
+      Just instr -> case instr of
+        JAL _ _ -> True
+        _ -> False
+      _ -> False
+    _ -> False
+
+isReturn :: Machine_State -> Bool
+isReturn s =
+  case fst $ instr_fetch s of
+    Fetch u32 -> case decode_I RV32 u32 of
+      Just instr -> case instr of
+        JALR _ _ _ -> True
+        _ -> False
+      _ -> False
+    _ -> False
+
+find_call :: Integer -> [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
+find_call level trace =
+  case trace of
+    [] -> Nothing
+    (ts, td) : trace' ->
+      if isReturn (ts ^. mp ^. ms) then
+        find_call (level + 1) trace'
+      else if isCall (ts ^. mp ^. ms) then
+        if level == 0 then Just (ts, td)
+        else find_call (level - 1) trace'
+      else find_call level trace'
+
+mem_NI :: TestState a -> TestState a -> Int -> Bool
+mem_NI = undefined
+
+test_NI :: TestState a -> [TestState a] -> Bool
+test_NI ts_tl tss_rev =
+  let
+    -- Enriched trace and top (last step, under consideration)
+    trace_rev = ts_tl : tss_rev & reverse & trace_descs & reverse
+    (ts, td)  = head trace_rev
+    -- Location of matching (potential) caller and depth
+    -- ts' = step pplus ts
+    Just (ts', td') = find_call 0 trace_rev
+    depth = pcdepth td'
+  in
+    if isReturn (ts ^. mp ^. ms) then mem_NI ts ts' depth
+    else True -- Holds vacuously: nothing to test here
+
 -- TODO: Rephrase indistinguishability to only look at clean locs?
+
+-- For now, to avoid modifying allWhenFail or enrich states with descriptions at
+-- the type level (and construct those during execution), traces are enriched on
+-- the fly: this is relatively simple but inefficient.
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
-prop_NI pplus maxCount ts = 
+prop_NI pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount in
-  undefined
---  allWhenFail (\ts tss -> --tss is reversed here
+    allWhenFail (\ts tss -> --tss is reversed here
+                   (whenFail (do putStrLn "Error"
+                             ) $ (test_NI ts tss))
 --                 (whenFail (do putStrLn "Indistinguishable tags found!"
 --                               putStrLn "Original Test State:"
 --                               putStrLn $ printTestState pplus ts
@@ -249,7 +333,7 @@ prop_NI pplus maxCount ts =
 --                               putStrLn " Trace:"                               
 --                               putStrLn $ printTrace pplus $ reverse tss                               
 --                           ) $ (clean == clean'))
---              ) (takeWhile pcInSync trace)
+                ) (takeWhile pcInSync trace)
 
 prop :: PolicyPlus -> TestState () -> Property
 prop pplus ts =
