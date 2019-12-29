@@ -190,7 +190,9 @@ next_desc s d s'
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
 prop_NI pplus maxCount ts = 
   let (trace,err) = traceExec pplus ts maxCount in
-  undefined
+  whenFail (do putStrLn "Trace:"
+               putStrLn $ printTrace pplus trace
+           ) $ length trace <= 4
 --  allWhenFail (\ts tss -> --tss is reversed here
 --                 (whenFail (do putStrLn "Indistinguishable tags found!"
 --                               putStrLn "Original Test State:"

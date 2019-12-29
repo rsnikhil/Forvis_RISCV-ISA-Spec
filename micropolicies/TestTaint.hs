@@ -111,14 +111,14 @@ cleanLocs (Rich m p) =
 
 -- TODO: Rephrase indistinguishability to only look at clean locs?
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
-prop_NI pplus maxCount ts =
-  let clean = cleanLocs <$> toListOf richStates ts in 
-  let (trace,err) = traceExec pplus ts maxCount in
+prop_NI pplus maxCount ts0 =
+  let clean = cleanLocs <$> toListOf richStates ts0 in 
+  let (trace,err) = traceExec pplus ts0 maxCount in
   allWhenFail (\ts tss -> --tss is reversed here
                  let clean' = cleanLocs <$> toListOf richStates ts in
                  (whenFail (do putStrLn "Indistinguishable tags found!"
                                putStrLn "Original Test State:"
-                               putStrLn $ printTestState pplus ts
+                               putStrLn $ printTestState pplus ts0
                                putStrLn " Trace:"
                                putStrLn $ printTrace pplus $ reverse tss
                            ) $ (indistinguishable (== taintTag) ts))
@@ -127,7 +127,7 @@ prop_NI pplus maxCount ts =
                                putStrLn $ "Original: " ++ show clean
                                putStrLn $ "Current:  " ++ show clean'
                                putStrLn "Original Test State:"                               
-                               putStrLn $ printTestState pplus ts
+                               putStrLn $ printTestState pplus ts0
                                putStrLn " Trace:"                               
                                putStrLn $ printTrace pplus $ reverse tss                               
                            ) $ (clean == clean'))
