@@ -218,7 +218,7 @@ prAddress pplus isMem (a,v,t) =
     if isMem && isInstr pplus a then
       case decode_I RV32 v of
         Just inst -> pretty pplus inst <@> pretty pplus t
-        Nothing   -> error $ "Not an instruction in instruction memory: " ++ show (a,v,t,instrLow pplus)
+        Nothing   -> P.text "ERROR: v" <@> pretty pplus t --error $ "Not an instruction in instruction memory: " ++ show (a,v,t,instrLow pplus)
     else 
       pretty pplus v <@> pretty pplus t
 
@@ -351,6 +351,7 @@ ra = 1
 sp = 2
 
 -- GPR's are hard coded to be [0..31], but we only use a couple of them
+-- TODO: Sometimes we might want to use/target ra and sp to inject/find bugs?
 minReg = 3
 maxReg = minReg + 3
 
@@ -548,8 +549,11 @@ genInstrSeq :: PolicyPlus -> Machine_State -> PIPE_State ->
                Gen [(Instr_I, TagSet)]
 genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq =
   frequency [ (10, (:[]) <$> genInstr pplus ms ps dataP codeP genInstrTag)
+            -- TODO: Sometimes generate calls in the middle of nowhere
             , (1, genCall pplus ms ps dataP codeP callP genInstrTag headerSeq)
+            -- TODO: Some times generate returns without the sequence
             , (if hasCall then 1 else 0, return retSeq)
+            -- TODO: Sometimes read/write the instruction memory (harder to make work)
             ] 
 
 genDataMemory :: PolicyPlus -> (PolicyPlus -> Gen TagSet) -> Gen (Mem, MemT)
@@ -569,7 +573,6 @@ setInstrTagI :: Machine_State -> PIPE_State -> TagSet -> PIPE_State
 setInstrTagI ms ps it =
   ps & pmem . at (f_pc ms) ?~ it 
 
-
 -- | Generation by execution receives an initial machine X PIPE state and
 -- | generates instructions until n steps have been executed.
 -- | Returns the original machines with just the instruction memory locations
@@ -587,7 +590,8 @@ genByExec pplus n init_ms init_ps dataP codeP callP genInstrTag =
         exec_aux 0 ims ips ms ps generated = return (ims, ips)
         exec_aux n ims ips ms ps generated
         -- Check if an instruction already exists
-          | Map.member (f_pc ms) (f_dm $ f_mem ms) =
+          | Map.member (f_pc ms) (f_dm $ f_mem ms) = do
+            traceShowM ("Instruction exists, executing...") 
             case fetch_and_execute pplus ms ps of
               Right (ms'', ps'') ->
                 -- TODO: Check that generated is empty here?
@@ -597,13 +601,17 @@ genByExec pplus n init_ms init_ps dataP codeP callP genInstrTag =
                 --        ++ " steps remaining and error: " ++ show err) $
                 return (ms, ps)
           | otherwise = do
+              traceShowM ("No instruction exists, generating...")
               -- Generate an instruction for the current state
               -- Checking if there is a "sequence" part left
               (is, it, generated') <-
                 case generated of
                   [] -> (\(is,it) -> (is,it,[])) <$>
                           genInstr pplus ms ps dataP codeP genInstrTag
+-- TODO: Use instrSeq, figure out if it's a call, convert hasCall to counter
+--                          genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq 
                   ((is,it):t) -> return (is,it,t)
+              traceShowM ("Generated:", is, it, generated')
               -- Update the i-memory of both the machine we're stepping...
               let ms' = ms & fmem . at (f_pc ms) ?~ (encode_I RV32 is)
                   ps' = ps & pmem . at (f_pc ms) ?~ it 
@@ -665,7 +673,12 @@ varySecretMap :: PolicyPlus -> (TagSet -> Bool) ->
 varySecretMap pplus isSecret m pm = do 
   combined <- mapM (\((i,d),(j,t)) -> 
                        if isSecret t then do
-                         d' <- genImm 12       -- TODO: This makes no sense
+                         d' <- if instrLow pplus <= i && i <= instrHigh pplus then
+                               -- If it is an instruction, keep it an instruction
+                               -- TODO: Vary it? I think not.
+                                 return d
+                               else 
+                                 genImm 12       -- TODO: This (still) makes no sense
                          return ((i,d'),(j,t)) -- TODO: Here we could scramble v
                        else
                          return ((i,d),(j,t))

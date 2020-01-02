@@ -188,7 +188,9 @@ next_desc s d s'
 
 -- TODO: Rephrase indistinguishability to only look at clean locs?
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
-prop_NI pplus maxCount ts = 
+prop_NI pplus maxCount ts =
+--  whenFail (putStrLn $ printTestState pplus ts)
+--           False
   let (trace,err) = traceExec pplus ts maxCount in
   whenFail (do putStrLn "Trace:"
                putStrLn $ printTrace pplus trace
