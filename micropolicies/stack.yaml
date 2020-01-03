@@ -1,24 +1,24 @@
 flags: {}
 packages:
 - .
-- location:
-    git: 'https://github.com/draperlaboratory/hope-policy-tool.git'
-    commit: 2cf79e18a927f9e7311a09f6e13e8f57b490a7dc
-    # was commit: faea4a2c0031d5829c95d72d0ea54bc819ebf1f9
-  extra-dep: true
-- location:
-    git: 'https://github.com/draperlaboratory/hope-policy-interpreter.git'
-    commit: cbe30750773f82b7cceee1f0f457c4c75669c2a1
+
+extra-deps:
+- git: 'https://github.com/draperlaboratory/hope-policy-tool.git'
+  commit: 29f15e69f8e52ff89b61e5b2708d750a87f60908
+   # was commit: 2cf79e18a927f9e7311a09f6e13e8f57b490a7dc
+   # was commit: faea4a2c0031d5829c95d72d0ea54bc819ebf1f9
+- git: 'https://github.com/draperlaboratory/hope-policy-interpreter.git'
+  commit: 2b3b8a8517e14ea337e067999d3678a8cf9820fc
+    # stable commit: cbe30750773f82b7cceee1f0f457c4c75669c2a1
     # was commit: d1c1124e47db264c89de28fa2d87532d3322605f
     # was: ed99fd4c4bb8634e3d0332a6b068cda9532e5e5e
     # was: 9b18ee7665ca4a1f641c9b1bcc6756b3c07b43d5
     # was: 91d709ee6ca7913664069893840500398eb8d836
     # was: 83fdc893a759da41273f98af6e1a8723156ef8e1
-  extra-dep: true
   subdirs:
     - policy-eval
 
-extra-deps:
-  - elf-0.28
+- elf-0.28
 
-resolver: lts-9.21
+resolver: lts-14.7
+# resolver: lts-9.21
