@@ -94,11 +94,13 @@ returnSeq = [ (LW ra sp (-1), cleanTag)
             , (JALR ra ra 0 , cleanTag)
             ]
 
+spTag = cleanTag
+
 -- The real one
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag isSecretMP mkInfo)
+    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \ts -> prop pplus ts

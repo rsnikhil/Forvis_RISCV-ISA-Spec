@@ -331,7 +331,7 @@ exec_pipe' pplus p pc inst maddr =
                  Left EC.TFImplicit ->
                    let tags = map (\(k,t) -> show k ++ "=" ++ showTagSet (TagSet t)) (Map.assocs inp) in
                    let i = "[" ++ intercalate ", " tags ++ "]" in
-                   (p, PIPE_Trap $ "no applicable rule for " ++ i
+                   (p, PIPE_Trap $ "no applicable rule for " ++ i ++ show inp0
                                     ++ " and instr group " ++ show name)
                  Left (EC.TFExplicit s) -> (p, PIPE_Trap s)
                  Right out -> 

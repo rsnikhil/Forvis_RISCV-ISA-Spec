@@ -551,7 +551,7 @@ genInstrSeq :: PolicyPlus -> Machine_State -> PIPE_State ->
 genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq =
   frequency [ (10, (:[]) <$> genInstr pplus ms ps dataP codeP genInstrTag)
             -- TODO: Sometimes generate calls in the middle of nowhere
-            , (1, genCall pplus ms ps dataP codeP callP genInstrTag headerSeq)
+            , (10, genCall pplus ms ps dataP codeP callP genInstrTag headerSeq)
             -- TODO: Some times generate returns without the sequence
             , (if hasCall then 1 else 0, return retSeq)
             -- TODO: Sometimes read/write the instruction memory (harder to make work)
@@ -640,19 +640,20 @@ genGPRs :: Machine_State -> Gen Machine_State
 -- Map GPR_Addr GPR_Val -> Gen (Map GPR_Addr GPR_Val) 
 genGPRs m = do
   ds <- replicateM 3 $ genImm 40
-  return $ m & fgpr %~ Map.union (Map.fromList $ zip [1..] ds)
+  return $ m & fgpr %~ Map.union (Map.fromList $ zip [minReg..] ds)
 
 genGPRTs :: PolicyPlus -> PIPE_State -> Gen TagSet -> Gen PIPE_State
 genGPRTs pplus p genGPRTag = do 
   cs <- replicateM 3 genGPRTag
-  return $ p & pgpr %~ Map.union (Map.fromList $ zip [1..] cs)
+  return $ p & pgpr %~ Map.union (Map.fromList $ zip [minReg..] cs)
+-- TODO:  move sptag stuff from genMachine to here
 
 genMachine :: PolicyPlus -> (PolicyPlus -> Gen TagSet) -> (PolicyPlus -> Gen TagSet) ->
              (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool) ->
              (Integer -> [(Instr_I, TagSet)]) -> [(Instr_I, TagSet)] ->
-             (Instr_I -> Gen TagSet) ->
+             (Instr_I -> Gen TagSet) -> TagSet -> 
              Gen RichState
-genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag = do
+genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag spTag = do
 
   -- | Initial memory
   (mm,pm) <- genDataMemory pplus genMTag
@@ -665,10 +666,12 @@ genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag = 
 
   -- | Update registers
   ms' <- genGPRs  ms
+  let ms'' = ms' & fgpr . at sp ?~ (instrHigh pplus + 4)
   ps' <- genGPRTs pplus ps (genGPRTag pplus)
+  let ps'' = ps' & pgpr . at sp ?~ spTag
 
   -- | Do generation by execution
-  (ms_fin, ps_fin) <- genByExec pplus maxInstrsToGenerate ms' ps' dataP codeP callP headerSeq retSeq genITag
+  (ms_fin, ps_fin) <- genByExec pplus maxInstrsToGenerate ms'' ps'' dataP codeP callP headerSeq retSeq genITag
 
   return $ Rich ms_fin ps_fin
 
@@ -717,22 +720,22 @@ genSingleTestState :: PolicyPlus
                    -> (PolicyPlus -> Gen TagSet) -> (PolicyPlus -> Gen TagSet)
                    -> (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool)
                    -> (Integer -> [(Instr_I, TagSet)]) -> [(Instr_I, TagSet)]
-                   -> (Instr_I -> Gen TagSet)
+                   -> (Instr_I -> Gen TagSet) -> TagSet
                    -> Gen (TestState a)
-genSingleTestState pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag = do
-  rs <- genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag
+genSingleTestState pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag spTag = do
+  rs <- genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag spTag
   return $ TS rs []
 
 genVariationTestState :: PolicyPlus
                       -> (PolicyPlus -> Gen TagSet) -> (PolicyPlus -> Gen TagSet)
                       -> (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool)
                       -> (Integer -> [(Instr_I, TagSet)]) -> [(Instr_I, TagSet)]
-                      -> (Instr_I -> Gen TagSet)
+                      -> (Instr_I -> Gen TagSet) -> TagSet 
                       -> (Machine_State -> PIPE_State -> TagSet -> Bool)
                       -> (Machine_State -> PIPE_State -> a)
                       -> Gen (TestState a)
-genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag isSecretMP mkInfo = do
-  rs  <- genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag
+genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag spTag isSecretMP mkInfo = do
+  rs  <- genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag spTag
   rs' <- varySecretState pplus isSecretMP rs
   let a = mkInfo (rs' ^. ms) (rs' ^. ps)
   return $ TS rs [SE rs' a]

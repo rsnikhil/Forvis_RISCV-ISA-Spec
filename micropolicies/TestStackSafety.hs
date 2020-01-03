@@ -66,7 +66,7 @@ RETURN sequence:
 
 headerSeq offset =
             [ (JAL ra offset, boringTag)
-            , (SW sp ra 1  , tagH1)
+            , (SW ra sp 1  , tagH1)
             , (ADDI sp sp 2, tagH2)
             ]
 
@@ -125,7 +125,7 @@ mkInfo _ _ = ()
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag isSecretMP mkInfo)
+    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \ts -> prop pplus ts
