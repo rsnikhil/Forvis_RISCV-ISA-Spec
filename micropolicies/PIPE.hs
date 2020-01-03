@@ -154,7 +154,13 @@ fromExt ext =
    if sort ext /= ext then
      error "fromExt on unsorted list"
    else
-     TagSet $ Map.fromList $ map (\ (s,a) -> (QTag $ CF.parseDotName s,a)) ext
+     TagSet $ Map.fromList $ map (\ (s,a) -> (QTag $ parseDotName s,a)) ext
+
+-- used to be in CF but no more
+parseDotName :: String -> [String]
+parseDotName = words . (map cnv)
+  where cnv '.' = ' '
+        cnv c   = c
 
 toExt :: TagSet -> [(String,Maybe Int)]
 toExt ts =       
