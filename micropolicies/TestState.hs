@@ -612,8 +612,11 @@ genByExec pplus n init_ms init_ps dataP codeP callP headerSeq retSeq genInstrTag
 --                          genInstr pplus ms ps dataP codeP genInstrTag
 -- TODO: Use instrSeq, figure out if it's a call, convert hasCall to counter
                            let hasCall = True 
-                           ((is,it):t) <- genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq
-                           return (is,it,t)
+                           v <- genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq
+                           case v of
+                             ((is,it):t) -> 
+                                return (is,it,t)
+                             _ -> error "empty instruction sequencer"
                   ((is,it):t) -> return (is,it,t)
               traceShowM ("Generated:", is, it, generated')
               -- Update the i-memory of both the machine we're stepping...
