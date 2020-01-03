@@ -194,6 +194,8 @@ prop_NI pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount in
   whenFail (do putStrLn "Trace:"
                putStrLn $ printTrace pplus trace
+               putStrLn "Terminatin error:"
+               putStrLn $ show err
            ) $ length trace <= 4
 --  allWhenFail (\ts tss -> --tss is reversed here
 --                 (whenFail (do putStrLn "Indistinguishable tags found!"
