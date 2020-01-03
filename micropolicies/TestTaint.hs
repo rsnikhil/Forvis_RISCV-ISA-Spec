@@ -81,11 +81,24 @@ mkInfo _ _ = ()
 
 -- | Main
 
+-- TODO: header and return for taint?
+headerSeq offset =
+            [ (JAL ra offset, cleanTag)
+            , (SW sp ra 1  , cleanTag)
+            , (ADDI sp sp 2, cleanTag)
+            ]
+
+
+returnSeq = [ (LW ra sp (-1), cleanTag) 
+            , (ADDI sp sp 2 , cleanTag)
+            , (JALR ra ra 0 , cleanTag)
+            ]
+
 -- The real one
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP genITag isSecretMP mkInfo)
+    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \ts -> prop pplus ts
