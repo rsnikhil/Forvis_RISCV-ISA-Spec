@@ -213,16 +213,18 @@ to_desc ts =
     [("stack.Stack", Just n)] -> Stack n
     _ -> Instr
 
+-- TODO: Determine provenance of list of (allowed) call addresses. Currently all
+-- addresses are allowed. Restrictions could be based on a combination of
+-- machine and PIPE memory.
 testInitDesc :: TestState a -> StateDesc
 testInitDesc ts =
   let
     pmemMap = p_mem (ts ^. mp ^. ps) ^. pmem_map
     pmemDesc = Map.map to_desc pmemMap
-    calls = undefined
+    calls = Map.keys pmemMap
   in
     initDesc pmemDesc calls
 
--- TODO: Determine provenance of list of (allowed) call addresses.
 prop_init :: PolicyPlus -> TestState () -> Property
 prop_init pplus ts =
   let
