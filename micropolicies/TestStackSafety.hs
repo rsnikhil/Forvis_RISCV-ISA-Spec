@@ -136,6 +136,13 @@ accessible i sd =
     (Stack n) -> n >= pcdepth sd
     _ -> False
 
+isInstruction :: Integer -> StateDesc -> Bool
+isInstruction i sd =
+  -- can error
+  case memdepth sd Map.! i of
+    Instr -> True
+    _ -> False
+
 -- TODO: Fix this
 sp = 2
 next_desc :: RichState -> StateDesc -> RichState -> StateDesc
@@ -191,21 +198,42 @@ next_desc s d s'
 
 -- A scrambled version of S w.r.t. D is identical in the instruction memory and
 -- accessible parts, and arbitrary in the inaccessible parts of the data memory.
-scramble :: TestState () -> StateDesc -> TestState ()
-scramble ts d = undefined
+-- TODO: Better scrambling, link to TestStack functionality (cf. variants).
+scramble :: TestState a -> StateDesc -> TestState a
+scramble ts d =
+  let
+    scramble_mem m = Map.mapWithKey
+      (\i v -> if accessible i d || isInstruction i d then v else 0) m
+  in
+    (%~) (mp . ms . fmem) scramble_mem ts
 
+-- TODO: Possibly use trace instead of explicit steps.
 step_consistent :: PolicyPlus -> TestState () -> StateDesc -> Bool
 step_consistent pplus ts d =
-  let tt = scramble ts d in
-  case (step pplus ts, step pplus tt) of
-    (Right ts', Right tt') ->
-      -- The instruction memory and the accessible_D parts of S’ and T’ agree
-      -- and the inaccessible_D parts of T and T’ agree.
-      undefined
-      &&
-      -- T’ is step consistent with D’.
-      undefined
-    _ -> True -- Vacuously
+  let
+    tt = scramble ts d
+  in
+    case (step pplus ts, step pplus tt) of
+      (Right ts', Right tt') ->
+        -- The instruction memory and the accessible_D parts of S’ and T’ agree
+        -- and the inaccessible_D parts of T and T’ agree.
+        let
+          memS'              = ts' ^. mp ^. ms ^. fmem
+          memT               = tt  ^. mp ^. ms ^. fmem
+          memT'              = tt' ^. mp ^. ms ^. fmem
+          filterInstrAcc i _ = accessible i d || isInstruction i d
+          filterInacc    i _ = not $ accessible i d
+          instrAccS'         = Map.mapWithKey filterInstrAcc memS'
+          instrAccT'         = Map.mapWithKey filterInstrAcc memT'
+          inaccT             = Map.mapWithKey filterInacc memT
+          inaccT'            = Map.mapWithKey filterInacc memT'
+          eqMaps m1 m2       = Map.isSubmapOf m1 m2 && Map.isSubmapOf m2 m1
+        in
+          eqMaps instrAccS' instrAccT' && eqMaps inaccT inaccT'
+        -- &&
+        -- -- T’ is step consistent with D’.
+        -- undefined
+      _ -> True -- Vacuously
 
 to_desc :: TagSet -> DescTag
 to_desc ts =
