@@ -207,8 +207,9 @@ scramble ts d =
   in
     (%~) (mp . ms . fmem) scramble_mem ts
 
--- TODO: Possibly use trace instead of explicit steps.
-step_consistent :: PolicyPlus -> TestState () -> StateDesc -> Bool
+-- TODO: Possibly use trace instead of explicit steps. Explain relation between
+-- property on traces and paper definition.
+step_consistent :: PolicyPlus -> TestState a -> StateDesc -> Bool
 step_consistent pplus ts d =
   let
     tt = scramble ts d
@@ -253,16 +254,8 @@ testInitDesc ts =
   in
     initDesc pmemDesc calls
 
-prop_init :: PolicyPlus -> TestState () -> Property
-prop_init pplus ts =
-  let
-    tsDesc = testInitDesc ts
-  in
-    whenFail (do putStrLn "Initial state is not step consistent!"
-                 putStrLn "Original Test State:"
-                 putStrLn $ printTestState pplus ts
-                 -- TODO: Print state description
-             ) $ (step_consistent pplus ts tsDesc)
+test_init :: PolicyPlus -> (TestState a, StateDesc) -> Bool
+test_init pplus (ts, d) = step_consistent pplus ts d
 
 -- Enrich a trace of test states with their associated state descriptions.
 -- Currently, doing so after the run, so relatively inefficient.
@@ -323,14 +316,12 @@ find_call level trace =
 mem_NI :: TestState a -> TestState a -> Int -> Bool
 mem_NI = undefined
 
-test_NI :: TestState a -> [TestState a] -> Bool
-test_NI ts_tl tss_rev =
+test_NI :: [(TestState a, StateDesc)] -> Bool
+test_NI trace_rev =
   let
     -- Enriched trace and top (last step, under consideration)
-    trace_rev = ts_tl : tss_rev & reverse & trace_descs & reverse
     (ts, td)  = head trace_rev
     -- Location of matching (potential) caller and depth
-    -- ts' = step pplus ts
     Just (ts', td') = find_call 0 trace_rev
     depth = pcdepth td'
   in
@@ -346,8 +337,18 @@ prop_NI :: PolicyPlus -> Int -> TestState () -> Property
 prop_NI pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount in
     allWhenFail (\ts tss -> --tss is reversed here
-                   (whenFail (do putStrLn "Error"
-                             ) $ (test_NI ts tss))
+                  let trace' = ts : tss & reverse & trace_descs & reverse in
+                    (whenFail (do putStrLn "Initial state does not preserve step consistency!"
+                                  putStrLn "Original Test State:"
+                                  putStrLn $ printTestState pplus ts
+                                  -- TODO: Print state description
+                             ) $ (test_init pplus (head trace')))
+                  .&&.
+                   (whenFail (do putStrLn "Stack state at call not preserved at return!"
+                                 putStrLn "Original Test State:"
+                                 putStrLn $ printTestState pplus ts
+                                 -- TODO: Print state description
+                             ) $ (test_NI trace'))
 --                 (whenFail (do putStrLn "Indistinguishable tags found!"
 --                               putStrLn "Original Test State:"
 --                               putStrLn $ printTestState pplus ts
@@ -366,9 +367,4 @@ prop_NI pplus maxCount ts =
                 ) (takeWhile pcInSync trace)
 
 prop :: PolicyPlus -> TestState () -> Property
-prop pplus ts =
-  prop_init pplus ts
-  .&&.
-  prop_NI pplus maxInstrsToGenerate ts
-
-
+prop pplus ts = prop_NI pplus maxInstrsToGenerate ts
