@@ -426,4 +426,4 @@ prop_NI' pplus maxCount ts =
                 ) (takeWhile pcInSync trace)
 
 prop :: PolicyPlus -> TestState () -> Property
-prop pplus ts = prop_NI pplus maxInstrsToGenerate ts
+prop pplus ts = prop_NI' pplus maxInstrsToGenerate ts
