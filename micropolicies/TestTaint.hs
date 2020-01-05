@@ -69,6 +69,7 @@ genGPRTag = genMTag
 
 dataP = const True
 codeP = const True
+callP = const False
 
 genITag _ = return cleanTag
 
@@ -80,11 +81,26 @@ mkInfo _ _ = ()
 
 -- | Main
 
+-- TODO: header and return for taint?
+headerSeq offset =
+            [ (JAL ra offset, cleanTag)
+            , (SW sp ra 1  , cleanTag)
+            , (ADDI sp sp 2, cleanTag)
+            ]
+
+
+returnSeq = [ (LW ra sp (-1), cleanTag) 
+            , (ADDI sp sp 2 , cleanTag)
+            , (JALR ra ra 0 , cleanTag)
+            ]
+
+spTag = cleanTag
+
 -- The real one
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP genITag isSecretMP mkInfo)
+    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \ts -> prop pplus ts
@@ -110,14 +126,14 @@ cleanLocs (Rich m p) =
 
 -- TODO: Rephrase indistinguishability to only look at clean locs?
 prop_NI :: PolicyPlus -> Int -> TestState () -> Property
-prop_NI pplus maxCount ts =
-  let clean = cleanLocs <$> toListOf richStates ts in 
-  let (trace,err) = traceExec pplus ts maxCount in
+prop_NI pplus maxCount ts0 =
+  let clean = cleanLocs <$> toListOf richStates ts0 in 
+  let (trace,err) = traceExec pplus ts0 maxCount in
   allWhenFail (\ts tss -> --tss is reversed here
                  let clean' = cleanLocs <$> toListOf richStates ts in
                  (whenFail (do putStrLn "Indistinguishable tags found!"
                                putStrLn "Original Test State:"
-                               putStrLn $ printTestState pplus ts
+                               putStrLn $ printTestState pplus ts0
                                putStrLn " Trace:"
                                putStrLn $ printTrace pplus $ reverse tss
                            ) $ (indistinguishable (== taintTag) ts))
@@ -126,7 +142,7 @@ prop_NI pplus maxCount ts =
                                putStrLn $ "Original: " ++ show clean
                                putStrLn $ "Current:  " ++ show clean'
                                putStrLn "Original Test State:"                               
-                               putStrLn $ printTestState pplus ts
+                               putStrLn $ printTestState pplus ts0
                                putStrLn " Trace:"                               
                                putStrLn $ printTrace pplus $ reverse tss                               
                            ) $ (clean == clean'))

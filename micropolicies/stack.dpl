@@ -46,7 +46,7 @@ policy: main =
 // RETURN SEQUENCE
 
 ^ loadGrp(
-       addr == {SP}, mem == {(PC _)}, res == _, env == _, code == {R1}
+       addr == {SP}, mem == {(PC _)}, env == _, code == {R1}
     -> env = env[+R2], res = mem)
 
 ^ immArithGrp(
@@ -60,14 +60,15 @@ policy: main =
 // ------------------------------------------------------------------------------
 // OTHER INSTRUCTIONS
 
+// res = Boring or res = -SP? (or nothing?)
 ^ arithGrp(
-       code == {Boring}, env == _, op1 == [-SP], op2 == [-SP], res == {Boring}
+       code == {Boring}, env == _, op1 == [-SP], op2 == [-SP] //, res == {Boring}
     -> env = env, res = {Boring} )
 ^ immArithGrp(
-       code == {Boring}, env == _, op1 == [-SP], res == [-SP]
+       code == {Boring}, env == _, op1 == [-SP] //, res == [-SP]
     -> env = env, res = {Boring})
 ^ loadGrp(
-       env == _, addr == [-SP], mem == {Boring}, res == {Boring}   // TODO: Maybe res == _ ??
+       env == _, addr == [-SP], mem == {Boring} // TODO: What was res as an input?
     -> env = env, res = {Boring})
 ^ storeGrp(
        env == _, addr == [-SP], val == {Boring}, mem == {Boring}   // TODO: Why do we need [-SP]

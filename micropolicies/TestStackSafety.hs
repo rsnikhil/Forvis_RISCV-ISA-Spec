@@ -55,6 +55,28 @@ stackTag n = fromExt [("stack.Stack"  , Just n)]
 pcTag n = fromExt [("stack.PC"  , Just n)]
 
 {-
+HEADER sequence:
+           SW SP RA 1     @H1    - store RA
+           ADDI SP SP 2  @H2    - increment SP (by frame size)
+
+RETURN sequence:
+           LW RA SP -1    @R1    - load return address  (offset by one less than frame size)
+           ADDI SP SP -2 @R2    - decrement SP (by frame size)
+           JALR RA RA     @R3    - jump back
+-}
+
+headerSeq offset =
+            [ (JAL ra offset, boringTag)
+            , (SW ra sp 1  , tagH1)
+            , (ADDI sp sp 2, tagH2)
+            ]
+
+returnSeq = [ (LW ra sp (-1), tagR1)
+            , (ADDI sp sp 2 , tagR2)
+            , (JALR ra ra 0 , tagR3)
+            ]
+
+{-
 New memory layout:
 
 Instr Memory
@@ -75,7 +97,7 @@ load_policy = do
         , initPC = pcTag 0
         , initNextColor = 1
         , instrLow = 0
-        , instrHigh = 100
+        , instrHigh = 400
         , emptyInstTag = noTag
         , dataMemLow = 1000
         , dataMemHigh = 1020  -- Was 40, but that seems like a lot! (8 may be too little!)
@@ -88,6 +110,7 @@ genGPRTag = genMTag
 
 dataP = const True
 codeP = const True
+callP t = t == tagH1
 
 genITag _ = return boringTag
 
@@ -103,7 +126,7 @@ mkInfo _ _ = ()
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP genITag isSecretMP mkInfo)
+    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \ts -> prop pplus ts
@@ -144,7 +167,6 @@ isInstruction i sd =
     _ -> False
 
 -- TODO: Fix this
-sp = 2
 next_desc :: RichState -> StateDesc -> RichState -> StateDesc
 next_desc s d s'
   | memdepth d Map.! (s ^. ms . fpc) == Instr =
@@ -339,12 +361,39 @@ test_NI trace_rev =
     else True -- Holds vacuously: nothing to test here
 
 -- TODO: Rephrase indistinguishability to only look at clean locs?
+prop_NI :: PolicyPlus -> Int -> TestState () -> Property
+prop_NI pplus maxCount ts =
+--  whenFail (putStrLn $ printTestState pplus ts)
+--           False
+  let (trace,err) = traceExec pplus ts maxCount in
+  whenFail (do putStrLn "Trace:"
+               putStrLn $ printTrace pplus trace
+               putStrLn "Terminatin error:"
+               putStrLn $ show err
+           ) $ length trace <= 4
+--  allWhenFail (\ts tss -> --tss is reversed here
+--                 (whenFail (do putStrLn "Indistinguishable tags found!"
+--                               putStrLn "Original Test State:"
+--                               putStrLn $ printTestState pplus ts
+--                               putStrLn " Trace:"
+--                               putStrLn $ printTrace pplus $ reverse tss
+--                           ) $ (indistinguishable (== taintTag) ts))
+--                 .&&.
+--                 (whenFail (do putStrLn $ "Clean tags set differs."
+--                               putStrLn $ "Original: " ++ show clean
+--                               putStrLn $ "Current:  " ++ show clean'
+--                               putStrLn "Original Test State:"                               
+--                               putStrLn $ printTestState pplus ts
+--                               putStrLn " Trace:"                               
+--                               putStrLn $ printTrace pplus $ reverse tss                               
+--                           ) $ (clean == clean'))
+--              ) (takeWhile pcInSync trace)
 
 -- For now, to avoid modifying allWhenFail or enrich states with descriptions at
 -- the type level (and construct those during execution), traces are enriched on
 -- the fly: this is relatively simple but inefficient.
-prop_NI :: PolicyPlus -> Int -> TestState () -> Property
-prop_NI pplus maxCount ts =
+prop_NI' :: PolicyPlus -> Int -> TestState () -> Property
+prop_NI' pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount in
     allWhenFail (\ts tss -> --tss is reversed here
                   let trace' = ts : tss & reverse & trace_descs & reverse in

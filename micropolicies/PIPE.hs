@@ -154,7 +154,13 @@ fromExt ext =
    if sort ext /= ext then
      error "fromExt on unsorted list"
    else
-     TagSet $ Map.fromList $ map (\ (s,a) -> (QTag $ CF.parseDotName s,a)) ext
+     TagSet $ Map.fromList $ map (\ (s,a) -> (QTag $ parseDotName s,a)) ext
+
+-- used to be in CF but no more
+parseDotName :: String -> [String]
+parseDotName = words . (map cnv)
+  where cnv '.' = ' '
+        cnv c   = c
 
 toExt :: TagSet -> [(String,Maybe Int)]
 toExt ts =       
@@ -325,7 +331,7 @@ exec_pipe' pplus p pc inst maddr =
                  Left EC.TFImplicit ->
                    let tags = map (\(k,t) -> show k ++ "=" ++ showTagSet (TagSet t)) (Map.assocs inp) in
                    let i = "[" ++ intercalate ", " tags ++ "]" in
-                   (p, PIPE_Trap $ "no applicable rule for " ++ i
+                   (p, PIPE_Trap $ "no applicable rule for " ++ i ++ show inp0
                                     ++ " and instr group " ++ show name)
                  Left (EC.TFExplicit s) -> (p, PIPE_Trap s)
                  Right out -> 
