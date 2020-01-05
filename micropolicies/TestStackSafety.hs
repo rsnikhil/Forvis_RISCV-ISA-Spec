@@ -313,8 +313,18 @@ find_call level trace =
         else find_call (level - 1) trace'
       else find_call level trace'
 
-mem_NI :: TestState a -> TestState a -> Int -> Bool
-mem_NI = undefined
+-- TODO: Refactor definitions (see above).
+mem_NI :: TestState a -> TestState a -> StateDesc -> Bool
+mem_NI ts ts' d =
+  let
+    mem                = ts  ^. mp ^. ms ^. fmem
+    mem'               = ts' ^. mp ^. ms ^. fmem
+    filterInstrAcc i _ = accessible i d || isInstruction i d
+    instrAcc           = Map.mapWithKey filterInstrAcc mem
+    instrAcc'          = Map.mapWithKey filterInstrAcc mem'
+    eqMaps m1 m2       = Map.isSubmapOf m1 m2 && Map.isSubmapOf m2 m1
+  in
+    eqMaps instrAcc instrAcc'
 
 test_NI :: [(TestState a, StateDesc)] -> Bool
 test_NI trace_rev =
@@ -323,9 +333,9 @@ test_NI trace_rev =
     (ts, td)  = head trace_rev
     -- Location of matching (potential) caller and depth
     Just (ts', td') = find_call 0 trace_rev
-    depth = pcdepth td'
+    -- depth = pcdepth td'
   in
-    if isReturn (ts ^. mp ^. ms) then mem_NI ts ts' depth
+    if isReturn (ts ^. mp ^. ms) then mem_NI ts ts' td'
     else True -- Holds vacuously: nothing to test here
 
 -- TODO: Rephrase indistinguishability to only look at clean locs?
