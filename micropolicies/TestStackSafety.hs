@@ -231,6 +231,8 @@ scramble ts d =
 
 -- TODO: Possibly use trace instead of explicit steps. Explain relation between
 -- property on traces and paper definition.
+-- Alternative forms of this property: between a pair of consecutive states
+-- (here), other alternatives.
 step_consistent :: PolicyPlus -> TestState a -> StateDesc -> Bool
 step_consistent pplus ts d =
   let
@@ -303,6 +305,8 @@ trace_descs tss =
 --   In doing so, we can rely on state descriptions or on instruction decoding;
 -- currently, for simplicity, the latter is used; well-bracketed control flow is
 -- assumed to locate the matching call of a return.
+-- TODO: Alternatively, check correct tagging in PIPE state: R3 for returns, a
+-- new tag for call sites (or blessed call sites).
 isCall :: Machine_State -> Bool
 isCall s =
   case fst $ instr_fetch s of
@@ -323,6 +327,9 @@ isReturn s =
       _ -> False
     _ -> False
 
+-- TODO: Is it feasible to discharge the well-bracketedness assumption?
+-- Consider adding a stack of whole machine states to the state description to
+-- simplify this process (how does scrambling interact with it?).
 find_call :: Integer -> [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
 find_call level trace =
   case trace of
@@ -336,6 +343,7 @@ find_call level trace =
       else find_call level trace'
 
 -- TODO: Refactor definitions (see above).
+-- Clarify: are instructions accessible?
 mem_NI :: TestState a -> TestState a -> StateDesc -> Bool
 mem_NI ts ts' d =
   let
