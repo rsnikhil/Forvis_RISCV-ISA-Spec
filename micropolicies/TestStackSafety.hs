@@ -124,7 +124,7 @@ mkInfo _ _ = ()
 -- The real one
 main_test = do
   pplus <- load_policy
-  quickCheckWith stdArgs{maxSuccess=1}
+  quickCheckWith stdArgs{maxSuccess=1000}
     $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
@@ -196,7 +196,7 @@ prop_NI pplus maxCount ts =
                putStrLn $ printTrace pplus trace
                putStrLn "Terminatin error:"
                putStrLn $ show err
-           ) $ False --length trace <= 4
+           ) $ length trace <= 5
 --  allWhenFail (\ts tss -> --tss is reversed here
 --                 (whenFail (do putStrLn "Indistinguishable tags found!"
 --                               putStrLn "Original Test State:"

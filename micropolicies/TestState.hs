@@ -96,14 +96,15 @@ eqOn l x y = x ^. l == y ^. l
 
 mergeDiffs :: RichState -> RichState -> 
               [(Integer, (Integer, Integer))] -> [(Integer, (TagSet , TagSet ))] ->
-              [Maybe (Integer, Integer, TagSet)]
-mergeDiffs st1 st2 [] [] = []
-mergeDiffs st1 st2 rd@((i,(d1,d2)):rs) td@((j,(l1,l2)):ts)
-  | i == j = (Just (i,d2,l2)) : mergeDiffs st1 st2 rs ts
-  | i <= j = ((i,d2,) <$> (st2 ^. ps . pgpr . at i)) : mergeDiffs st1 st2 rs td
-  | i >= j = ((j,,l2) <$> (st2 ^. ms . fgpr . at j)) : mergeDiffs st1 st2 rd ts
-mergeDiffs st1 st2 ((i,(d1,d2)):rs) [] = ((i,d2,) <$> (st2 ^. ps . pgpr . at i)) : mergeDiffs st1 st2 rs []
-mergeDiffs st1 st2 [] ((j,(l1,l2)):ts) = ((j,,l2) <$> (st2 ^. ms . fgpr . at j)) : mergeDiffs st1 st2 [] ts
+              (Integer -> Integer) -> (Integer -> TagSet) ->
+              [ (Integer, Integer, TagSet)]
+mergeDiffs st1 st2 [] [] dd dt = []
+mergeDiffs st1 st2 rd@((i,(d1,d2)):rs) td@((j,(l1,l2)):ts) dd dt
+  | i == j = ( (i,d2,l2)) : mergeDiffs st1 st2 rs ts dd dt
+  | i <= j = ((i,d2,) $ maybe (dt i) id (st2 ^. ps . pgpr . at i)) : mergeDiffs st1 st2 rs td dd dt
+  | i >= j = ((j,,l2) $ maybe (dd j) id (st2 ^. ms . fgpr . at j)) : mergeDiffs st1 st2 rd ts dd dt
+mergeDiffs st1 st2 ((i,(d1,d2)):rs) [] dd dt = ((i,d2,) $ maybe (dt i) id (st2 ^. ps . pgpr . at i)) : mergeDiffs st1 st2 rs [] dd dt
+mergeDiffs st1 st2 [] ((j,(l1,l2)):ts) dd dt = ((j,,l2) $ maybe (dd j) id (st2 ^. ms . fgpr . at j)) : mergeDiffs st1 st2 [] ts dd dt
 
 calcDiff :: PolicyPlus -> RichState -> RichState -> Diff
 calcDiff pplus st1 st2 =
@@ -118,20 +119,24 @@ calcDiff pplus st1 st2 =
           | otherwise   -> decode_I RV32 u32
         _ -> error "Bad instr fetch in calc diff"
   , _d_reg =
-      let regDiff = diff (Map.assocs $ st1 ^. ms . fgpr)
-                         (Map.assocs $ st2 ^. ms . fgpr) (const uninitialized_word)
+      let dd = const uninitialized_word
+          dt = const $ initGPR pplus
+          regDiff = diff (Map.assocs $ st1 ^. ms . fgpr)
+                         (Map.assocs $ st2 ^. ms . fgpr) dd 
           tagDiff = diff (Map.assocs $ st1 ^. ps . pgpr)
-                         (Map.assocs $ st2 ^. ps . pgpr) (const $ initGPR pplus)
+                         (Map.assocs $ st2 ^. ps . pgpr) dt
 
-      in catMaybes $ mergeDiffs st1 st2 regDiff tagDiff
+      in mergeDiffs st1 st2 regDiff tagDiff dd dt 
 
   , _d_mem =
-      let dataDiff = diff (Map.assocs $ st1 ^. ms . fmem)
-                          (Map.assocs $ st2 ^. ms . fmem) (const uninitialized_word)
-          tagDiff  = diff (Map.assocs $ st1 ^. ps . pmem)
-                          (Map.assocs $ st2 ^. ps . pmem) (\i -> if isInstr pplus i then emptyInstTag pplus else initMem pplus)
-      in trace ("FMem1:\n" ++ show (st1 ^. ms . fmem) ++ "\nFMem2:\n" ++ show (st2 ^. ms . fmem) ++ "\nDiff:\n" ++ show dataDiff)$
-           catMaybes $ mergeDiffs st1 st2 dataDiff tagDiff
+      let dd = const uninitialized_word
+          dt = (\i -> if isInstr pplus i then emptyInstTag pplus else initMem pplus)
+          dataDiff = diff (Map.assocs $ st1 ^. ms . fmem)
+                          (Map.assocs $ st2 ^. ms . fmem) dd 
+          tagDiff  = diff (Map.assocs $ st1 ^. ps . pmem) 
+                          (Map.assocs $ st2 ^. ps . pmem) dt
+      in trace ("FMem1:\n" ++ show (st1 ^. ms . fmem) ++ "\nFMem2:\n" ++ show (st2 ^. ms . fmem) ++ "\nDiff:\n" ++ show dataDiff ++ "\nTagDiff:\n" ++ show tagDiff ++ "\nMerged:\n" ++ show (mergeDiffs st1 st2 dataDiff tagDiff dd dt))$
+           mergeDiffs st1 st2 dataDiff tagDiff dd dt
   } 
 
 -- | Printing | --
@@ -299,7 +304,7 @@ docAssocDiff doc pplus assocs
 
 docRegDiff, docMemDiff :: PolicyPlus -> [[(Integer, Integer, TagSet)]] -> Doc
 docRegDiff pplus = docAssocDiff (\(a,v,t) -> P.char 'r' P.<> P.integer a <+> P.text "<-" <+> pretty pplus (v,t)) pplus
-docMemDiff pplus = docAssocDiff (\(a,v,t) -> P.char '[' P.<> P.integer a <+> P.text "] <-" <+> pretty pplus (v,t)) pplus
+docMemDiff pplus = docAssocDiff (\(a,v,t) -> P.char '[' P.<> P.integer a P.<> P.text "] <-" <+> pretty pplus (v,t)) pplus
 
 
 docPCandInstrs :: PolicyPlus -> [Maybe (Integer, TagSet)] -> [Maybe Instr_I] -> Doc
@@ -312,7 +317,7 @@ docDiffs :: PolicyPlus -> [Diff] -> Doc
 docDiffs pplus diffs =
   docPCandInstrs pplus (map _d_pc diffs) (map _d_instr diffs) 
   <:> docRegDiff pplus (map _d_reg diffs)
-  P.<> docMemDiff pplus (map _d_mem diffs)
+  P.<> trace ("Docing mem:\n" ++ show (map _d_mem diffs)) (docMemDiff pplus (map _d_mem diffs))
 --  pretty pplus d1 d2 =
 --    P.hcat [ pad 17 (pretty pplus (d_pc d1) (d_pc d2))
 --           , P.text " "
@@ -330,8 +335,8 @@ docTraceDiff pplus ts (ts':tss) =
   if length rss == length rss' then
     -- Calc list of diffs
     let diffs = zipWith (calcDiff pplus) rss rss' in
---    trace ("Mem of first:\n" ++ show (ts' ^. mp . ms . fmem) ++
---           "\nMem of second:\n" ++ show (head (ts' ^. variants) ^. (mp_state . ms . fmem)))
+    trace ("Mem of first:\n" ++ show (ts' ^. mp . ms . fmem) ++
+           "\nMem of second:\n" ++ show (head (ts' ^. variants) ^. (mp_state . ms . fmem)))
     docDiffs pplus diffs
     $$ docTraceDiff pplus ts' tss
   else error "Implement for varying rich state numbers"
