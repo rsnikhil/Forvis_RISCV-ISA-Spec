@@ -114,7 +114,7 @@ callP t = t == tagH1
 genITag _ = return boringTag
 
 isSecretMP :: Machine_State -> PIPE_State -> TagSet -> Bool
-isSecretMP _ _ t = t == boringTag
+isSecretMP ms ps t = t /= boringTag -- TODO: This should actually look at the accessible relationship
 
 mkInfo :: Machine_State -> PIPE_State -> ()
 mkInfo _ _ = ()
@@ -124,7 +124,7 @@ mkInfo _ _ = ()
 -- The real one
 main_test = do
   pplus <- load_policy
-  quickCheckWith stdArgs{maxSuccess=1000}
+  quickCheckWith stdArgs{maxSuccess=1}
     $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag isSecretMP mkInfo)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
@@ -196,7 +196,7 @@ prop_NI pplus maxCount ts =
                putStrLn $ printTrace pplus trace
                putStrLn "Terminatin error:"
                putStrLn $ show err
-           ) $ length trace <= 4
+           ) $ False --length trace <= 4
 --  allWhenFail (\ts tss -> --tss is reversed here
 --                 (whenFail (do putStrLn "Indistinguishable tags found!"
 --                               putStrLn "Original Test State:"

@@ -130,7 +130,8 @@ calcDiff pplus st1 st2 =
                           (Map.assocs $ st2 ^. ms . fmem) (const uninitialized_word)
           tagDiff  = diff (Map.assocs $ st1 ^. ps . pmem)
                           (Map.assocs $ st2 ^. ps . pmem) (\i -> if isInstr pplus i then emptyInstTag pplus else initMem pplus)
-      in catMaybes $ mergeDiffs st1 st2 dataDiff tagDiff
+      in trace ("FMem1:\n" ++ show (st1 ^. ms . fmem) ++ "\nFMem2:\n" ++ show (st2 ^. ms . fmem) ++ "\nDiff:\n" ++ show dataDiff)$
+           catMaybes $ mergeDiffs st1 st2 dataDiff tagDiff
   } 
 
 -- | Printing | --
@@ -329,14 +330,18 @@ docTraceDiff pplus ts (ts':tss) =
   if length rss == length rss' then
     -- Calc list of diffs
     let diffs = zipWith (calcDiff pplus) rss rss' in
+--    trace ("Mem of first:\n" ++ show (ts' ^. mp . ms . fmem) ++
+--           "\nMem of second:\n" ++ show (head (ts' ^. variants) ^. (mp_state . ms . fmem)))
     docDiffs pplus diffs
     $$ docTraceDiff pplus ts' tss
   else error "Implement for varying rich state numbers"
 
 docTrace :: PolicyPlus -> [TestState a] -> Doc
 docTrace pplus (ts:tss) =
-  docTestState pplus ts
-  $$ docTraceDiff pplus ts tss
+--  trace ("Mem of first:\n" ++ show (ts ^. mp . ms . fmem) ++
+--          "\nMem of second:\n" ++ show (head (ts ^. variants) ^. (mp_state . ms . fmem))) $
+    docTestState pplus ts
+    $$ docTraceDiff pplus ts tss
 
 printTrace :: PolicyPlus -> [TestState a] -> String
 printTrace pplus tss =
