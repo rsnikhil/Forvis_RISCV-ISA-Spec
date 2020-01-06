@@ -135,7 +135,7 @@ calcDiff pplus st1 st2 =
                           (Map.assocs $ st2 ^. ms . fmem) dd 
           tagDiff  = diff (Map.assocs $ st1 ^. ps . pmem) 
                           (Map.assocs $ st2 ^. ps . pmem) dt
-      in trace ("FMem1:\n" ++ show (st1 ^. ms . fmem) ++ "\nFMem2:\n" ++ show (st2 ^. ms . fmem) ++ "\nDiff:\n" ++ show dataDiff ++ "\nTagDiff:\n" ++ show tagDiff ++ "\nMerged:\n" ++ show (mergeDiffs st1 st2 dataDiff tagDiff dd dt))$
+      in --trace ("FMem1:\n" ++ show (st1 ^. ms . fmem) ++ "\nFMem2:\n" ++ show (st2 ^. ms . fmem) ++ "\nDiff:\n" ++ show dataDiff ++ "\nTagDiff:\n" ++ show tagDiff ++ "\nMerged:\n" ++ show (mergeDiffs st1 st2 dataDiff tagDiff dd dt))$
            mergeDiffs st1 st2 dataDiff tagDiff dd dt
   } 
 
@@ -317,7 +317,7 @@ docDiffs :: PolicyPlus -> [Diff] -> Doc
 docDiffs pplus diffs =
   docPCandInstrs pplus (map _d_pc diffs) (map _d_instr diffs) 
   <:> docRegDiff pplus (map _d_reg diffs)
-  P.<> trace ("Docing mem:\n" ++ show (map _d_mem diffs)) (docMemDiff pplus (map _d_mem diffs))
+  P.<> {- trace ("Docing mem:\n" ++ show (map _d_mem diffs))-} (docMemDiff pplus (map _d_mem diffs))
 --  pretty pplus d1 d2 =
 --    P.hcat [ pad 17 (pretty pplus (d_pc d1) (d_pc d2))
 --           , P.text " "
@@ -335,8 +335,8 @@ docTraceDiff pplus ts (ts':tss) =
   if length rss == length rss' then
     -- Calc list of diffs
     let diffs = zipWith (calcDiff pplus) rss rss' in
-    trace ("Mem of first:\n" ++ show (ts' ^. mp . ms . fmem) ++
-           "\nMem of second:\n" ++ show (head (ts' ^. variants) ^. (mp_state . ms . fmem)))
+--    trace ("Mem of first:\n" ++ show (ts' ^. mp . ms . fmem) ++
+--           "\nMem of second:\n" ++ show (head (ts' ^. variants) ^. (mp_state . ms . fmem)))
     docDiffs pplus diffs
     $$ docTraceDiff pplus ts' tss
   else error "Implement for varying rich state numbers"
