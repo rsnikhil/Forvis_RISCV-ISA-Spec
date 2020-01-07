@@ -4,6 +4,7 @@ module TestStackSafety where
 
 -- From Haskell libraries
 import Control.Lens hiding (elements)
+import Control.Monad
 
 import Data.Maybe
 import qualified Data.List as List
@@ -115,7 +116,14 @@ callP t = t == tagH1
 genITag _ = return boringTag
 
 isSecretMP :: Machine_State -> PIPE_State -> TagSet -> Bool
-isSecretMP ms ps t = t /= boringTag -- TODO: This should actually look at the accessible relationship
+isSecretMP ms ps t =
+  -- TODO: Better way to do this?
+  let depthOf :: TagSet -> Maybe Int
+      depthOf t = join (snd <$> (listToMaybe $ toExt t)) in
+  case (depthOf t, depthOf (ps ^. ppc) ) of
+    (Just n, Just m) -> n < m
+    (Nothing, _) -> False
+    (Just n, Nothing) -> error "No depth in pc"
 
 mkInfo :: Machine_State -> PIPE_State -> ()
 mkInfo _ _ = ()
