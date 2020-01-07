@@ -67,12 +67,12 @@ RETURN sequence:
 
 headerSeq offset =
             [ (JAL ra offset, boringTag)
-            , (SW sp ra 1  , tagH1)
-            , (ADDI sp sp 2, tagH2)
+            , (SW sp ra 4  , tagH1)
+            , (ADDI sp sp 8, tagH2)
             ]
 
-returnSeq = [ (LW ra sp (-1), tagR1)
-            , (ADDI sp sp 2 , tagR2)
+returnSeq = [ (LW ra sp (-4), tagR1)
+            , (ADDI sp sp 8 , tagR2)
             , (JALR ra ra 0 , tagR3)
             ]
 
