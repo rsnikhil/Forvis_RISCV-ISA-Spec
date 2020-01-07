@@ -2,6 +2,8 @@
     ScopedTypeVariables #-}
 module TestState where
 
+import System.IO.Unsafe
+
 import Debug.Trace
 
 import Data.Functor
@@ -327,6 +329,17 @@ docDiffs pplus diffs =
 --           , prettyMemDiff pplus (d_mem d1) (d_mem d2)
 --           ]
 
+docTraps :: PolicyPlus -> TestState a -> Doc
+docTraps pplus ts = 
+  let x = unsafePerformIO $
+            if mstate_last_instr_trapped_read (ts ^. mp . ms) then
+              print_CSR_File "" RV32 (f_csrs (ts ^. mp . ms))
+            else return ()
+            
+  in seq x P.empty
+  
+  
+  
 docTraceDiff :: PolicyPlus -> TestState a -> [TestState a] -> Doc
 docTraceDiff pplus ts [] = P.empty
 docTraceDiff pplus ts (ts':tss) =
@@ -337,7 +350,8 @@ docTraceDiff pplus ts (ts':tss) =
     let diffs = zipWith (calcDiff pplus) rss rss' in
 --    trace ("Mem of first:\n" ++ show (ts' ^. mp . ms . fmem) ++
 --           "\nMem of second:\n" ++ show (head (ts' ^. variants) ^. (mp_state . ms . fmem)))
-    docDiffs pplus diffs
+    docTraps pplus ts      
+    $$ docDiffs pplus diffs
     $$ docTraceDiff pplus ts' tss
   else error "Implement for varying rich state numbers"
 

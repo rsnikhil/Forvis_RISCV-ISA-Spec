@@ -67,7 +67,7 @@ RETURN sequence:
 
 headerSeq offset =
             [ (JAL ra offset, boringTag)
-            , (SW ra sp 1  , tagH1)
+            , (SW sp ra 1  , tagH1)
             , (ADDI sp sp 2, tagH2)
             ]
 
@@ -368,7 +368,7 @@ prop_NI pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount in
   whenFail (do putStrLn "Trace:"
                putStrLn $ printTrace pplus trace
-               putStrLn "Terminatin error:"
+               putStrLn "Termination error:"
                putStrLn $ show err
            ) $ length trace <= 5
 --  allWhenFail (\ts tss -> --tss is reversed here
@@ -395,6 +395,7 @@ prop_NI pplus maxCount ts =
 prop_NI' :: PolicyPlus -> Int -> TestState () -> Property
 prop_NI' pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount in
+    collect (length $ takeWhile pcInSync trace, length trace) $ 
     allWhenFail (\ts tss -> --tss is reversed here
                   let trace' = ts : tss & reverse & trace_descs & reverse in
                     (whenFail (do putStrLn "Initial state does not preserve step consistency!"
@@ -426,4 +427,4 @@ prop_NI' pplus maxCount ts =
                 ) (takeWhile pcInSync trace)
 
 prop :: PolicyPlus -> TestState () -> Property
-prop pplus ts = prop_NI' pplus maxInstrsToGenerate ts
+prop pplus ts = prop_NI pplus maxInstrsToGenerate ts
