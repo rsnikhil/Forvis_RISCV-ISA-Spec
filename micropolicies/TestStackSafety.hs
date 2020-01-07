@@ -51,7 +51,8 @@ tagH2 = fromExt [("stack.H2", Nothing)]
 tagH3 = fromExt [("stack.H3", Nothing)]  
 tagR1 = fromExt [("stack.R1", Nothing)]
 tagR2 = fromExt [("stack.R2", Nothing)]  
-tagR3 = fromExt [("stack.R3", Nothing)]  
+tagR3 = fromExt [("stack.R3", Nothing)]
+instrTag = fromExt [("stack.instr", Nothing)]  
 stackTag n = fromExt [("stack.Stack"  , Just n)]
 pcTag n = fromExt [("stack.PC"  , Just n)]
 
@@ -67,7 +68,7 @@ RETURN sequence:
 -}
 
 headerSeq offset =
-            [ (JAL ra offset, boringTag)
+            [ (JAL ra offset, instrTag)
             , (SW sp ra 4  , tagH1)
             , (ADDI sp sp 8, tagH2)
             ]
@@ -96,24 +97,24 @@ load_policy = do
             -- TODO: Might be better to make it some separate
             -- "Uninitialized" tag?
         , initPC = pcTag 0
+        , emptyInstTag = instrTag
         , initNextColor = 1
         , instrLow = 0
         , instrHigh = 400
-        , emptyInstTag = noTag
         , dataMemLow = 1000
         , dataMemHigh = 1020  -- Was 40, but that seems like a lot! (8 may be too little!)
         }
   return pplus
 
 genMTag, genGPRTag :: PolicyPlus -> Gen TagSet 
-genMTag pplus = frequency [(1, pure boringTag), (1, pure boringTag)]
+genMTag pplus = frequency [(1, pure boringTag)]
 genGPRTag = genMTag
 
 dataP = const True
 codeP = const True
 callP t = t == tagH1
 
-genITag _ = return boringTag
+genITag _ = return instrTag
 
 isSecretMP :: Machine_State -> PIPE_State -> TagSet -> Bool
 isSecretMP ms ps t =

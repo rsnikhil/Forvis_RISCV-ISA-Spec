@@ -1,3 +1,7 @@
+* BUGS TO TRY OUT FOR STACK
+
+- Make instruction tags boring instead of "instr" and find the bug?
+
 * NEXT STEPS
 
 - printing:
