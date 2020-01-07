@@ -60,15 +60,20 @@ import Control.Lens
 
 import Debug.Trace
 
+import Data.List.Split (splitOn)
+
 -----------------------------------------------------------------
 type PIPE_Policy = E.QPolMod
 
 newtype TagSet = TagSet {unTagSet :: EC.TagValue}
   deriving (Eq, Show)
 
+removeQual :: String -> String
+removeQual s = last $ splitOn "." s 
+
 showTagSet t = 
-    let f (s, Nothing) = s
-        f (s, Just c) = s ++ " " ++ show c 
+    let f (s, Nothing) = removeQual s
+        f (s, Just c)  = removeQual s ++ " " ++ show c 
     in
     "{" ++ intercalate ", " (map f (toExt t)) ++ "}"
 

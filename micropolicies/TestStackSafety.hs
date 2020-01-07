@@ -118,6 +118,10 @@ genITag _ = return boringTag
 isSecretMP :: Machine_State -> PIPE_State -> TagSet -> Bool
 isSecretMP ms ps t =
   -- TODO: Better way to do this?
+  -- Get qualified symbol name
+  -- Look it up in the map
+  -- Get the int out
+  -- Also TODO: Instructions?
   let depthOf :: TagSet -> Maybe Int
       depthOf t = join (snd <$> (listToMaybe $ toExt t)) in
   case (depthOf t, depthOf (ps ^. ppc) ) of

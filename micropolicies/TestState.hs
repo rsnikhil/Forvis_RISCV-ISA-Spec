@@ -559,7 +559,7 @@ genCall pplus ms ps dataP codeP callP genInstrTag headerSeq = do
       newCallSites =
         -- iterate through all possible instruction locations
         -- and filter out the ones that already exist in memory
-        filter (\i -> not (Map.member i m))
+        filter (\i -> not (Map.member (i - ms ^. fpc) m))
           [instrLow pplus, instrLow pplus + 4 .. (instrHigh pplus - 100)]
  
   offset <- elements (existingCallSites ++ newCallSites)
