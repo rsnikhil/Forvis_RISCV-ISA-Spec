@@ -111,6 +111,7 @@ mergeDiffs st1 st2 [] ((j,(l1,l2)):ts) dd dt = ((j,,l2) $ maybe (dd j) id (st2 ^
 calcDiff :: PolicyPlus -> RichState -> RichState -> Diff
 calcDiff pplus st1 st2 =
   Diff {
+  
     _d_pc = guard (not $ eqOn (ms . fpc) st1 st2 && eqOn (ps . ppc) st1 st2)
             $> (st2 ^. ms . fpc, st2 ^. ps . ppc)
               
@@ -309,15 +310,15 @@ docRegDiff pplus = docAssocDiff (\(a,v,t) -> P.char 'r' P.<> P.integer a <+> P.t
 docMemDiff pplus = docAssocDiff (\(a,v,t) -> P.char '[' P.<> P.integer a P.<> P.text "] <-" <+> pretty pplus (v,t)) pplus
 
 
-docPCandInstrs :: PolicyPlus -> [Maybe (Integer, TagSet)] -> [Maybe Instr_I] -> Doc
-docPCandInstrs pplus (mpc:mpcs) (mi:mis)
-  | all (mpc==) mpcs && all (mi==) mis =
-      pad 17 (pretty pplus mpc) P.<> P.text "  " P.<> pad 17 (pretty pplus mi)
+docPCandInstrs :: PolicyPlus -> (Integer, TagSet) -> [Maybe Instr_I] -> Doc
+docPCandInstrs pplus pc (mi:mis) =
+--  | all (mpc==) mpcs && all (mi==) mis =
+      pad 17 (pretty pplus pc) P.<> P.text "  " P.<> pad 17 (pretty pplus mi)
 docPCandInstrs _ _ _ = error "Empty/unequal pcs or mis"
 
-docDiffs :: PolicyPlus -> [Diff] -> Doc
-docDiffs pplus diffs =
-  docPCandInstrs pplus (map _d_pc diffs) (map _d_instr diffs) 
+docDiffs :: PolicyPlus -> (Integer, TagSet) -> [Diff] -> Doc
+docDiffs pplus pc diffs =
+  docPCandInstrs pplus pc (map _d_instr diffs) 
   <:> docRegDiff pplus (map _d_reg diffs)
   P.<> {- trace ("Docing mem:\n" ++ show (map _d_mem diffs))-} (docMemDiff pplus (map _d_mem diffs))
 --  pretty pplus d1 d2 =
@@ -329,6 +330,7 @@ docDiffs pplus diffs =
 --           , prettyMemDiff pplus (d_mem d1) (d_mem d2)
 --           ]
 
+-- YUCK
 docTraps :: PolicyPlus -> TestState a -> Doc
 docTraps pplus ts = 
   let x = unsafePerformIO $
@@ -350,8 +352,9 @@ docTraceDiff pplus ts (ts':tss) =
     let diffs = zipWith (calcDiff pplus) rss rss' in
 --    trace ("Mem of first:\n" ++ show (ts' ^. mp . ms . fmem) ++
 --           "\nMem of second:\n" ++ show (head (ts' ^. variants) ^. (mp_state . ms . fmem)))
-    docTraps pplus ts      
-    $$ docDiffs pplus diffs
+    docTraps pplus ts
+    -- TODO : check that all pcs in ts are equal!
+    $$ docDiffs pplus (ts ^. mp . ms . fpc, ts ^. mp . ps .ppc) diffs
     $$ docTraceDiff pplus ts' tss
   else error "Implement for varying rich state numbers"
 

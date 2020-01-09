@@ -47,12 +47,13 @@ import TestState
 noTag = fromExt []
 boringTag = fromExt [("stack.Boring", Nothing)]
 spTag = fromExt [("stack.SP", Nothing)]
-tagH1 = fromExt [("stack.H1", Nothing)] 
-tagH2 = fromExt [("stack.H2", Nothing)]  
-tagH3 = fromExt [("stack.H3", Nothing)]  
-tagR1 = fromExt [("stack.R1", Nothing)]
-tagR2 = fromExt [("stack.R2", Nothing)]  
-tagR3 = fromExt [("stack.R3", Nothing)]
+tagH1 = fromExt [("stack.H1", Nothing), ("stack.Instr", Nothing)] 
+tagH2 = fromExt [("stack.H2", Nothing), ("stack.Instr", Nothing)]  
+tagH3 = fromExt [("stack.H3", Nothing), ("stack.Instr", Nothing)]  
+tagR1 = fromExt [("stack.Instr", Nothing), ("stack.R1", Nothing)]
+tagR2 = fromExt [("stack.Instr", Nothing), ("stack.R2", Nothing)]  
+tagR3 = fromExt [("stack.Instr", Nothing), ("stack.R3", Nothing)]
+callTag = fromExt [("stack.Call", Nothing), ("stack.Instr", Nothing)]
 instrTag = fromExt [("stack.Instr", Nothing)]  
 stackTag n = fromExt [("stack.Stack"  , Just n)]
 pcTag n = fromExt [("stack.PC"  , Just n)]
@@ -69,7 +70,7 @@ RETURN sequence:
 -}
 
 headerSeq offset =
-            [ (JAL ra offset, instrTag)
+            [ (JAL ra offset, callTag)
             , (SW sp ra 4  , tagH1)
             , (ADDI sp sp 8, tagH2)
             ]

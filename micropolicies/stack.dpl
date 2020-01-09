@@ -24,39 +24,38 @@ policy: main =
 // ------------------------------------------------------------------------------
 // HEADER SEQUENCE
 
-// TODO: Allow both JAL and JALR, with H0 tag in each case
-  jalGrp (
-       env == {(PC old)}, code == {Call}
+jalGrp (
+       env == {(PC old)}, code == {Instr, Call}
     -> env = {(PC new),H1}, return = {(PC old)} )
 
 // TODO:
 // val, mem used to be Stack old. Should it be PC?
 // Old mistake? code wasn't tagged H1. HOW would we find that?
 ^ storeGrp(
-       env == [+H1], addr == {SP}, val == {(PC old)}, mem == _, code == {H1}
+       env == [+H1], addr == {SP}, val == {(PC old)}, mem == _, code == {Instr, H1}
     -> env = env[-H1,+H2], mem = {(PC old)})
 
 ^ immArithGrp(
-     env == [+H2], op1 == {SP}, code == {H2}
+     env == [+H2], op1 == {SP}, code == {Instr, H2}
   -> env = env[-H2], res = {SP})
 
 //^ immArithGrp(
-//     env == [+H3], op1 == _, code == {H3}
+//     env == [+H3], op1 == _, code == {Instr, H3}
 //  -> env = env[-H3], res = {Boring})
 
 // ------------------------------------------------------------------------------
 // RETURN SEQUENCE
 
 ^ loadGrp(
-       addr == {SP}, mem == {(PC _)}, env == _, code == {R1}
+       addr == {SP}, mem == {(PC _)}, env == _, code == {Instr, R1}
     -> env = env[+R2], res = mem)
 
 ^ immArithGrp(
-     env == [+R2], op1 == {SP}, code == {R2}
+     env == [+R2], op1 == {SP}, code == {Instr, R2}
   -> env = env[-R2,+R3], res = {SP})
 
 ^ jalrGrp(
-       target == {(PC old)}, env == {R3,(PC _)}, code == {R3}
+       target == {(PC old)}, env == {R3,(PC _)}, code == {Instr, R3}
     -> env = {(PC old)}, return = {Boring} )
 
 // ------------------------------------------------------------------------------
@@ -78,6 +77,7 @@ policy: main =
 ^ jalrGrp(
        target == {Boring}, env == {(PC _)}, return == {Boring}
     -> env = env, return = {Boring} )
+// TODO: Other jals, blt
 // TODO: ... and we need some more clauses for other groups pretty soon :-)
 
 // ==============================================================================
