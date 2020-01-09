@@ -566,18 +566,19 @@ genCall pplus ms ps dataP codeP callP genInstrTag headerSeq = do
   return $ headerSeq offset
 
 -- TODO: This might need to be further generalized in the future
+-- Returns (call diff, instruction sequence)
 -- INV: Never returns empty list
 genInstrSeq :: PolicyPlus -> Machine_State -> PIPE_State ->
                (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool) ->
                (Instr_I -> Gen TagSet) ->
-               (Integer -> [(Instr_I, TagSet)]) -> Bool -> [(Instr_I, TagSet)] ->
-               Gen [(Instr_I, TagSet)]
-genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq =
-  frequency [ (10, (:[]) <$> genInstr pplus ms ps dataP codeP genInstrTag)
+               (Integer -> [(Instr_I, TagSet)]) -> Int -> [(Instr_I, TagSet)] ->
+               Gen (Int, [(Instr_I, TagSet)]) 
+genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq numCalls retSeq =
+  frequency [ (5, (0,) <$> (:[]) <$> genInstr pplus ms ps dataP codeP genInstrTag)
             -- TODO: Sometimes generate calls in the middle of nowhere
-            , (10, genCall pplus ms ps dataP codeP callP genInstrTag headerSeq)
+            , (2, (1,) <$> genCall pplus ms ps dataP codeP callP genInstrTag headerSeq)
             -- TODO: Some times generate returns without the sequence
-            , (if hasCall then 1 else 0, return retSeq)
+            , (numCalls, return (-1, retSeq))
             -- TODO: Sometimes read/write the instruction memory (harder to make work)
             ] 
 
@@ -608,20 +609,21 @@ genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State ->
              (Instr_I -> Gen TagSet) -> 
              Gen (Machine_State, PIPE_State)
 genByExec pplus n init_ms init_ps dataP codeP callP headerSeq retSeq genInstrTag =
-  exec_aux n init_ms init_ps init_ms init_ps []
+  exec_aux n init_ms init_ps init_ms init_ps [] 0
   where exec_aux :: Int -> Machine_State -> PIPE_State ->
                            Machine_State -> PIPE_State ->
                            [(Instr_I, TagSet)] ->
+                           Int -> 
                            Gen (Machine_State, PIPE_State)
-        exec_aux 0 ims ips ms ps generated = return (ims, ips)
-        exec_aux n ims ips ms ps generated
+        exec_aux 0 ims ips ms ps generated numCalls = return (ims, ips)
+        exec_aux n ims ips ms ps generated numCalls 
         -- Check if an instruction already exists
           | Map.member (f_pc ms) (f_dm $ f_mem ms) = do
             traceShowM ("Instruction exists, executing...") 
             case fetch_and_execute pplus ms ps of
               Right (ms'', ps'') ->
                 -- TODO: Check that generated is empty here?
-                exec_aux (n-1) ims ips ms'' ps'' []
+                exec_aux (n-1) ims ips ms'' ps'' [] numCalls
               Left err ->
                 -- trace ("Warning: Fetch and execute failed with " ++ show n
                 --        ++ " steps remaining and error: " ++ show err) $
@@ -630,18 +632,16 @@ genByExec pplus n init_ms init_ps dataP codeP callP headerSeq retSeq genInstrTag
               traceShowM ("No instruction exists, generating...")
               -- Generate an instruction for the current state
               -- Checking if there is a "sequence" part left
-              (is, it, generated') <-
+              (numCalls', is, it, generated') <-
                 case generated of
                   [] -> do --(\(is,it) -> (is,it,[])) <$>
 --                          genInstr pplus ms ps dataP codeP genInstrTag
--- TODO: Use instrSeq, figure out if it's a call, convert hasCall to counter
-                           let hasCall = True 
-                           v <- genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq
+                           (cd, v) <- genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq numCalls retSeq
                            case v of
                              ((is,it):t) -> 
-                                return (is,it,t)
+                                return (cd + numCalls, is,it,t)
                              _ -> error "empty instruction sequencer"
-                  ((is,it):t) -> return (is,it,t)
+                  ((is,it):t) -> return (numCalls, is,it,t)
               traceShowM ("Generated:", is, it, generated')
               -- Update the i-memory of both the machine we're stepping...
               let ms' = ms & fmem . at (f_pc ms) ?~ (encode_I RV32 is)
@@ -654,7 +654,7 @@ genByExec pplus n init_ms init_ps dataP codeP callP headerSeq retSeq genInstrTag
               case fetch_and_execute pplus ms' ps' of
                 Right (ms'', ps'') ->
                   -- trace "Successful execution" $
-                  exec_aux (n-1) ims' ips' ms'' ps'' generated'
+                  exec_aux (n-1) ims' ips' ms'' ps'' generated' numCalls'
                 Left err ->
                   -- trace ("Warning: Fetch and execute failed with "
                   --       ++ show n ++ " steps remaining and error: " ++ show err) $
