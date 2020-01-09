@@ -28,6 +28,8 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             PIPE_Result(..),
             exec_pipe) where
 
+import System.IO.Unsafe
+  
 import Data.Maybe
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -306,7 +308,12 @@ exec_pipe pplus m p u32 =
                     SH rs1 _ imm -> mstate_gpr_read rs1 m + imm
                     SW rs1 _ imm -> mstate_gpr_read rs1 m + imm
                     _ -> error $ "maddr undefined for " ++ (show inst)
-      in exec_pipe' pplus p (f_pc m) inst maddr
+      in let (ps, pr) = exec_pipe' pplus p (f_pc m) inst maddr in
+         case pr of
+           PIPE_Success -> (ps, pr)
+           PIPE_Trap s  ->
+--             unsafePerformIO $ mstate_print "" m 
+             (ps, PIPE_Trap $ s) -- + printTestState pplus (TS (Rich m p) []))
 
 {- Proceed with only PIPE_State -}
 exec_pipe' :: PolicyPlus -> PIPE_State -> Integer -> Instr_I -> Integer -> (PIPE_State, PIPE_Result)

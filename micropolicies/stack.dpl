@@ -7,7 +7,9 @@ metadata:
     Boring,
     Stack Depth,  // For memory cells that are part of the stack
     PC Depth,
+    Instr, 
     SP,           // stack pointer register
+    Call,         //
     H1,           // header seq
     H2,
 //  H3,
@@ -24,7 +26,7 @@ policy: main =
 
 // TODO: Allow both JAL and JALR, with H0 tag in each case
   jalGrp (
-       env == {(PC old)}
+       env == {(PC old)}, code == {Call}
     -> env = {(PC new),H1}, return = {(PC old)} )
 
 // TODO:
@@ -62,17 +64,17 @@ policy: main =
 
 // res = Boring or res = -SP? (or nothing?)
 ^ arithGrp(
-       code == {Boring}, env == _, op1 == [-SP], op2 == [-SP] //, res == {Boring}
+       code == {Instr}, env == _, op1 == [-SP], op2 == [-SP] //, res == {Boring}
     -> env = env, res = {Boring} )
 ^ immArithGrp(
-       code == {Boring}, env == _, op1 == [-SP] //, res == [-SP]
+       code == {Instr}, env == _, op1 == [-SP] //, res == [-SP]
     -> env = env, res = {Boring})
 ^ loadGrp(
        env == _, addr == [-SP], mem == {Boring} // TODO: What was res as an input?
     -> env = env, res = {Boring})
 ^ storeGrp(
-       env == _, addr == [-SP], val == {Boring}, mem == {Boring}   // TODO: Why do we need [-SP]
-    -> env = env, mem = {Boring})  // TODO: Probably wrong!!
+       env == {PC depth}, addr == [-SP], val == {Boring}, mem == _ // TODO: Really anything? There's probably a bug here [-Instr]?
+    -> env = env, mem = {Stack depth})  // TODO: Probably wrong!!
 ^ jalrGrp(
        target == {Boring}, env == {(PC _)}, return == {Boring}
     -> env = env, return = {Boring} )
@@ -84,17 +86,17 @@ policy: main =
 // (Adding these explicit "heap."s is just a workaround pending a proper fix to PIPE.hs)
 
 // Not sure whether we need these at all any more...?
-require:
-    init test.Boring {stack.Boring}
-    init test.Stack {stack.Stack}
-    init test.PC {stack.PC}
-    init test.SP {stack.SP}
-    init test.H1 {stack.H1}
-    init test.H2 {stack.H2}
-    init test.H3 {stack.H3}
-    init test.R1 {stack.R1}
-    init test.R2 {stack.R2}
-    init test.R3 {stack.R3}
+//require:
+//    init test.Boring {stack.Boring}
+//    init test.Stack {stack.Stack}
+//    init test.PC {stack.PC}
+//    init test.SP {stack.SP}
+//    init test.H1 {stack.H1}
+//    init test.H2 {stack.H2}
+//    init test.H3 {stack.H3}
+//    init test.R1 {stack.R1}
+//    init test.R2 {stack.R2}
+//    init test.R3 {stack.R3}
 
 group:
     grp jalGrp(-> RD:return)

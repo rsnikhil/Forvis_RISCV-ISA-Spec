@@ -43,6 +43,7 @@ import TestState
 
 -- | Policy Specific generation
 
+-- TODO: H1, H2... should include the instr tag
 noTag = fromExt []
 boringTag = fromExt [("stack.Boring", Nothing)]
 spTag = fromExt [("stack.SP", Nothing)]
@@ -52,7 +53,7 @@ tagH3 = fromExt [("stack.H3", Nothing)]
 tagR1 = fromExt [("stack.R1", Nothing)]
 tagR2 = fromExt [("stack.R2", Nothing)]  
 tagR3 = fromExt [("stack.R3", Nothing)]
-instrTag = fromExt [("stack.instr", Nothing)]  
+instrTag = fromExt [("stack.Instr", Nothing)]  
 stackTag n = fromExt [("stack.Stack"  , Just n)]
 pcTag n = fromExt [("stack.PC"  , Just n)]
 
@@ -93,7 +94,7 @@ load_policy = do
   let pplus = PolicyPlus
         { policy = ppol
         , initGPR = noTag
-        , initMem = stackTag 0
+        , initMem = boringTag
             -- TODO: Might be better to make it some separate
             -- "Uninitialized" tag?
         , initPC = pcTag 0

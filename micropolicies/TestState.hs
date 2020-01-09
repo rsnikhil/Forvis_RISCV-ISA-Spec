@@ -534,16 +534,17 @@ genInstr pplus ms ps dataP codeP genInstrTag =
                   tag <- genInstrTag instr
                   return (instr, tag)
               )
-            , (onNonEmpty arithInfo 1,
-               do -- BLT
-                  AI rs1 <- elements arithInfo
-                  AI rs2 <- elements arithInfo
-                  imm <- (8+) <$> genImm 12 --TODO: More principled relative jumps
-                  -- BLT does multiples of 2
-                  let instr = BLT rs1 rs2 imm
-                  tag <- genInstrTag instr
-                  return (instr, tag)
-              )
+-- TODO: Uncomment this and add stack.dpl rule
+--            , (onNonEmpty arithInfo 1,
+--               do -- BLT
+--                  AI rs1 <- elements arithInfo
+--                  AI rs2 <- elements arithInfo
+--                  imm <- (8+) <$> genImm 12 --TODO: More principled relative jumps
+--                  -- BLT does multiples of 2
+--                  let instr = BLT rs1 rs2 imm
+--                  tag <- genInstrTag instr
+--                  return (instr, tag)
+--              )
             ]
 
 genCall :: PolicyPlus -> Machine_State -> PIPE_State ->
@@ -700,7 +701,7 @@ genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag sp
   return $ Rich ms_fin ps_fin
 
 maxInstrsToGenerate :: Int
-maxInstrsToGenerate = 10
+maxInstrsToGenerate = 20
 
 varySecretMap :: PolicyPlus -> (TagSet -> Bool) ->
   Map Integer Integer -> Map Integer TagSet ->

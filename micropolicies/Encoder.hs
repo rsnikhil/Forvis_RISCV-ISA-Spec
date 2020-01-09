@@ -61,11 +61,11 @@ mkInstr_U_type     imm20         rd            opcode =
 mkInstr_I_type :: InstrField -> InstrField -> InstrField -> InstrField -> InstrField -> Instr_32b
 mkInstr_I_type    imm12         rs1           funct3        rd            opcode =
   let
-    legal  = (((   shiftR  imm12  12) == 0)
-              && ((shiftR  rs1     5) == 0)
-              && ((shiftR  funct3  3) == 0)
-              && ((shiftR  rd      5) == 0)
-              && ((shiftR  opcode  7) == 0))
+--    legal  = (((   shiftR  imm12  12) == 0)
+--              && ((shiftR  rs1     5) == 0)
+--              && ((shiftR  funct3  3) == 0)
+--              && ((shiftR  rd      5) == 0)
+--              && ((shiftR  opcode  7) == 0))
 
     instr  = ((    shiftL  imm12   20)
               .|. (shiftL  rs1     15)
