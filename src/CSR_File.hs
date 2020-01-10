@@ -34,6 +34,7 @@ import Arch_Defs
 -- will; only the exported API can be used by clients.
 
 newtype CSR_File = CSR_File (Data_Map.Map  CSR_Addr  Integer)
+  deriving Eq
 
 -- ================================================================
 -- Constructor: make and return a new CSR file

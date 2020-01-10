@@ -62,6 +62,7 @@ data Machine_State =
                   f_last_instr_trapped :: Bool,
                   f_verbosity          :: Int
                 }
+  deriving Eq
                                                           -- \end_latex{Machine_State}
 data Run_State = Run_State_Running
                | Run_State_WFI        -- Paused waiting for interrupt

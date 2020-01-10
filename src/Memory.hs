@@ -39,6 +39,7 @@ uninitialized_word = 0x00000000 :: Integer
 data Mem = Mem { f_dm            :: Data_Map.Map  Integer  Integer,
                  f_reserved_addr :: Maybe (Integer, Integer)
                }
+  deriving Eq
 
 mkMem :: [(Integer, Integer)] -> Mem
 mkMem  addr_byte_list =

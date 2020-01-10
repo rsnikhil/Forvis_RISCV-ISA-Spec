@@ -141,7 +141,7 @@ data DescTag = Stack Int
 
 data StateDesc = SD { pcdepth :: !Int
                     , memdepth :: Map Integer DescTag
-                    , stack :: [(Integer, Integer)]
+                    , stack :: [((Integer, Integer), RichState)]
                     , callinstrs :: [Integer]
                     } 
 
@@ -171,8 +171,8 @@ next_desc :: RichState -> StateDesc -> RichState -> StateDesc
 next_desc s d s'
   | memdepth d Map.! (s ^. ms . fpc) == Instr =
     let isCall = elem (s ^. ms . fpc) (callinstrs d)
-        isRet  = ((s' ^. ms . fpc) == 4 + fst (head $ stack d)) &&
-                 (Just (snd (head $ stack d)) == (s ^. ms . fgpr . at sp))
+        isRet  = ((s' ^. ms . fpc) == 4 + fst (fst $ head $ stack d)) &&
+                 (Just (snd (fst $ head $ stack d)) == (s ^. ms . fgpr . at sp))
         -- Should return Just (memory loc) if it is a write, Nothing otherwise
         isWrite =
           -- TODO: Common definitions from Forvis_Spec_I
@@ -212,7 +212,7 @@ next_desc s d s'
             _ -> memdepth d
       , stack =
           if isCall then
-            (s ^. ms . fpc, fromJust (s ^. ms . fgpr . at sp)) : stack d
+            ((s ^. ms . fpc, fromJust (s ^. ms . fgpr . at sp)), s) : stack d
           else if isRet then 
             tail $ stack d
           else stack d
@@ -330,17 +330,16 @@ isReturn s =
 -- TODO: Is it feasible to discharge the well-bracketedness assumption?
 -- Consider adding a stack of whole machine states to the state description to
 -- simplify this process (how does scrambling interact with it?).
-find_call :: Integer -> [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
-find_call level trace =
-  case trace of
-    [] -> Nothing
-    (ts, td) : trace' ->
-      if isReturn (ts ^. mp ^. ms) then
-        find_call (level + 1) trace'
-      else if isCall (ts ^. mp ^. ms) then
-        if level == 0 then Just (ts, td)
-        else find_call (level - 1) trace'
-      else find_call level trace'
+find_call :: [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
+find_call trace_rev =
+  let
+    (_, callee_td) = head trace_rev
+    caller_ts = snd $ head $ stack callee_td
+    find_aux t = case t of
+      [] -> Nothing
+      (ts, td) : t' -> if (ts ^. mp) == caller_ts then Just (ts, td) else find_aux t'
+  in
+    find_aux trace_rev
 
 -- TODO: Refactor definitions (see above).
 -- Clarify: are instructions accessible?
@@ -362,7 +361,7 @@ test_NI trace_rev =
     -- Enriched trace and top (last step, under consideration)
     (ts, td)  = head trace_rev
     -- Location of matching (potential) caller and depth
-    Just (ts', td') = find_call 0 trace_rev
+    Just (ts', td') = find_call trace_rev
     -- depth = pcdepth td'
   in
     if isReturn (ts ^. mp ^. ms) then mem_NI ts ts' td'

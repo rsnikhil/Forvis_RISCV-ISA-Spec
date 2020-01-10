@@ -42,6 +42,7 @@ data MMIO = MMIO {
   f_uart :: UART_NS16550A
                                                                 -- \end_latex{MMIO_f_uart}
   }
+  deriving Eq
 
 mkMMIO :: MMIO
 mkMMIO = MMIO { f_mtime         = 1,    -- greater than mtimecmp, to avoid initial interrupt
