@@ -381,7 +381,7 @@ prop_NI pplus maxCount ts =
 --  whenFail (putStrLn $ printTestState pplus ts)
 --           False
   let (trace,err) = traceExec pplus ts maxCount in
-  whenFail (do putStrLn "Trace:"
+  whenFail (do putStrLn $ "Trace: (len = " ++ show (length trace) ++ ")"
                putStrLn $ printTrace pplus trace
                putStrLn "Termination error:"
                putStrLn $ show err

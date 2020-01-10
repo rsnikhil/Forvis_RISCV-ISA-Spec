@@ -364,6 +364,7 @@ docTrace pplus (ts:tss) =
 --          "\nMem of second:\n" ++ show (head (ts ^. variants) ^. (mp_state . ms . fmem))) $
     docTestState pplus ts
     $$ docTraceDiff pplus ts tss
+    $$ if null tss then P.text "No exec trace" else P.text "Final State:" $$ docTestState pplus (last tss)
 
 printTrace :: PolicyPlus -> [TestState a] -> String
 printTrace pplus tss =
@@ -797,11 +798,11 @@ step pplus ts
       Left "Not Running State" 
 
 traceExec :: PolicyPlus -> TestState a -> Int -> ([TestState a], String)
-traceExec pplus ts 0 = ([], "Out of fuel")
+traceExec pplus ts 0 = ([ts], "Out of fuel")
 traceExec pplus ts n =
   case step pplus ts of
     Right ts' -> first (ts:) $ traceExec pplus ts' (n-1)
-    Left  err -> ([], err)
+    Left  err -> ([ts], err)
 
 -- | Indistinguishability |--
 -----------------------------
