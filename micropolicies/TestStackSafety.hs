@@ -53,6 +53,7 @@ tagR2 = fromExt [("stack.R2", Nothing)]
 tagR3 = fromExt [("stack.R3", Nothing)]  
 stackTag n = fromExt [("stack.Stack"  , Just n)]
 pcTag n = fromExt [("stack.PC"  , Just n)]
+callTag = fromExt [("stack.Call"  , Nothing)]
 
 {-
 HEADER sequence:
@@ -302,34 +303,10 @@ trace_descs tss =
 -- A direct encoding of the test of noninterference on stacks: if the current
 -- instruction is a return, locate its matching call in the trace and compare
 -- the two memory states.
---   In doing so, we can rely on state descriptions or on instruction decoding;
--- currently, for simplicity, the latter is used; well-bracketed control flow is
--- assumed to locate the matching call of a return.
--- TODO: Alternatively, check correct tagging in PIPE state: R3 for returns, a
--- new tag for call sites (or blessed call sites).
-isCall :: Machine_State -> Bool
-isCall s =
-  case fst $ instr_fetch s of
-    Fetch u32 -> case decode_I RV32 u32 of
-      Just instr -> case instr of
-        JAL _ _ -> True
-        _ -> False
-      _ -> False
-    _ -> False
-
-isReturn :: Machine_State -> Bool
-isReturn s =
-  case fst $ instr_fetch s of
-    Fetch u32 -> case decode_I RV32 u32 of
-      Just instr -> case instr of
-        JALR _ _ _ -> True
-        _ -> False
-      _ -> False
-    _ -> False
-
--- TODO: Is it feasible to discharge the well-bracketedness assumption?
--- Consider adding a stack of whole machine states to the state description to
--- simplify this process (how does scrambling interact with it?).
+--   In doing so, we can rely on state descriptions or on instruction decoding.
+-- The former is used to locate matching calls, whereas without relying on
+-- well-bracketedness.
+-- TODO: How does scrambling interact with this process?
 find_call :: [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
 find_call trace_rev =
   let
@@ -355,6 +332,16 @@ mem_NI ts ts' d =
   in
     eqMaps instrAcc instrAcc'
 
+-- Find return addresses based on the PIPE state.
+-- TODO: Possibly in combination with other tags?
+isReturn :: TestState a -> Bool
+isReturn s =
+  let
+    pmemMap = p_mem (s ^. mp ^. ps) ^. pmem_map
+    pc = s ^. mp ^.  ms . fpc
+  in
+    pmemMap Map.! pc == tagR3
+
 test_NI :: [(TestState a, StateDesc)] -> Bool
 test_NI trace_rev =
   let
@@ -364,7 +351,7 @@ test_NI trace_rev =
     Just (ts', td') = find_call trace_rev
     -- depth = pcdepth td'
   in
-    if isReturn (ts ^. mp ^. ms) then mem_NI ts ts' td'
+    if isReturn ts then mem_NI ts ts' td'
     else True -- Holds vacuously: nothing to test here
 
 -- TODO: Rephrase indistinguishability to only look at clean locs?
