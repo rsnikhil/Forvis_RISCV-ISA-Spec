@@ -28,6 +28,8 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             PIPE_Result(..),
             exec_pipe) where
 
+import System.IO.Unsafe
+  
 import Data.Maybe
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -60,15 +62,20 @@ import Control.Lens
 
 import Debug.Trace
 
+import Data.List.Split (splitOn)
+
 -----------------------------------------------------------------
 type PIPE_Policy = E.QPolMod
 
 newtype TagSet = TagSet {unTagSet :: EC.TagValue}
   deriving (Eq, Show)
 
+removeQual :: String -> String
+removeQual s = last $ splitOn "." s 
+
 showTagSet t = 
-    let f (s, Nothing) = s
-        f (s, Just c) = s ++ " " ++ show c 
+    let f (s, Nothing) = removeQual s
+        f (s, Just c)  = removeQual s ++ " " ++ show c 
     in
     "{" ++ intercalate ", " (map f (toExt t)) ++ "}"
 
@@ -301,7 +308,12 @@ exec_pipe pplus m p u32 =
                     SH rs1 _ imm -> mstate_gpr_read rs1 m + imm
                     SW rs1 _ imm -> mstate_gpr_read rs1 m + imm
                     _ -> error $ "maddr undefined for " ++ (show inst)
-      in exec_pipe' pplus p (f_pc m) inst maddr
+      in let (ps, pr) = exec_pipe' pplus p (f_pc m) inst maddr in
+         case pr of
+           PIPE_Success -> (ps, pr)
+           PIPE_Trap s  ->
+--             unsafePerformIO $ mstate_print "" m 
+             (ps, PIPE_Trap $ s) -- + printTestState pplus (TS (Rich m p) []))
 
 {- Proceed with only PIPE_State -}
 exec_pipe' :: PolicyPlus -> PIPE_State -> Integer -> Instr_I -> Integer -> (PIPE_State, PIPE_Result)
