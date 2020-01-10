@@ -45,7 +45,7 @@ import TestState
 
 -- TODO: H1, H2... should include the instr tag
 noTag = fromExt []
-boringTag = fromExt [("stack.Boring", Nothing)]
+-- boringTag = fromExt [("stack.Boring", Nothing)]
 spTag = fromExt [("stack.SP", Nothing)]
 tagH1 = fromExt [("stack.H1", Nothing), ("stack.Instr", Nothing)] 
 tagH2 = fromExt [("stack.H2", Nothing), ("stack.Instr", Nothing)]  
@@ -95,7 +95,7 @@ load_policy = do
   let pplus = PolicyPlus
         { policy = ppol
         , initGPR = noTag
-        , initMem = boringTag
+        , initMem = stackTag 0
             -- TODO: Might be better to make it some separate
             -- "Uninitialized" tag?
         , initPC = pcTag 0
@@ -109,8 +109,8 @@ load_policy = do
   return pplus
 
 genMTag, genGPRTag :: PolicyPlus -> Gen TagSet 
-genMTag pplus = frequency [(1, pure boringTag)]
-genGPRTag = genMTag
+genMTag pplus = pure (initMem pplus)
+genGPRTag pplus = pure (initGPR pplus)
 
 dataP = const True
 codeP = const True

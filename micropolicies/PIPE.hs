@@ -47,6 +47,7 @@ import CommonFn as CF
 import qualified EvalCommon as EC
 import qualified Eval as E
 
+import ALU (alu_add)
 import Machine_State
 import MachineLenses
 import Forvis_Spec_I
@@ -298,16 +299,18 @@ exec_pipe pplus m p u32 =
       (p, PIPE_Success)
       -- error $ "exec_pipe cannot decode instruction 0x" ++ (showHex u32 "") ++ " at pc: " ++ (show $ mstate_pc_read m)
     Just inst ->
-      let maddr = case inst of 
-                    LB _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    LH _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    LW _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    LBU _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    LHU _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    SB rs1 _ imm -> mstate_gpr_read rs1 m + imm
-                    SH rs1 _ imm -> mstate_gpr_read rs1 m + imm
-                    SW rs1 _ imm -> mstate_gpr_read rs1 m + imm
-                    _ -> error $ "maddr undefined for " ++ (show inst)
+      let (rs1,imm) =
+           case inst of 
+              LB _ rs1 imm -> (rs1,imm)
+              LH _ rs1 imm ->(rs1,imm)
+              LW _ rs1 imm -> (rs1,imm)
+              LBU _ rs1 imm -> (rs1,imm)
+              LHU _ rs1 imm -> (rs1,imm)
+              SB rs1 _ imm -> (rs1,imm)
+              SH rs1 _ imm -> (rs1,imm)
+              SW rs1 _ imm -> (rs1,imm)
+              _ -> error $ "maddr undefined for " ++ (show inst) in
+      let maddr = alu_add 32 {-xlen-} (mstate_gpr_read rs1 m) (sign_extend 12 32 {-xlen-} imm)
       in let (ps, pr) = exec_pipe' pplus p (f_pc m) inst maddr in
          case pr of
            PIPE_Success -> (ps, pr)

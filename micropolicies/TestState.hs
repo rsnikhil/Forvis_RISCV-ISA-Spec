@@ -219,6 +219,7 @@ instance Pretty Instr_I where
   pretty _ (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
   pretty _ (JAL rs imm) = pr_instr_J_type "JAL" rs imm
   pretty _ (BLT rs1 rs2 imm) = pr_instr_B_type "BLT" rs1 rs2 imm  
+  pretty _ (JALR rd rs imm) = pr_instr_I_type "JALR" rd rs imm  
   pretty _ i = error $ show i
 
 -- | Address based printing

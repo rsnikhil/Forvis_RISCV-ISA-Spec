@@ -26,7 +26,8 @@ encode_I rv (LW rd rs1 imm12)   = mkInstr_I_type imm12 rs1 funct3_LW rd opcode_L
 encode_I rv (SW rs1 rs2 imm12)  = mkInstr_S_type imm12 rs2 rs1 funct3_SW opcode_STORE
 encode_I rv (ADD rd rs1 rs2)    = mkInstr_R_type funct7_ADD rs2 rs1 funct3_ADD rd opcode_OP
 encode_I rv (JAL rd imm21)      = mkInstr_J_type imm21 rd opcode_JAL
-encode_I rv (BLT rs1 rs2 imm13) = mkInstr_B_type imm13 rs1 funct3_BLT rs2 opcode_BRANCH
+encode_I rv (JALR rd rs1 imm12) = mkInstr_I_type imm12 rs1 funct3_JALR rd opcode_JALR
+encode_I rv inst = error $ "encode_I fails on " ++ (show inst)
 
 mkInstr_J_type :: InstrField -> InstrField -> InstrField -> Instr_32b
 mkInstr_J_type    imm21         rd            opcode =

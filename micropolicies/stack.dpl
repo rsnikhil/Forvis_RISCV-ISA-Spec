@@ -4,7 +4,6 @@ type:
     data Depth = Int (20) // this means max depth is 20 (I think!)
 
 metadata:
-    Boring,
     Stack Depth,  // For memory cells that are part of the stack
     PC Depth,
     Instr, 
@@ -30,7 +29,7 @@ jalGrp (
 
 // TODO:
 // val, mem used to be Stack old. Should it be PC?
-// Old mistake? code wasn't tagged H1. HOW would we find that?
+// Old mistake? code was not tagged H1. HOW would we find that?
 ^ storeGrp(
        env == [+H1], addr == {SP}, val == {(PC old)}, mem == _, code == {Instr, H1}
     -> env = env[-H1,+H2], mem = {(PC old)})
@@ -41,7 +40,7 @@ jalGrp (
 
 //^ immArithGrp(
 //     env == [+H3], op1 == _, code == {Instr, H3}
-//  -> env = env[-H3], res = {Boring})
+//  -> env = env[-H3], res = {})
 
 // ------------------------------------------------------------------------------
 // RETURN SEQUENCE
@@ -56,27 +55,32 @@ jalGrp (
 
 ^ jalrGrp(
        target == {(PC old)}, env == {R3,(PC _)}, code == {Instr, R3}
-    -> env = {(PC old)}, return = {Boring} )
+    -> env = {(PC old)}, return = {} )
 
 // ------------------------------------------------------------------------------
 // OTHER INSTRUCTIONS
 
-// res = Boring or res = -SP? (or nothing?)
 ^ arithGrp(
-       code == {Instr}, env == _, op1 == [-SP], op2 == [-SP] //, res == {Boring}
-    -> env = env, res = {Boring} )
+       code == {Instr}, env == _, op1 == [-SP], op2 == [-SP] //, res == {} (no can do)
+    -> env = env, res = {} )
 ^ immArithGrp(
        code == {Instr}, env == _, op1 == [-SP] //, res == [-SP]
-    -> env = env, res = {Boring})
+    -> env = env, res = {})
+#ifndef BORINGLOAD
 ^ loadGrp(
-       env == _, addr == [-SP], mem == {Boring} // TODO: What was res as an input?
-    -> env = env, res = {Boring})
+       env == {PC pcdepth}, addr == _, mem == {Stack memdepth} | pcdepth <= memdepth 
+    -> env = env, res = {})
+#else
+^ loadGrp(
+       env == _, addr == _, mem == {} // TODO: What was res as an input?
+    -> env = env, res = {})
+#endif
 ^ storeGrp(
-       env == {PC depth}, addr == [-SP], val == {Boring}, mem == _ // TODO: Really anything? There's probably a bug here [-Instr]?
+       env == {PC depth}, addr == [-SP], val == {}, mem == _ // TODO: Really anything? There is probably a bug here [-Instr]?
     -> env = env, mem = {Stack depth})  // TODO: Probably wrong!!
 ^ jalrGrp(
-       target == {Boring}, env == {(PC _)}, return == {Boring}
-    -> env = env, return = {Boring} )
+       target == {}, env == {(PC _)}, return == {}
+    -> env = env, return = {} )
 // TODO: Other jals, blt
 // TODO: ... and we need some more clauses for other groups pretty soon :-)
 
