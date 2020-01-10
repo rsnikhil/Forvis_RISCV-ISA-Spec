@@ -267,15 +267,13 @@ to_desc ts =
     [("stack.Stack", Just n)] -> Stack n
     _ -> Instr
 
--- TODO: Determine provenance of list of (allowed) call addresses. Currently all
--- addresses are allowed. Restrictions could be based on a combination of
--- machine and PIPE memory.
+-- TODO: Are blessed calls also tagged with Instr? Anything else?
 testInitDesc :: TestState a -> StateDesc
 testInitDesc ts =
   let
     pmemMap = p_mem (ts ^. mp ^. ps) ^. pmem_map
     pmemDesc = Map.map to_desc pmemMap
-    calls = Map.keys pmemMap
+    calls = Map.filter ((==) callTag) pmemMap & Map.keys
   in
     initDesc pmemDesc calls
 
