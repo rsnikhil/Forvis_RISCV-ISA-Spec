@@ -57,7 +57,6 @@ callTag = fromExt [("stack.Call", Nothing), ("stack.Instr", Nothing)]
 instrTag = fromExt [("stack.Instr", Nothing)]  
 stackTag n = fromExt [("stack.Stack"  , Just n)]
 pcTag n = fromExt [("stack.PC"  , Just n)]
-callTag = fromExt [("stack.Call"  , Nothing)]
 
 {-
 HEADER sequence:
