@@ -32,3 +32,4 @@ elf_to_hex
 ast.txt
 symbols.txt
 .mutants
+stack.yaml.lock

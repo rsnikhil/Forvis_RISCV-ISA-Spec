@@ -4,6 +4,7 @@ module TestStackSafety where
 
 -- From Haskell libraries
 import Control.Lens hiding (elements)
+import Control.Monad
 
 import Data.Maybe
 import qualified Data.List as List
@@ -42,15 +43,18 @@ import TestState
 
 -- | Policy Specific generation
 
+-- TODO: H1, H2... should include the instr tag
 noTag = fromExt []
-boringTag = fromExt [("stack.Boring", Nothing)]
+-- boringTag = fromExt [("stack.Boring", Nothing)]
 spTag = fromExt [("stack.SP", Nothing)]
-tagH1 = fromExt [("stack.H1", Nothing)] 
-tagH2 = fromExt [("stack.H2", Nothing)]  
-tagH3 = fromExt [("stack.H3", Nothing)]  
-tagR1 = fromExt [("stack.R1", Nothing)]
-tagR2 = fromExt [("stack.R2", Nothing)]  
-tagR3 = fromExt [("stack.R3", Nothing)]  
+tagH1 = fromExt [("stack.H1", Nothing), ("stack.Instr", Nothing)] 
+tagH2 = fromExt [("stack.H2", Nothing), ("stack.Instr", Nothing)]  
+tagH3 = fromExt [("stack.H3", Nothing), ("stack.Instr", Nothing)]  
+tagR1 = fromExt [("stack.Instr", Nothing), ("stack.R1", Nothing)]
+tagR2 = fromExt [("stack.Instr", Nothing), ("stack.R2", Nothing)]  
+tagR3 = fromExt [("stack.Instr", Nothing), ("stack.R3", Nothing)]
+callTag = fromExt [("stack.Call", Nothing), ("stack.Instr", Nothing)]
+instrTag = fromExt [("stack.Instr", Nothing)]  
 stackTag n = fromExt [("stack.Stack"  , Just n)]
 pcTag n = fromExt [("stack.PC"  , Just n)]
 callTag = fromExt [("stack.Call"  , Nothing)]
@@ -67,13 +71,13 @@ RETURN sequence:
 -}
 
 headerSeq offset =
-            [ (JAL ra offset, boringTag)
-            , (SW ra sp 1  , tagH1)
-            , (ADDI sp sp 2, tagH2)
+            [ (JAL ra offset, callTag)
+            , (SW sp ra 4  , tagH1)
+            , (ADDI sp sp 8, tagH2)
             ]
 
-returnSeq = [ (LW ra sp (-1), tagR1)
-            , (ADDI sp sp 2 , tagR2)
+returnSeq = [ (LW ra sp (-4), tagR1)
+            , (ADDI sp sp 8 , tagR2)
             , (JALR ra ra 0 , tagR3)
             ]
 
@@ -96,27 +100,38 @@ load_policy = do
             -- TODO: Might be better to make it some separate
             -- "Uninitialized" tag?
         , initPC = pcTag 0
+        , emptyInstTag = instrTag
         , initNextColor = 1
         , instrLow = 0
         , instrHigh = 400
-        , emptyInstTag = noTag
         , dataMemLow = 1000
         , dataMemHigh = 1020  -- Was 40, but that seems like a lot! (8 may be too little!)
         }
   return pplus
 
 genMTag, genGPRTag :: PolicyPlus -> Gen TagSet 
-genMTag pplus = frequency [(1, pure boringTag), (1, pure boringTag)]
-genGPRTag = genMTag
+genMTag pplus = pure (initMem pplus)
+genGPRTag pplus = pure (initGPR pplus)
 
 dataP = const True
 codeP = const True
 callP t = t == tagH1
 
-genITag _ = return boringTag
+genITag _ = return instrTag
 
 isSecretMP :: Machine_State -> PIPE_State -> TagSet -> Bool
-isSecretMP ms ps t = t /= boringTag -- TODO: This should actually look at the accessible relationship
+isSecretMP ms ps t =
+  -- TODO: Better way to do this?
+  -- Get qualified symbol name
+  -- Look it up in the map
+  -- Get the int out
+  -- Also TODO: Instructions?
+  let depthOf :: TagSet -> Maybe Int
+      depthOf t = join (snd <$> (listToMaybe $ toExt t)) in
+  case (depthOf t, depthOf (ps ^. ppc) ) of
+    (Just n, Just m) -> n < m
+    (Nothing, _) -> False
+    (Just n, Nothing) -> error "No depth in pc"
 
 mkInfo :: Machine_State -> PIPE_State -> ()
 mkInfo _ _ = ()
@@ -358,9 +373,9 @@ prop_NI pplus maxCount ts =
 --  whenFail (putStrLn $ printTestState pplus ts)
 --           False
   let (trace,err) = traceExec pplus ts maxCount in
-  whenFail (do putStrLn "Trace:"
+  whenFail (do putStrLn $ "Trace: (len = " ++ show (length trace) ++ ")"
                putStrLn $ printTrace pplus trace
-               putStrLn "Terminatin error:"
+               putStrLn "Termination error:"
                putStrLn $ show err
            ) $ length trace <= 5
 --  allWhenFail (\ts tss -> --tss is reversed here
@@ -387,6 +402,7 @@ prop_NI pplus maxCount ts =
 prop_NI' :: PolicyPlus -> Int -> TestState () -> Property
 prop_NI' pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount in
+    collect (length $ takeWhile pcInSync trace, length trace) $ 
     allWhenFail (\ts tss -> --tss is reversed here
                   let trace' = ts : tss & reverse & trace_descs & reverse in
                     (whenFail (do putStrLn "Initial state does not preserve step consistency!"

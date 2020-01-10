@@ -2,6 +2,8 @@
     ScopedTypeVariables #-}
 module TestState where
 
+import System.IO.Unsafe
+
 import Debug.Trace
 
 import Data.Functor
@@ -110,6 +112,7 @@ mergeDiffs st1 st2 [] ((j,(l1,l2)):ts) dd dt = ((j,,l2) $ maybe (dd j) id (st2 ^
 calcDiff :: PolicyPlus -> RichState -> RichState -> Diff
 calcDiff pplus st1 st2 =
   Diff {
+  
     _d_pc = guard (not $ eqOn (ms . fpc) st1 st2 && eqOn (ps . ppc) st1 st2)
             $> (st2 ^. ms . fpc, st2 ^. ps . ppc)
               
@@ -217,6 +220,7 @@ instance Pretty Instr_I where
   pretty _ (ADD rd rs1 rs2) = pr_instr_R_type "ADD" rd rs1 rs2
   pretty _ (JAL rs imm) = pr_instr_J_type "JAL" rs imm
   pretty _ (BLT rs1 rs2 imm) = pr_instr_B_type "BLT" rs1 rs2 imm  
+  pretty _ (JALR rd rs imm) = pr_instr_I_type "JALR" rd rs imm  
   pretty _ i = error $ show i
 
 -- | Address based printing
@@ -308,15 +312,15 @@ docRegDiff pplus = docAssocDiff (\(a,v,t) -> P.char 'r' P.<> P.integer a <+> P.t
 docMemDiff pplus = docAssocDiff (\(a,v,t) -> P.char '[' P.<> P.integer a P.<> P.text "] <-" <+> pretty pplus (v,t)) pplus
 
 
-docPCandInstrs :: PolicyPlus -> [Maybe (Integer, TagSet)] -> [Maybe Instr_I] -> Doc
-docPCandInstrs pplus (mpc:mpcs) (mi:mis)
-  | all (mpc==) mpcs && all (mi==) mis =
-      pad 17 (pretty pplus mpc) P.<> P.text "  " P.<> pad 17 (pretty pplus mi)
+docPCandInstrs :: PolicyPlus -> (Integer, TagSet) -> [Maybe Instr_I] -> Doc
+docPCandInstrs pplus pc (mi:mis) =
+--  | all (mpc==) mpcs && all (mi==) mis =
+      pad 17 (pretty pplus pc) P.<> P.text "  " P.<> pad 17 (pretty pplus mi)
 docPCandInstrs _ _ _ = error "Empty/unequal pcs or mis"
 
-docDiffs :: PolicyPlus -> [Diff] -> Doc
-docDiffs pplus diffs =
-  docPCandInstrs pplus (map _d_pc diffs) (map _d_instr diffs) 
+docDiffs :: PolicyPlus -> (Integer, TagSet) -> [Diff] -> Doc
+docDiffs pplus pc diffs =
+  docPCandInstrs pplus pc (map _d_instr diffs) 
   <:> docRegDiff pplus (map _d_reg diffs)
   P.<> {- trace ("Docing mem:\n" ++ show (map _d_mem diffs))-} (docMemDiff pplus (map _d_mem diffs))
 --  pretty pplus d1 d2 =
@@ -328,6 +332,18 @@ docDiffs pplus diffs =
 --           , prettyMemDiff pplus (d_mem d1) (d_mem d2)
 --           ]
 
+-- YUCK
+docTraps :: PolicyPlus -> TestState a -> Doc
+docTraps pplus ts = 
+  let x = unsafePerformIO $
+            if mstate_last_instr_trapped_read (ts ^. mp . ms) then
+              print_CSR_File "" RV32 (f_csrs (ts ^. mp . ms))
+            else return ()
+            
+  in seq x P.empty
+  
+  
+  
 docTraceDiff :: PolicyPlus -> TestState a -> [TestState a] -> Doc
 docTraceDiff pplus ts [] = P.empty
 docTraceDiff pplus ts (ts':tss) =
@@ -338,7 +354,9 @@ docTraceDiff pplus ts (ts':tss) =
     let diffs = zipWith (calcDiff pplus) rss rss' in
 --    trace ("Mem of first:\n" ++ show (ts' ^. mp . ms . fmem) ++
 --           "\nMem of second:\n" ++ show (head (ts' ^. variants) ^. (mp_state . ms . fmem)))
-    docDiffs pplus diffs
+    docTraps pplus ts
+    -- TODO : check that all pcs in ts are equal!
+    $$ docDiffs pplus (ts ^. mp . ms . fpc, ts ^. mp . ps .ppc) diffs
     $$ docTraceDiff pplus ts' tss
   else error "Implement for varying rich state numbers"
 
@@ -348,6 +366,7 @@ docTrace pplus (ts:tss) =
 --          "\nMem of second:\n" ++ show (head (ts ^. variants) ^. (mp_state . ms . fmem))) $
     docTestState pplus ts
     $$ docTraceDiff pplus ts tss
+    $$ if null tss then P.text "No exec trace" else P.text "Final State:" $$ docTestState pplus (last tss)
 
 printTrace :: PolicyPlus -> [TestState a] -> String
 printTrace pplus tss =
@@ -521,16 +540,17 @@ genInstr pplus ms ps dataP codeP genInstrTag =
                   tag <- genInstrTag instr
                   return (instr, tag)
               )
-            , (onNonEmpty arithInfo 1,
-               do -- BLT
-                  AI rs1 <- elements arithInfo
-                  AI rs2 <- elements arithInfo
-                  imm <- (8+) <$> genImm 12 --TODO: More principled relative jumps
-                  -- BLT does multiples of 2
-                  let instr = BLT rs1 rs2 imm
-                  tag <- genInstrTag instr
-                  return (instr, tag)
-              )
+-- TODO: Uncomment this and add stack.dpl rule
+--            , (onNonEmpty arithInfo 1,
+--               do -- BLT
+--                  AI rs1 <- elements arithInfo
+--                  AI rs2 <- elements arithInfo
+--                  imm <- (8+) <$> genImm 12 --TODO: More principled relative jumps
+--                  -- BLT does multiples of 2
+--                  let instr = BLT rs1 rs2 imm
+--                  tag <- genInstrTag instr
+--                  return (instr, tag)
+--              )
             ]
 
 genCall :: PolicyPlus -> Machine_State -> PIPE_State ->
@@ -546,25 +566,26 @@ genCall pplus ms ps dataP codeP callP genInstrTag headerSeq = do
       newCallSites =
         -- iterate through all possible instruction locations
         -- and filter out the ones that already exist in memory
-        filter (\i -> not (Map.member i m))
+        filter (\i -> not (Map.member (i - ms ^. fpc) m))
           [instrLow pplus, instrLow pplus + 4 .. (instrHigh pplus - 100)]
  
   offset <- elements (existingCallSites ++ newCallSites)
   return $ headerSeq offset
 
 -- TODO: This might need to be further generalized in the future
+-- Returns (call diff, instruction sequence)
 -- INV: Never returns empty list
 genInstrSeq :: PolicyPlus -> Machine_State -> PIPE_State ->
                (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool) ->
                (Instr_I -> Gen TagSet) ->
-               (Integer -> [(Instr_I, TagSet)]) -> Bool -> [(Instr_I, TagSet)] ->
-               Gen [(Instr_I, TagSet)]
-genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq =
-  frequency [ (10, (:[]) <$> genInstr pplus ms ps dataP codeP genInstrTag)
+               (Integer -> [(Instr_I, TagSet)]) -> Int -> [(Instr_I, TagSet)] ->
+               Gen (Int, [(Instr_I, TagSet)]) 
+genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq numCalls retSeq =
+  frequency [ (5, (0,) <$> (:[]) <$> genInstr pplus ms ps dataP codeP genInstrTag)
             -- TODO: Sometimes generate calls in the middle of nowhere
-            , (10, genCall pplus ms ps dataP codeP callP genInstrTag headerSeq)
+            , (2, (1,) <$> genCall pplus ms ps dataP codeP callP genInstrTag headerSeq)
             -- TODO: Some times generate returns without the sequence
-            , (if hasCall then 1 else 0, return retSeq)
+            , (numCalls, return (-1, retSeq))
             -- TODO: Sometimes read/write the instruction memory (harder to make work)
             ] 
 
@@ -595,20 +616,21 @@ genByExec :: PolicyPlus -> Int -> Machine_State -> PIPE_State ->
              (Instr_I -> Gen TagSet) -> 
              Gen (Machine_State, PIPE_State)
 genByExec pplus n init_ms init_ps dataP codeP callP headerSeq retSeq genInstrTag =
-  exec_aux n init_ms init_ps init_ms init_ps []
+  exec_aux n init_ms init_ps init_ms init_ps [] 0
   where exec_aux :: Int -> Machine_State -> PIPE_State ->
                            Machine_State -> PIPE_State ->
                            [(Instr_I, TagSet)] ->
+                           Int -> 
                            Gen (Machine_State, PIPE_State)
-        exec_aux 0 ims ips ms ps generated = return (ims, ips)
-        exec_aux n ims ips ms ps generated
+        exec_aux 0 ims ips ms ps generated numCalls = return (ims, ips)
+        exec_aux n ims ips ms ps generated numCalls 
         -- Check if an instruction already exists
           | Map.member (f_pc ms) (f_dm $ f_mem ms) = do
             traceShowM ("Instruction exists, executing...") 
             case fetch_and_execute pplus ms ps of
               Right (ms'', ps'') ->
                 -- TODO: Check that generated is empty here?
-                exec_aux (n-1) ims ips ms'' ps'' []
+                exec_aux (n-1) ims ips ms'' ps'' [] numCalls
               Left err ->
                 -- trace ("Warning: Fetch and execute failed with " ++ show n
                 --        ++ " steps remaining and error: " ++ show err) $
@@ -617,18 +639,16 @@ genByExec pplus n init_ms init_ps dataP codeP callP headerSeq retSeq genInstrTag
               traceShowM ("No instruction exists, generating...")
               -- Generate an instruction for the current state
               -- Checking if there is a "sequence" part left
-              (is, it, generated') <-
+              (numCalls', is, it, generated') <-
                 case generated of
                   [] -> do --(\(is,it) -> (is,it,[])) <$>
 --                          genInstr pplus ms ps dataP codeP genInstrTag
--- TODO: Use instrSeq, figure out if it's a call, convert hasCall to counter
-                           let hasCall = True 
-                           v <- genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq hasCall retSeq
+                           (cd, v) <- genInstrSeq pplus ms ps dataP codeP callP genInstrTag headerSeq numCalls retSeq
                            case v of
                              ((is,it):t) -> 
-                                return (is,it,t)
+                                return (cd + numCalls, is,it,t)
                              _ -> error "empty instruction sequencer"
-                  ((is,it):t) -> return (is,it,t)
+                  ((is,it):t) -> return (numCalls, is,it,t)
               traceShowM ("Generated:", is, it, generated')
               -- Update the i-memory of both the machine we're stepping...
               let ms' = ms & fmem . at (f_pc ms) ?~ (encode_I RV32 is)
@@ -641,7 +661,7 @@ genByExec pplus n init_ms init_ps dataP codeP callP headerSeq retSeq genInstrTag
               case fetch_and_execute pplus ms' ps' of
                 Right (ms'', ps'') ->
                   -- trace "Successful execution" $
-                  exec_aux (n-1) ims' ips' ms'' ps'' generated'
+                  exec_aux (n-1) ims' ips' ms'' ps'' generated' numCalls'
                 Left err ->
                   -- trace ("Warning: Fetch and execute failed with "
                   --       ++ show n ++ " steps remaining and error: " ++ show err) $
@@ -687,7 +707,7 @@ genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq retSeq genITag sp
   return $ Rich ms_fin ps_fin
 
 maxInstrsToGenerate :: Int
-maxInstrsToGenerate = 10
+maxInstrsToGenerate = 20
 
 varySecretMap :: PolicyPlus -> (TagSet -> Bool) ->
   Map Integer Integer -> Map Integer TagSet ->
@@ -780,11 +800,11 @@ step pplus ts
       Left "Not Running State" 
 
 traceExec :: PolicyPlus -> TestState a -> Int -> ([TestState a], String)
-traceExec pplus ts 0 = ([], "Out of fuel")
+traceExec pplus ts 0 = ([ts], "Out of fuel")
 traceExec pplus ts n =
   case step pplus ts of
     Right ts' -> first (ts:) $ traceExec pplus ts' (n-1)
-    Left  err -> ([], err)
+    Left  err -> ([ts], err)
 
 -- | Indistinguishability |--
 -----------------------------

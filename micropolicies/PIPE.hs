@@ -28,6 +28,8 @@ module PIPE(PIPE_Policy,  -- TODO: Maybe this is not needed?
             PIPE_Result(..),
             exec_pipe) where
 
+import System.IO.Unsafe
+  
 import Data.Maybe
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -45,6 +47,7 @@ import CommonFn as CF
 import qualified EvalCommon as EC
 import qualified Eval as E
 
+import ALU (alu_add)
 import Machine_State
 import MachineLenses
 import Forvis_Spec_I
@@ -60,15 +63,20 @@ import Control.Lens
 
 import Debug.Trace
 
+import Data.List.Split (splitOn)
+
 -----------------------------------------------------------------
 type PIPE_Policy = E.QPolMod
 
 newtype TagSet = TagSet {unTagSet :: EC.TagValue}
   deriving (Eq, Show)
 
+removeQual :: String -> String
+removeQual s = last $ splitOn "." s 
+
 showTagSet t = 
-    let f (s, Nothing) = s
-        f (s, Just c) = s ++ " " ++ show c 
+    let f (s, Nothing) = removeQual s
+        f (s, Just c)  = removeQual s ++ " " ++ show c 
     in
     "{" ++ intercalate ", " (map f (toExt t)) ++ "}"
 
@@ -291,17 +299,25 @@ exec_pipe pplus m p u32 =
       (p, PIPE_Success)
       -- error $ "exec_pipe cannot decode instruction 0x" ++ (showHex u32 "") ++ " at pc: " ++ (show $ mstate_pc_read m)
     Just inst ->
-      let maddr = case inst of 
-                    LB _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    LH _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    LW _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    LBU _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    LHU _ rs1 imm -> mstate_gpr_read rs1 m + imm
-                    SB rs1 _ imm -> mstate_gpr_read rs1 m + imm
-                    SH rs1 _ imm -> mstate_gpr_read rs1 m + imm
-                    SW rs1 _ imm -> mstate_gpr_read rs1 m + imm
-                    _ -> error $ "maddr undefined for " ++ (show inst)
-      in exec_pipe' pplus p (f_pc m) inst maddr
+      let (rs1,imm) =
+           case inst of 
+              LB _ rs1 imm -> (rs1,imm)
+              LH _ rs1 imm ->(rs1,imm)
+              LW _ rs1 imm -> (rs1,imm)
+              LBU _ rs1 imm -> (rs1,imm)
+              LHU _ rs1 imm -> (rs1,imm)
+              SB rs1 _ imm -> (rs1,imm)
+              SH rs1 _ imm -> (rs1,imm)
+              SW rs1 _ imm -> (rs1,imm)
+              _ -> error $ "maddr undefined for " ++ (show inst) in
+      let xlen = mstate_xlen_read m in 
+      let maddr = alu_add xlen (mstate_gpr_read rs1 m) (sign_extend 12 xlen imm)
+      in let (ps, pr) = exec_pipe' pplus p (f_pc m) inst maddr in
+         case pr of
+           PIPE_Success -> (ps, pr)
+           PIPE_Trap s  ->
+--             unsafePerformIO $ mstate_print "" m 
+             (ps, PIPE_Trap $ s) -- + printTestState pplus (TS (Rich m p) []))
 
 {- Proceed with only PIPE_State -}
 exec_pipe' :: PolicyPlus -> PIPE_State -> Integer -> Instr_I -> Integer -> (PIPE_State, PIPE_Result)
