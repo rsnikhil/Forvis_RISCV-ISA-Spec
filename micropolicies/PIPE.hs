@@ -310,7 +310,8 @@ exec_pipe pplus m p u32 =
               SH rs1 _ imm -> (rs1,imm)
               SW rs1 _ imm -> (rs1,imm)
               _ -> error $ "maddr undefined for " ++ (show inst) in
-      let maddr = alu_add 32 {-xlen-} (mstate_gpr_read rs1 m) (sign_extend 12 32 {-xlen-} imm)
+      let xlen = mstate_xlen_read m in 
+      let maddr = alu_add xlen (mstate_gpr_read rs1 m) (sign_extend 12 xlen imm)
       in let (ps, pr) = exec_pipe' pplus p (f_pc m) inst maddr in
          case pr of
            PIPE_Success -> (ps, pr)
