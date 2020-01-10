@@ -29,7 +29,7 @@ policy: main =
 
 // TODO:
 // val, mem used to be Stack old. Should it be PC?
-// Old mistake? code wasn't tagged H1. HOW would we find that?
+// Old mistake? code was not tagged H1. HOW would we find that?
 ^ storeGrp(
        env == [+H1], addr == {SP}, val == {(PC old)}, mem == _, code == {H1}
     -> env = env[-H1,+H2], mem = {(PC old)})

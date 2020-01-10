@@ -1,4 +1,4 @@
-all: build taint
+all: stack
 
 taint: build
 	$(MAKE) taintmutants unmutated POLICY=taint
@@ -16,24 +16,24 @@ writeonce: build
 	$(MAKE) writeoncemutants unmutated POLICY=writeonce
 
 build:
-	@stack build :dpl-exe 
+	@stack build :dpl-exe
 
 unmutated: build
 	@make mutant MUT=NO_MUTATIONS
 
 ifeq ($(shell uname),Darwin)
-  SED = sed -i '' '/^\#/d' 
+  SED = sed -i '' '/^\#/d'
 else
-  SED = sed -i '/^\#/d' 
+  SED = sed -i '/^\#/d'
 endif
 
 V=@
 
 mutant:
-	$Vecho 
+	$Vecho
 	$Vecho "[37;46m"
 	$Vecho "                                  $(MUT)"
-	$Vecho 
+	$Vecho
 	$Vecho "[0m"
 	$Vmkdir -p .mutants
 	$Vcpp -D$(MUT) $(POLICY).dpl > .mutants/$(POLICY).dpl
@@ -63,7 +63,7 @@ taintmutants:
 	$Vmake mutant MUT=NO_VAL_TAINT_CHECK_STORE
 	$Vmake mutant MUT=NO_MEM_TAINT_CHECK_STORE
 	$Vmake mutant MUT=NO_ADDR_TAINT_CHECK_LOAD
-	$Vmake mutant MUT=NO_MEM_TAINT_CHECK_LOAD	
+	$Vmake mutant MUT=NO_MEM_TAINT_CHECK_LOAD
 	$Vmake mutant MUT=ADD_NO_TAINT_1
 	$Vmake mutant MUT=ADD_NO_TAINT_2
 
