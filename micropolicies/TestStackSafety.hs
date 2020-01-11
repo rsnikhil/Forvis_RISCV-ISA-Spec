@@ -152,6 +152,7 @@ main = main_test
 
 data DescTag = Stack Int
              | Instr
+             | Other 
              deriving (Eq, Show)
 
 data StateDesc = SD { pcdepth :: !Int
@@ -167,24 +168,27 @@ initDesc memlayout calls = SD { pcdepth = 0
                               , callinstrs = calls
                               } 
 
-accessible :: Integer -> StateDesc -> Bool
-accessible i sd =
-  -- can error
-  case memdepth sd Map.! i of
-    (Stack n) -> n >= pcdepth sd
-    _ -> False
+tagOf :: DescTag -> Integer -> StateDesc -> DescTag
+tagOf def i sd =
+  -- Lookup i, return the default memory tag if not found
+  Map.findWithDefault def i (memdepth sd)
 
-isInstruction :: Integer -> StateDesc -> Bool
-isInstruction i sd =
-  -- can error
-  case memdepth sd Map.! i of
+accessible :: DescTag -> Integer -> StateDesc -> Bool
+accessible def i sd =
+  case tagOf def i sd of
+    (Stack n) -> n >= pcdepth sd
+    Instr -> False -- Instructions not accessible
+    Other -> False -- Shouldn't happen. Error instead?
+
+isInstruction :: DescTag -> Integer -> StateDesc -> Bool
+isInstruction def i sd =
+  case tagOf def i sd of 
     Instr -> True
     _ -> False
 
--- TODO: Fix this
-next_desc :: RichState -> StateDesc -> RichState -> StateDesc
-next_desc s d s'
-  | memdepth d Map.! (s ^. ms . fpc) == Instr =
+next_desc :: DescTag -> RichState -> StateDesc -> RichState -> StateDesc
+next_desc def s d s'
+  | tagOf def (s ^. ms . fpc) d == Instr =
     let isCall = elem (s ^. ms . fpc) (callinstrs d)
         isRet  = ((s' ^. ms . fpc) == 4 + fst (head $ stack d)) &&
                  (Just (snd (head $ stack d)) == (s ^. ms . fgpr . at sp))
@@ -236,11 +240,11 @@ next_desc s d s'
 -- A scrambled version of S w.r.t. D is identical in the instruction memory and
 -- accessible parts, and arbitrary in the inaccessible parts of the data memory.
 -- TODO: Better scrambling, link to TestStack functionality (cf. variants).
-scramble :: TestState a -> StateDesc -> TestState a
-scramble ts d =
+scramble :: DescTag -> TestState a -> StateDesc -> TestState a
+scramble def ts d =
   let
     scramble_mem m = Map.mapWithKey
-      (\i v -> if accessible i d || isInstruction i d then v else 0) m
+      (\i v -> if accessible def i d || isInstruction def i d then v else 0) m
   in
     (%~) (mp . ms . fmem) scramble_mem ts
 
@@ -249,7 +253,8 @@ scramble ts d =
 step_consistent :: PolicyPlus -> TestState a -> StateDesc -> Bool
 step_consistent pplus ts d =
   let
-    tt = scramble ts d
+    def = to_desc (initMem pplus)
+    tt = scramble def ts d
   in
     case (step pplus ts, step pplus tt) of
       (Right ts', Right tt') ->
@@ -259,8 +264,8 @@ step_consistent pplus ts d =
           memS'              = ts' ^. mp ^. ms ^. fmem
           memT               = tt  ^. mp ^. ms ^. fmem
           memT'              = tt' ^. mp ^. ms ^. fmem
-          filterInstrAcc i _ = accessible i d || isInstruction i d
-          filterInacc    i _ = not $ accessible i d
+          filterInstrAcc i _ = accessible def i d || isInstruction def i d
+          filterInacc    i _ = not $ accessible def i d
           instrAccS'         = Map.mapWithKey filterInstrAcc memS'
           instrAccT'         = Map.mapWithKey filterInstrAcc memT'
           inaccT             = Map.mapWithKey filterInacc memT
@@ -277,6 +282,9 @@ to_desc :: TagSet -> DescTag
 to_desc ts =
   case toExt ts of
     [("stack.Stack", Just n)] -> Stack n
+    [("stack.PC", _)] -> Other
+    [("stack.SP", _)] -> Other
+    -- The rest are instructions    
     _ -> Instr
 
 -- TODO: Determine provenance of list of (allowed) call addresses. Currently all
@@ -296,8 +304,8 @@ test_init pplus (ts, d) = step_consistent pplus ts d
 
 -- Enrich a trace of test states with their associated state descriptions.
 -- Currently, doing so after the run, so relatively inefficient.
-trace_descs :: [TestState a] -> [(TestState a, StateDesc)]
-trace_descs tss =
+trace_descs :: DescTag -> [TestState a] -> [(TestState a, StateDesc)]
+trace_descs def tss =
   let
     tsInit   = head tss
     descInit = testInitDesc tsInit
@@ -305,7 +313,7 @@ trace_descs tss =
     foldDesc tds ts' =
       let
         (ts, td) = head tds
-        td' = next_desc (ts ^. mp) td (ts' ^. mp)
+        td' = next_desc def (ts ^. mp) td (ts' ^. mp)
       in
         (ts', td') : tds
     revDescs = foldl foldDesc accInit (tail tss)
@@ -351,20 +359,20 @@ find_call level trace =
       else find_call level trace'
 
 -- TODO: Refactor definitions (see above).
-mem_NI :: TestState a -> TestState a -> StateDesc -> Bool
-mem_NI ts ts' d =
+mem_NI :: DescTag -> TestState a -> TestState a -> StateDesc -> Bool
+mem_NI def ts ts' d =
   let
     mem                = ts  ^. mp ^. ms ^. fmem
     mem'               = ts' ^. mp ^. ms ^. fmem
-    filterInstrAcc i _ = accessible i d || isInstruction i d
+    filterInstrAcc i _ = accessible def i d || isInstruction def i d
     instrAcc           = Map.mapWithKey filterInstrAcc mem
     instrAcc'          = Map.mapWithKey filterInstrAcc mem'
     eqMaps m1 m2       = Map.isSubmapOf m1 m2 && Map.isSubmapOf m2 m1
   in
     eqMaps instrAcc instrAcc'
 
-test_NI :: [(TestState a, StateDesc)] -> Bool
-test_NI trace_rev =
+test_NI :: DescTag -> [(TestState a, StateDesc)] -> Bool
+test_NI def trace_rev =
   let
     -- Enriched trace and top (last step, under consideration)
     (ts, td)  = head trace_rev
@@ -372,7 +380,7 @@ test_NI trace_rev =
     Just (ts', td') = find_call 0 trace_rev
     -- depth = pcdepth td'
   in
-    if isReturn (ts ^. mp ^. ms) then mem_NI ts ts' td'
+    if isReturn (ts ^. mp ^. ms) then mem_NI def ts ts' td'
     else True -- Holds vacuously: nothing to test here
 
 -- TODO: Rephrase indistinguishability to only look at clean locs?
@@ -409,10 +417,12 @@ prop_NI pplus maxCount ts =
 -- the fly: this is relatively simple but inefficient.
 prop_NI' :: PolicyPlus -> Int -> TestState () -> Property
 prop_NI' pplus maxCount ts =
-  let (trace,err) = traceExec pplus ts maxCount in
+  let (trace,err) = traceExec pplus ts maxCount
+      def = to_desc (initMem pplus)
+  in 
     collect (length $ takeWhile pcInSync trace, length trace) $ 
     allWhenFail (\ts tss -> --tss is reversed here
-                  let trace' = ts : tss & reverse & trace_descs & reverse in
+                  let trace' = ts : tss & reverse & trace_descs def & reverse in
                     (whenFail (do putStrLn "Initial state does not preserve step consistency!"
                                   putStrLn "Original Test State:"
                                   putStrLn $ printTestState pplus ts
@@ -423,7 +433,7 @@ prop_NI' pplus maxCount ts =
                                  putStrLn "Original Test State:"
                                  putStrLn $ printTestState pplus ts
                                  -- TODO: Print state description
-                             ) $ (test_NI trace'))
+                             ) $ (test_NI def trace'))
 --                 (whenFail (do putStrLn "Indistinguishable tags found!"
 --                               putStrLn "Original Test State:"
 --                               putStrLn $ printTestState pplus ts
