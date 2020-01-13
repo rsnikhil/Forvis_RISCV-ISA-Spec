@@ -2,6 +2,9 @@
 
 module TestStackSafety where
 
+import Prelude hiding (head)
+import qualified Prelude as Prelude
+
 -- From Haskell libraries
 import Control.Lens hiding (elements)
 import Control.Monad
@@ -40,6 +43,10 @@ import Printing
 import Terminal
 import MachineLenses
 import TestState
+
+head :: String -> [a] -> a
+head s [] = error $ "head called with empty list: " ++ s
+head _ (h:t) = h
 
 -- | Policy Specific generation
 
@@ -190,8 +197,8 @@ next_desc :: DescTag -> RichState -> StateDesc -> RichState -> StateDesc
 next_desc def s d s'
   | tagOf def (s ^. ms . fpc) d == Instr =
     let isCall = elem (s ^. ms . fpc) (callinstrs d)
-        isRet  = ((s' ^. ms . fpc) == 4 + fst (fst $ head $ stack d)) &&
-                 (Just (snd (fst $ head $ stack d)) == (s ^. ms . fgpr . at sp))
+        isRet  = ((s' ^. ms . fpc) == 4 + fst (fst $ head "isRet1" $ stack d)) &&
+                 (Just (snd (fst $ head "isRet2" $ stack d)) == (s ^. ms . fgpr . at sp))
         -- Should return Just (memory loc) if it is a write, Nothing otherwise
         isWrite =
           -- TODO: Common definitions from Forvis_Spec_I
@@ -307,12 +314,12 @@ test_init pplus (ts, d) = step_consistent pplus ts d
 trace_descs :: DescTag -> [TestState a] -> [(TestState a, StateDesc)]
 trace_descs def tss =
   let
-    tsInit   = head tss
+    tsInit   = head "tsInit" tss
     descInit = testInitDesc tsInit
     accInit  = [(tsInit, descInit)]
     foldDesc tds ts' =
       let
-        (ts, td) = head tds
+        (ts, td) = head "foldDesc" tds
         td' = next_desc def (ts ^. mp) td (ts' ^. mp)
       in
         (ts', td') : tds
@@ -330,8 +337,8 @@ trace_descs def tss =
 find_call :: [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
 find_call trace_rev =
   let
-    (_, callee_td) = head trace_rev
-    caller_ts = snd $ head $ stack callee_td
+    (_, callee_td) = head "find_call/callee" trace_rev
+    caller_ts = snd $ head "find_call/caller" $ stack callee_td
     find_aux t = case t of
       [] -> Nothing
       (ts, td) : t' -> if (ts ^. mp) == caller_ts then Just (ts, td) else find_aux t'
@@ -366,7 +373,7 @@ test_NI :: DescTag -> [(TestState a, StateDesc)] -> Bool
 test_NI def trace_rev =
   let
     -- Enriched trace and top (last step, under consideration)
-    (ts, td)  = head trace_rev
+    (ts, td)  = head "test_NI" trace_rev
     -- Location of matching (potential) caller and depth
     Just (ts', td') = find_call trace_rev
     -- depth = pcdepth td'
@@ -418,7 +425,7 @@ prop_NI' pplus maxCount ts =
                                   putStrLn "Original Test State:"
                                   putStrLn $ printTestState pplus ts
                                   -- TODO: Print state description
-                             ) $ (test_init pplus (head trace')))
+                             ) $ (test_init pplus (head "prop_NI'/init state" trace')))
                   .&&.
                    (whenFail (do putStrLn "Stack state at call not preserved at return!"
                                  putStrLn "Original Test State:"
