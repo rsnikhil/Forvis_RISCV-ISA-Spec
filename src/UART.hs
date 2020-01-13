@@ -114,6 +114,7 @@ data UART_NS16550A = UART_NS16550A {
 
   f_fcr   :: Integer     -- 2    Write-only
   }
+  deriving Eq
 
 -- ================================================================
 -- Create a UART

@@ -157,7 +157,7 @@ data DescTag = Stack Int
 
 data StateDesc = SD { pcdepth :: !Int
                     , memdepth :: Map Integer DescTag
-                    , stack :: [(Integer, Integer)]
+                    , stack :: [((Integer, Integer), RichState)]
                     , callinstrs :: [Integer]
                     } 
 
@@ -190,8 +190,8 @@ next_desc :: DescTag -> RichState -> StateDesc -> RichState -> StateDesc
 next_desc def s d s'
   | tagOf def (s ^. ms . fpc) d == Instr =
     let isCall = elem (s ^. ms . fpc) (callinstrs d)
-        isRet  = ((s' ^. ms . fpc) == 4 + fst (head $ stack d)) &&
-                 (Just (snd (head $ stack d)) == (s ^. ms . fgpr . at sp))
+        isRet  = ((s' ^. ms . fpc) == 4 + fst (fst $ head $ stack d)) &&
+                 (Just (snd (fst $ head $ stack d)) == (s ^. ms . fgpr . at sp))
         -- Should return Just (memory loc) if it is a write, Nothing otherwise
         isWrite =
           -- TODO: Common definitions from Forvis_Spec_I
@@ -231,7 +231,7 @@ next_desc def s d s'
             _ -> memdepth d
       , stack =
           if isCall then
-            (s ^. ms . fpc, fromJust (s ^. ms . fgpr . at sp)) : stack d
+            ((s ^. ms . fpc, fromJust (s ^. ms . fgpr . at sp)), s) : stack d
           else if isRet then 
             tail $ stack d
           else stack d
@@ -250,6 +250,8 @@ scramble def ts d =
 
 -- TODO: Possibly use trace instead of explicit steps. Explain relation between
 -- property on traces and paper definition.
+-- Alternative forms of this property: between a pair of consecutive states
+-- (here), other alternatives.
 step_consistent :: PolicyPlus -> TestState a -> StateDesc -> Bool
 step_consistent pplus ts d =
   let
@@ -287,15 +289,13 @@ to_desc ts =
     -- The rest are instructions    
     _ -> Instr
 
--- TODO: Determine provenance of list of (allowed) call addresses. Currently all
--- addresses are allowed. Restrictions could be based on a combination of
--- machine and PIPE memory.
+-- TODO: Are blessed calls also tagged with Instr? Anything else?
 testInitDesc :: TestState a -> StateDesc
 testInitDesc ts =
   let
     pmemMap = p_mem (ts ^. mp ^. ps) ^. pmem_map
     pmemDesc = Map.map to_desc pmemMap
-    calls = Map.keys pmemMap
+    calls = Map.filter ((==) callTag) pmemMap & Map.keys
   in
     initDesc pmemDesc calls
 
@@ -323,42 +323,23 @@ trace_descs def tss =
 -- A direct encoding of the test of noninterference on stacks: if the current
 -- instruction is a return, locate its matching call in the trace and compare
 -- the two memory states.
---   In doing so, we can rely on state descriptions or on instruction decoding;
--- currently, for simplicity, the latter is used; well-bracketed control flow is
--- assumed to locate the matching call of a return.
-isCall :: Machine_State -> Bool
-isCall s =
-  case fst $ instr_fetch s of
-    Fetch u32 -> case decode_I RV32 u32 of
-      Just instr -> case instr of
-        JAL _ _ -> True
-        _ -> False
-      _ -> False
-    _ -> False
-
-isReturn :: Machine_State -> Bool
-isReturn s =
-  case fst $ instr_fetch s of
-    Fetch u32 -> case decode_I RV32 u32 of
-      Just instr -> case instr of
-        JALR _ _ _ -> True
-        _ -> False
-      _ -> False
-    _ -> False
-
-find_call :: Integer -> [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
-find_call level trace =
-  case trace of
-    [] -> Nothing
-    (ts, td) : trace' ->
-      if isReturn (ts ^. mp ^. ms) then
-        find_call (level + 1) trace'
-      else if isCall (ts ^. mp ^. ms) then
-        if level == 0 then Just (ts, td)
-        else find_call (level - 1) trace'
-      else find_call level trace'
+--   In doing so, we can rely on state descriptions or on instruction decoding.
+-- The former is used to locate matching calls, whereas without relying on
+-- well-bracketedness.
+-- TODO: How does scrambling interact with this process?
+find_call :: [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
+find_call trace_rev =
+  let
+    (_, callee_td) = head trace_rev
+    caller_ts = snd $ head $ stack callee_td
+    find_aux t = case t of
+      [] -> Nothing
+      (ts, td) : t' -> if (ts ^. mp) == caller_ts then Just (ts, td) else find_aux t'
+  in
+    find_aux trace_rev
 
 -- TODO: Refactor definitions (see above).
+-- Clarify: are instructions accessible?
 mem_NI :: DescTag -> TestState a -> TestState a -> StateDesc -> Bool
 mem_NI def ts ts' d =
   let
@@ -371,16 +352,26 @@ mem_NI def ts ts' d =
   in
     eqMaps instrAcc instrAcc'
 
+-- Find return addresses based on the PIPE state.
+-- TODO: Possibly in combination with other tags?
+isReturn :: TestState a -> Bool
+isReturn s =
+  let
+    pmemMap = p_mem (s ^. mp ^. ps) ^. pmem_map
+    pc = s ^. mp ^.  ms . fpc
+  in
+    pmemMap Map.! pc == tagR3
+
 test_NI :: DescTag -> [(TestState a, StateDesc)] -> Bool
 test_NI def trace_rev =
   let
     -- Enriched trace and top (last step, under consideration)
     (ts, td)  = head trace_rev
     -- Location of matching (potential) caller and depth
-    Just (ts', td') = find_call 0 trace_rev
+    Just (ts', td') = find_call trace_rev
     -- depth = pcdepth td'
   in
-    if isReturn (ts ^. mp ^. ms) then mem_NI def ts ts' td'
+    if isReturn ts then mem_NI def ts ts' td'
     else True -- Holds vacuously: nothing to test here
 
 -- TODO: Rephrase indistinguishability to only look at clean locs?

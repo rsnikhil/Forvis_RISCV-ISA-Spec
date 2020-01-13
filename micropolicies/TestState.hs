@@ -49,6 +49,7 @@ import Gen (initMachine) -- Move?
 data RichState = Rich { _ms :: Machine_State
                       , _ps :: PIPE_State
                       }
+  deriving Eq
 
 data StackElem a = SE { _mp_state :: RichState
                       , _info :: a 

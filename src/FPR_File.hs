@@ -30,7 +30,7 @@ import Arch_Defs
 -- present, so we use 'fromMaybe' to extract 'v' from 'Just v'.
 
 data FPR_File = FPR_File  (Data_Map.Map  InstrField  Integer)
-  deriving (Show)
+  deriving (Eq, Show)
 
 mkFPR_File :: FPR_File
 mkFPR_File = FPR_File (Data_Map.fromList (zip
