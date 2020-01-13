@@ -197,8 +197,10 @@ next_desc :: DescTag -> RichState -> StateDesc -> RichState -> StateDesc
 next_desc def s d s'
   | tagOf def (s ^. ms . fpc) d == Instr =
     let isCall = elem (s ^. ms . fpc) (callinstrs d)
-        isRet  = ((s' ^. ms . fpc) == 4 + fst (fst $ head "isRet1" $ stack d)) &&
-                 (Just (snd (fst $ head "isRet2" $ stack d)) == (s ^. ms . fgpr . at sp))
+        isRet  = case stack d of
+                   [] -> False -- Nothing on the stack means you can't return
+                   ((spc, ssp),_):_ -> ((s' ^. ms . fpc) == 4 + spc) &&
+                                       (Just ssp == (s ^. ms . fgpr . at sp))
         -- Should return Just (memory loc) if it is a write, Nothing otherwise
         isWrite =
           -- TODO: Common definitions from Forvis_Spec_I
