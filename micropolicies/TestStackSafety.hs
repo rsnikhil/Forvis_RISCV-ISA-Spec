@@ -390,9 +390,11 @@ mem_NI def ts ts' d =
     filterInstrAcc i _ = accessible def i d || isInstruction def i d
     instrAcc           = Map.mapWithKey filterInstrAcc mem
     instrAcc'          = Map.mapWithKey filterInstrAcc mem'
-    eqMaps m1 m2       = Map.isSubmapOf m1 m2 && Map.isSubmapOf m2 m1
+    -- TODO: Refactor these definitions, also in step_consistent
+    defInstrAcc        = accessibleTag def (pcdepth d) ||
+                         isInstructionTag def
   in
-    eqMaps instrAcc instrAcc'
+    eqMapsWithDefault instrAcc instrAcc' defInstrAcc
 
 -- Find return addresses based on the PIPE state.
 -- TODO: Possibly in combination with other tags?
