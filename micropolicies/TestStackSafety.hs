@@ -180,18 +180,26 @@ tagOf def i sd =
   -- Lookup i, return the default memory tag if not found
   Map.findWithDefault def i (memdepth sd)
 
-accessible :: DescTag -> Integer -> StateDesc -> Bool
-accessible def i sd =
-  case tagOf def i sd of
-    (Stack n) -> n >= pcdepth sd
+accessibleTag :: DescTag -> Int -> Bool
+accessibleTag t depth =
+  case t of
+    (Stack n) -> n >= depth
     Instr -> False -- Instructions not accessible
     Other -> False -- Shouldn't happen. Error instead?
 
-isInstruction :: DescTag -> Integer -> StateDesc -> Bool
-isInstruction def i sd =
-  case tagOf def i sd of 
+accessible :: DescTag -> Integer -> StateDesc -> Bool
+accessible def i sd =
+  accessibleTag (tagOf def i sd) (pcdepth sd)
+
+isInstructionTag :: DescTag -> Bool
+isInstructionTag t =
+  case t of
     Instr -> True
     _ -> False
+
+isInstruction :: DescTag -> Integer -> StateDesc -> Bool
+isInstruction def i sd =
+  isInstructionTag (tagOf def i sd)
 
 next_desc :: DescTag -> RichState -> StateDesc -> RichState -> StateDesc
 next_desc def s d s'
@@ -257,6 +265,19 @@ scramble def ts d =
   in
     (%~) (mp . ms . fmem) scramble_mem ts
 
+eqMapsWithDefault :: (Ord k, Eq a) => Map k a -> Map k a -> a -> Bool
+eqMapsWithDefault m1 m2 adef =
+  let
+    ks = Map.keys m1 `List.union` Map.keys m2
+    checkKey i =
+      let
+        a1 = Map.findWithDefault adef i m1
+        a2 = Map.findWithDefault adef i m2
+      in
+        a1 == a2
+  in
+    all checkKey ks
+
 -- TODO: Possibly use trace instead of explicit steps. Explain relation between
 -- property on traces and paper definition.
 -- Alternative forms of this property: between a pair of consecutive states
@@ -281,9 +302,12 @@ step_consistent pplus ts d =
           instrAccT'         = Map.mapWithKey filterInstrAcc memT'
           inaccT             = Map.mapWithKey filterInacc memT
           inaccT'            = Map.mapWithKey filterInacc memT'
-          eqMaps m1 m2       = Map.isSubmapOf m1 m2 && Map.isSubmapOf m2 m1
+          defInstrAcc        = accessibleTag def (pcdepth d) ||
+                               isInstructionTag def
+          defInacc           = not $ accessibleTag def (pcdepth d)
         in
-          trace ("Result: " ++ show (eqMaps instrAccS' instrAccT' && eqMaps inaccT inaccT'))
+          trace ("Result: " ++ show (eqMapsWithDefault instrAccS' instrAccT' defInstrAcc &&
+                                     eqMapsWithDefault inaccT inaccT' defInacc))
           trace ("memS': " ++ show memS')
           trace ("memT: " ++ show memT)
           trace ("memT': " ++ show memT')
@@ -291,7 +315,8 @@ step_consistent pplus ts d =
           trace ("instrAccT': " ++ show instrAccT')
           trace ("inaccT: " ++ show inaccT)
           trace ("inaccT': " ++ show inaccT')
-          eqMaps instrAccS' instrAccT' && eqMaps inaccT inaccT'
+          eqMapsWithDefault instrAccS' instrAccT' defInstrAcc &&
+          eqMapsWithDefault inaccT inaccT' defInacc
         -- &&
         -- -- T’ is step consistent with D’.
         -- undefined
