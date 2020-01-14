@@ -283,6 +283,14 @@ step_consistent pplus ts d =
           inaccT'            = Map.mapWithKey filterInacc memT'
           eqMaps m1 m2       = Map.isSubmapOf m1 m2 && Map.isSubmapOf m2 m1
         in
+          trace ("Result: " ++ show (eqMaps instrAccS' instrAccT' && eqMaps inaccT inaccT'))
+          trace ("memS': " ++ show memS')
+          trace ("memT: " ++ show memT)
+          trace ("memT': " ++ show memT')
+          trace ("instrAccS': " ++ show instrAccS')
+          trace ("instrAccT': " ++ show instrAccT')
+          trace ("inaccT: " ++ show inaccT)
+          trace ("inaccT': " ++ show inaccT')
           eqMaps instrAccS' instrAccT' && eqMaps inaccT inaccT'
         -- &&
         -- -- T’ is step consistent with D’.
@@ -426,12 +434,16 @@ prop_NI' pplus maxCount ts =
                     (whenFail (do putStrLn "Initial state does not preserve step consistency!"
                                   putStrLn "Original Test State:"
                                   putStrLn $ printTestState pplus ts
+                                  putStrLn " Trace:"
+                                  putStrLn $ printTrace pplus $ reverse tss
                                   -- TODO: Print state description
                              ) $ (test_init pplus (head "prop_NI'/init state" trace')))
                   .&&.
                    (whenFail (do putStrLn "Stack state at call not preserved at return!"
                                  putStrLn "Original Test State:"
                                  putStrLn $ printTestState pplus ts
+                                 putStrLn " Trace:"
+                                 putStrLn $ printTrace pplus $ reverse tss
                                  -- TODO: Print state description
                              ) $ (test_NI def trace'))
 --                 (whenFail (do putStrLn "Indistinguishable tags found!"
