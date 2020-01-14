@@ -39,10 +39,13 @@ import ALU
 import Gen
 import Run_Program_PIPE
 import PIPE
-import Printing
 import Terminal
 import MachineLenses
 import TestState
+
+-- Printing
+import Text.PrettyPrint (Doc, (<+>), ($$), fcat)
+import qualified Text.PrettyPrint as P
 
 head :: String -> [a] -> a
 head s [] = error $ "head called with empty list: " ++ s
@@ -168,6 +171,28 @@ data StateDesc = SD { pcdepth :: !Int
                     , callinstrs :: [Integer]
                     } 
 
+instance Pretty DescTag where
+  pretty _ t = P.text $ show t
+
+instance Pretty (Integer, DescTag) where
+  pretty pplus (i, t) = P.integer i <@> pretty pplus t
+
+instance Pretty (Integer, Integer) where
+  pretty pplus x = P.text $ show x
+
+docStateDesc :: PolicyPlus -> StateDesc -> Doc
+docStateDesc pplus sd =
+  P.vcat [ P.text "State Description:"
+         , P.text "PC depth:" <+> P.int (pcdepth sd)
+         , P.text "Mem Depths:" $$ P.vcat (map (pretty pplus) $ Map.assocs $ memdepth sd)
+         , P.text "Saved sp/pcs:" <+> P.hcat (List.intersperse (P.text ",") (map (pretty pplus . fst) (stack sd)))
+         , P.text "Call Instrs:" <+> P.text (show $ callinstrs sd)
+         ] 
+         
+docTestState pplus ts =
+  docRichStates pplus (ts ^. mp) (map (\x -> calcDiff pplus (ts ^. mp) (x ^. mp_state)) (ts ^. variants))
+
+
 initDesc :: Map Integer DescTag -> [Integer] -> StateDesc
 initDesc memlayout calls = SD { pcdepth = 0
                               , memdepth = memlayout
@@ -252,7 +277,9 @@ next_desc def s d s'
           else if isRet then 
             tail $ stack d
           else stack d
-      } 
+      }
+  | otherwise = error $ "Tag mismatch. Expected Instr. Found " ++ show (tagOf def (s ^. ms . fpc) d) ++ ". Other info: " ++ show (s ^. ms . fpc) 
+
 
 -- A scrambled version of S w.r.t. D is identical in the instruction memory and
 -- accessible parts, and arbitrary in the inaccessible parts of the data memory.
@@ -351,6 +378,7 @@ trace_descs def tss =
   let
     tsInit   = head "tsInit" tss
     descInit = testInitDesc tsInit
+
     accInit  = [(tsInit, descInit)]
     foldDesc tds ts' =
       let
@@ -463,6 +491,9 @@ prop_NI' pplus maxCount ts =
                                   putStrLn $ printTestState pplus ts
                                   putStrLn " Trace:"
                                   putStrLn $ printTrace pplus $ reverse tss
+                                  putStrLn "Final State Desc"
+                                  let descInit = testInitDesc ts
+                                  putStrLn $ P.render $ docStateDesc pplus descInit
                                   -- TODO: Print state description
                              ) $ (test_init pplus (head "prop_NI'/init state" trace')))
                   .&&.
