@@ -524,7 +524,9 @@ genInstr pplus ms ps dataP codeP genInstrTag =
               )
             , (onNonEmpty dataInfo 3 * onNonEmpty arithInfo 1,
                do -- STORE
-                  PI rd content min_imm max_imm tag <- elements dataInfo
+                  -- TODO: Weigh choosing from dataInfo based on the inner "tag"
+                  -- If it is SP, pick with smaller probability
+                  PI rd content min_imm max_imm tag <- elements dataInfo --frequency $ map (\i -> (if i ^. rTag == spTag then 1 else 10, i)) dataInfo
                   rs <- genTargetReg ms
                   imm <- (min_imm+) <$> genImm (max_imm - min_imm)
                   let instr = SW rd rs imm
@@ -553,6 +555,7 @@ genInstr pplus ms ps dataP codeP genInstrTag =
 --              )
             ]
 
+-- Should return a maybe or be called only when the offset is guaranteed to exist
 genCall :: PolicyPlus -> Machine_State -> PIPE_State ->
             (TagSet -> Bool) -> (TagSet -> Bool) -> (TagSet -> Bool) ->
             (Instr_I -> Gen TagSet) ->
@@ -562,14 +565,21 @@ genCall pplus ms ps dataP codeP callP genInstrTag headerSeq = do
   let m = ms ^. fmem
       t = Map.assocs $ ps ^. pmem
 
-      existingCallSites = map fst $ filter (\(i,t) -> callP t) t
+      existingCallSites = map (\(i,t) -> (i - ms ^. fpc)) $ filter (\(i,t) -> callP t) t
       newCallSites =
         -- iterate through all possible instruction locations
         -- and filter out the ones that already exist in memory
-        filter (\i -> not (Map.member (i - ms ^. fpc) m))
-          [instrLow pplus, instrLow pplus + 4 .. (instrHigh pplus - 100)]
- 
-  offset <- elements (existingCallSites ++ newCallSites)
+        let offset_choices = [20, 24 .. (instrHigh pplus - instrLow pplus - 50)]
+            valid_offsets = filter (\i -> ms ^. fpc + i < instrHigh pplus - 50) offset_choices
+            not_used = filter (\i -> not (Map.member (ms ^. fpc + i) m)) valid_offsets
+--        in traceShow (instrHigh pplus, instrLow pplus, instrHigh pplus - instrLow pplus - 50, offset_choices, valid_offsets, not_used) not_used
+        in not_used        
+
+      options = existingCallSites ++ newCallSites
+
+  offset <-
+    if any (\ off -> off + ms ^. fpc > 400) options then error $ show options else
+    if not $ null options then elements options else return 4242 -- FIX
   return $ headerSeq offset
 
 -- TODO: This might need to be further generalized in the future
@@ -634,7 +644,7 @@ genByExec pplus n init_ms init_ps dataP codeP callP headerSeq retSeq genInstrTag
               Left err ->
                 -- trace ("Warning: Fetch and execute failed with " ++ show n
                 --        ++ " steps remaining and error: " ++ show err) $
-                return (ms, ps)
+                return (ims, ips)
           | otherwise = do
               traceShowM ("No instruction exists, generating...")
               -- Generate an instruction for the current state
