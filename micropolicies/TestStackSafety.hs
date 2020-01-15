@@ -255,7 +255,9 @@ next_desc pplus def s d s'
                 Just instr -> case instr of
                   SB _ rs1 imm12 -> Just (writeAddr rs1 imm12)
                   SH _ rs1 imm12 -> Just (writeAddr rs1 imm12)
-                  SW _ rs1 imm12 -> Just (writeAddr rs1 imm12)
+                  SW _ rs1 imm12 ->
+                    traceShow ("Writing..", rs1, imm12, writeAddr rs1 imm12) $
+                    Just (writeAddr rs1 imm12)
                   _ -> Nothing
                 _ -> Nothing
               -- TODO: SD support
