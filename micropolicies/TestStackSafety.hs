@@ -15,6 +15,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.Set as Set
 import Data.Set (Set)
+import qualified Data.Bits as Bits
 
 import Debug.Trace
 
@@ -239,15 +240,15 @@ next_desc pplus def s d s'
           -- TODO: Common definitions from Forvis_Spec_I
           let writeAddr rs1 imm12 =
                 let mstate = s ^. ms
-                    -- rv   = mstate_rv_read    mstate
+                    rv   = mstate_rv_read    mstate
                     xlen = mstate_xlen_read  mstate
                     -- Compute effective address
                     rs1_val  = mstate_gpr_read  rs1  mstate    -- address base
                     s_imm12  = sign_extend  12  xlen  imm12
                     eaddr1   = alu_add  xlen  rs1_val  s_imm12
-                    -- eaddr2   = if (rv == RV64) then eaddr1 else (eaddr1 .&. 0xffffFFFF)
-                    eaddr2  = eaddr1 -- TODO: Fix eaddr2 above
+                    eaddr2   = if (rv == RV64) then eaddr1 else (eaddr1 Bits..&. 0xffffFFFF)
                 in
+                  traceShow ("rs1_val:", rs1_val, "s_imm12:", s_imm12, "eaddr1: ", eaddr1) $
                   eaddr2
           in
             case fst $ instr_fetch (s ^. ms) of
