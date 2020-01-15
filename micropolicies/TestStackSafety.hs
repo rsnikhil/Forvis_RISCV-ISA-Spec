@@ -226,8 +226,8 @@ isInstruction :: DescTag -> Integer -> StateDesc -> Bool
 isInstruction def i sd =
   isInstructionTag (tagOf def i sd)
 
-next_desc :: DescTag -> RichState -> StateDesc -> RichState -> StateDesc
-next_desc def s d s'
+next_desc :: PolicyPlus -> DescTag -> RichState -> StateDesc -> RichState -> StateDesc
+next_desc pplus def s d s'
   | tagOf def (s ^. ms . fpc) d == Instr =
     let isCall = elem (s ^. ms . fpc) (callinstrs d)
         isRet  = case stack d of
@@ -278,7 +278,15 @@ next_desc def s d s'
             tail $ stack d
           else stack d
       }
-  | otherwise = error $ "Tag mismatch. Expected Instr. Found " ++ show (tagOf def (s ^. ms . fpc) d) ++ ". Other info: " ++ show (s ^. ms . fpc) 
+  | otherwise = error $ "Tag mismatch. Expected Instr. Found " ++ show (tagOf def (s ^. ms . fpc) d) ++ ".\n"
+                         ++ "Other info:\n" 
+                         ++ "PC: " ++ show (s ^. ms . fpc) ++ "\n"
+                         ++ "State Desc:\n"
+                         ++ P.render (docStateDesc pplus d) ++ "\n"
+                         ++ "Rich State:\n"
+                         ++ P.render (docRichStates pplus s [])
+                       
+                         
 
 
 -- A scrambled version of S w.r.t. D is identical in the instruction memory and
@@ -373,8 +381,8 @@ test_init pplus (ts, d) = step_consistent pplus ts d
 
 -- Enrich a trace of test states with their associated state descriptions.
 -- Currently, doing so after the run, so relatively inefficient.
-trace_descs :: DescTag -> [TestState a] -> [(TestState a, StateDesc)]
-trace_descs def tss =
+trace_descs :: PolicyPlus -> DescTag -> [TestState a] -> [(TestState a, StateDesc)]
+trace_descs pplus def tss =
   let
     tsInit   = head "tsInit" tss
     descInit = testInitDesc tsInit
@@ -383,7 +391,7 @@ trace_descs def tss =
     foldDesc tds ts' =
       let
         (ts, td) = head "foldDesc" tds
-        td' = next_desc def (ts ^. mp) td (ts' ^. mp)
+        td' = next_desc pplus def (ts ^. mp) td (ts' ^. mp)
       in
         (ts', td') : tds
     revDescs = foldl foldDesc accInit (tail tss)
@@ -485,7 +493,7 @@ prop_NI' pplus maxCount ts =
   in 
     collect (length $ takeWhile pcInSync trace, length trace) $ 
     allWhenFail (\ts tss -> --tss is reversed here
-                  let trace' = ts : tss & reverse & trace_descs def & reverse in
+                  let trace' = ts : tss & reverse & trace_descs pplus def & reverse in
                     (whenFail (do putStrLn "Initial state does not preserve step consistency!"
                                   putStrLn "Original Test State:"
                                   putStrLn $ printTestState pplus ts
