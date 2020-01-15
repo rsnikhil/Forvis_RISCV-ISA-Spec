@@ -1,4 +1,4 @@
-all: stack
+all: stack 
 
 taint: build
 	$(MAKE) taintmutants unmutated POLICY=taint
@@ -45,6 +45,7 @@ writeoncemutants:
 	$Vmake mutant MUT=IGNORE_WRITENEVER
 
 stackmutants:
+	$Vmake mutant MUT=LOAD_NO_CHECK_STACK_DEPTH
 
 cfimutants:
 	$Vmake mutant MUT=CFI_BAD_JUMP_TO_LOAD

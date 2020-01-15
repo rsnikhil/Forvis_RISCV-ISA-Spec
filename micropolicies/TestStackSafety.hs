@@ -133,13 +133,15 @@ genITag _ = return instrTag
 
 isSecretMP :: Machine_State -> PIPE_State -> TagSet -> Bool
 isSecretMP ms ps t =
-  -- TODO: Better way to do this?
-  -- Get qualified symbol name
-  -- Look it up in the map
-  -- Get the int out
   -- Also TODO: Instructions?
   let depthOf :: TagSet -> Maybe Int
-      depthOf t = join (snd <$> (listToMaybe $ toExt t)) in
+      depthOf t = 
+        let al = toExt t in
+        case (List.lookup "stack.PC" al, List.lookup "stack.Stack" al) of
+          (Just n, _) -> n -- n is already a just (the optional tag argument)
+          (_, Just n) -> n
+          _ -> Nothing
+  in 
   case (depthOf t, depthOf (ps ^. ppc) ) of
     (Just n, Just m) -> n < m
     (Nothing, _) -> False
@@ -154,7 +156,7 @@ mkInfo _ _ = ()
 main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag isSecretMP mkInfo)
+    $ forAllShrink (genSingleTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag)
                    (\ts -> [] ) --shrinkMStatePair pplus mp 
 --                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
     $ \ts -> prop pplus ts
@@ -229,7 +231,7 @@ isInstruction :: DescTag -> Integer -> StateDesc -> Bool
 isInstruction def i sd =
   isInstructionTag (tagOf def i sd)
 
-next_desc :: PolicyPlus -> DescTag -> RichState -> StateDesc -> RichState -> StateDesc
+next_desc :: PolicyPlus -> DescTag -> RichState -> StateDesc -> RichState -> Maybe StateDesc
 next_desc pplus def s d s'
   | tagOf def (s ^. ms . fpc) d == Instr =
     let isCall = elem (s ^. ms . fpc) (callinstrs d)
@@ -266,34 +268,34 @@ next_desc pplus def s d s'
               -- TODO: SD support
               _ -> Nothing
     in
-    d { pcdepth =
-          if isCall then
-            pcdepth d + 1
-          else if isRet then 
-            pcdepth d - 1
-          else pcdepth d
-      , memdepth =
-          case isWrite of
-            Just loc -> Map.insert loc (Stack (pcdepth d)) (memdepth d)
-            _ -> memdepth d
-      , stack =
-          if isCall then
-            ((s ^. ms . fpc, fromJust (s ^. ms . fgpr . at sp)), s) : stack d
-          else if isRet then 
-            tail $ stack d
-          else stack d
-      }
-  | otherwise = error $ "Tag mismatch. Expected Instr. Found " ++ show (tagOf def (s ^. ms . fpc) d) ++ ".\n"
-                         ++ "Other info:\n" 
-                         ++ "PC: " ++ show (s ^. ms . fpc) ++ "\n"
-                         ++ "State Desc:\n"
-                         ++ P.render (docStateDesc pplus d) ++ "\n"
-                         ++ "Rich State:\n"
-                         ++ P.render (docRichStates pplus s [])
-                       
+    Just $ d { pcdepth =
+                 if isCall then
+                   pcdepth d + 1
+                 else if isRet then 
+                   pcdepth d - 1
+                 else pcdepth d
+             , memdepth =
+                 case isWrite of
+                   Just loc -> Map.insert loc (Stack (pcdepth d)) (memdepth d)
+                   _ -> memdepth d
+             , stack =
+                 if isCall then
+                   ((s ^. ms . fpc, fromJust (s ^. ms . fgpr . at sp)), s) : stack d
+                 else if isRet then 
+                   tail $ stack d
+                 else stack d
+             }
+    -- TODO: This shouldn't be an error. Cut off execution?
+  | otherwise = Nothing
+    --error $ "Tag mismatch. Expected Instr. Found " ++ show (tagOf def (s ^. ms . fpc) d) ++ ".\n"
+    --                     ++ "Other info:\n" 
+    --                     ++ "PC: " ++ show (s ^. ms . fpc) ++ "\n"
+    --                     ++ "State Desc:\n"
+    --                     ++ P.render (docStateDesc pplus d) ++ "\n"
+    --                     ++ "Rich State:\n"
+    --                     ++ P.render (docRichStates pplus s [])
+    --                   
                          
-
-
 -- A scrambled version of S w.r.t. D is identical in the instruction memory and
 -- accessible parts, and arbitrary in the inaccessible parts of the data memory.
 -- TODO: Better scrambling, link to TestStack functionality (cf. variants).
@@ -396,7 +398,8 @@ trace_descs pplus def tss =
     foldDesc tds ts' =
       let
         (ts, td) = head "foldDesc" tds
-        td' = next_desc pplus def (ts ^. mp) td (ts' ^. mp)
+        -- NOW: fix fromJust
+        td' = fromJust $ next_desc pplus def (ts ^. mp) td (ts' ^. mp)
       in
         (ts', td') : tds
     revDescs = foldl foldDesc accInit (tail tss)
@@ -469,7 +472,7 @@ prop_NI pplus maxCount ts =
                putStrLn $ printTrace pplus trace
                putStrLn "Termination error:"
                putStrLn $ show err
-           ) $ length trace <= 5
+           ) $ length trace > 1
 --  allWhenFail (\ts tss -> --tss is reversed here
 --                 (whenFail (do putStrLn "Indistinguishable tags found!"
 --                               putStrLn "Original Test State:"
@@ -496,7 +499,7 @@ prop_NI' pplus maxCount ts =
   let (trace,err) = traceExec pplus ts maxCount
       def = to_desc (initMem pplus)
   in 
-    collect (length $ takeWhile pcInSync trace, length trace) $ 
+    collect (length $ takeWhile pcInSync trace, length trace, err) $ 
     allWhenFail (\ts tss -> --tss is reversed here
                   let trace' = ts : tss & reverse & trace_descs pplus def & reverse in
                     (whenFail (do putStrLn "Initial state does not preserve step consistency!"

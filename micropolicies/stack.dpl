@@ -60,26 +60,28 @@ jalGrp (
 // ------------------------------------------------------------------------------
 // OTHER INSTRUCTIONS
 
+//TODO: Add code {Instr} to each rule
 ^ arithGrp(
        code == {Instr}, env == _, op1 == [-SP], op2 == [-SP] //, res == {} (no can do)
     -> env = env, res = {} )
 ^ immArithGrp(
        code == {Instr}, env == _, op1 == [-SP] //, res == [-SP]
     -> env = env, res = {})
-#ifndef BORINGLOAD
+#ifndef LOAD_NO_CHECK_STACK_DEPTH
 ^ loadGrp(
-       env == {PC pcdepth}, addr == _, mem == {Stack memdepth} | pcdepth <= memdepth 
+       code == {Instr}, env == {PC pcdepth}, addr == _, mem == {Stack memdepth} | pcdepth <= memdepth 
     -> env = env, res = {})
 #else
+// Not Checking stack depths
 ^ loadGrp(
-       env == _, addr == _, mem == {} // TODO: What was res as an input?
+       code == {Instr}, env == _, addr == _, mem == {} // TODO: What was res as an input?
     -> env = env, res = {})
 #endif
 ^ storeGrp(
-       env == {PC depth}, addr == [-SP], val == {}, mem == _ // TODO: Really anything? There is probably a bug here [-Instr]?
+       code == {Instr}, env == {PC depth}, addr == [-SP], val == {}, mem == _ // TODO: Really anything? There is probably a bug here [-Instr]?
     -> env = env, mem = {Stack depth})  // TODO: Probably wrong!!
 ^ jalrGrp(
-       target == {}, env == {(PC _)}, return == {}
+       code == {Instr}, target == {}, env == {(PC _)}, return == {}
     -> env = env, return = {} )
 // TODO: Other jals, blt
 // TODO: ... and we need some more clauses for other groups pretty soon :-)
