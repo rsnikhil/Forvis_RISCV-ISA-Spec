@@ -253,10 +253,10 @@ next_desc pplus def s d s'
             case fst $ instr_fetch (s ^. ms) of
               Fetch u32 -> case decode_I RV32 u32 of
                 Just instr -> case instr of
-                  SB _ rs1 imm12 -> Just (writeAddr rs1 imm12)
-                  SH _ rs1 imm12 -> Just (writeAddr rs1 imm12)
-                  SW _ rs1 imm12 ->
-                    traceShow ("Writing..", rs1, imm12, writeAddr rs1 imm12) $
+                  SB rs1 _ imm12 -> Just (writeAddr rs1 imm12)
+                  SH rs1 _ imm12 -> Just (writeAddr rs1 imm12)
+                  SW rs1 _ imm12 ->
+                    traceShow ("Writing..", rs1, mstate_gpr_read rs1 (s ^. ms), imm12, writeAddr rs1 imm12) $
                     Just (writeAddr rs1 imm12)
                   _ -> Nothing
                 _ -> Nothing
