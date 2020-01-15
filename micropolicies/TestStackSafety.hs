@@ -48,6 +48,8 @@ import TestState
 import Text.PrettyPrint (Doc, (<+>), ($$), fcat)
 import qualified Text.PrettyPrint as P
 
+
+-- For extra info
 head :: String -> [a] -> a
 head s [] = error $ "head called with empty list: " ++ s
 head _ (h:t) = h
@@ -257,7 +259,7 @@ next_desc pplus def s d s'
                   SB rs1 _ imm12 -> Just (writeAddr rs1 imm12)
                   SH rs1 _ imm12 -> Just (writeAddr rs1 imm12)
                   SW rs1 _ imm12 ->
-                    traceShow ("Writing..", rs1, imm12, writeAddr rs1 imm12) $
+--                    traceShow ("Writing..", rs1, mstate_gpr_read rs1 (s ^. ms), imm12, writeAddr rs1 imm12) $
                     Just (writeAddr rs1 imm12)
                   _ -> Nothing
                 _ -> Nothing
@@ -344,15 +346,15 @@ step_consistent pplus ts d =
                                isInstructionTag def
           defInacc           = not $ accessibleTag def (pcdepth d)
         in
-          trace ("Result: " ++ show (eqMapsWithDefault instrAccS' instrAccT' defInstrAcc &&
-                                     eqMapsWithDefault inaccT inaccT' defInacc))
-          trace ("memS': " ++ show memS')
-          trace ("memT: " ++ show memT)
-          trace ("memT': " ++ show memT')
-          trace ("instrAccS': " ++ show instrAccS')
-          trace ("instrAccT': " ++ show instrAccT')
-          trace ("inaccT: " ++ show inaccT)
-          trace ("inaccT': " ++ show inaccT')
+--          trace ("Result: " ++ show (eqMapsWithDefault instrAccS' instrAccT' defInstrAcc &&
+--                                     eqMapsWithDefault inaccT inaccT' defInacc))
+--          trace ("memS': " ++ show memS')
+--          trace ("memT: " ++ show memT)
+--          trace ("memT': " ++ show memT')
+--          trace ("instrAccS': " ++ show instrAccS')
+--          trace ("instrAccT': " ++ show instrAccT')
+--          trace ("inaccT: " ++ show inaccT)
+--          trace ("inaccT': " ++ show inaccT')
           eqMapsWithDefault instrAccS' instrAccT' defInstrAcc &&
           eqMapsWithDefault inaccT inaccT' defInacc
         -- &&
@@ -409,15 +411,15 @@ trace_descs pplus def tss =
 -- well-bracketedness.
 -- TODO: How does scrambling interact with this process?
 find_call :: [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
-find_call trace_rev =
-  let
-    (_, callee_td) = head "find_call/callee" trace_rev
-    caller_ts = snd $ head "find_call/caller" $ stack callee_td
-    find_aux t = case t of
-      [] -> Nothing
-      (ts, td) : t' -> if (ts ^. mp) == caller_ts then Just (ts, td) else find_aux t'
-  in
-    find_aux trace_rev
+find_call trace_rev = do 
+  (_, callee_td) <- listToMaybe trace_rev
+  caller_ts <- snd <$> listToMaybe (stack callee_td)
+  let find_aux t = case t of
+                     [] -> Nothing
+                     (ts, td) : t' -> if (ts ^. mp) == caller_ts then Just (ts, td) else find_aux t'
+  find_aux trace_rev
+--    (_, callee_td) = head "find_call/callee" trace_rev
+--    caller_ts = snd $ head "find_call/caller" $ stack callee_td
 
 -- TODO: Refactor definitions (see above).
 -- Clarify: are instructions accessible?
@@ -440,10 +442,10 @@ mem_NI def ts ts' d =
 isReturn :: TestState a -> Bool
 isReturn s =
   let
-    pmemMap = p_mem (s ^. mp ^. ps) ^. pmem_map
+    pmemMap = s ^. mp . ps . pmem
     pc = s ^. mp ^.  ms . fpc
   in
-    pmemMap Map.! pc == tagR3
+    pmemMap Map.!? pc == Just tagR3
 
 test_NI :: DescTag -> [(TestState a, StateDesc)] -> Bool
 test_NI def trace_rev =
