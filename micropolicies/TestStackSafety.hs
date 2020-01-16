@@ -313,10 +313,30 @@ eqMapsWithDefault m1 m2 adef =
       let
         a1 = Map.findWithDefault adef i m1
         a2 = Map.findWithDefault adef i m2
-      in
-        a1 == a2
+      in a1 == a2 
   in
     all checkKey ks
+
+eqMapProperty :: (Pretty k, Pretty a, Ord k, Eq a) =>
+                 PolicyPlus -> Map k a -> Map k a -> a -> Property
+eqMapProperty pplus m1 m2 adef =
+  let
+    ks = Map.keys m1 `List.union` Map.keys m2
+    checkKey i =
+      let
+        a1 = Map.findWithDefault adef i m1
+        a2 = Map.findWithDefault adef i m2
+
+        -- Debug information
+        doc = P.vcat [ P.text "Mapping inequality at key:" <+> pretty pplus i
+                         , P.text "Map 1 binding:" <+> pretty pplus (m1 Map.!? i)
+                         , P.text "Map 2 binding:" <+> pretty pplus (m2 Map.!? i)
+                         , P.text "Default element:" <+> pretty pplus adef
+                         ]
+      in                  
+        whenFail (do putStrLn $ P.render doc) (a1 == a2)
+  in 
+    conjoin (map checkKey ks)
 
 stepOrFail :: PolicyPlus -> TestState a -> TestState a
 stepOrFail pplus ts =
@@ -523,19 +543,19 @@ single_step_stack_safety pplus (s, d, t, s', d', t') =
       instrS' = Map.filterWithKey isInstr (s' ^. ms . fmem)
       instrT' = Map.filterWithKey isInstr (t' ^. ms . fmem)
       -- Compare instruction memories for equality
-      instrEq = eqMapsWithDefault instrS' instrT' defInstr
+      instrEq = eqMapProperty pplus instrS' instrT' defInstr
 
       -- Calculate accessible memory (of s' and t' w.r.t D)
       isAccessible i _ = accessible def i d
       accS' = Map.filterWithKey isAccessible (s' ^. ms . fmem)
       accT' = Map.filterWithKey isAccessible (t' ^. ms . fmem)
-      accEq = eqMapsWithDefault accS' accT' defMem
+      accEq = eqMapProperty pplus accS' accT' defMem
 
       -- Calculate inaccessible memory (of t and t' w.r.t D)
       isInaccessible i x = not $ accessible def i d
       inaccT  = Map.filterWithKey isInaccessible (t  ^. ms .fmem)
       inaccT' = Map.filterWithKey isInaccessible (t' ^. ms .fmem)
-      inaccEq = eqMapsWithDefault inaccT inaccT' defMem
+      inaccEq = eqMapProperty pplus inaccT inaccT' defMem
   in
   let debug_info msg = do
         putStrLn msg
