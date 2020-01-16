@@ -295,6 +295,12 @@ docTestState pplus ts =
 printTestState :: PolicyPlus -> TestState a -> String
 printTestState pplus ts = P.render $ docTestState pplus ts
 
+docRichState :: PolicyPlus -> RichState -> Doc
+docRichState pplus rs = docRichStates pplus rs [] 
+
+printRichState :: PolicyPlus -> RichState -> String
+printRichState pplus rs = P.render $ docRichState pplus rs
+
 docAssocDiff :: ((Integer, Integer, TagSet) -> Doc) -> PolicyPlus -> [[(Integer, Integer, TagSet)]] -> Doc
 docAssocDiff doc pplus assocs 
   | all null assocs = P.empty
@@ -798,6 +804,19 @@ running m = mstate_run_state_read m == Run_State_Running
 
 exec :: PolicyPlus -> RichState -> Either String RichState
 exec pplus (Rich m p) = uncurry Rich <$> fetch_and_execute pplus m p
+
+stepRich :: PolicyPlus -> RichState -> Either String RichState
+stepRich pplus rs
+  | running (rs ^. ms) = rs & ms %~ mstate_io_tick
+                            & exec pplus
+  | otherwise = Left "Not running state"
+
+traceRich :: PolicyPlus -> RichState -> Int -> ([RichState], String)
+traceRich pplus rs 0 = ([rs], "Out of fuel")
+traceRich pplus rs n =
+  case stepRich pplus rs of
+    Right rs' -> first (rs:) $ traceRich pplus rs' (n-1)
+    Left  err -> ([rs], err)
   
 --Either String TestState
 step :: PolicyPlus -> TestState a -> Either String (TestState a)

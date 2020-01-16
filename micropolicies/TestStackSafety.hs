@@ -155,11 +155,7 @@ mkInfo _ _ = ()
 -- The real one
 main_test = do
   pplus <- load_policy
-  quickCheckWith stdArgs{maxSuccess=1000}
-    $ forAllShrink (genSingleTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag)
-                   (\ts -> [] ) --shrinkMStatePair pplus mp 
---                   ++ concatMap (shrinkMStatePair pplus) (shrinkMStatePair pplus mp))
-    $ \ts -> prop pplus ts
+  quickCheckWith stdArgs{maxSuccess=1000} (prop_stack_safety pplus)
 
 main = main_test
 
@@ -192,7 +188,10 @@ docStateDesc pplus sd =
          , P.text "Mem Depths:" $$ P.vcat (map (pretty pplus) $ Map.assocs $ memdepth sd)
          , P.text "Saved sp/pcs:" <+> P.hcat (List.intersperse (P.text ",") (map (pretty pplus . fst) (stack sd)))
          , P.text "Call Instrs:" <+> P.text (show $ callinstrs sd)
-         ] 
+         ]
+
+printStateDesc :: PolicyPlus -> StateDesc -> String
+printStateDesc pplus d = P.render $ docStateDesc pplus d
          
 docTestState pplus ts =
   docRichStates pplus (ts ^. mp) (map (\x -> calcDiff pplus (ts ^. mp) (x ^. mp_state)) (ts ^. variants))
@@ -489,6 +488,132 @@ prop_NI pplus maxCount ts =
 --                           ) $ (clean == clean'))
 --              ) (takeWhile pcInSync trace)
 
+-------------------
+-- The Property: --
+-------------------
+
+{-| The step-wise property operates on a 6-tuple:
+  * A state S
+  * A state description D
+  * A state T that is a variant of S w.r.t D
+  * A state S' such that S -> S'
+  * A state description D' of S'
+  * A state T' such that T -> T'
+
+  For each such quintuple we check:
+  (1) Instruction memory and accessible parts of S' and T' w.r.t. D agree
+  (2) Inaccessible parts of T and T' w.r.t D agree 
+  \LEO: Google doc says (1) w.r.t D. Is that correct? Or should it be D'?
+  \LEO: We can also check that S and S' inaccessible parts agree. It is implied by the zero scrambling, but couldn't hurt to check, right?
+-}
+single_step_stack_safety :: PolicyPlus ->
+                            (RichState, StateDesc, RichState, RichState, StateDesc, RichState)->
+                            Property
+single_step_stack_safety pplus (s, d, t, s', d', t') =
+  let -- The default memory tag
+      def = to_desc (initMem pplus)
+      -- Default memory cell is: 0
+      defMem = 0
+      -- Default instruction is: N/A
+      defInstr = error "Default instruction should never be accessed"
+
+      -- | Instruction Memory comparison 
+      -- Calculate instruction memory (of s' and t' w.r.t D)
+      isInstr i _ = isInstruction def i d
+      instrS' = Map.filterWithKey isInstr (s' ^. ms . fmem)
+      instrT' = Map.filterWithKey isInstr (t' ^. ms . fmem)
+      -- Compare instruction memories for equality
+      instrEq = eqMapsWithDefault instrS' instrT' defInstr
+
+      -- Calculate accessible memory (of s' and t' w.r.t D)
+      isAccessible i _ = accessible def i d
+      accS' = Map.filterWithKey isAccessible (s' ^. ms . fmem)
+      accT' = Map.filterWithKey isAccessible (t' ^. ms . fmem)
+      accEq = eqMapsWithDefault accS' accT' defMem
+
+      -- Calculate inaccessible memory (of t and t' w.r.t D)
+      isInaccessible i x = not $ accessible def i d
+      inaccT  = Map.filterWithKey isInaccessible (t  ^. ms .fmem)
+      inaccT' = Map.filterWithKey isInaccessible (t' ^. ms .fmem)
+      inaccEq = eqMapsWithDefault inaccT inaccT' defMem
+  in
+  let debug_info msg = do
+        putStrLn msg
+        putStrLn "From test state:"
+        putStrLn $ printTestState pplus (TS s [SE t ()])
+        putStrLn "with state description:"
+        putStrLn $ printStateDesc pplus d
+        putStrLn "Arrive at test state:"
+        putStrLn $ printTestState pplus (TS s' [SE t' ()])
+        putStrLn ""
+  in 
+
+  whenFail (debug_info "Instruction  memory mismatch.") instrEq .&&.
+  whenFail (debug_info "Accessible   memory mismatch.") accEq .&&.
+  whenFail (debug_info "Inaccessible memory mismatch.") inaccEq 
+
+{-| Calculate a list of state descriptions based on a trace of rich states -}
+trace_desc_rich :: PolicyPlus -> DescTag -> [RichState] -> StateDesc -> [StateDesc]
+-- Regular case: calculate d' based on s -> s' and d
+trace_desc_rich pplus def (s:s':ss) d =
+  case next_desc pplus def s d s' of
+    Just d' -> d : trace_desc_rich pplus def (s':ss) d'
+    Nothing -> error "trace_desc_rich/can't calculate the next description"
+-- Termination: End of execution, yield the final d
+trace_desc_rich pplus def [s] d = [d]
+-- Error: Empty trace
+trace_desc_rich pplus def [] d = error "trace_desc_rich/input can't be empty"
+
+{-| The full stack-safety property repeatedly calls single-step
+    on the trace produced by a single generated state S. -}
+genStackSafetyTrace :: PolicyPlus -> Int -> Gen [(RichState, StateDesc, RichState, RichState, StateDesc, RichState)]
+genStackSafetyTrace pplus max_steps = do
+  -- Default memory tag
+  let def = to_desc $ initMem pplus
+  
+  -- Generate a single machine state
+  s <- genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag
+  -- Produce its execution trace
+  let (ss,err) = traceRich pplus s max_steps
+
+  -- Produce the initial state description
+  let d = let pm = s ^. ps . pmem
+              layout = Map.map to_desc pm
+              calls  = Map.keys $ Map.filter ((==) callTag) pm 
+          in initDesc layout calls
+  -- Annotate the trace with state descriptions
+      ds = trace_desc_rich pplus def ss d
+      
+  -- Scramble each machine state
+  -- TO DISCUSS: Our variation function currently operates based on tags (to be generic). Should we take descriptions?
+  ts <- mapM (varySecretState pplus isSecretMP) ss
+  
+  -- Step all of the scrambled states. These might fail, so result is an Either String
+  let ts' = map (stepRich pplus) ts
+
+  -- Group all of the different parts together
+      -- Regular case, at least two elements in each
+      group (s:s':ss) (d:d':ds) (t:ts) (et':ts') =
+        case et' of
+          Right t' -> (s,d,t,s',d',t') : group (s':ss) (d':ds) ts ts'
+          -- TO DISCUSS: What should we do if it fails to execute?
+          -- For now, drop.
+          -- TODO: Stats on how many?
+          Left _   -> group (s':ss) (d':ds) ts ts'
+      -- Base case, everything should have the same length
+      group [s] [d] [t] [t'] = [] -- Base
+      group _ _ _ _ = error "group arguments don't have the same length or are empty."
+
+  -- Pack and return
+  return $ group ss ds ts ts'
+
+prop_stack_safety :: PolicyPlus -> Property 
+prop_stack_safety pplus =
+  forAllShrinkShow (genStackSafetyTrace pplus maxInstrsToGenerate)
+                   (\tr -> []) -- TODO: Shrinking
+                   (\tr -> "") -- Empty printing. All inside the single_step
+                   (\tr -> conjoin $ map (single_step_stack_safety pplus) tr)
+   
 -- Given a reverse execution trace and the latest test state in an execution,
 -- compute the following:
 --  * The full trace in execution order;
