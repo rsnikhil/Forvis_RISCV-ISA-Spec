@@ -155,7 +155,7 @@ mkInfo _ _ = ()
 -- The real one
 main_test = do
   pplus <- load_policy
-  quickCheckWith stdArgs{maxSuccess=1000} (prop_stack_safety pplus)
+  quickCheckWith stdArgs{maxSuccess=1000} (prop_stack_safety_full pplus)
 
 main = main_test
 
@@ -523,8 +523,8 @@ prop_NI pplus maxCount ts =
   For each such quintuple we check:
   (1) Instruction memory and accessible parts of S' and T' w.r.t. D agree
   (2) Inaccessible parts of T and T' w.r.t D agree 
-  \LEO: Google doc says (1) w.r.t D. Is that correct? Or should it be D'?
-  \LEO: We can also check that S and S' inaccessible parts agree. It is implied by the zero scrambling, but couldn't hurt to check, right?
+  \LEO: Google doc says (1) and (2) w.r.t D. Is that correct? Or should it be D'?
+  \LEO: We can also check that S and S' inaccessible parts agree. It is implied by the identity scrambling, but couldn't hurt to check, right?
 -}
 single_step_stack_safety :: PolicyPlus ->
                             (RichState, StateDesc, RichState, RichState, StateDesc, RichState)->
@@ -633,7 +633,64 @@ prop_stack_safety pplus =
                    (\tr -> []) -- TODO: Shrinking
                    (\tr -> "") -- Empty printing. All inside the single_step
                    (\tr -> conjoin $ map (single_step_stack_safety pplus) tr)
-   
+
+{-| The full stack property operates on traces of TestStates (Main + Variants)
+
+    + Attempt 1: Make it recursive
+
+-}
+stack_safety_full :: PolicyPlus -> Int -> StateDesc -> TestState () -> Property
+stack_safety_full pplus 0 d ts = collect "Out of fuel" $ property True
+stack_safety_full pplus n d ts =
+  let def = to_desc $ initMem pplus in
+    
+  -- First, check if the currently executed instruction is a call
+  let isCall = elem (ts ^. mp. ms . fpc) (callinstrs d) in
+    
+  -- Create a scrambler for the current step:
+  -- LEO-TODO: only scramble before a call. Shouldn't this be right after a call though?
+  let scramble =
+        if isCall then do
+          -- Vary the main state and add it to the stack of variants
+          s <- varySecretState pplus isSecretMP (ts ^. mp)
+          return (ts & variants %~ ((SE s ()):))
+        else
+          return ts
+  in
+
+  -- Actually do the scrambling and continue:
+  forAllShrinkShow scramble (const []) (const "") $ \ts' ->
+  
+  -- Take a step in ALL machine variants in ts'
+  case step pplus ts' of
+    Left err -> collect err $ property True -- Execution terminated 
+    Right ts'' ->
+      -- Calculate the next state description:
+      let d' = case next_desc pplus def (ts ^. mp) d (ts'' ^. mp) of
+                 Just d' -> d'
+                 Nothing -> error "stack_safety_null/can't calculate the next description"
+      in
+
+      -- Call single_step stack_safety for each variant
+      conjoin $ map (\(t, t') -> single_step_stack_safety pplus
+                                   (ts'  ^. mp, d , t  ^. mp_state,
+                                    ts'' ^. mp, d', t' ^. mp_state))
+                    (zip (ts' ^. variants) (ts'' ^. variants))
+
+prop_stack_safety_full :: PolicyPlus -> Property
+prop_stack_safety_full pplus =
+  forAllShrinkShow
+       (genVariationTestState pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag isSecretMP mkInfo)
+       (\_ -> []) -- no shrink
+       (\_ -> "") -- no show
+       (\ts ->
+         -- Produce the initial state description
+         let d = let pm = ts ^. mp . ps . pmem
+                     layout = Map.map to_desc pm
+                     calls  = Map.keys $ Map.filter ((==) callTag) pm 
+                 in initDesc layout calls
+         in stack_safety_full pplus maxInstrsToGenerate d ts)
+  
 -- Given a reverse execution trace and the latest test state in an execution,
 -- compute the following:
 --  * The full trace in execution order;
