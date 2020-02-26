@@ -67,6 +67,7 @@ tagR1 = fromExt [("stack.Instr", Nothing), ("stack.R1", Nothing)]
 tagR2 = fromExt [("stack.Instr", Nothing), ("stack.R2", Nothing)]  
 tagR3 = fromExt [("stack.Instr", Nothing), ("stack.R3", Nothing)]
 callTag = fromExt [("stack.Call", Nothing), ("stack.Instr", Nothing)]
+calleeTag = tagH1
 instrTag = fromExt [("stack.Instr", Nothing)]  
 stackTag n = fromExt [("stack.Stack"  , Just n)]
 pcTag n = fromExt [("stack.PC"  , Just n)]
@@ -170,6 +171,7 @@ data StateDesc = SD { pcdepth :: !Int
                     , memdepth :: Map Integer DescTag
                     , stack :: [((Integer, Integer), RichState)]
                     , callinstrs :: [Integer]
+                    , callsites :: [Integer]
                     } 
 
 instance Pretty DescTag where
@@ -188,6 +190,7 @@ docStateDesc pplus sd =
          , P.text "Mem Depths:" $$ P.vcat (map (pretty pplus) $ Map.assocs $ memdepth sd)
          , P.text "Saved sp/pcs:" <+> P.hcat (List.intersperse (P.text ",") (map (pretty pplus . fst) (stack sd)))
          , P.text "Call Instrs:" <+> P.text (show $ callinstrs sd)
+         , P.text "Call Sites:" <+> P.text (show $ callsites sd)
          ]
 
 printStateDesc :: PolicyPlus -> StateDesc -> String
@@ -197,11 +200,12 @@ docTestState pplus ts =
   docRichStates pplus (ts ^. mp) (map (\x -> calcDiff pplus (ts ^. mp) (x ^. mp_state)) (ts ^. variants))
 
 
-initDesc :: Map Integer DescTag -> [Integer] -> StateDesc
-initDesc memlayout calls = SD { pcdepth = 0
+initDesc :: Map Integer DescTag -> [Integer] -> [Integer] -> StateDesc
+initDesc memlayout callers callees = SD { pcdepth = 0
                               , memdepth = memlayout
                               , stack = []
-                              , callinstrs = calls
+                              , callinstrs = callers
+                              , callsites = callees
                               } 
 
 tagOf :: DescTag -> Integer -> StateDesc -> DescTag
@@ -292,8 +296,7 @@ next_desc pplus def s d s'
     --                     ++ P.render (docStateDesc pplus d) ++ "\n"
     --                     ++ "Rich State:\n"
     --                     ++ P.render (docRichStates pplus s [])
-    --                   
-                         
+
 -- A scrambled version of S w.r.t. D is identical in the instruction memory and
 -- accessible parts, and arbitrary in the inaccessible parts of the data memory.
 -- TODO: Better scrambling, link to TestStack functionality (cf. variants).
@@ -399,9 +402,10 @@ testInitDesc ts =
   let
     pmemMap = p_mem (ts ^. mp ^. ps) ^. pmem_map
     pmemDesc = Map.map to_desc pmemMap
-    calls = Map.filter ((==) callTag) pmemMap & Map.keys
+    callers = Map.filter ((==) callTag) pmemMap & Map.keys
+    callees = Map.filter ((==) calleeTag) pmemMap & Map.keys
   in
-    initDesc pmemDesc calls
+    initDesc pmemDesc callers callees
 
 -- Enrich a trace of test states with their associated state descriptions.
 -- Currently, doing so after the run, so relatively inefficient.
@@ -598,9 +602,10 @@ genStackSafetyTrace pplus max_steps = do
 
   -- Produce the initial state description
   let d = let pm = s ^. ps . pmem
-              layout = Map.map to_desc pm
-              calls  = Map.keys $ Map.filter ((==) callTag) pm 
-          in initDesc layout calls
+              layout  = Map.map to_desc pm
+              callers = Map.keys $ Map.filter ((==) callTag)   pm
+              callees = Map.keys $ Map.filter ((==) calleeTag) pm
+          in initDesc layout callers callees
   -- Annotate the trace with state descriptions
       ds = trace_desc_rich pplus def ss d
       
@@ -686,9 +691,10 @@ prop_stack_safety_full pplus =
        (\ts ->
          -- Produce the initial state description
          let d = let pm = ts ^. mp . ps . pmem
-                     layout = Map.map to_desc pm
-                     calls  = Map.keys $ Map.filter ((==) callTag) pm 
-                 in initDesc layout calls
+                     layout  = Map.map to_desc pm
+                     callers = Map.keys $ Map.filter ((==) callTag) pm
+                     callees = Map.keys $ Map.filter ((==) calleeTag) pm
+                 in initDesc layout callers callees
          in stack_safety_full pplus maxInstrsToGenerate d ts)
   
 -- Given a reverse execution trace and the latest test state in an execution,
