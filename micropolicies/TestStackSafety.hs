@@ -650,12 +650,12 @@ stack_safety_full pplus n d ts =
   let def = to_desc $ initMem pplus in
     
   -- First, check if the currently executed instruction is a call
-  let isCall = elem (ts ^. mp. ms . fpc) (callinstrs d) in
+  let isCallee = elem (ts ^. mp. ms . fpc) (callsites d) in
     
   -- Create a scrambler for the current step:
   -- LEO-TODO: only scramble before a call. Shouldn't this be right after a call though?
   let scramble =
-        if isCall then do
+        if isCallee then do
           -- Vary the main state and add it to the stack of variants
           s <- varySecretState pplus isSecretMP (ts ^. mp)
           return (ts & variants %~ ((SE s ()):))
