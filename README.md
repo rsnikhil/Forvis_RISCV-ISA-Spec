@@ -167,28 +167,45 @@ a standard Haskell program.
 
 #### Install the Haskell 'ghc' compiler
 
-You will need the standard Haskell compiler `ghc` which is available
-for Linux, MacOS and Windows, along with its standard `elf` library
-for parsing ELF files.  These are available as standard packages in
-most Linux distributions.  For example, on Debian and Ubuntu systems,
-you can say:
+You will need the standard Haskell compiler `ghc` and `cabal`, a
+standard build/package manager for Haskell.  These are available on
+Linux, MacOS and Windows.  Full installation details can be found at
+`haskell.org`.
 
-        $ apt-get  install  ghc
-        $ apt-get  install  cabal
-        $ cabal install elf
+You will also need Haskell's standard `elf` library for parsing ELF
+files.
 
-For Forvis per se, the version of ghc should not matter, since Forvis
-is written in "extremely elementary" Haskell that has been stable for
-more than a decade.  You can do the analogous package-install on other
-Linux distributions using their native package mechanisms, and use
-Macports on Apple OS X.  Full details can be found at `haskell.org`.
+For example, on Debian and Ubuntu systems, you can say:
 
-However, the simulator uses some external Haskell libraries (elf,
-softfloat-hs) that require `ghc` version 8.2.1 or later.
+        $ sudo apt-get update
+        $ sudo apt-get install -y software-properties-common
+        $ sudo add-apt-repository -y ppa:hvr/ghc
+        $ sudo apt-get update
+        $ sudo apt-get install -y  cabal-install-3.2  ghc-8.8.3
+
+These will install the named versions of ghc and cabal into
+`/opt/cabal/` and `/opt/ghc/`.  Add these to your `PATH`:
+
+        $ export PATH=/opt/cabal/bin:/opt/ghc/bin:$PATH
+
+Then, you can install the `elf` library:
+
+        $ cabal install --lib  elf
+
+The above version numbers were current in March 2020.  For Forvis per
+se, the specific version of ghc should not matter, since Forvis is
+written in "extremely elementary" Haskell that has been stable for
+more than a decade.  However, the simulator uses some external Haskell
+libraries (elf, softfloat-hs) that require `ghc` version 8.2.1 or
+later.
 
         $ ghc --version
 
 will tell you what version of ghc you have.
+
+For other OSs, you can do the analogous package-install using their
+native package mechanisms, Macports on Apple OS X, etc. Please consult
+`haskell.org` for more details.
 
 #### Optional one-time build of the `softfloat` C library
 
