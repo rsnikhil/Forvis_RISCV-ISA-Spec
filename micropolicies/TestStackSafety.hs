@@ -196,8 +196,8 @@ docStateDesc pplus sd =
 printStateDesc :: PolicyPlus -> StateDesc -> String
 printStateDesc pplus d = P.render $ docStateDesc pplus d
          
-docTestState pplus ts =
-  docRichStates pplus (ts ^. mp) (map (\x -> calcDiff pplus (ts ^. mp) (x ^. mp_state)) (ts ^. variants))
+-- docTestState pplus ts =
+--   docRichStates pplus (ts ^. mp) (map (\x -> calcDiff pplus (ts ^. mp) (x ^. mp_state)) (ts ^. variants))
 
 
 initDesc :: Map Integer DescTag -> [Integer] -> [Integer] -> StateDesc
@@ -297,28 +297,28 @@ next_desc pplus def s d s'
     --                     ++ "Rich State:\n"
     --                     ++ P.render (docRichStates pplus s [])
 
--- A scrambled version of S w.r.t. D is identical in the instruction memory and
--- accessible parts, and arbitrary in the inaccessible parts of the data memory.
--- TODO: Better scrambling, link to TestStack functionality (cf. variants).
-scramble :: DescTag -> TestState a -> StateDesc -> TestState a
-scramble def ts d =
-  let
-    scramble_mem m = Map.mapWithKey
-      (\i v -> if accessible def i d || isInstruction def i d then v else 0) m
-  in
-    (%~) (mp . ms . fmem) scramble_mem ts
+-- -- A scrambled version of S w.r.t. D is identical in the instruction memory and
+-- -- accessible parts, and arbitrary in the inaccessible parts of the data memory.
+-- -- TODO: Better scrambling, link to TestStack functionality (cf. variants).
+-- scramble :: DescTag -> TestState a -> StateDesc -> TestState a
+-- scramble def ts d =
+--   let
+--     scramble_mem m = Map.mapWithKey
+--       (\i v -> if accessible def i d || isInstruction def i d then v else 0) m
+--   in
+--     (%~) (mp . ms . fmem) scramble_mem ts
 
-eqMapsWithDefault :: (Ord k, Eq a) => Map k a -> Map k a -> a -> Bool
-eqMapsWithDefault m1 m2 adef =
-  let
-    ks = Map.keys m1 `List.union` Map.keys m2
-    checkKey i =
-      let
-        a1 = Map.findWithDefault adef i m1
-        a2 = Map.findWithDefault adef i m2
-      in a1 == a2 
-  in
-    all checkKey ks
+-- eqMapsWithDefault :: (Ord k, Eq a) => Map k a -> Map k a -> a -> Bool
+-- eqMapsWithDefault m1 m2 adef =
+--   let
+--     ks = Map.keys m1 `List.union` Map.keys m2
+--     checkKey i =
+--       let
+--         a1 = Map.findWithDefault adef i m1
+--         a2 = Map.findWithDefault adef i m2
+--       in a1 == a2 
+--   in
+--     all checkKey ks
 
 eqMapProperty :: (Pretty k, Pretty a, Ord k, Eq a) =>
                  PolicyPlus -> Map k a -> Map k a -> a -> Property
@@ -341,51 +341,51 @@ eqMapProperty pplus m1 m2 adef =
   in 
     conjoin (map checkKey ks)
 
-stepOrFail :: PolicyPlus -> TestState a -> TestState a
-stepOrFail pplus ts =
-  case step pplus ts of
-    Right ts' -> ts'
-    _ -> error $ "Failed to step through!"
+-- stepOrFail :: PolicyPlus -> TestState a -> TestState a
+-- stepOrFail pplus ts =
+--   case step pplus ts of
+--     Right ts' -> ts'
+--     _ -> error $ "Failed to step through!"
 
--- TODO: Possibly use trace instead of explicit steps. Explain relation between
--- property on traces and paper definition.
--- Alternative forms of this property: between a pair of consecutive states
--- (here), other alternatives.
-step_consistent :: PolicyPlus ->
-                   (StateDesc, TestState a, TestState a, TestState a, TestState a) ->
-                   Bool
-step_consistent pplus (d, ts, ts', tt, tt') =
-  let
-    def                = to_desc (initMem pplus)
-    -- The instruction memory and the accessible_D parts of S’ and T’ agree
-    -- and the inaccessible_D parts of T and T’ agree.
-    memS'              = ts' ^. mp ^. ms ^. fmem
-    memT               = tt  ^. mp ^. ms ^. fmem
-    memT'              = tt' ^. mp ^. ms ^. fmem
-    filterInstrAcc i _ = accessible def i d || isInstruction def i d
-    filterInacc    i _ = not $ accessible def i d
-    instrAccS'         = Map.mapWithKey filterInstrAcc memS'
-    instrAccT'         = Map.mapWithKey filterInstrAcc memT'
-    inaccT             = Map.mapWithKey filterInacc memT
-    inaccT'            = Map.mapWithKey filterInacc memT'
-    defInstrAcc        = accessibleTag def (pcdepth d) ||
-                         isInstructionTag def
-    defInacc           = not $ accessibleTag def (pcdepth d)
-  in
---          trace ("Result: " ++ show (eqMapsWithDefault instrAccS' instrAccT' defInstrAcc &&
---                                     eqMapsWithDefault inaccT inaccT' defInacc))
---          trace ("memS': " ++ show memS')
---          trace ("memT: " ++ show memT)
---          trace ("memT': " ++ show memT')
---          trace ("instrAccS': " ++ show instrAccS')
---          trace ("instrAccT': " ++ show instrAccT')
---          trace ("inaccT: " ++ show inaccT)
---          trace ("inaccT': " ++ show inaccT')
-    eqMapsWithDefault instrAccS' instrAccT' defInstrAcc &&
-    eqMapsWithDefault inaccT inaccT' defInacc
-    -- &&
-    -- -- T’ is step consistent with D’.
-    -- undefined
+-- -- TODO: Possibly use trace instead of explicit steps. Explain relation between
+-- -- property on traces and paper definition.
+-- -- Alternative forms of this property: between a pair of consecutive states
+-- -- (here), other alternatives.
+-- step_consistent :: PolicyPlus ->
+--                    (StateDesc, TestState a, TestState a, TestState a, TestState a) ->
+--                    Bool
+-- step_consistent pplus (d, ts, ts', tt, tt') =
+--   let
+--     def                = to_desc (initMem pplus)
+--     -- The instruction memory and the accessible_D parts of S’ and T’ agree
+--     -- and the inaccessible_D parts of T and T’ agree.
+--     memS'              = ts' ^. mp ^. ms ^. fmem
+--     memT               = tt  ^. mp ^. ms ^. fmem
+--     memT'              = tt' ^. mp ^. ms ^. fmem
+--     filterInstrAcc i _ = accessible def i d || isInstruction def i d
+--     filterInacc    i _ = not $ accessible def i d
+--     instrAccS'         = Map.mapWithKey filterInstrAcc memS'
+--     instrAccT'         = Map.mapWithKey filterInstrAcc memT'
+--     inaccT             = Map.mapWithKey filterInacc memT
+--     inaccT'            = Map.mapWithKey filterInacc memT'
+--     defInstrAcc        = accessibleTag def (pcdepth d) ||
+--                          isInstructionTag def
+--     defInacc           = not $ accessibleTag def (pcdepth d)
+--   in
+-- --          trace ("Result: " ++ show (eqMapsWithDefault instrAccS' instrAccT' defInstrAcc &&
+-- --                                     eqMapsWithDefault inaccT inaccT' defInacc))
+-- --          trace ("memS': " ++ show memS')
+-- --          trace ("memT: " ++ show memT)
+-- --          trace ("memT': " ++ show memT')
+-- --          trace ("instrAccS': " ++ show instrAccS')
+-- --          trace ("instrAccT': " ++ show instrAccT')
+-- --          trace ("inaccT: " ++ show inaccT)
+-- --          trace ("inaccT': " ++ show inaccT')
+--     eqMapsWithDefault instrAccS' instrAccT' defInstrAcc &&
+--     eqMapsWithDefault inaccT inaccT' defInacc
+--     -- &&
+--     -- -- T’ is step consistent with D’.
+--     -- undefined
 
 to_desc :: TagSet -> DescTag
 to_desc ts =
@@ -396,121 +396,121 @@ to_desc ts =
     -- The rest are instructions    
     _ -> Instr
 
--- TODO: Are blessed calls also tagged with Instr? Anything else?
-testInitDesc :: TestState a -> StateDesc
-testInitDesc ts =
-  let
-    pmemMap = p_mem (ts ^. mp ^. ps) ^. pmem_map
-    pmemDesc = Map.map to_desc pmemMap
-    callers = Map.filter ((==) callTag) pmemMap & Map.keys
-    callees = Map.filter ((==) calleeTag) pmemMap & Map.keys
-  in
-    initDesc pmemDesc callers callees
+-- -- TODO: Are blessed calls also tagged with Instr? Anything else?
+-- testInitDesc :: TestState a -> StateDesc
+-- testInitDesc ts =
+--   let
+--     pmemMap = p_mem (ts ^. mp ^. ps) ^. pmem_map
+--     pmemDesc = Map.map to_desc pmemMap
+--     callers = Map.filter ((==) callTag) pmemMap & Map.keys
+--     callees = Map.filter ((==) calleeTag) pmemMap & Map.keys
+--   in
+--     initDesc pmemDesc callers callees
 
--- Enrich a trace of test states with their associated state descriptions.
--- Currently, doing so after the run, so relatively inefficient.
-trace_descs :: PolicyPlus -> DescTag -> [TestState a] -> [(TestState a, StateDesc)]
-trace_descs pplus def tss =
-  let
-    tsInit   = head "tsInit" tss
-    descInit = testInitDesc tsInit
+-- -- Enrich a trace of test states with their associated state descriptions.
+-- -- Currently, doing so after the run, so relatively inefficient.
+-- trace_descs :: PolicyPlus -> DescTag -> [TestState a] -> [(TestState a, StateDesc)]
+-- trace_descs pplus def tss =
+--   let
+--     tsInit   = head "tsInit" tss
+--     descInit = testInitDesc tsInit
 
-    accInit  = [(tsInit, descInit)]
-    foldDesc tds ts' =
-      let
-        (ts, td) = head "foldDesc" tds
-        -- NOW: fix fromJust
-        td' = fromJust $ next_desc pplus def (ts ^. mp) td (ts' ^. mp)
-      in
-        (ts', td') : tds
-    revDescs = foldl foldDesc accInit (tail tss)
-  in
-    reverse revDescs
+--     accInit  = [(tsInit, descInit)]
+--     foldDesc tds ts' =
+--       let
+--         (ts, td) = head "foldDesc" tds
+--         -- NOW: fix fromJust
+--         td' = fromJust $ next_desc pplus def (ts ^. mp) td (ts' ^. mp)
+--       in
+--         (ts', td') : tds
+--     revDescs = foldl foldDesc accInit (tail tss)
+--   in
+--     reverse revDescs
 
--- A direct encoding of the test of noninterference on stacks: if the current
--- instruction is a return, locate its matching call in the trace and compare
--- the two memory states.
---   In doing so, we can rely on state descriptions or on instruction decoding.
--- The former is used to locate matching calls, whereas without relying on
--- well-bracketedness.
--- TODO: How does scrambling interact with this process?
-find_call :: [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
-find_call trace_rev = do 
-  (_, callee_td) <- listToMaybe trace_rev
-  caller_ts <- snd <$> listToMaybe (stack callee_td)
-  let find_aux t = case t of
-                     [] -> Nothing
-                     (ts, td) : t' -> if (ts ^. mp) == caller_ts then Just (ts, td) else find_aux t'
-  find_aux trace_rev
---    (_, callee_td) = head "find_call/callee" trace_rev
---    caller_ts = snd $ head "find_call/caller" $ stack callee_td
+-- -- A direct encoding of the test of noninterference on stacks: if the current
+-- -- instruction is a return, locate its matching call in the trace and compare
+-- -- the two memory states.
+-- --   In doing so, we can rely on state descriptions or on instruction decoding.
+-- -- The former is used to locate matching calls, whereas without relying on
+-- -- well-bracketedness.
+-- -- TODO: How does scrambling interact with this process?
+-- find_call :: [(TestState a, StateDesc)] -> Maybe (TestState a, StateDesc)
+-- find_call trace_rev = do 
+--   (_, callee_td) <- listToMaybe trace_rev
+--   caller_ts <- snd <$> listToMaybe (stack callee_td)
+--   let find_aux t = case t of
+--                      [] -> Nothing
+--                      (ts, td) : t' -> if (ts ^. mp) == caller_ts then Just (ts, td) else find_aux t'
+--   find_aux trace_rev
+-- --    (_, callee_td) = head "find_call/callee" trace_rev
+-- --    caller_ts = snd $ head "find_call/caller" $ stack callee_td
 
--- TODO: Refactor definitions (see above).
--- Clarify: are instructions accessible?
-mem_NI :: DescTag -> TestState a -> TestState a -> StateDesc -> Bool
-mem_NI def ts ts' d =
-  let
-    mem                = ts  ^. mp ^. ms ^. fmem
-    mem'               = ts' ^. mp ^. ms ^. fmem
-    filterInstrAcc i _ = accessible def i d || isInstruction def i d
-    instrAcc           = Map.mapWithKey filterInstrAcc mem
-    instrAcc'          = Map.mapWithKey filterInstrAcc mem'
-    -- TODO: Refactor these definitions, also in step_consistent
-    defInstrAcc        = accessibleTag def (pcdepth d) ||
-                         isInstructionTag def
-  in
-    eqMapsWithDefault instrAcc instrAcc' defInstrAcc
+-- -- TODO: Refactor definitions (see above).
+-- -- Clarify: are instructions accessible?
+-- mem_NI :: DescTag -> TestState a -> TestState a -> StateDesc -> Bool
+-- mem_NI def ts ts' d =
+--   let
+--     mem                = ts  ^. mp ^. ms ^. fmem
+--     mem'               = ts' ^. mp ^. ms ^. fmem
+--     filterInstrAcc i _ = accessible def i d || isInstruction def i d
+--     instrAcc           = Map.mapWithKey filterInstrAcc mem
+--     instrAcc'          = Map.mapWithKey filterInstrAcc mem'
+--     -- TODO: Refactor these definitions, also in step_consistent
+--     defInstrAcc        = accessibleTag def (pcdepth d) ||
+--                          isInstructionTag def
+--   in
+--     eqMapsWithDefault instrAcc instrAcc' defInstrAcc
 
--- Find return addresses based on the PIPE state.
--- TODO: Possibly in combination with other tags?
-isReturn :: TestState a -> Bool
-isReturn s =
-  let
-    pmemMap = s ^. mp . ps . pmem
-    pc = s ^. mp ^.  ms . fpc
-  in
-    pmemMap Map.!? pc == Just tagR3
+-- -- Find return addresses based on the PIPE state.
+-- -- TODO: Possibly in combination with other tags?
+-- isReturn :: TestState a -> Bool
+-- isReturn s =
+--   let
+--     pmemMap = s ^. mp . ps . pmem
+--     pc = s ^. mp ^.  ms . fpc
+--   in
+--     pmemMap Map.!? pc == Just tagR3
 
-test_NI :: DescTag -> [(TestState a, StateDesc)] -> Bool
-test_NI def trace_rev =
-  let
-    -- Enriched trace and top (last step, under consideration)
-    (ts, td)  = head "test_NI" trace_rev
-    -- Location of matching (potential) caller and depth
-    Just (ts', td') = find_call trace_rev
-    -- depth = pcdepth td'
-  in
-    if isReturn ts then mem_NI def ts ts' td'
-    else True -- Holds vacuously: nothing to test here
+-- test_NI :: DescTag -> [(TestState a, StateDesc)] -> Bool
+-- test_NI def trace_rev =
+--   let
+--     -- Enriched trace and top (last step, under consideration)
+--     (ts, td)  = head "test_NI" trace_rev
+--     -- Location of matching (potential) caller and depth
+--     Just (ts', td') = find_call trace_rev
+--     -- depth = pcdepth td'
+--   in
+--     if isReturn ts then mem_NI def ts ts' td'
+--     else True -- Holds vacuously: nothing to test here
 
--- TODO: Rephrase indistinguishability to only look at clean locs?
-prop_NI :: PolicyPlus -> Int -> TestState () -> Property
-prop_NI pplus maxCount ts =
---  whenFail (putStrLn $ printTestState pplus ts)
---           False
-  let (trace,err) = traceExec pplus ts maxCount in
-  whenFail (do putStrLn $ "Trace: (len = " ++ show (length trace) ++ ")"
-               putStrLn $ printTrace pplus trace
-               putStrLn "Termination error:"
-               putStrLn $ show err
-           ) $ length trace > 1
---  allWhenFail (\ts tss -> --tss is reversed here
---                 (whenFail (do putStrLn "Indistinguishable tags found!"
---                               putStrLn "Original Test State:"
---                               putStrLn $ printTestState pplus ts
---                               putStrLn " Trace:"
---                               putStrLn $ printTrace pplus $ reverse tss
---                           ) $ (indistinguishable (== taintTag) ts))
---                 .&&.
---                 (whenFail (do putStrLn $ "Clean tags set differs."
---                               putStrLn $ "Original: " ++ show clean
---                               putStrLn $ "Current:  " ++ show clean'
---                               putStrLn "Original Test State:"                               
---                               putStrLn $ printTestState pplus ts
---                               putStrLn " Trace:"                               
---                               putStrLn $ printTrace pplus $ reverse tss                               
---                           ) $ (clean == clean'))
---              ) (takeWhile pcInSync trace)
+-- -- TODO: Rephrase indistinguishability to only look at clean locs?
+-- prop_NI :: PolicyPlus -> Int -> TestState () -> Property
+-- prop_NI pplus maxCount ts =
+-- --  whenFail (putStrLn $ printTestState pplus ts)
+-- --           False
+--   let (trace,err) = traceExec pplus ts maxCount in
+--   whenFail (do putStrLn $ "Trace: (len = " ++ show (length trace) ++ ")"
+--                putStrLn $ printTrace pplus trace
+--                putStrLn "Termination error:"
+--                putStrLn $ show err
+--            ) $ length trace > 1
+-- --  allWhenFail (\ts tss -> --tss is reversed here
+-- --                 (whenFail (do putStrLn "Indistinguishable tags found!"
+-- --                               putStrLn "Original Test State:"
+-- --                               putStrLn $ printTestState pplus ts
+-- --                               putStrLn " Trace:"
+-- --                               putStrLn $ printTrace pplus $ reverse tss
+-- --                           ) $ (indistinguishable (== taintTag) ts))
+-- --                 .&&.
+-- --                 (whenFail (do putStrLn $ "Clean tags set differs."
+-- --                               putStrLn $ "Original: " ++ show clean
+-- --                               putStrLn $ "Current:  " ++ show clean'
+-- --                               putStrLn "Original Test State:"                               
+-- --                               putStrLn $ printTestState pplus ts
+-- --                               putStrLn " Trace:"                               
+-- --                               putStrLn $ printTrace pplus $ reverse tss                               
+-- --                           ) $ (clean == clean'))
+-- --              ) (takeWhile pcInSync trace)
 
 -------------------
 -- The Property: --
@@ -541,7 +541,7 @@ single_step_stack_safety pplus (s, d, t, s', d', t') =
       -- Default instruction is: N/A
       defInstr = error "Default instruction should never be accessed"
 
-      -- | Instruction Memory comparison 
+      -- | Instruction Memory comparison
       -- Calculate instruction memory (of s' and t' w.r.t D)
       isInstr i _ = isInstruction def i d
       instrS' = Map.filterWithKey isInstr (s' ^. ms . fmem)
@@ -570,74 +570,74 @@ single_step_stack_safety pplus (s, d, t, s', d', t') =
         putStrLn "Arrive at test state:"
         putStrLn $ printTestState pplus (TS s' [SE t' ()])
         putStrLn ""
-  in 
+  in
 
   whenFail (debug_info "Instruction  memory mismatch.") instrEq .&&.
   whenFail (debug_info "Accessible   memory mismatch.") accEq .&&.
-  whenFail (debug_info "Inaccessible memory mismatch.") inaccEq 
+  whenFail (debug_info "Inaccessible memory mismatch.") inaccEq
 
-{-| Calculate a list of state descriptions based on a trace of rich states -}
-trace_desc_rich :: PolicyPlus -> DescTag -> [RichState] -> StateDesc -> [StateDesc]
--- Regular case: calculate d' based on s -> s' and d
-trace_desc_rich pplus def (s:s':ss) d =
-  case next_desc pplus def s d s' of
-    Just d' -> d : trace_desc_rich pplus def (s':ss) d'
-    Nothing -> error "trace_desc_rich/can't calculate the next description"
--- Termination: End of execution, yield the final d
-trace_desc_rich pplus def [s] d = [d]
--- Error: Empty trace
-trace_desc_rich pplus def [] d = error "trace_desc_rich/input can't be empty"
+-- {-| Calculate a list of state descriptions based on a trace of rich states -}
+-- trace_desc_rich :: PolicyPlus -> DescTag -> [RichState] -> StateDesc -> [StateDesc]
+-- -- Regular case: calculate d' based on s -> s' and d
+-- trace_desc_rich pplus def (s:s':ss) d =
+--   case next_desc pplus def s d s' of
+--     Just d' -> d : trace_desc_rich pplus def (s':ss) d'
+--     Nothing -> error "trace_desc_rich/can't calculate the next description"
+-- -- Termination: End of execution, yield the final d
+-- trace_desc_rich pplus def [s] d = [d]
+-- -- Error: Empty trace
+-- trace_desc_rich pplus def [] d = error "trace_desc_rich/input can't be empty"
 
-{-| The full stack-safety property repeatedly calls single-step
-    on the trace produced by a single generated state S. -}
-genStackSafetyTrace :: PolicyPlus -> Int -> Gen [(RichState, StateDesc, RichState, RichState, StateDesc, RichState)]
-genStackSafetyTrace pplus max_steps = do
-  -- Default memory tag
-  let def = to_desc $ initMem pplus
+-- {-| The full stack-safety property repeatedly calls single-step
+--     on the trace produced by a single generated state S. -}
+-- genStackSafetyTrace :: PolicyPlus -> Int -> Gen [(RichState, StateDesc, RichState, RichState, StateDesc, RichState)]
+-- genStackSafetyTrace pplus max_steps = do
+--   -- Default memory tag
+--   let def = to_desc $ initMem pplus
   
-  -- Generate a single machine state
-  s <- genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag
-  -- Produce its execution trace
-  let (ss,err) = traceRich pplus s max_steps
+--   -- Generate a single machine state
+--   s <- genMachine pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag
+--   -- Produce its execution trace
+--   let (ss,err) = traceRich pplus s max_steps
 
-  -- Produce the initial state description
-  let d = let pm = s ^. ps . pmem
-              layout  = Map.map to_desc pm
-              callers = Map.keys $ Map.filter ((==) callTag)   pm
-              callees = Map.keys $ Map.filter ((==) calleeTag) pm
-          in initDesc layout callers callees
-  -- Annotate the trace with state descriptions
-      ds = trace_desc_rich pplus def ss d
+--   -- Produce the initial state description
+--   let d = let pm = s ^. ps . pmem
+--               layout  = Map.map to_desc pm
+--               callers = Map.keys $ Map.filter ((==) callTag)   pm
+--               callees = Map.keys $ Map.filter ((==) calleeTag) pm
+--           in initDesc layout callers callees
+--   -- Annotate the trace with state descriptions
+--       ds = trace_desc_rich pplus def ss d
       
-  -- Scramble each machine state
-  -- TO DISCUSS: Our variation function currently operates based on tags (to be generic). Should we take descriptions?
-  ts <- mapM (varySecretState pplus isSecretMP) ss
+--   -- Scramble each machine state
+--   -- TO DISCUSS: Our variation function currently operates based on tags (to be generic). Should we take descriptions?
+--   ts <- mapM (varySecretState pplus isSecretMP) ss
   
-  -- Step all of the scrambled states. These might fail, so result is an Either String
-  let ts' = map (stepRich pplus) ts
+--   -- Step all of the scrambled states. These might fail, so result is an Either String
+--   let ts' = map (stepRich pplus) ts
 
-  -- Group all of the different parts together
-      -- Regular case, at least two elements in each
-      group (s:s':ss) (d:d':ds) (t:ts) (et':ts') =
-        case et' of
-          Right t' -> (s,d,t,s',d',t') : group (s':ss) (d':ds) ts ts'
-          -- TO DISCUSS: What should we do if it fails to execute?
-          -- For now, drop.
-          -- TODO: Stats on how many?
-          Left _   -> group (s':ss) (d':ds) ts ts'
-      -- Base case, everything should have the same length
-      group [s] [d] [t] [t'] = [] -- Base
-      group _ _ _ _ = error "group arguments don't have the same length or are empty."
+--   -- Group all of the different parts together
+--       -- Regular case, at least two elements in each
+--       group (s:s':ss) (d:d':ds) (t:ts) (et':ts') =
+--         case et' of
+--           Right t' -> (s,d,t,s',d',t') : group (s':ss) (d':ds) ts ts'
+--           -- TO DISCUSS: What should we do if it fails to execute?
+--           -- For now, drop.
+--           -- TODO: Stats on how many?
+--           Left _   -> group (s':ss) (d':ds) ts ts'
+--       -- Base case, everything should have the same length
+--       group [s] [d] [t] [t'] = [] -- Base
+--       group _ _ _ _ = error "group arguments don't have the same length or are empty."
 
-  -- Pack and return
-  return $ group ss ds ts ts'
+--   -- Pack and return
+--   return $ group ss ds ts ts'
 
-prop_stack_safety :: PolicyPlus -> Property 
-prop_stack_safety pplus =
-  forAllShrinkShow (genStackSafetyTrace pplus maxInstrsToGenerate)
-                   (\tr -> []) -- TODO: Shrinking
-                   (\tr -> "") -- Empty printing. All inside the single_step
-                   (\tr -> conjoin $ map (single_step_stack_safety pplus) tr)
+-- prop_stack_safety :: PolicyPlus -> Property 
+-- prop_stack_safety pplus =
+--   forAllShrinkShow (genStackSafetyTrace pplus maxInstrsToGenerate)
+--                    (\tr -> []) -- TODO: Shrinking
+--                    (\tr -> "") -- Empty printing. All inside the single_step
+--                    (\tr -> conjoin $ map (single_step_stack_safety pplus) tr)
 
 {-| The full stack property operates on traces of TestStates (Main + Variants)
 
@@ -651,7 +651,7 @@ stack_safety_full pplus n d ts =
     
   -- First, check if the currently executed instruction is a call
   let isCallee = elem (ts ^. mp. ms . fpc) (callsites d) in
-    
+
   -- Create a scrambler for the current step:
   -- LEO-TODO: only scramble before a call. Shouldn't this be right after a call though?
   let scramble =
@@ -665,10 +665,10 @@ stack_safety_full pplus n d ts =
 
   -- Actually do the scrambling and continue:
   forAllShrinkShow scramble (const []) (const "") $ \ts' ->
-  
+
   -- Take a step in ALL machine variants in ts'
   case step pplus ts' of
-    Left err -> collect err $ property True -- Execution terminated 
+    Left err -> collect err $ property True -- Execution terminated
     Right ts'' ->
       -- Calculate the next state description:
       let d' = case next_desc pplus def (ts ^. mp) d (ts'' ^. mp) of
@@ -697,77 +697,77 @@ prop_stack_safety_full pplus =
                  in initDesc layout callers callees
          in stack_safety_full pplus maxInstrsToGenerate d ts)
   
--- Given a reverse execution trace and the latest test state in an execution,
--- compute the following:
---  * The full trace in execution order;
---  * The enrichment of the full trace with state descriptions;
---  * The scrambling of each of the states in the trace w.r.t. its description.
--- For each of the two resulting traces of tests states (original and
--- scrambled), compute the successor of each test state:
---  * For the original states, simply shift the trace one position;
---  * For the scrambled trace, apply the step function manually.
--- In both cases, ignore the last state of the two traces, given that a next
--- state may not exist. Finally, pack all five components together (dropping
--- the last element in those lists where it still appears) and test the
--- property on the most recent tuple.
-prop_NI' :: PolicyPlus -> Int -> TestState () -> Property
-prop_NI' pplus maxCount ts =
-  let (trace,err) = traceExec pplus ts maxCount
-      def = to_desc (initMem pplus)
-  in 
-    collect (length $ takeWhile pcInSync trace, length trace, err) $ 
-    allWhenFail (\ts tss -> --tss is reversed here
-                  let
-                    tssS = ts : tss & reverse
-                    tssS_sds = tssS & trace_descs pplus def
-                    (_, sds) = List.unzip tssS_sds
-                    tssT = List.map (\(ts, sd) -> scramble def ts sd) tssS_sds
-                    -- dropLast l = take (List.length l - 1) l
-                    tssS' = List.drop 1 tssS
-                    tssT' = List.map (stepOrFail pplus) (take (List.length tssT - 1) tssT)
-                    tuples = List.zip5 sds tssS tssS' tssT tssT'
-                    tuple = tuples & reverse & List.take 1
-                    testInitTuple ts = case ts of
-                      [t] -> step_consistent pplus t
-                      [] -> True
-                      _ -> error $ "testInitTuple"
-                  in
-                    -- TODO: At the moment, only the last element is tested at
-                    -- each step, incurring much redundant computation.
-                    (whenFail (do putStrLn "Initial state does not preserve step consistency!"
-                                  putStrLn "Original Test State:"
-                                  putStrLn $ printTestState pplus ts
-                                  putStrLn " Trace:"
-                                  putStrLn $ printTrace pplus $ reverse tss
-                                  putStrLn "Final State Desc"
-                                  let descInit = testInitDesc ts
-                                  putStrLn $ P.render $ docStateDesc pplus descInit
-                                  -- TODO: Print state description
-                             ) $ (testInitTuple tuple))
-                  .&&.
-                   (whenFail (do putStrLn "Stack state at call not preserved at return!"
-                                 putStrLn "Original Test State:"
-                                 putStrLn $ printTestState pplus ts
-                                 putStrLn " Trace:"
-                                 putStrLn $ printTrace pplus $ reverse tss
-                                 -- TODO: Print state description
-                             ) $ (test_NI def (tssS_sds & List.reverse)))
---                 (whenFail (do putStrLn "Indistinguishable tags found!"
---                               putStrLn "Original Test State:"
---                               putStrLn $ printTestState pplus ts
---                               putStrLn " Trace:"
---                               putStrLn $ printTrace pplus $ reverse tss
---                           ) $ (indistinguishable (== taintTag) ts))
---                 .&&.
---                 (whenFail (do putStrLn $ "Clean tags set differs."
---                               putStrLn $ "Original: " ++ show clean
---                               putStrLn $ "Current:  " ++ show clean'
---                               putStrLn "Original Test State:"                               
---                               putStrLn $ printTestState pplus ts
---                               putStrLn " Trace:"                               
---                               putStrLn $ printTrace pplus $ reverse tss                               
---                           ) $ (clean == clean'))
-                ) (takeWhile pcInSync trace)
+-- -- Given a reverse execution trace and the latest test state in an execution,
+-- -- compute the following:
+-- --  * The full trace in execution order;
+-- --  * The enrichment of the full trace with state descriptions;
+-- --  * The scrambling of each of the states in the trace w.r.t. its description.
+-- -- For each of the two resulting traces of tests states (original and
+-- -- scrambled), compute the successor of each test state:
+-- --  * For the original states, simply shift the trace one position;
+-- --  * For the scrambled trace, apply the step function manually.
+--   -- In both cases, ignore the last state of the two traces, given that a next
+-- -- state may not exist. Finally, pack all five components together (dropping
+-- -- the last element in those lists where it still appears) and test the
+-- -- property on the most recent tuple.
+-- prop_NI' :: PolicyPlus -> Int -> TestState () -> Property
+-- prop_NI' pplus maxCount ts =
+--   let (trace,err) = traceExec pplus ts maxCount
+--       def = to_desc (initMem pplus)
+--   in 
+--     collect (length $ takeWhile pcInSync trace, length trace, err) $ 
+--     allWhenFail (\ts tss -> --tss is reversed here
+--                   let
+--                     tssS = ts : tss & reverse
+--                     tssS_sds = tssS & trace_descs pplus def
+--                     (_, sds) = List.unzip tssS_sds
+--                     tssT = List.map (\(ts, sd) -> scramble def ts sd) tssS_sds
+--                     -- dropLast l = take (List.length l - 1) l
+--                     tssS' = List.drop 1 tssS
+--                     tssT' = List.map (stepOrFail pplus) (take (List.length tssT - 1) tssT)
+--                     tuples = List.zip5 sds tssS tssS' tssT tssT'
+--                     tuple = tuples & reverse & List.take 1
+--                     testInitTuple ts = case ts of
+--                       [t] -> step_consistent pplus t
+--                       [] -> True
+--                       _ -> error $ "testInitTuple"
+--                   in
+--                     -- TODO: At the moment, only the last element is tested at
+--                     -- each step, incurring much redundant computation.
+--                     (whenFail (do putStrLn "Initial state does not preserve step consistency!"
+--                                   putStrLn "Original Test State:"
+--                                   putStrLn $ printTestState pplus ts
+--                                   putStrLn " Trace:"
+--                                   putStrLn $ printTrace pplus $ reverse tss
+--                                   putStrLn "Final State Desc"
+--                                   let descInit = testInitDesc ts
+--                                   putStrLn $ P.render $ docStateDesc pplus descInit
+--                                   -- TODO: Print state description
+--                              ) $ (testInitTuple tuple))
+--                   .&&.
+--                    (whenFail (do putStrLn "Stack state at call not preserved at return!"
+--                                  putStrLn "Original Test State:"
+--                                  putStrLn $ printTestState pplus ts
+--                                  putStrLn " Trace:"
+--                                  putStrLn $ printTrace pplus $ reverse tss
+--                                  -- TODO: Print state description
+--                              ) $ (test_NI def (tssS_sds & List.reverse)))
+-- --                 (whenFail (do putStrLn "Indistinguishable tags found!"
+-- --                               putStrLn "Original Test State:"
+-- --                               putStrLn $ printTestState pplus ts
+-- --                               putStrLn " Trace:"
+-- --                               putStrLn $ printTrace pplus $ reverse tss
+-- --                           ) $ (indistinguishable (== taintTag) ts))
+-- --                 .&&.
+-- --                 (whenFail (do putStrLn $ "Clean tags set differs."
+-- --                               putStrLn $ "Original: " ++ show clean
+-- --                               putStrLn $ "Current:  " ++ show clean'
+-- --                               putStrLn "Original Test State:"                               
+-- --                               putStrLn $ printTestState pplus ts
+-- --                               putStrLn " Trace:"                               
+-- --                               putStrLn $ printTrace pplus $ reverse tss                               
+-- --                           ) $ (clean == clean'))
+--                 ) (takeWhile pcInSync trace)
 
-prop :: PolicyPlus -> TestState () -> Property
-prop pplus ts = prop_NI' pplus maxInstrsToGenerate ts
+-- prop :: PolicyPlus -> TestState () -> Property
+-- prop pplus ts = prop_NI' pplus maxInstrsToGenerate ts
