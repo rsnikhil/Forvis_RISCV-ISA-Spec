@@ -74,7 +74,7 @@ jalGrp (
 #else
 // Not Checking stack depths
 ^ loadGrp(
-       code == {Instr}, env == _, addr == _, mem == {} // TODO: What was res as an input?
+       code == {Instr}, env == _, addr == _, mem == _ // TODO: What was res as an input?
     -> env = env, res = {})
 #endif
 ^ storeGrp(

@@ -158,6 +158,19 @@ main_test = do
   pplus <- load_policy
   quickCheckWith stdArgs{maxSuccess=1000} (prop_stack_safety_full pplus)
 
+main_const instrs = do
+  pplus <- load_policy
+  quickCheckWith stdArgs{maxSuccess=1} (prop_stack_safety_constant instrs pplus)
+
+instr1 =
+  [ (ADDI 3 3 40, instrTag)
+  , (SW 3 3 1000, instrTag)
+  , (JAL ra 4, callTag)
+  , (SW sp ra 4  , tagH1)
+  , (ADDI sp sp 8, tagH2)
+  , (LW 3 3 1000, instrTag)
+  ]
+
 main = main_test
 
 -- | Property
@@ -222,7 +235,9 @@ accessibleTag t depth =
 
 accessible :: DescTag -> Integer -> StateDesc -> Bool
 accessible def i sd =
-  accessibleTag (tagOf def i sd) (pcdepth sd)
+  let res = accessibleTag (tagOf def i sd) (pcdepth sd) in
+--  traceShow ("Accessible", def, i, tagOf def i sd, pcdepth sd, res) res
+  res
 
 isInstructionTag :: DescTag -> Bool
 isInstructionTag t =
@@ -332,10 +347,10 @@ eqMapProperty pplus m1 m2 adef =
 
         -- Debug information
         doc = P.vcat [ P.text "Mapping inequality at key:" <+> pretty pplus i
-                         , P.text "Map 1 binding:" <+> pretty pplus (m1 Map.!? i)
-                         , P.text "Map 2 binding:" <+> pretty pplus (m2 Map.!? i)
-                         , P.text "Default element:" <+> pretty pplus adef
-                         ]
+                     , P.text "Map 1 binding:" <+> pretty pplus (m1 Map.!? i)
+                     , P.text "Map 2 binding:" <+> pretty pplus (m2 Map.!? i)
+                     , P.text "Default element:" <+> pretty pplus adef
+                     ]
       in                  
         whenFail (do putStrLn $ P.render doc) (a1 == a2)
   in 
@@ -646,10 +661,12 @@ single_step_stack_safety pplus (s, d, t, s', d', t') =
 -}
 stack_safety_full :: PolicyPlus -> Int -> StateDesc -> TestState () -> Property
 stack_safety_full pplus 0 d ts = collect "Out of fuel" $ property True
-stack_safety_full pplus n d ts =
+stack_safety_full pplus n d ts = 
+--  trace ("Entering stack safety full with fuel: " ++ show n) $
+--  traceShow (callsites d) $
   let def = to_desc $ initMem pplus in
     
-  -- First, check if the currently executed instruction is a call
+  -- First, check if the currently executed instruction is an entry point
   let isCallee = elem (ts ^. mp. ms . fpc) (callsites d) in
 
   -- Create a scrambler for the current step:
@@ -677,10 +694,13 @@ stack_safety_full pplus n d ts =
       in
 
       -- Call single_step stack_safety for each variant
-      conjoin $ map (\(t, t') -> single_step_stack_safety pplus
+      (conjoin $ map (\(t, t') -> single_step_stack_safety pplus
                                    (ts'  ^. mp, d , t  ^. mp_state,
                                     ts'' ^. mp, d', t' ^. mp_state))
-                    (zip (ts' ^. variants) (ts'' ^. variants))
+                    (zip (ts' ^. variants) (ts'' ^. variants)))
+      .&&.
+      -- Recursively call stack safety
+      (stack_safety_full pplus (n-1) d' ts'')
 
 prop_stack_safety_full :: PolicyPlus -> Property
 prop_stack_safety_full pplus =
@@ -696,6 +716,23 @@ prop_stack_safety_full pplus =
                      callees = Map.keys $ Map.filter ((==) calleeTag) pm
                  in initDesc layout callers callees
          in stack_safety_full pplus maxInstrsToGenerate d ts)
+
+prop_stack_safety_constant :: [(Instr_I, TagSet)] -> PolicyPlus -> Property
+prop_stack_safety_constant instrs pplus =
+  forAllShrinkShow
+       (genVariationTestStateFromInstrs pplus genMTag genGPRTag dataP codeP callP headerSeq returnSeq genITag spTag instrs isSecretMP mkInfo)
+       (\_ -> []) -- no shrink
+       (\_ -> "") -- no show
+       (\ts ->
+         -- Produce the initial state description
+--         trace (P.render $ docTestState pplus ts) $
+         let d = let pm = ts ^. mp . ps . pmem
+                     layout  = Map.map to_desc pm
+                     callers = Map.keys $ Map.filter ((==) callTag) pm
+                     callees = Map.keys $ Map.filter ((==) calleeTag) pm
+                 in initDesc layout callers callees
+         in stack_safety_full pplus (length instrs + 1) d ts)
+
   
 -- -- Given a reverse execution trace and the latest test state in an execution,
 -- -- compute the following:
