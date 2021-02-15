@@ -99,7 +99,7 @@ exec_CSRRWI  instr_32b  is_C  (CSRRWI  rd  zimm  csr_addr)  mstate =
 exec_CSRR_W :: Instr_32b ->
                InstrField ->        -- funct3
                Bool ->              -- is_C
-               CSR_Addr ->
+               GPR_Addr ->
                InstrField ->        -- rs1
                CSR_Addr ->
                Machine_State ->
